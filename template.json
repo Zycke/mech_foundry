@@ -1,0 +1,102 @@
+{
+  "Actor": {
+    "types": ["character", "npc"],
+    "templates": {
+      "base": {
+        "health": {
+          "value": 10,
+          "max": 10
+        },
+        "biography": ""
+      },
+      "attributes": {
+        "str": {
+          "value": 5,
+          "mod": 0
+        },
+        "bod": {
+          "value": 5,
+          "mod": 0
+        },
+        "dex": {
+          "value": 5,
+          "mod": 0
+        },
+        "rfl": {
+          "value": 5,
+          "mod": 0
+        },
+        "int": {
+          "value": 5,
+          "mod": 0
+        },
+        "wil": {
+          "value": 5,
+          "mod": 0
+        },
+        "cha": {
+          "value": 5,
+          "mod": 0
+        },
+        "edg": {
+          "value": 5,
+          "mod": 0
+        }
+      }
+    },
+    "character": {
+      "templates": ["base", "attributes"],
+      "xp": {
+        "value": 0,
+        "spent": 0
+      },
+      "affiliation": "",
+      "rank": ""
+    },
+    "npc": {
+      "templates": ["base", "attributes"],
+      "threat": 1,
+      "role": ""
+    }
+  },
+  "Item": {
+    "types": ["skill", "trait", "weapon", "equipment"],
+    "templates": {
+      "base": {
+        "description": ""
+      }
+    },
+    "skill": {
+      "templates": ["base"],
+      "level": 0,
+      "linkedAttribute": "int",
+      "complexity": "simple",
+      "targetNumber": 7
+    },
+    "trait": {
+      "templates": ["base"],
+      "cost": 0,
+      "type": "positive"
+    },
+    "weapon": {
+      "templates": ["base"],
+      "damage": "1d6",
+      "range": {
+        "short": 0,
+        "medium": 0,
+        "long": 0
+      },
+      "skill": "",
+      "ammo": {
+        "current": 0,
+        "max": 0
+      }
+    },
+    "equipment": {
+      "templates": ["base"],
+      "quantity": 1,
+      "weight": 0,
+      "cost": 0
+    }
+  }
+}

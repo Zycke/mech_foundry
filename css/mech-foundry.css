@@ -1,0 +1,416 @@
+/**
+ * Mech Foundry - Stylesheet
+ * A mech-based TTRPG system for Foundry VTT
+ */
+
+/* ----------------------------------------- */
+/* Variables                                  */
+/* ----------------------------------------- */
+
+:root {
+  --mf-primary: #1a5f7a;
+  --mf-secondary: #57837b;
+  --mf-accent: #c38154;
+  --mf-dark: #0d2d3a;
+  --mf-light: #f0ebe3;
+  --mf-success: #4a9d4a;
+  --mf-danger: #c44536;
+  --mf-border: #888;
+  --mf-border-radius: 4px;
+}
+
+/* ----------------------------------------- */
+/* Sheet Styles                               */
+/* ----------------------------------------- */
+
+.mech-foundry.sheet {
+  background: var(--mf-light);
+  color: var(--mf-dark);
+}
+
+.mech-foundry.sheet .window-content {
+  padding: 5px;
+  overflow-y: auto;
+}
+
+/* ----------------------------------------- */
+/* Sheet Header                               */
+/* ----------------------------------------- */
+
+.mech-foundry .sheet-header {
+  display: flex;
+  flex-direction: row;
+  gap: 10px;
+  padding: 10px;
+  background: linear-gradient(to bottom, var(--mf-primary), var(--mf-dark));
+  border-radius: var(--mf-border-radius);
+  margin-bottom: 10px;
+}
+
+.mech-foundry .sheet-header .profile-img {
+  border: 2px solid var(--mf-accent);
+  border-radius: var(--mf-border-radius);
+  object-fit: cover;
+}
+
+.mech-foundry .sheet-header .header-fields {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.mech-foundry .sheet-header .charname {
+  margin: 0;
+}
+
+.mech-foundry .sheet-header .charname input {
+  font-size: 1.5em;
+  font-weight: bold;
+  color: var(--mf-light);
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--mf-accent);
+  width: 100%;
+}
+
+.mech-foundry .sheet-header .header-details {
+  display: flex;
+  gap: 15px;
+  color: var(--mf-light);
+}
+
+.mech-foundry .sheet-header .header-details .field {
+  display: flex;
+  flex-direction: column;
+}
+
+.mech-foundry .sheet-header .header-details label {
+  font-size: 0.8em;
+  opacity: 0.8;
+}
+
+.mech-foundry .sheet-header .header-details input {
+  background: rgba(255,255,255,0.1);
+  border: 1px solid var(--mf-secondary);
+  color: var(--mf-light);
+  padding: 2px 5px;
+  border-radius: var(--mf-border-radius);
+}
+
+/* ----------------------------------------- */
+/* Resources (Health, XP)                     */
+/* ----------------------------------------- */
+
+.mech-foundry .resource {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--mf-light);
+}
+
+.mech-foundry .resource label {
+  font-weight: bold;
+  min-width: 50px;
+}
+
+.mech-foundry .resource-content {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.mech-foundry .resource input {
+  width: 50px;
+  text-align: center;
+  background: rgba(255,255,255,0.1);
+  border: 1px solid var(--mf-secondary);
+  color: var(--mf-light);
+  border-radius: var(--mf-border-radius);
+}
+
+.mech-foundry .resource .separator {
+  font-size: 1.2em;
+}
+
+/* ----------------------------------------- */
+/* Tabs                                       */
+/* ----------------------------------------- */
+
+.mech-foundry .sheet-tabs {
+  display: flex;
+  gap: 5px;
+  margin-bottom: 10px;
+  border-bottom: 2px solid var(--mf-primary);
+  padding-bottom: 5px;
+}
+
+.mech-foundry .sheet-tabs .item {
+  padding: 5px 15px;
+  background: var(--mf-secondary);
+  color: var(--mf-light);
+  border-radius: var(--mf-border-radius) var(--mf-border-radius) 0 0;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.mech-foundry .sheet-tabs .item:hover {
+  background: var(--mf-primary);
+}
+
+.mech-foundry .sheet-tabs .item.active {
+  background: var(--mf-primary);
+  font-weight: bold;
+}
+
+/* ----------------------------------------- */
+/* Sheet Body                                 */
+/* ----------------------------------------- */
+
+.mech-foundry .sheet-body {
+  padding: 10px;
+}
+
+.mech-foundry .sheet-body .tab {
+  display: none;
+}
+
+.mech-foundry .sheet-body .tab.active {
+  display: block;
+}
+
+/* ----------------------------------------- */
+/* Attributes                                 */
+/* ----------------------------------------- */
+
+.mech-foundry .attributes-list {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+.mech-foundry .attribute {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px;
+  background: white;
+  border: 1px solid var(--mf-border);
+  border-radius: var(--mf-border-radius);
+}
+
+.mech-foundry .attribute-name {
+  flex: 1;
+  font-weight: bold;
+  text-transform: uppercase;
+  font-size: 0.9em;
+}
+
+.mech-foundry .attribute-value input {
+  width: 40px;
+  text-align: center;
+  font-size: 1.2em;
+  font-weight: bold;
+  border: 1px solid var(--mf-border);
+  border-radius: var(--mf-border-radius);
+}
+
+.mech-foundry .attribute-mod {
+  min-width: 35px;
+  text-align: center;
+}
+
+.mech-foundry .mod-value {
+  font-weight: bold;
+  font-size: 1.1em;
+}
+
+.mech-foundry .mod-value.positive {
+  color: var(--mf-success);
+}
+
+.mech-foundry .mod-value.negative {
+  color: var(--mf-danger);
+}
+
+.mech-foundry .attribute-roll {
+  background: var(--mf-primary);
+  color: white;
+  border: none;
+  border-radius: var(--mf-border-radius);
+  padding: 5px 10px;
+  cursor: pointer;
+}
+
+.mech-foundry .attribute-roll:hover {
+  background: var(--mf-accent);
+}
+
+/* ----------------------------------------- */
+/* Items Lists                                */
+/* ----------------------------------------- */
+
+.mech-foundry .items-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 5px 0;
+  border-bottom: 2px solid var(--mf-primary);
+  margin-bottom: 5px;
+}
+
+.mech-foundry .items-header h3 {
+  margin: 0;
+  color: var(--mf-primary);
+}
+
+.mech-foundry .item-create {
+  color: var(--mf-primary);
+  cursor: pointer;
+}
+
+.mech-foundry .item-create:hover {
+  color: var(--mf-accent);
+}
+
+.mech-foundry .items-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.mech-foundry .items-list .item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px;
+  border-bottom: 1px solid #ddd;
+}
+
+.mech-foundry .items-list .item:hover {
+  background: rgba(0,0,0,0.05);
+}
+
+.mech-foundry .items-list .item-name {
+  flex: 1;
+}
+
+.mech-foundry .items-list .item-name.rollable {
+  cursor: pointer;
+  color: var(--mf-primary);
+}
+
+.mech-foundry .items-list .item-name.rollable:hover {
+  color: var(--mf-accent);
+}
+
+.mech-foundry .items-list .item-level,
+.mech-foundry .items-list .item-attr,
+.mech-foundry .items-list .item-damage,
+.mech-foundry .items-list .item-quantity {
+  min-width: 40px;
+  text-align: center;
+  font-weight: bold;
+}
+
+.mech-foundry .item-controls {
+  display: flex;
+  gap: 5px;
+}
+
+.mech-foundry .item-controls a {
+  color: var(--mf-dark);
+  opacity: 0.6;
+  cursor: pointer;
+}
+
+.mech-foundry .item-controls a:hover {
+  opacity: 1;
+  color: var(--mf-accent);
+}
+
+/* ----------------------------------------- */
+/* Sections                                   */
+/* ----------------------------------------- */
+
+.mech-foundry .traits-section,
+.mech-foundry .items-section {
+  margin-top: 15px;
+}
+
+/* ----------------------------------------- */
+/* Editor                                     */
+/* ----------------------------------------- */
+
+.mech-foundry .editor-container {
+  height: 300px;
+}
+
+/* ----------------------------------------- */
+/* Roll Results                               */
+/* ----------------------------------------- */
+
+.mech-foundry.roll-result {
+  padding: 10px;
+  background: var(--mf-light);
+  border-radius: var(--mf-border-radius);
+}
+
+.mech-foundry.roll-result .dice-result {
+  font-size: 1.1em;
+  margin-bottom: 5px;
+}
+
+.mech-foundry.roll-result .target {
+  opacity: 0.7;
+  margin-left: 10px;
+}
+
+.mech-foundry.roll-result .result {
+  font-weight: bold;
+  font-size: 1.2em;
+}
+
+.mech-foundry.roll-result .result.success {
+  color: var(--mf-success);
+}
+
+.mech-foundry.roll-result .result.failure {
+  color: var(--mf-danger);
+}
+
+.mech-foundry.roll-result .margin {
+  font-weight: normal;
+  font-size: 0.9em;
+  opacity: 0.8;
+  margin-left: 5px;
+}
+
+/* ----------------------------------------- */
+/* Flexbox Utilities                          */
+/* ----------------------------------------- */
+
+.mech-foundry .flexrow {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+}
+
+.mech-foundry .flexcol {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ----------------------------------------- */
+/* NPC Sheet Specific                         */
+/* ----------------------------------------- */
+
+.mech-foundry.npc-sheet .npc-attributes {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+@media (max-width: 600px) {
+  .mech-foundry.npc-sheet .npc-attributes {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

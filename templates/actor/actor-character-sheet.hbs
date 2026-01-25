@@ -1,0 +1,163 @@
+<form class="{{cssClass}} mech-foundry" autocomplete="off">
+  {{!-- Sheet Header --}}
+  <header class="sheet-header">
+    <img class="profile-img" src="{{actor.img}}" data-edit="img" title="{{actor.name}}" height="100" width="100"/>
+    <div class="header-fields">
+      <h1 class="charname">
+        <input name="name" type="text" value="{{actor.name}}" placeholder="{{localize 'MECHFOUNDRY.Name'}}"/>
+      </h1>
+      <div class="header-details">
+        <div class="field">
+          <label>{{localize "MECHFOUNDRY.Affiliation"}}</label>
+          <input type="text" name="system.affiliation" value="{{system.affiliation}}" />
+        </div>
+        <div class="field">
+          <label>{{localize "MECHFOUNDRY.Rank"}}</label>
+          <input type="text" name="system.rank" value="{{system.rank}}" />
+        </div>
+      </div>
+      <div class="resource health">
+        <label>{{localize "MECHFOUNDRY.Health"}}</label>
+        <div class="resource-content">
+          <input type="number" name="system.health.value" value="{{system.health.value}}" data-dtype="Number"/>
+          <span class="separator">/</span>
+          <input type="number" name="system.health.max" value="{{system.health.max}}" data-dtype="Number"/>
+        </div>
+      </div>
+      <div class="resource xp">
+        <label>{{localize "MECHFOUNDRY.XP"}}</label>
+        <div class="resource-content">
+          <input type="number" name="system.xp.value" value="{{system.xp.value}}" data-dtype="Number" title="Available"/>
+          <span class="separator">/</span>
+          <input type="number" name="system.xp.spent" value="{{system.xp.spent}}" data-dtype="Number" title="Spent"/>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  {{!-- Sheet Tab Navigation --}}
+  <nav class="sheet-tabs tabs" data-group="primary">
+    <a class="item" data-tab="attributes">{{localize "MECHFOUNDRY.Attributes"}}</a>
+    <a class="item" data-tab="skills">{{localize "MECHFOUNDRY.Skills"}}</a>
+    <a class="item" data-tab="combat">{{localize "MECHFOUNDRY.Combat"}}</a>
+    <a class="item" data-tab="equipment">{{localize "MECHFOUNDRY.Equipment"}}</a>
+    <a class="item" data-tab="biography">{{localize "MECHFOUNDRY.Biography"}}</a>
+  </nav>
+
+  {{!-- Sheet Body --}}
+  <section class="sheet-body">
+
+    {{!-- Attributes Tab --}}
+    <div class="tab attributes" data-group="primary" data-tab="attributes">
+      <div class="attributes-list">
+        {{#each system.attributes as |attr key|}}
+        <div class="attribute">
+          <label class="attribute-name">{{localize (lookup ../attributeLabels key)}}</label>
+          <div class="attribute-value">
+            <input type="number" name="system.attributes.{{key}}.value" value="{{attr.value}}" data-dtype="Number"/>
+          </div>
+          <div class="attribute-mod">
+            <span class="mod-value {{#if (gt attr.mod 0)}}positive{{else if (lt attr.mod 0)}}negative{{/if}}">
+              {{#if (gt attr.mod 0)}}+{{/if}}{{attr.mod}}
+            </span>
+          </div>
+          <button type="button" class="attribute-roll rollable" data-attribute="{{key}}" title="Roll {{key}}">
+            <i class="fas fa-dice"></i>
+          </button>
+        </div>
+        {{/each}}
+      </div>
+
+      {{!-- Traits Section --}}
+      <div class="traits-section">
+        <div class="items-header flexrow">
+          <h3>{{localize "MECHFOUNDRY.Traits"}}</h3>
+          <a class="item-create" data-type="trait"><i class="fas fa-plus"></i> {{localize "MECHFOUNDRY.Add"}}</a>
+        </div>
+        <ol class="items-list">
+          {{#each traits}}
+          <li class="item flexrow" data-item-id="{{this._id}}">
+            <div class="item-name">{{this.name}}</div>
+            <div class="item-controls">
+              <a class="item-edit" title="Edit"><i class="fas fa-edit"></i></a>
+              <a class="item-delete" title="Delete"><i class="fas fa-trash"></i></a>
+            </div>
+          </li>
+          {{/each}}
+        </ol>
+      </div>
+    </div>
+
+    {{!-- Skills Tab --}}
+    <div class="tab skills" data-group="primary" data-tab="skills">
+      <div class="items-header flexrow">
+        <h3>{{localize "MECHFOUNDRY.Skills"}}</h3>
+        <a class="item-create" data-type="skill"><i class="fas fa-plus"></i> {{localize "MECHFOUNDRY.Add"}}</a>
+      </div>
+      <ol class="items-list skills-list">
+        {{#each skills}}
+        <li class="item flexrow" data-item-id="{{this._id}}">
+          <div class="item-name rollable" data-roll-type="skill">
+            <i class="fas fa-dice"></i>
+            {{this.name}}
+          </div>
+          <div class="item-level">{{this.system.level}}</div>
+          <div class="item-attr">{{this.system.linkedAttribute}}</div>
+          <div class="item-controls">
+            <a class="item-edit" title="Edit"><i class="fas fa-edit"></i></a>
+            <a class="item-delete" title="Delete"><i class="fas fa-trash"></i></a>
+          </div>
+        </li>
+        {{/each}}
+      </ol>
+    </div>
+
+    {{!-- Combat Tab --}}
+    <div class="tab combat" data-group="primary" data-tab="combat">
+      <div class="items-header flexrow">
+        <h3>{{localize "MECHFOUNDRY.Weapons"}}</h3>
+        <a class="item-create" data-type="weapon"><i class="fas fa-plus"></i> {{localize "MECHFOUNDRY.Add"}}</a>
+      </div>
+      <ol class="items-list weapons-list">
+        {{#each weapons}}
+        <li class="item flexrow" data-item-id="{{this._id}}">
+          <div class="item-name">{{this.name}}</div>
+          <div class="item-damage">{{this.system.damage}}</div>
+          <div class="item-controls">
+            <a class="item-edit" title="Edit"><i class="fas fa-edit"></i></a>
+            <a class="item-delete" title="Delete"><i class="fas fa-trash"></i></a>
+          </div>
+        </li>
+        {{/each}}
+      </ol>
+    </div>
+
+    {{!-- Equipment Tab --}}
+    <div class="tab equipment" data-group="primary" data-tab="equipment">
+      <div class="items-header flexrow">
+        <h3>{{localize "MECHFOUNDRY.Equipment"}}</h3>
+        <a class="item-create" data-type="equipment"><i class="fas fa-plus"></i> {{localize "MECHFOUNDRY.Add"}}</a>
+      </div>
+      <ol class="items-list equipment-list">
+        {{#each equipment}}
+        <li class="item flexrow" data-item-id="{{this._id}}">
+          <div class="item-name">{{this.name}}</div>
+          <div class="item-quantity">{{this.system.quantity}}</div>
+          <div class="item-controls">
+            <a class="item-edit" title="Edit"><i class="fas fa-edit"></i></a>
+            <a class="item-delete" title="Delete"><i class="fas fa-trash"></i></a>
+          </div>
+        </li>
+        {{/each}}
+      </ol>
+    </div>
+
+    {{!-- Biography Tab --}}
+    <div class="tab biography" data-group="primary" data-tab="biography">
+      <div class="editor-container">
+        {{editor system.biography target="system.biography" button=true owner=owner editable=editable}}
+      </div>
+    </div>
+
+  </section>
+</form>

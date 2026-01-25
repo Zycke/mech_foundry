@@ -1,0 +1,34 @@
+{
+  "id": "mech-foundry",
+  "title": "Mech Foundry",
+  "description": "A mech-based TTRPG system inspired by A Time of War and the BattleTech universe.",
+  "version": "0.1.0",
+  "compatibility": {
+    "minimum": "11",
+    "verified": "12"
+  },
+  "authors": [
+    {
+      "name": "Zycke"
+    }
+  ],
+  "esmodules": ["module/mech-foundry.mjs"],
+  "styles": ["css/mech-foundry.css"],
+  "languages": [
+    {
+      "lang": "en",
+      "name": "English",
+      "path": "lang/en.json"
+    }
+  ],
+  "grid": {
+    "distance": 1,
+    "units": "hex"
+  },
+  "primaryTokenAttribute": "health",
+  "secondaryTokenAttribute": null,
+  "socket": false,
+  "url": "",
+  "manifest": "",
+  "download": ""
+}
