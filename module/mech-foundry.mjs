@@ -149,6 +149,11 @@ function _registerHandlebarsHelpers() {
     return a < b;
   });
 
+  // Less than or equal
+  Handlebars.registerHelper('lte', function(a, b) {
+    return a <= b;
+  });
+
   // Greater than
   Handlebars.registerHelper('gt', function(a, b) {
     return a > b;

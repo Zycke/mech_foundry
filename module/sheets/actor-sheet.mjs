@@ -9,9 +9,9 @@ export class MechFoundryActorSheet extends ActorSheet {
   static get defaultOptions() {
     return foundry.utils.mergeObject(super.defaultOptions, {
       classes: ["mech-foundry", "sheet", "actor"],
-      width: 750,
-      height: 700,
-      tabs: [{ navSelector: ".sheet-tabs", contentSelector: ".sheet-body", initial: "attributes" }]
+      width: 850,
+      height: 750,
+      tabs: [{ navSelector: ".sheet-tabs", contentSelector: ".sheet-body", initial: "combat" }]
     });
   }
 
@@ -63,6 +63,7 @@ export class MechFoundryActorSheet extends ActorSheet {
     const weapons = [];
     const armor = [];
     const equipment = [];
+    const vehicles = [];
 
     // Iterate through items, allocating to containers
     for (let i of context.items) {
@@ -94,6 +95,9 @@ export class MechFoundryActorSheet extends ActorSheet {
       else if (i.type === 'equipment') {
         equipment.push(i);
       }
+      else if (i.type === 'vehicle') {
+        vehicles.push(i);
+      }
     }
 
     // Sort skills alphabetically
@@ -105,11 +109,12 @@ export class MechFoundryActorSheet extends ActorSheet {
     context.weapons = weapons;
     context.armor = armor;
     context.equipment = equipment;
+    context.vehicles = vehicles;
 
-    // Calculate highest equipped BAR
+    // Calculate highest equipped BAR (M type as default)
     context.equippedBAR = armor
       .filter(a => a.system.equipped)
-      .reduce((max, a) => Math.max(max, a.system.bar || 0), 0);
+      .reduce((max, a) => Math.max(max, a.system.bar?.m || 0), 0);
   }
 
   /* -------------------------------------------- */

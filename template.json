@@ -12,44 +12,75 @@
           "max": 10
         },
         "stun": false,
+        "unconscious": false,
         "biography": ""
       },
       "attributes": {
         "str": {
-          "value": 5
+          "value": 5,
+          "xp": 0
         },
         "bod": {
-          "value": 5
+          "value": 5,
+          "xp": 0
         },
         "rfl": {
-          "value": 5
+          "value": 5,
+          "xp": 0
         },
         "dex": {
-          "value": 5
+          "value": 5,
+          "xp": 0
         },
         "int": {
-          "value": 5
+          "value": 5,
+          "xp": 0
         },
         "wil": {
-          "value": 5
+          "value": 5,
+          "xp": 0
         },
         "cha": {
-          "value": 5
+          "value": 5,
+          "xp": 0
         },
         "edg": {
           "value": 5,
+          "xp": 0,
           "burned": 0
         }
       }
     },
     "character": {
       "templates": ["base", "attributes"],
+      "personalData": {
+        "height": "",
+        "weight": "",
+        "hair": "",
+        "eyes": "",
+        "player": "",
+        "extra": ""
+      },
+      "affiliation": "",
+      "rank": "",
       "xp": {
         "value": 0,
         "spent": 0
       },
-      "affiliation": "",
-      "rank": ""
+      "cbills": 0,
+      "lifeModules": {
+        "1": { "name": "Early Childhood", "notes": "" },
+        "2": { "name": "Late Childhood", "notes": "" },
+        "3": { "name": "", "notes": "" },
+        "4": { "name": "", "notes": "" },
+        "5": { "name": "", "notes": "" },
+        "6": { "name": "", "notes": "" },
+        "7": { "name": "", "notes": "" },
+        "8": { "name": "", "notes": "" },
+        "9": { "name": "", "notes": "" },
+        "10": { "name": "", "notes": "" }
+      },
+      "vehicles": []
     },
     "npc": {
       "templates": ["base", "attributes"],
@@ -58,7 +89,7 @@
     }
   },
   "Item": {
-    "types": ["skill", "trait", "weapon", "armor", "equipment"],
+    "types": ["skill", "trait", "weapon", "armor", "equipment", "vehicle"],
     "templates": {
       "base": {
         "description": ""
@@ -70,12 +101,16 @@
       "linkedAttribute1": "int",
       "linkedAttribute2": "",
       "complexity": "S",
-      "targetNumber": 7
+      "targetNumber": 7,
+      "xp": 0,
+      "pageRef": ""
     },
     "trait": {
       "templates": ["base"],
       "cost": 0,
-      "traitType": "positive"
+      "traitType": "positive",
+      "xp": 0,
+      "pageRef": ""
     },
     "weapon": {
       "templates": ["base"],
@@ -84,13 +119,13 @@
       "bd": 1,
       "subduing": false,
       "range": {
-        "pointBlank": 0,
-        "short": 0,
-        "medium": 0,
-        "long": 0,
-        "extreme": 0
+        "pointBlank": "",
+        "short": "",
+        "medium": "",
+        "long": "",
+        "extreme": ""
       },
-      "skill": "smallArms",
+      "skill": "",
       "ammo": {
         "value": 0,
         "max": 0
@@ -99,15 +134,30 @@
     },
     "armor": {
       "templates": ["base"],
-      "bar": 0,
       "location": "torso",
+      "armorType": "",
+      "bar": {
+        "m": 0,
+        "b": 0,
+        "e": 0,
+        "x": 0
+      },
       "equipped": true,
       "notes": ""
     },
     "equipment": {
       "templates": ["base"],
       "quantity": 1,
+      "location": "",
+      "stats": "",
       "encumbering": false,
+      "notes": ""
+    },
+    "vehicle": {
+      "templates": ["base"],
+      "vehicleType": "",
+      "mass": "",
+      "traits": "",
       "notes": ""
     }
   }

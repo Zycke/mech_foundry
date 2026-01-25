@@ -70,20 +70,32 @@ export class MechFoundryActor extends Actor {
     if (systemData.fatigue) systemData.fatigue.max = systemData.fatigueCapacity;
 
     // Movement rates (meters per turn)
-    // Walk = STR + RFL
     systemData.movement = systemData.movement || {};
+
+    // Walk = STR + RFL
     systemData.movement.walk = str + rfl;
 
-    // Run = 10 + STR + RFL (+ Running Skill if applicable)
+    // Run/Evade = 10 + STR + RFL (+ Running Skill if applicable)
     const runningSkill = this._getSkillLevel("running") || 0;
     systemData.movement.run = 10 + str + rfl + runningSkill;
 
     // Sprint = Run x 2
     systemData.movement.sprint = systemData.movement.run * 2;
 
+    // Climb = based on Climbing skill, default is Walk/4
+    const climbingSkill = this._getSkillLevel("climbing") || 0;
+    systemData.movement.climb = Math.floor(systemData.movement.walk / 4) + climbingSkill;
+
+    // Crawl = Walk / 4
+    systemData.movement.crawl = Math.floor(systemData.movement.walk / 4);
+
+    // Swim = based on Swimming skill, default is Walk/4
+    const swimmingSkill = this._getSkillLevel("swimming") || 0;
+    systemData.movement.swim = Math.floor(systemData.movement.walk / 4) + swimmingSkill;
+
     // Calculate Injury Modifier (-1 per 25% of damage capacity)
     const damagePercent = (systemData.damage?.value || 0) / systemData.damageCapacity;
-    systemData.injuryModifier = -Math.ceil(damagePercent * 4);
+    systemData.injuryModifier = -Math.floor(damagePercent * 4);
     if (systemData.injuryModifier > 0) systemData.injuryModifier = 0;
 
     // Calculate Fatigue Modifier (-(Fatigue - WIL), minimum 0)
@@ -111,13 +123,30 @@ export class MechFoundryActor extends Actor {
   }
 
   /**
-   * Get total BAR from equipped armor
+   * Get equipped armor by location
+   * @param {string} location Optional location filter
+   * @returns {Array} Array of equipped armor items
+   */
+  getEquippedArmor(location = null) {
+    let armor = this.items.filter(i => i.type === 'armor' && i.system.equipped);
+    if (location) {
+      armor = armor.filter(a => a.system.location === location);
+    }
+    return armor;
+  }
+
+  /**
+   * Get highest BAR value from equipped armor for a damage type
+   * @param {string} damageType 'm', 'b', 'e', or 'x'
+   * @param {string} location Optional location filter
    * @returns {number}
    */
-  getEquippedArmor() {
-    const armor = this.items.filter(i => i.type === 'armor' && i.system.equipped);
-    // Return highest BAR among equipped armor
-    return armor.reduce((max, a) => Math.max(max, a.system.bar || 0), 0);
+  getBAR(damageType = 'm', location = null) {
+    const armor = this.getEquippedArmor(location);
+    return armor.reduce((max, a) => {
+      const bar = a.system.bar?.[damageType] || 0;
+      return Math.max(max, bar);
+    }, 0);
   }
 
   /**
@@ -278,10 +307,12 @@ export class MechFoundryActor extends Actor {
    * Apply damage to this actor
    * @param {number} damage Amount of damage
    * @param {number} ap Armor Penetration of the attack
+   * @param {string} damageType Type of damage ('m', 'b', 'e', 'x')
+   * @param {string} location Hit location
    * @param {boolean} isSubduing Whether this is subduing damage
    */
-  async applyDamage(damage, ap = 0, isSubduing = false) {
-    const bar = this.getEquippedArmor();
+  async applyDamage(damage, ap = 0, damageType = 'm', location = null, isSubduing = false) {
+    const bar = this.getBAR(damageType, location);
     let finalDamage = damage;
 
     // If BAR > AP, reduce damage by difference
@@ -330,6 +361,7 @@ export class MechFoundryActor extends Actor {
       ui.notifications.error(`${this.name} has died!`);
     } else if (fatigue >= fatigueCapacity) {
       ui.notifications.warn(`${this.name} has fallen unconscious!`);
+      await this.update({ "system.unconscious": true });
       // Excess fatigue becomes standard damage
       const excessFatigue = fatigue - fatigueCapacity;
       if (excessFatigue > 0) {
@@ -392,6 +424,10 @@ export class MechFoundryActor extends Actor {
     await roll.evaluate();
 
     const success = roll.total >= 7;
+
+    if (!success) {
+      await this.update({ "system.unconscious": true });
+    }
 
     ChatMessage.create({
       speaker: ChatMessage.getSpeaker({ actor: this }),
