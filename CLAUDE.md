@@ -9,7 +9,9 @@ This file provides guidance to Claude Code when working with this repository.
 ## Foundry VTT System Development
 
 This project follows Foundry VTT system development conventions. Key documentation:
+- [Intro to Development](https://foundryvtt.com/article/intro-development/)
 - [System Development Guide](https://foundryvtt.com/article/system-development/)
+- [Foundry VTT API Reference](https://foundryvtt.com/api/)
 - [Community Wiki Tutorial](https://foundryvtt.wiki/en/development/guides/SD-tutorial)
 - [Boilerplate System](https://github.com/asacolips-projects/boilerplate)
 - [DnD5e Reference](https://github.com/foundryvtt/dnd5e)
