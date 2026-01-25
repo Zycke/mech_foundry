@@ -313,8 +313,16 @@ export class MechFoundryActorSheet extends ActorSheet {
     // Edge burning
     html.on('click', '.burn-edge', this._onBurnEdge.bind(this));
 
-    // XP spending
+    // XP spending (button clicks - kept for backwards compatibility)
     html.on('click', '.add-xp-btn', this._onAddXP.bind(this));
+
+    // XP input field changes
+    html.on('change', '.attr-xp-input', this._onAttributeXPChange.bind(this));
+    html.on('change', '.skill-xp-input', this._onSkillXPChange.bind(this));
+    html.on('change', '.trait-xp-input', this._onTraitXPChange.bind(this));
+
+    // Condition monitor max validation
+    html.on('change', '.condition-input', this._onConditionChange.bind(this));
 
     // Drag events for macros
     if (this.actor.isOwner) {
@@ -677,5 +685,270 @@ export class MechFoundryActorSheet extends ActorSheet {
         "system.xp.spent": (this.actor.system.xp.spent || 0) + cost
       });
     }
+  }
+
+  /**
+   * Handle attribute XP input change
+   * @param {Event} event The change event
+   * @private
+   */
+  async _onAttributeXPChange(event) {
+    event.preventDefault();
+    const input = event.currentTarget;
+    const attrKey = input.dataset.attr;
+    const newXP = parseInt(input.value) || 0;
+    const currentXP = this.actor.system.attributes[attrKey]?.xp || 0;
+
+    if (newXP === currentXP) return;
+
+    const isGM = game.user.isGM;
+    const xpDifference = newXP - currentXP;
+
+    // If reducing XP, only GM can do this
+    if (xpDifference < 0 && !isGM) {
+      ui.notifications.warn("Only the GM can reduce XP invested.");
+      input.value = currentXP;
+      return;
+    }
+
+    // Show confirmation dialog
+    await this._confirmXPChange("attribute", attrKey, null, currentXP, newXP, xpDifference);
+  }
+
+  /**
+   * Handle skill XP input change
+   * @param {Event} event The change event
+   * @private
+   */
+  async _onSkillXPChange(event) {
+    event.preventDefault();
+    const input = event.currentTarget;
+    const itemId = input.dataset.itemId;
+    const item = this.actor.items.get(itemId);
+    if (!item) return;
+
+    const newXP = parseInt(input.value) || 0;
+    const currentXP = item.system.xp || 0;
+
+    if (newXP === currentXP) return;
+
+    const isGM = game.user.isGM;
+    const xpDifference = newXP - currentXP;
+
+    // If reducing XP, only GM can do this
+    if (xpDifference < 0 && !isGM) {
+      ui.notifications.warn("Only the GM can reduce XP invested.");
+      input.value = currentXP;
+      return;
+    }
+
+    // Show confirmation dialog
+    await this._confirmXPChange("skill", null, itemId, currentXP, newXP, xpDifference);
+  }
+
+  /**
+   * Handle trait XP input change
+   * @param {Event} event The change event
+   * @private
+   */
+  async _onTraitXPChange(event) {
+    event.preventDefault();
+    const input = event.currentTarget;
+    const itemId = input.dataset.itemId;
+    const item = this.actor.items.get(itemId);
+    if (!item) return;
+
+    const newXP = parseInt(input.value) || 0;
+    const currentXP = item.system.xp || 0;
+    const xpCost = parseInt(input.dataset.xpCost) || 0;
+
+    if (newXP === currentXP) return;
+
+    const isGM = game.user.isGM;
+    const xpDifference = newXP - currentXP;
+
+    // If reducing XP, only GM can do this
+    if (xpDifference < 0 && !isGM) {
+      ui.notifications.warn("Only the GM can reduce XP invested.");
+      input.value = currentXP;
+      return;
+    }
+
+    // Show confirmation dialog
+    await this._confirmXPChange("trait", null, itemId, currentXP, newXP, xpDifference, xpCost);
+  }
+
+  /**
+   * Show confirmation dialog for XP changes
+   * @param {string} type Type of XP change (attribute, skill, trait)
+   * @param {string} attrKey Attribute key (for attributes)
+   * @param {string} itemId Item ID (for skills/traits)
+   * @param {number} currentXP Current XP value
+   * @param {number} newXP New XP value
+   * @param {number} xpDifference The XP difference
+   * @param {number} xpCost Total XP cost for trait
+   * @private
+   */
+  async _confirmXPChange(type, attrKey, itemId, currentXP, newXP, xpDifference, xpCost = 0) {
+    const isGM = game.user.isGM;
+    const availableXP = this.actor.system.xp.value || 0;
+    const isReduction = xpDifference < 0;
+
+    let targetName = "";
+    let newValue = 0;
+
+    if (type === "attribute") {
+      targetName = attrKey.toUpperCase();
+      newValue = MechFoundryActorSheet.getAttributeScoreFromXP(newXP);
+    } else if (type === "skill") {
+      const item = this.actor.items.get(itemId);
+      targetName = item?.name || "Unknown";
+      const complexity = item?.system.complexity || 'S';
+      newValue = MechFoundryActorSheet.getSkillLevelFromXP(newXP, complexity);
+    } else if (type === "trait") {
+      const item = this.actor.items.get(itemId);
+      targetName = item?.name || "Unknown";
+      // Check if trait is purchased (XP >= cost)
+      newValue = newXP >= xpCost ? "Purchased" : "Not Purchased";
+    }
+
+    // Build dialog content
+    let content = `
+      <form>
+        <p>${isReduction ? 'Remove' : 'Add'} XP ${isReduction ? 'from' : 'to'} <strong>${targetName}</strong>?</p>
+        <p>XP Change: <strong>${isReduction ? '' : '+'}${xpDifference} XP</strong></p>
+        <p>New Total XP: <strong>${newXP}</strong></p>
+        <p>New ${type === 'trait' ? 'Status' : (type === 'skill' ? 'Level' : 'Score')}: <strong>${type === 'skill' ? (newValue >= 0 ? '+' + newValue : newValue) : newValue}</strong></p>
+    `;
+
+    if (!isReduction) {
+      content += `<p>Available XP: <strong>${availableXP}</strong></p>`;
+    }
+
+    // Add Free XP option for GMs
+    if (isGM) {
+      content += `
+        <div class="form-group">
+          <label>
+            <input type="checkbox" name="freeXP" value="1" ${isReduction ? 'checked' : ''}/>
+            Free XP (GM only - ${isReduction ? 'refunds XP to available pool' : 'does not deduct from available XP'})
+          </label>
+        </div>
+      `;
+    }
+
+    content += `</form>`;
+
+    new Dialog({
+      title: `${isReduction ? 'Remove' : 'Add'} XP - ${targetName}`,
+      content: content,
+      buttons: {
+        confirm: {
+          label: "Confirm",
+          callback: async (html) => {
+            const freeXP = isGM && html.find('[name="freeXP"]').is(':checked');
+
+            // Check if enough XP available (unless free XP or reduction)
+            if (!freeXP && !isReduction && xpDifference > availableXP) {
+              ui.notifications.warn(`Not enough XP! Need ${xpDifference}, have ${availableXP}.`);
+              this.render(false);
+              return;
+            }
+
+            // Apply the XP change
+            if (type === "attribute") {
+              const newScore = MechFoundryActorSheet.getAttributeScoreFromXP(newXP);
+              const updates = {
+                [`system.attributes.${attrKey}.xp`]: newXP,
+                [`system.attributes.${attrKey}.value`]: newScore
+              };
+
+              if (!freeXP) {
+                if (isReduction) {
+                  // Refund XP to available pool
+                  updates["system.xp.value"] = availableXP + Math.abs(xpDifference);
+                  updates["system.xp.spent"] = (this.actor.system.xp.spent || 0) - Math.abs(xpDifference);
+                } else {
+                  updates["system.xp.value"] = availableXP - xpDifference;
+                  updates["system.xp.spent"] = (this.actor.system.xp.spent || 0) + xpDifference;
+                }
+              }
+
+              await this.actor.update(updates);
+            } else if (type === "skill") {
+              const item = this.actor.items.get(itemId);
+              if (item) {
+                await item.update({ "system.xp": newXP });
+
+                if (!freeXP) {
+                  const updates = {};
+                  if (isReduction) {
+                    updates["system.xp.value"] = availableXP + Math.abs(xpDifference);
+                    updates["system.xp.spent"] = (this.actor.system.xp.spent || 0) - Math.abs(xpDifference);
+                  } else {
+                    updates["system.xp.value"] = availableXP - xpDifference;
+                    updates["system.xp.spent"] = (this.actor.system.xp.spent || 0) + xpDifference;
+                  }
+                  await this.actor.update(updates);
+                }
+              }
+            } else if (type === "trait") {
+              const item = this.actor.items.get(itemId);
+              if (item) {
+                await item.update({
+                  "system.xp": newXP,
+                  "system.purchased": newXP >= xpCost
+                });
+
+                if (!freeXP) {
+                  const updates = {};
+                  if (isReduction) {
+                    updates["system.xp.value"] = availableXP + Math.abs(xpDifference);
+                    updates["system.xp.spent"] = (this.actor.system.xp.spent || 0) - Math.abs(xpDifference);
+                  } else {
+                    updates["system.xp.value"] = availableXP - xpDifference;
+                    updates["system.xp.spent"] = (this.actor.system.xp.spent || 0) + xpDifference;
+                  }
+                  await this.actor.update(updates);
+                }
+              }
+            }
+
+            // Notify
+            const method = freeXP ? (isReduction ? "removed (Free)" : "granted (Free)") : (isReduction ? "refunded" : "spent");
+            ui.notifications.info(`${Math.abs(xpDifference)} XP ${method} on ${targetName}.`);
+          }
+        },
+        cancel: {
+          label: "Cancel",
+          callback: () => {
+            // Re-render to reset the input value
+            this.render(false);
+          }
+        }
+      },
+      default: "confirm",
+      close: () => {
+        // Re-render if dialog closed without action
+        this.render(false);
+      }
+    }).render(true);
+  }
+
+  /**
+   * Handle condition monitor input change - enforce max value
+   * @param {Event} event The change event
+   * @private
+   */
+  _onConditionChange(event) {
+    const input = event.currentTarget;
+    const max = parseInt(input.dataset.max) || 0;
+    let value = parseInt(input.value) || 0;
+
+    // Clamp value to valid range
+    if (value < 0) value = 0;
+    if (value > max) value = max;
+
+    input.value = value;
   }
 }
