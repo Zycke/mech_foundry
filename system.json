@@ -9,7 +9,8 @@
   },
   "authors": [
     {
-      "name": "Zycke"
+      "name": "Zycke",
+      "url": "https://github.com/Zycke"
     }
   ],
   "esmodules": ["module/mech-foundry.mjs"],
@@ -23,12 +24,12 @@
   ],
   "grid": {
     "distance": 1,
-    "units": "hex"
+    "units": "m"
   },
-  "primaryTokenAttribute": "health",
-  "secondaryTokenAttribute": null,
+  "primaryTokenAttribute": "damage",
+  "secondaryTokenAttribute": "fatigue",
   "socket": false,
-  "url": "",
-  "manifest": "",
-  "download": ""
+  "url": "https://github.com/Zycke/mech_foundry",
+  "manifest": "https://github.com/Zycke/mech_foundry/releases/latest/download/system.json",
+  "download": "https://github.com/Zycke/mech_foundry/releases/download/v{{version}}/mech-foundry.zip"
 }

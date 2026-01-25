@@ -61,9 +61,13 @@ export class MechFoundryActor extends Actor {
 
     // Damage Capacity = BOD x 2
     systemData.damageCapacity = bod * 2;
+    // Set damage.max for token bar compatibility
+    if (systemData.damage) systemData.damage.max = systemData.damageCapacity;
 
     // Fatigue Capacity = WIL x 2
     systemData.fatigueCapacity = wil * 2;
+    // Set fatigue.max for token bar compatibility
+    if (systemData.fatigue) systemData.fatigue.max = systemData.fatigueCapacity;
 
     // Movement rates (meters per turn)
     // Walk = STR + RFL

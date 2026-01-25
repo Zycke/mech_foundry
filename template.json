@@ -4,10 +4,12 @@
     "templates": {
       "base": {
         "damage": {
-          "value": 0
+          "value": 0,
+          "max": 10
         },
         "fatigue": {
-          "value": 0
+          "value": 0,
+          "max": 10
         },
         "stun": false,
         "biography": ""
