@@ -190,6 +190,10 @@ export class MechFoundryActor extends Actor {
     const roll = new Roll(rollFormula);
     await roll.evaluate();
 
+    // Extract raw dice results for display
+    const diceResults = roll.dice[0].results.map(r => r.result);
+    const rawDiceTotal = diceResults.reduce((a, b) => a + b, 0);
+
     const success = roll.total >= targetNumber;
     const marginOfSuccess = roll.total - targetNumber;
 
@@ -204,7 +208,9 @@ export class MechFoundryActor extends Actor {
         modifier: totalMod,
         success: success,
         marginOfSuccess: marginOfSuccess,
-        complexity: skillData.complexity
+        complexity: skillData.complexity,
+        diceResults: diceResults,
+        rawDiceTotal: rawDiceTotal
       }
     );
 
@@ -253,6 +259,10 @@ export class MechFoundryActor extends Actor {
     const roll = new Roll(rollFormula);
     await roll.evaluate();
 
+    // Extract raw dice results for display
+    const diceResults = roll.dice[0].results.map(r => r.result);
+    const rawDiceTotal = diceResults.reduce((a, b) => a + b, 0);
+
     const success = roll.total >= targetNumber;
     const marginOfSuccess = roll.total - targetNumber;
 
@@ -261,7 +271,8 @@ export class MechFoundryActor extends Actor {
       flavor: `${checkName} Attribute Check (TN ${targetNumber})`,
       content: `
         <div class="mech-foundry roll-result">
-          <div class="dice-formula">${rollFormula}</div>
+          <div class="dice-raw">Dice: ${diceResults.join(' + ')} = ${rawDiceTotal}</div>
+          <div class="dice-formula">${rawDiceTotal} ${totalMod >= 0 ? '+' : ''}${totalMod} = ${roll.total}</div>
           <div class="dice-result">
             <strong>Roll:</strong> ${roll.total}
             <span class="target">(Target: ${targetNumber})</span>
