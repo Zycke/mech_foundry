@@ -1,0 +1,87 @@
+<form class="{{cssClass}} mech-foundry item-sheet weapon-sheet" autocomplete="off">
+  <header class="sheet-header">
+    <img class="item-img" src="{{item.img}}" data-edit="img" title="{{item.name}}"/>
+    <div class="header-fields">
+      <h1 class="item-name">
+        <input name="name" type="text" value="{{item.name}}" placeholder="Weapon Name"/>
+      </h1>
+    </div>
+  </header>
+
+  <nav class="sheet-tabs tabs" data-group="primary">
+    <a class="item" data-tab="details">Details</a>
+    <a class="item" data-tab="description">Description</a>
+  </nav>
+
+  <section class="sheet-body">
+    <div class="tab details" data-group="primary" data-tab="details">
+      <div class="form-group">
+        <label>Weapon Type</label>
+        <select name="system.weaponType">
+          <option value="melee" {{#if (eq system.weaponType "melee")}}selected{{/if}}>Melee</option>
+          <option value="ranged" {{#if (eq system.weaponType "ranged")}}selected{{/if}}>Ranged</option>
+          <option value="thrown" {{#if (eq system.weaponType "thrown")}}selected{{/if}}>Thrown</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Armor Penetration (AP)</label>
+        <input type="number" name="system.ap" value="{{system.ap}}" data-dtype="Number"/>
+      </div>
+      <div class="form-group">
+        <label>Base Damage (BD)</label>
+        <input type="number" name="system.bd" value="{{system.bd}}" data-dtype="Number"/>
+      </div>
+      <div class="form-group">
+        <label>
+          <input type="checkbox" name="system.subduing" {{#if system.subduing}}checked{{/if}}/>
+          Subduing Damage
+        </label>
+      </div>
+
+      <h3>Range (meters)</h3>
+      <div class="range-fields">
+        <div class="form-group">
+          <label>Point Blank</label>
+          <input type="number" name="system.range.pointBlank" value="{{system.range.pointBlank}}" data-dtype="Number"/>
+        </div>
+        <div class="form-group">
+          <label>Short</label>
+          <input type="number" name="system.range.short" value="{{system.range.short}}" data-dtype="Number"/>
+        </div>
+        <div class="form-group">
+          <label>Medium</label>
+          <input type="number" name="system.range.medium" value="{{system.range.medium}}" data-dtype="Number"/>
+        </div>
+        <div class="form-group">
+          <label>Long</label>
+          <input type="number" name="system.range.long" value="{{system.range.long}}" data-dtype="Number"/>
+        </div>
+        <div class="form-group">
+          <label>Extreme</label>
+          <input type="number" name="system.range.extreme" value="{{system.range.extreme}}" data-dtype="Number"/>
+        </div>
+      </div>
+
+      <h3>Ammunition</h3>
+      <div class="form-group">
+        <label>Current</label>
+        <input type="number" name="system.ammo.value" value="{{system.ammo.value}}" data-dtype="Number"/>
+      </div>
+      <div class="form-group">
+        <label>Max</label>
+        <input type="number" name="system.ammo.max" value="{{system.ammo.max}}" data-dtype="Number"/>
+      </div>
+
+      <div class="form-group">
+        <label>Notes</label>
+        <input type="text" name="system.notes" value="{{system.notes}}"/>
+      </div>
+    </div>
+
+    <div class="tab description" data-group="primary" data-tab="description">
+      <div class="editor-container">
+        {{editor system.description target="system.description" button=true owner=owner editable=editable}}
+      </div>
+    </div>
+  </section>
+</form>

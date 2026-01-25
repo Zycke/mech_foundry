@@ -7,8 +7,13 @@ export const preloadHandlebarsTemplates = async function() {
   return loadTemplates([
     // Actor partials
     "systems/mech-foundry/templates/actor/parts/actor-attributes.hbs",
+    "systems/mech-foundry/templates/actor/parts/actor-condition.hbs",
     "systems/mech-foundry/templates/actor/parts/actor-skills.hbs",
+    "systems/mech-foundry/templates/actor/parts/actor-combat.hbs",
     "systems/mech-foundry/templates/actor/parts/actor-items.hbs",
-    "systems/mech-foundry/templates/actor/parts/actor-biography.hbs"
+    "systems/mech-foundry/templates/actor/parts/actor-biography.hbs",
+
+    // Chat partials
+    "systems/mech-foundry/templates/chat/skill-roll.hbs"
   ]);
 };

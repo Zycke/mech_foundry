@@ -16,24 +16,77 @@
           <input type="text" name="system.rank" value="{{system.rank}}" />
         </div>
       </div>
-      <div class="resource health">
-        <label>{{localize "MECHFOUNDRY.Health"}}</label>
-        <div class="resource-content">
-          <input type="number" name="system.health.value" value="{{system.health.value}}" data-dtype="Number"/>
-          <span class="separator">/</span>
-          <input type="number" name="system.health.max" value="{{system.health.max}}" data-dtype="Number"/>
+    </div>
+    <div class="header-combat">
+      <div class="movement-rates">
+        <div class="movement-rate">
+          <label>Walk</label>
+          <span>{{system.movement.walk}}m</span>
+        </div>
+        <div class="movement-rate">
+          <label>Run</label>
+          <span>{{system.movement.run}}m</span>
+        </div>
+        <div class="movement-rate">
+          <label>Sprint</label>
+          <span>{{system.movement.sprint}}m</span>
         </div>
       </div>
-      <div class="resource xp">
-        <label>{{localize "MECHFOUNDRY.XP"}}</label>
-        <div class="resource-content">
-          <input type="number" name="system.xp.value" value="{{system.xp.value}}" data-dtype="Number" title="Available"/>
-          <span class="separator">/</span>
-          <input type="number" name="system.xp.spent" value="{{system.xp.spent}}" data-dtype="Number" title="Spent"/>
-        </div>
+      <div class="armor-bar">
+        <label>BAR</label>
+        <span class="bar-value">{{equippedBAR}}</span>
       </div>
     </div>
   </header>
+
+  {{!-- Condition Monitor --}}
+  <section class="condition-monitor">
+    <div class="damage-tracker">
+      <div class="tracker-row">
+        <label>{{localize "MECHFOUNDRY.Damage"}} ({{system.damage.value}}/{{system.damageCapacity}})</label>
+        <div class="tracker-bar damage-bar">
+          <div class="tracker-fill" style="width: {{percentage system.damage.value system.damageCapacity}}%"></div>
+        </div>
+        <input type="number" name="system.damage.value" value="{{system.damage.value}}" min="0" max="{{system.damageCapacity}}" data-dtype="Number"/>
+      </div>
+      <div class="tracker-row">
+        <label>{{localize "MECHFOUNDRY.Fatigue"}} ({{system.fatigue.value}}/{{system.fatigueCapacity}})</label>
+        <div class="tracker-bar fatigue-bar">
+          <div class="tracker-fill" style="width: {{percentage system.fatigue.value system.fatigueCapacity}}%"></div>
+        </div>
+        <input type="number" name="system.fatigue.value" value="{{system.fatigue.value}}" min="0" max="{{system.fatigueCapacity}}" data-dtype="Number"/>
+      </div>
+    </div>
+    <div class="condition-status">
+      <div class="stun-indicator {{#if system.stun}}active{{/if}}">
+        <label>
+          <input type="checkbox" name="system.stun" {{#if system.stun}}checked{{/if}}/>
+          {{localize "MECHFOUNDRY.Stunned"}}
+        </label>
+        {{#if system.stun}}
+        <button type="button" class="clear-stun" title="Clear Stun (Simple Action)">
+          <i class="fas fa-times"></i>
+        </button>
+        {{/if}}
+      </div>
+      <div class="modifiers">
+        {{#if (lt system.injuryModifier 0)}}
+        <span class="injury-mod">Injury: {{system.injuryModifier}}</span>
+        {{/if}}
+        {{#if (lt system.fatigueModifier 0)}}
+        <span class="fatigue-mod">Fatigue: {{system.fatigueModifier}}</span>
+        {{/if}}
+      </div>
+      <div class="condition-actions">
+        <button type="button" class="recover-fatigue" title="Recover Fatigue (Complex Action)">
+          <i class="fas fa-heart"></i> Recover
+        </button>
+        <button type="button" class="consciousness-check" title="Consciousness Check">
+          <i class="fas fa-brain"></i> Consciousness
+        </button>
+      </div>
+    </div>
+  </section>
 
   {{!-- Sheet Tab Navigation --}}
   <nav class="sheet-tabs tabs" data-group="primary">
@@ -49,21 +102,30 @@
 
     {{!-- Attributes Tab --}}
     <div class="tab attributes" data-group="primary" data-tab="attributes">
-      <div class="attributes-list">
+      <div class="attributes-grid">
         {{#each system.attributes as |attr key|}}
-        <div class="attribute">
-          <label class="attribute-name">{{localize (lookup ../attributeLabels key)}}</label>
-          <div class="attribute-value">
-            <input type="number" name="system.attributes.{{key}}.value" value="{{attr.value}}" data-dtype="Number"/>
+        <div class="attribute-block">
+          <div class="attribute-header">
+            <span class="attribute-name">{{localize (lookup @root.config.attributes key)}}</span>
+            <button type="button" class="attribute-roll" data-attribute="{{key}}" title="Roll {{key}} (Shift+Click for Double)">
+              <i class="fas fa-dice-d6"></i>
+            </button>
           </div>
-          <div class="attribute-mod">
-            <span class="mod-value {{#if (gt attr.mod 0)}}positive{{else if (lt attr.mod 0)}}negative{{/if}}">
-              {{#if (gt attr.mod 0)}}+{{/if}}{{attr.mod}}
+          <div class="attribute-body">
+            <input type="number" class="attribute-value" name="system.attributes.{{key}}.value"
+                   value="{{attr.value}}" data-dtype="Number" min="1" max="10"/>
+            <span class="link-mod {{#if (gt attr.linkMod 0)}}positive{{else if (lt attr.linkMod 0)}}negative{{/if}}">
+              {{formatMod attr.linkMod}}
             </span>
           </div>
-          <button type="button" class="attribute-roll rollable" data-attribute="{{key}}" title="Roll {{key}}">
-            <i class="fas fa-dice"></i>
-          </button>
+          {{#if (eq key "edg")}}
+          <div class="edge-tracker">
+            <span class="edge-current">{{subtract attr.value attr.burned}}/{{attr.value}}</span>
+            <button type="button" class="burn-edge" title="Burn Edge">
+              <i class="fas fa-fire"></i>
+            </button>
+          </div>
+          {{/if}}
         </div>
         {{/each}}
       </div>
@@ -72,19 +134,37 @@
       <div class="traits-section">
         <div class="items-header flexrow">
           <h3>{{localize "MECHFOUNDRY.Traits"}}</h3>
-          <a class="item-create" data-type="trait"><i class="fas fa-plus"></i> {{localize "MECHFOUNDRY.Add"}}</a>
+          <a class="item-create" data-type="trait"><i class="fas fa-plus"></i></a>
         </div>
-        <ol class="items-list">
+        <ul class="items-list traits-list">
           {{#each traits}}
           <li class="item flexrow" data-item-id="{{this._id}}">
-            <div class="item-name">{{this.name}}</div>
+            <span class="trait-type {{this.system.traitType}}">
+              {{#if (eq this.system.traitType "positive")}}+{{else}}-{{/if}}
+            </span>
+            <span class="item-name">{{this.name}}</span>
             <div class="item-controls">
               <a class="item-edit" title="Edit"><i class="fas fa-edit"></i></a>
               <a class="item-delete" title="Delete"><i class="fas fa-trash"></i></a>
             </div>
           </li>
           {{/each}}
-        </ol>
+        </ul>
+      </div>
+
+      {{!-- XP Section --}}
+      <div class="xp-section">
+        <h3>{{localize "MECHFOUNDRY.XP"}}</h3>
+        <div class="xp-values">
+          <div class="field">
+            <label>Available</label>
+            <input type="number" name="system.xp.value" value="{{system.xp.value}}" data-dtype="Number"/>
+          </div>
+          <div class="field">
+            <label>Spent</label>
+            <input type="number" name="system.xp.spent" value="{{system.xp.spent}}" data-dtype="Number"/>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -94,62 +174,115 @@
         <h3>{{localize "MECHFOUNDRY.Skills"}}</h3>
         <a class="item-create" data-type="skill"><i class="fas fa-plus"></i> {{localize "MECHFOUNDRY.Add"}}</a>
       </div>
-      <ol class="items-list skills-list">
+      <div class="skills-list-header flexrow">
+        <span class="skill-name-header">Skill</span>
+        <span class="skill-links-header">Links</span>
+        <span class="skill-tn-header">TN/C</span>
+        <span class="skill-level-header">Level</span>
+        <span class="skill-controls-header"></span>
+      </div>
+      <ul class="items-list skills-list">
         {{#each skills}}
         <li class="item flexrow" data-item-id="{{this._id}}">
-          <div class="item-name rollable" data-roll-type="skill">
+          <span class="item-name skill-roll" title="Click to roll">
             <i class="fas fa-dice"></i>
             {{this.name}}
-          </div>
-          <div class="item-level">{{this.system.level}}</div>
-          <div class="item-attr">{{this.system.linkedAttribute}}</div>
+          </span>
+          <span class="skill-links">
+            {{this.system.linkedAttribute1}}{{#if this.system.linkedAttribute2}} + {{this.system.linkedAttribute2}}{{/if}}
+          </span>
+          <span class="skill-tn">{{this.system.targetNumber}} / {{this.system.complexity}}</span>
+          <span class="skill-level">
+            {{formatMod this.effectiveLevel}}
+          </span>
           <div class="item-controls">
             <a class="item-edit" title="Edit"><i class="fas fa-edit"></i></a>
             <a class="item-delete" title="Delete"><i class="fas fa-trash"></i></a>
           </div>
         </li>
         {{/each}}
-      </ol>
+      </ul>
     </div>
 
     {{!-- Combat Tab --}}
     <div class="tab combat" data-group="primary" data-tab="combat">
-      <div class="items-header flexrow">
-        <h3>{{localize "MECHFOUNDRY.Weapons"}}</h3>
-        <a class="item-create" data-type="weapon"><i class="fas fa-plus"></i> {{localize "MECHFOUNDRY.Add"}}</a>
+      {{!-- Weapons Section --}}
+      <div class="weapons-section">
+        <div class="items-header flexrow">
+          <h3>{{localize "MECHFOUNDRY.Weapons"}}</h3>
+          <a class="item-create" data-type="weapon"><i class="fas fa-plus"></i></a>
+        </div>
+        <ul class="items-list weapons-list">
+          {{#each weapons}}
+          <li class="item flexrow" data-item-id="{{this._id}}">
+            <span class="item-name">{{this.name}}</span>
+            <span class="weapon-ap">AP: {{this.system.ap}}</span>
+            <span class="weapon-bd">BD: {{this.system.bd}}{{#if this.system.subduing}}D{{/if}}</span>
+            <span class="weapon-ammo">
+              {{#if this.system.ammo.max}}
+              {{this.system.ammo.value}}/{{this.system.ammo.max}}
+              {{else}}
+              -
+              {{/if}}
+            </span>
+            <div class="item-controls">
+              <a class="item-edit" title="Edit"><i class="fas fa-edit"></i></a>
+              <a class="item-delete" title="Delete"><i class="fas fa-trash"></i></a>
+            </div>
+          </li>
+          {{/each}}
+        </ul>
       </div>
-      <ol class="items-list weapons-list">
-        {{#each weapons}}
-        <li class="item flexrow" data-item-id="{{this._id}}">
-          <div class="item-name">{{this.name}}</div>
-          <div class="item-damage">{{this.system.damage}}</div>
-          <div class="item-controls">
-            <a class="item-edit" title="Edit"><i class="fas fa-edit"></i></a>
-            <a class="item-delete" title="Delete"><i class="fas fa-trash"></i></a>
-          </div>
-        </li>
-        {{/each}}
-      </ol>
+
+      {{!-- Armor Section --}}
+      <div class="armor-section">
+        <div class="items-header flexrow">
+          <h3>{{localize "MECHFOUNDRY.Armor"}}</h3>
+          <a class="item-create" data-type="armor"><i class="fas fa-plus"></i></a>
+        </div>
+        <ul class="items-list armor-list">
+          {{#each armor}}
+          <li class="item flexrow" data-item-id="{{this._id}}">
+            <span class="armor-equipped armor-toggle" title="Toggle Equipped">
+              {{#if this.system.equipped}}
+              <i class="fas fa-check-circle"></i>
+              {{else}}
+              <i class="far fa-circle"></i>
+              {{/if}}
+            </span>
+            <span class="item-name">{{this.name}}</span>
+            <span class="armor-bar-value">BAR: {{this.system.bar}}</span>
+            <div class="item-controls">
+              <a class="item-edit" title="Edit"><i class="fas fa-edit"></i></a>
+              <a class="item-delete" title="Delete"><i class="fas fa-trash"></i></a>
+            </div>
+          </li>
+          {{/each}}
+        </ul>
+      </div>
     </div>
 
     {{!-- Equipment Tab --}}
     <div class="tab equipment" data-group="primary" data-tab="equipment">
       <div class="items-header flexrow">
         <h3>{{localize "MECHFOUNDRY.Equipment"}}</h3>
-        <a class="item-create" data-type="equipment"><i class="fas fa-plus"></i> {{localize "MECHFOUNDRY.Add"}}</a>
+        <a class="item-create" data-type="equipment"><i class="fas fa-plus"></i></a>
       </div>
-      <ol class="items-list equipment-list">
+      <ul class="items-list equipment-list">
         {{#each equipment}}
         <li class="item flexrow" data-item-id="{{this._id}}">
-          <div class="item-name">{{this.name}}</div>
-          <div class="item-quantity">{{this.system.quantity}}</div>
+          <span class="item-name">{{this.name}}</span>
+          <span class="item-quantity">x{{this.system.quantity}}</span>
+          {{#if this.system.encumbering}}
+          <span class="encumbering-badge" title="Encumbering">E</span>
+          {{/if}}
           <div class="item-controls">
             <a class="item-edit" title="Edit"><i class="fas fa-edit"></i></a>
             <a class="item-delete" title="Delete"><i class="fas fa-trash"></i></a>
           </div>
         </li>
         {{/each}}
-      </ol>
+      </ul>
     </div>
 
     {{!-- Biography Tab --}}

@@ -1,5 +1,6 @@
 /**
  * Extend the base Actor document for Mech Foundry system
+ * Based on A Time of War mechanics
  * @extends {Actor}
  */
 export class MechFoundryActor extends Actor {
@@ -18,45 +19,105 @@ export class MechFoundryActor extends Actor {
   prepareDerivedData() {
     const actorData = this;
     const systemData = actorData.system;
-    const flags = actorData.flags.mechfoundry || {};
 
-    // Prepare data based on actor type
-    this._prepareCharacterData(actorData);
-    this._prepareNpcData(actorData);
+    // Calculate Link Attribute Modifiers for all attributes
+    this._calculateLinkModifiers(systemData);
+
+    // Calculate derived values
+    this._calculateDerivedStats(systemData);
   }
 
   /**
-   * Prepare Character type specific data
-   * @param {Object} actorData The actor data object
+   * Calculate Link Attribute Modifiers based on A Time of War rules
+   * 1: -2, 2-3: -1, 4-6: +0, 7-9: +1, 10: +2
+   * @param {Object} systemData
    */
-  _prepareCharacterData(actorData) {
-    if (actorData.type !== 'character') return;
-
-    const systemData = actorData.system;
-
-    // Calculate attribute modifiers
-    for (let [key, attribute] of Object.entries(systemData.attributes || {})) {
-      attribute.mod = Math.floor((attribute.value - 5) / 2);
+  _calculateLinkModifiers(systemData) {
+    for (let [key, attr] of Object.entries(systemData.attributes || {})) {
+      const value = attr.value;
+      if (value <= 1) {
+        attr.linkMod = -2;
+      } else if (value <= 3) {
+        attr.linkMod = -1;
+      } else if (value <= 6) {
+        attr.linkMod = 0;
+      } else if (value <= 9) {
+        attr.linkMod = 1;
+      } else {
+        attr.linkMod = 2;
+      }
     }
   }
 
   /**
-   * Prepare NPC type specific data
-   * @param {Object} actorData The actor data object
+   * Calculate derived statistics
+   * @param {Object} systemData
    */
-  _prepareNpcData(actorData) {
-    if (actorData.type !== 'npc') return;
+  _calculateDerivedStats(systemData) {
+    const str = systemData.attributes.str?.value || 5;
+    const bod = systemData.attributes.bod?.value || 5;
+    const rfl = systemData.attributes.rfl?.value || 5;
+    const wil = systemData.attributes.wil?.value || 5;
 
-    const systemData = actorData.system;
+    // Damage Capacity = BOD x 2
+    systemData.damageCapacity = bod * 2;
 
-    // Calculate attribute modifiers
-    for (let [key, attribute] of Object.entries(systemData.attributes || {})) {
-      attribute.mod = Math.floor((attribute.value - 5) / 2);
+    // Fatigue Capacity = WIL x 2
+    systemData.fatigueCapacity = wil * 2;
+
+    // Movement rates (meters per turn)
+    // Walk = STR + RFL
+    systemData.movement = systemData.movement || {};
+    systemData.movement.walk = str + rfl;
+
+    // Run = 10 + STR + RFL (+ Running Skill if applicable)
+    const runningSkill = this._getSkillLevel("running") || 0;
+    systemData.movement.run = 10 + str + rfl + runningSkill;
+
+    // Sprint = Run x 2
+    systemData.movement.sprint = systemData.movement.run * 2;
+
+    // Calculate Injury Modifier (-1 per 25% of damage capacity)
+    const damagePercent = (systemData.damage?.value || 0) / systemData.damageCapacity;
+    systemData.injuryModifier = -Math.ceil(damagePercent * 4);
+    if (systemData.injuryModifier > 0) systemData.injuryModifier = 0;
+
+    // Calculate Fatigue Modifier (-(Fatigue - WIL), minimum 0)
+    const fatigueDiff = (systemData.fatigue?.value || 0) - wil;
+    systemData.fatigueModifier = fatigueDiff > 0 ? -fatigueDiff : 0;
+
+    // Current Edge (value - burned)
+    if (systemData.attributes.edg) {
+      systemData.attributes.edg.current =
+        systemData.attributes.edg.value - (systemData.attributes.edg.burned || 0);
     }
   }
 
   /**
-   * Roll a skill check for this actor
+   * Get a skill level by name/id
+   * @param {string} skillName
+   * @returns {number|null}
+   */
+  _getSkillLevel(skillName) {
+    const skill = this.items.find(i =>
+      i.type === 'skill' &&
+      i.name.toLowerCase().includes(skillName.toLowerCase())
+    );
+    return skill?.system.level || null;
+  }
+
+  /**
+   * Get total BAR from equipped armor
+   * @returns {number}
+   */
+  getEquippedArmor() {
+    const armor = this.items.filter(i => i.type === 'armor' && i.system.equipped);
+    // Return highest BAR among equipped armor
+    return armor.reduce((max, a) => Math.max(max, a.system.bar || 0), 0);
+  }
+
+  /**
+   * Roll a skill check for this actor (A Time of War 2d6 system)
    * @param {string} skillId The ID of the skill item to roll
    * @param {object} options Additional options for the roll
    */
@@ -65,53 +126,302 @@ export class MechFoundryActor extends Actor {
     if (!skill || skill.type !== 'skill') return;
 
     const skillData = skill.system;
-    const linkedAttr = this.system.attributes[skillData.linkedAttribute];
-    const attrMod = linkedAttr ? linkedAttr.mod : 0;
+    const targetNumber = skillData.targetNumber || 7;
 
-    return game.mechfoundry.rollSkillCheck(
-      skillData.level,
-      attrMod,
-      skillData.targetNumber,
-      {
-        speaker: ChatMessage.getSpeaker({ actor: this }),
-        flavor: `${skill.name} Check`
-      }
-    );
-  }
+    // Calculate total modifier
+    let totalMod = skillData.level || 0;
 
-  /**
-   * Roll a basic attribute check (2d6 + attribute modifier)
-   * @param {string} attributeKey The key of the attribute to roll
-   * @param {object} options Additional options for the roll
-   */
-  async rollAttribute(attributeKey, options = {}) {
-    const attribute = this.system.attributes[attributeKey];
-    if (!attribute) return;
+    // Add linked attribute modifiers
+    if (skillData.linkedAttribute1) {
+      const attr1 = this.system.attributes[skillData.linkedAttribute1];
+      if (attr1) totalMod += attr1.linkMod || 0;
+    }
+    if (skillData.linkedAttribute2) {
+      const attr2 = this.system.attributes[skillData.linkedAttribute2];
+      if (attr2) totalMod += attr2.linkMod || 0;
+    }
 
-    const rollFormula = `2d6 + ${attribute.mod}`;
+    // Apply injury and fatigue modifiers
+    totalMod += this.system.injuryModifier || 0;
+    totalMod += this.system.fatigueModifier || 0;
+
+    // Apply any additional modifiers from options
+    totalMod += options.modifier || 0;
+
+    const rollFormula = `2d6 + ${totalMod}`;
     const roll = new Roll(rollFormula);
     await roll.evaluate();
 
-    const targetNumber = options.targetNumber || 7;
     const success = roll.total >= targetNumber;
+    const marginOfSuccess = roll.total - targetNumber;
+
+    // Create chat message
+    const messageContent = await renderTemplate(
+      "systems/mech-foundry/templates/chat/skill-roll.hbs",
+      {
+        skillName: skill.name,
+        roll: roll,
+        total: roll.total,
+        targetNumber: targetNumber,
+        modifier: totalMod,
+        success: success,
+        marginOfSuccess: marginOfSuccess,
+        complexity: skillData.complexity
+      }
+    );
 
     const messageData = {
       speaker: ChatMessage.getSpeaker({ actor: this }),
-      flavor: `${attributeKey.toUpperCase()} Check`,
+      flavor: `${skill.name} Check (TN ${targetNumber})`,
+      content: messageContent,
+      rolls: [roll]
+    };
+
+    ChatMessage.create(messageData);
+    return { roll, success, marginOfSuccess };
+  }
+
+  /**
+   * Roll an attribute check (single or double attribute)
+   * @param {string} attr1Key First attribute key
+   * @param {string} attr2Key Optional second attribute key for double checks
+   * @param {object} options Additional options
+   */
+  async rollAttribute(attr1Key, attr2Key = null, options = {}) {
+    const attr1 = this.system.attributes[attr1Key];
+    if (!attr1) return;
+
+    let totalMod = attr1.value;
+    let targetNumber = 12; // Single attribute check TN
+    let checkName = attr1Key.toUpperCase();
+
+    if (attr2Key) {
+      const attr2 = this.system.attributes[attr2Key];
+      if (attr2) {
+        totalMod += attr2.value;
+        targetNumber = 18; // Double attribute check TN
+        checkName = `${attr1Key.toUpperCase()} + ${attr2Key.toUpperCase()}`;
+      }
+    }
+
+    // Apply injury and fatigue modifiers
+    totalMod += this.system.injuryModifier || 0;
+    totalMod += this.system.fatigueModifier || 0;
+
+    // Apply any additional modifiers
+    totalMod += options.modifier || 0;
+
+    const rollFormula = `2d6 + ${totalMod}`;
+    const roll = new Roll(rollFormula);
+    await roll.evaluate();
+
+    const success = roll.total >= targetNumber;
+    const marginOfSuccess = roll.total - targetNumber;
+
+    const messageData = {
+      speaker: ChatMessage.getSpeaker({ actor: this }),
+      flavor: `${checkName} Attribute Check (TN ${targetNumber})`,
       content: `
         <div class="mech-foundry roll-result">
+          <div class="dice-formula">${rollFormula}</div>
           <div class="dice-result">
             <strong>Roll:</strong> ${roll.total}
             <span class="target">(Target: ${targetNumber})</span>
           </div>
           <div class="result ${success ? 'success' : 'failure'}">
             ${success ? 'Success' : 'Failure'}
+            <span class="margin">(MoS: ${marginOfSuccess >= 0 ? '+' : ''}${marginOfSuccess})</span>
           </div>
         </div>
-      `
+      `,
+      rolls: [roll]
     };
 
-    roll.toMessage(messageData);
-    return { roll, success };
+    ChatMessage.create(messageData);
+    return { roll, success, marginOfSuccess };
+  }
+
+  /**
+   * Burn Edge points
+   * @param {number} points Number of Edge points to burn
+   * @param {string} timing 'before' or 'after' the roll
+   * @returns {number} The modifier to apply (or 0 if after with reroll)
+   */
+  async burnEdge(points, timing = 'before') {
+    const edg = this.system.attributes.edg;
+    const available = edg.value - (edg.burned || 0);
+
+    if (points > available) {
+      ui.notifications.warn("Not enough Edge points available!");
+      return 0;
+    }
+
+    // Update burned Edge
+    await this.update({
+      "system.attributes.edg.burned": (edg.burned || 0) + points
+    });
+
+    // Before roll: double the points as modifier
+    if (timing === 'before') {
+      return points * 2;
+    }
+
+    // After roll: single point modifier
+    return points;
+  }
+
+  /**
+   * Apply damage to this actor
+   * @param {number} damage Amount of damage
+   * @param {number} ap Armor Penetration of the attack
+   * @param {boolean} isSubduing Whether this is subduing damage
+   */
+  async applyDamage(damage, ap = 0, isSubduing = false) {
+    const bar = this.getEquippedArmor();
+    let finalDamage = damage;
+
+    // If BAR > AP, reduce damage by difference
+    if (bar > ap) {
+      finalDamage = Math.max(0, damage - (bar - ap));
+    }
+
+    if (finalDamage <= 0) {
+      ui.notifications.info("Attack absorbed by armor!");
+      return;
+    }
+
+    if (isSubduing) {
+      // Subduing damage applies to Fatigue and causes Stun
+      const newFatigue = (this.system.fatigue.value || 0) + finalDamage;
+      await this.update({
+        "system.fatigue.value": newFatigue,
+        "system.stun": true
+      });
+    } else {
+      // Standard damage
+      const newDamage = (this.system.damage.value || 0) + finalDamage;
+      // Standard damage also causes 1 Fatigue
+      const newFatigue = (this.system.fatigue.value || 0) + 1;
+      await this.update({
+        "system.damage.value": newDamage,
+        "system.fatigue.value": newFatigue,
+        "system.stun": true
+      });
+    }
+
+    // Check for unconsciousness or death
+    await this._checkCondition();
+  }
+
+  /**
+   * Check for unconsciousness or death
+   */
+  async _checkCondition() {
+    const damage = this.system.damage.value || 0;
+    const fatigue = this.system.fatigue.value || 0;
+    const damageCapacity = this.system.damageCapacity;
+    const fatigueCapacity = this.system.fatigueCapacity;
+
+    if (damage >= damageCapacity) {
+      ui.notifications.error(`${this.name} has died!`);
+    } else if (fatigue >= fatigueCapacity) {
+      ui.notifications.warn(`${this.name} has fallen unconscious!`);
+      // Excess fatigue becomes standard damage
+      const excessFatigue = fatigue - fatigueCapacity;
+      if (excessFatigue > 0) {
+        await this.update({
+          "system.damage.value": damage + excessFatigue,
+          "system.fatigue.value": fatigueCapacity
+        });
+      }
+    }
+  }
+
+  /**
+   * Recover fatigue (Complex Action)
+   * Recovers fatigue points equal to BOD score
+   */
+  async recoverFatigue() {
+    const bod = this.system.attributes.bod.value;
+    const currentFatigue = this.system.fatigue.value || 0;
+    const newFatigue = Math.max(0, currentFatigue - bod);
+
+    await this.update({
+      "system.fatigue.value": newFatigue
+    });
+
+    ChatMessage.create({
+      speaker: ChatMessage.getSpeaker({ actor: this }),
+      content: `${this.name} recovers ${Math.min(bod, currentFatigue)} Fatigue points.`
+    });
+  }
+
+  /**
+   * Clear stun effect (Simple Action)
+   */
+  async clearStun() {
+    if (!this.system.stun) {
+      ui.notifications.info("Not currently stunned.");
+      return;
+    }
+
+    await this.update({
+      "system.stun": false
+    });
+
+    ChatMessage.create({
+      speaker: ChatMessage.getSpeaker({ actor: this }),
+      content: `${this.name} shakes off the stun effect.`
+    });
+  }
+
+  /**
+   * Roll consciousness check (TN 7)
+   */
+  async rollConsciousness() {
+    const wil = this.system.attributes.wil;
+    let totalMod = wil.linkMod || 0;
+    totalMod += this.system.injuryModifier || 0;
+    totalMod += this.system.fatigueModifier || 0;
+
+    const roll = new Roll(`2d6 + ${totalMod}`);
+    await roll.evaluate();
+
+    const success = roll.total >= 7;
+
+    ChatMessage.create({
+      speaker: ChatMessage.getSpeaker({ actor: this }),
+      flavor: "Consciousness Check (TN 7)",
+      content: `
+        <div class="mech-foundry roll-result">
+          <div class="dice-result">
+            <strong>Roll:</strong> ${roll.total}
+          </div>
+          <div class="result ${success ? 'success' : 'failure'}">
+            ${success ? 'Remains Conscious!' : 'Falls Unconscious!'}
+          </div>
+        </div>
+      `,
+      rolls: [roll]
+    });
+
+    return success;
+  }
+
+  /**
+   * Roll initiative (2d6, highest RFL breaks ties)
+   */
+  async rollInitiativeDialog() {
+    // Check for Combat Sense trait (roll 3d6, use highest 2)
+    const hasCombatSense = this.items.some(i =>
+      i.type === 'trait' &&
+      i.name.toLowerCase().includes('combat sense')
+    );
+
+    const formula = hasCombatSense ? '3d6kh2' : '2d6';
+    const roll = new Roll(formula);
+    await roll.evaluate();
+
+    return roll.total;
   }
 }

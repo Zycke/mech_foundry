@@ -1,0 +1,69 @@
+<form class="{{cssClass}} mech-foundry item-sheet skill-sheet" autocomplete="off">
+  <header class="sheet-header">
+    <img class="item-img" src="{{item.img}}" data-edit="img" title="{{item.name}}"/>
+    <div class="header-fields">
+      <h1 class="item-name">
+        <input name="name" type="text" value="{{item.name}}" placeholder="Skill Name"/>
+      </h1>
+    </div>
+  </header>
+
+  <nav class="sheet-tabs tabs" data-group="primary">
+    <a class="item" data-tab="details">Details</a>
+    <a class="item" data-tab="description">Description</a>
+  </nav>
+
+  <section class="sheet-body">
+    <div class="tab details" data-group="primary" data-tab="details">
+      <div class="form-group">
+        <label>Target Number (TN)</label>
+        <input type="number" name="system.targetNumber" value="{{system.targetNumber}}" data-dtype="Number"/>
+      </div>
+      <div class="form-group">
+        <label>Complexity</label>
+        <select name="system.complexity">
+          <option value="S" {{#if (eq system.complexity "S")}}selected{{/if}}>Simple (S)</option>
+          <option value="C" {{#if (eq system.complexity "C")}}selected{{/if}}>Complex (C)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Linked Attribute 1</label>
+        <select name="system.linkedAttribute1">
+          <option value="">None</option>
+          <option value="str" {{#if (eq system.linkedAttribute1 "str")}}selected{{/if}}>STR</option>
+          <option value="bod" {{#if (eq system.linkedAttribute1 "bod")}}selected{{/if}}>BOD</option>
+          <option value="rfl" {{#if (eq system.linkedAttribute1 "rfl")}}selected{{/if}}>RFL</option>
+          <option value="dex" {{#if (eq system.linkedAttribute1 "dex")}}selected{{/if}}>DEX</option>
+          <option value="int" {{#if (eq system.linkedAttribute1 "int")}}selected{{/if}}>INT</option>
+          <option value="wil" {{#if (eq system.linkedAttribute1 "wil")}}selected{{/if}}>WIL</option>
+          <option value="cha" {{#if (eq system.linkedAttribute1 "cha")}}selected{{/if}}>CHA</option>
+          <option value="edg" {{#if (eq system.linkedAttribute1 "edg")}}selected{{/if}}>EDG</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Linked Attribute 2 (for Complex skills)</label>
+        <select name="system.linkedAttribute2">
+          <option value="">None</option>
+          <option value="str" {{#if (eq system.linkedAttribute2 "str")}}selected{{/if}}>STR</option>
+          <option value="bod" {{#if (eq system.linkedAttribute2 "bod")}}selected{{/if}}>BOD</option>
+          <option value="rfl" {{#if (eq system.linkedAttribute2 "rfl")}}selected{{/if}}>RFL</option>
+          <option value="dex" {{#if (eq system.linkedAttribute2 "dex")}}selected{{/if}}>DEX</option>
+          <option value="int" {{#if (eq system.linkedAttribute2 "int")}}selected{{/if}}>INT</option>
+          <option value="wil" {{#if (eq system.linkedAttribute2 "wil")}}selected{{/if}}>WIL</option>
+          <option value="cha" {{#if (eq system.linkedAttribute2 "cha")}}selected{{/if}}>CHA</option>
+          <option value="edg" {{#if (eq system.linkedAttribute2 "edg")}}selected{{/if}}>EDG</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Skill Level</label>
+        <input type="number" name="system.level" value="{{system.level}}" min="0" max="10" data-dtype="Number"/>
+      </div>
+    </div>
+
+    <div class="tab description" data-group="primary" data-tab="description">
+      <div class="editor-container">
+        {{editor system.description target="system.description" button=true owner=owner editable=editable}}
+      </div>
+    </div>
+  </section>
+</form>

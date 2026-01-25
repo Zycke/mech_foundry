@@ -3,44 +3,40 @@
     "types": ["character", "npc"],
     "templates": {
       "base": {
-        "health": {
-          "value": 10,
-          "max": 10
+        "damage": {
+          "value": 0
         },
+        "fatigue": {
+          "value": 0
+        },
+        "stun": false,
         "biography": ""
       },
       "attributes": {
         "str": {
-          "value": 5,
-          "mod": 0
+          "value": 5
         },
         "bod": {
-          "value": 5,
-          "mod": 0
-        },
-        "dex": {
-          "value": 5,
-          "mod": 0
+          "value": 5
         },
         "rfl": {
-          "value": 5,
-          "mod": 0
+          "value": 5
+        },
+        "dex": {
+          "value": 5
         },
         "int": {
-          "value": 5,
-          "mod": 0
+          "value": 5
         },
         "wil": {
-          "value": 5,
-          "mod": 0
+          "value": 5
         },
         "cha": {
-          "value": 5,
-          "mod": 0
+          "value": 5
         },
         "edg": {
           "value": 5,
-          "mod": 0
+          "burned": 0
         }
       }
     },
@@ -60,7 +56,7 @@
     }
   },
   "Item": {
-    "types": ["skill", "trait", "weapon", "equipment"],
+    "types": ["skill", "trait", "weapon", "armor", "equipment"],
     "templates": {
       "base": {
         "description": ""
@@ -69,34 +65,48 @@
     "skill": {
       "templates": ["base"],
       "level": 0,
-      "linkedAttribute": "int",
-      "complexity": "simple",
+      "linkedAttribute1": "int",
+      "linkedAttribute2": "",
+      "complexity": "S",
       "targetNumber": 7
     },
     "trait": {
       "templates": ["base"],
       "cost": 0,
-      "type": "positive"
+      "traitType": "positive"
     },
     "weapon": {
       "templates": ["base"],
-      "damage": "1d6",
+      "weaponType": "ranged",
+      "ap": 0,
+      "bd": 1,
+      "subduing": false,
       "range": {
+        "pointBlank": 0,
         "short": 0,
         "medium": 0,
-        "long": 0
+        "long": 0,
+        "extreme": 0
       },
-      "skill": "",
+      "skill": "smallArms",
       "ammo": {
-        "current": 0,
+        "value": 0,
         "max": 0
-      }
+      },
+      "notes": ""
+    },
+    "armor": {
+      "templates": ["base"],
+      "bar": 0,
+      "location": "torso",
+      "equipped": true,
+      "notes": ""
     },
     "equipment": {
       "templates": ["base"],
       "quantity": 1,
-      "weight": 0,
-      "cost": 0
+      "encumbering": false,
+      "notes": ""
     }
   }
 }

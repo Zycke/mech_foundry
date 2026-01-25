@@ -1,0 +1,23 @@
+<div class="mech-foundry roll-result skill-roll">
+  <div class="roll-header">
+    <span class="skill-name">{{skillName}}</span>
+    <span class="complexity">({{#if (eq complexity "S")}}Simple{{else}}Complex{{/if}})</span>
+  </div>
+  <div class="roll-details">
+    <div class="dice-formula">2d6 {{#if (gte modifier 0)}}+{{/if}}{{modifier}}</div>
+    <div class="dice-result">
+      <span class="roll-total">{{total}}</span>
+      <span class="target-number">vs TN {{targetNumber}}</span>
+    </div>
+  </div>
+  <div class="roll-outcome {{#if success}}success{{else}}failure{{/if}}">
+    {{#if success}}
+      <i class="fas fa-check-circle"></i> Success
+    {{else}}
+      <i class="fas fa-times-circle"></i> Failure
+    {{/if}}
+    <span class="margin-of-success">
+      (MoS: {{#if (gte marginOfSuccess 0)}}+{{/if}}{{marginOfSuccess}})
+    </span>
+  </div>
+</div>
