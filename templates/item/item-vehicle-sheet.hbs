@@ -1,0 +1,38 @@
+<form class="{{cssClass}} mech-foundry item-sheet vehicle-sheet" autocomplete="off">
+  <header class="sheet-header">
+    <img class="item-img" src="{{item.img}}" data-edit="img" title="{{item.name}}"/>
+    <div class="header-fields">
+      <h1 class="item-name">
+        <input name="name" type="text" value="{{item.name}}" placeholder="Vehicle Model/Name"/>
+      </h1>
+    </div>
+  </header>
+
+  <section class="sheet-body sheet-content">
+    <div class="form-row">
+      <div class="form-group">
+        <label>Vehicle Type</label>
+        <input type="text" name="system.vehicleType" value="{{system.vehicleType}}" placeholder="e.g., Wheeled, Tracked, VTOL"/>
+      </div>
+      <div class="form-group">
+        <label>Vehicle Mass</label>
+        <input type="text" name="system.mass" value="{{system.mass}}" placeholder="e.g., 30 tons"/>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>Vehicle Traits</label>
+      <input type="text" name="system.traits" value="{{system.traits}}" placeholder="Special vehicle traits"/>
+    </div>
+
+    <div class="form-group">
+      <label>Notes</label>
+      <textarea name="system.notes" rows="3">{{system.notes}}</textarea>
+    </div>
+
+    <div class="editor-container">
+      <label>Description</label>
+      {{editor system.description target="system.description" button=true owner=owner editable=editable}}
+    </div>
+  </section>
+</form>

@@ -5,13 +5,17 @@
  */
 export const preloadHandlebarsTemplates = async function() {
   return loadTemplates([
-    // Actor partials
-    "systems/mech-foundry/templates/actor/parts/actor-attributes.hbs",
-    "systems/mech-foundry/templates/actor/parts/actor-condition.hbs",
-    "systems/mech-foundry/templates/actor/parts/actor-skills.hbs",
-    "systems/mech-foundry/templates/actor/parts/actor-combat.hbs",
-    "systems/mech-foundry/templates/actor/parts/actor-items.hbs",
-    "systems/mech-foundry/templates/actor/parts/actor-biography.hbs",
+    // Actor sheets
+    "systems/mech-foundry/templates/actor/actor-character-sheet.hbs",
+    "systems/mech-foundry/templates/actor/actor-npc-sheet.hbs",
+
+    // Item sheets
+    "systems/mech-foundry/templates/item/item-skill-sheet.hbs",
+    "systems/mech-foundry/templates/item/item-trait-sheet.hbs",
+    "systems/mech-foundry/templates/item/item-weapon-sheet.hbs",
+    "systems/mech-foundry/templates/item/item-armor-sheet.hbs",
+    "systems/mech-foundry/templates/item/item-equipment-sheet.hbs",
+    "systems/mech-foundry/templates/item/item-vehicle-sheet.hbs",
 
     // Chat partials
     "systems/mech-foundry/templates/chat/skill-roll.hbs"
