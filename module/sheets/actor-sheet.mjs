@@ -219,16 +219,18 @@ export class MechFoundryActorSheet extends ActorSheet {
         // Calculate next level cost
         i.nextLevelCost = MechFoundryActorSheet.getSkillNextCost(calculatedLevel, complexity);
 
-        let effectiveLevel = calculatedLevel;
+        // Calculate total link modifier for display
+        let totalLinkMod = 0;
         if (i.system.linkedAttribute1) {
           const attr = context.system.attributes[i.system.linkedAttribute1];
-          if (attr) effectiveLevel += attr.linkMod || 0;
+          if (attr) totalLinkMod += attr.linkMod || 0;
         }
         if (i.system.linkedAttribute2) {
           const attr = context.system.attributes[i.system.linkedAttribute2];
-          if (attr) effectiveLevel += attr.linkMod || 0;
+          if (attr) totalLinkMod += attr.linkMod || 0;
         }
-        i.effectiveLevel = effectiveLevel;
+        i.totalLinkMod = totalLinkMod;
+        i.effectiveLevel = calculatedLevel + totalLinkMod;
         skills.push(i);
       }
       else if (i.type === 'trait') {
@@ -943,12 +945,23 @@ export class MechFoundryActorSheet extends ActorSheet {
   _onConditionChange(event) {
     const input = event.currentTarget;
     const max = parseInt(input.dataset.max) || 0;
+    const name = input.name.includes('damage') ? 'Standard Damage' : 'Fatigue';
     let value = parseInt(input.value) || 0;
 
-    // Clamp value to valid range
-    if (value < 0) value = 0;
-    if (value > max) value = max;
+    // Get old value from actor data
+    const oldValue = input.name.includes('damage')
+      ? this.actor.system.damage.value
+      : this.actor.system.fatigue.value;
 
-    input.value = value;
+    if (value > max) {
+      ui.notifications.error(`${name} cannot exceed maximum of ${max}!`);
+      input.value = oldValue;
+      event.preventDefault();
+      event.stopPropagation();
+      return false;
+    }
+    if (value < 0) {
+      input.value = 0;
+    }
   }
 }

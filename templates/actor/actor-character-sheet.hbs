@@ -85,6 +85,7 @@
               <th>Score</th>
               <th>Link</th>
               <th>XP Invested</th>
+              <th>Next Rank</th>
               <th></th>
             </tr>
           </thead>
@@ -98,8 +99,9 @@
                 {{formatMod system.attributes.str.linkMod}}
               </td>
               <td class="attribute-xp">
-                <input type="number" class="xp-input attr-xp-input" name="system.attributes.str.xp" value="{{system.attributes.str.xp}}" data-dtype="Number" data-attr="str" min="0"/>
+                <input type="number" class="xp-input attr-xp-input" value="{{system.attributes.str.xp}}" data-dtype="Number" data-attr="str" min="0"/>
               </td>
+              <td class="attribute-next-cost">{{xpCosts.attributeNext.str}} XP</td>
               <td class="attribute-roll-cell">
                 <button type="button" class="attribute-roll" data-attribute="str" title="Roll STR (Shift+Click for Double)">
                   <i class="fas fa-dice-d6"></i>
@@ -115,8 +117,9 @@
                 {{formatMod system.attributes.bod.linkMod}}
               </td>
               <td class="attribute-xp">
-                <input type="number" class="xp-input attr-xp-input" name="system.attributes.bod.xp" value="{{system.attributes.bod.xp}}" data-dtype="Number" data-attr="bod" min="0"/>
+                <input type="number" class="xp-input attr-xp-input" value="{{system.attributes.bod.xp}}" data-dtype="Number" data-attr="bod" min="0"/>
               </td>
+              <td class="attribute-next-cost">{{xpCosts.attributeNext.bod}} XP</td>
               <td class="attribute-roll-cell">
                 <button type="button" class="attribute-roll" data-attribute="bod" title="Roll BOD (Shift+Click for Double)">
                   <i class="fas fa-dice-d6"></i>
@@ -132,8 +135,9 @@
                 {{formatMod system.attributes.rfl.linkMod}}
               </td>
               <td class="attribute-xp">
-                <input type="number" class="xp-input attr-xp-input" name="system.attributes.rfl.xp" value="{{system.attributes.rfl.xp}}" data-dtype="Number" data-attr="rfl" min="0"/>
+                <input type="number" class="xp-input attr-xp-input" value="{{system.attributes.rfl.xp}}" data-dtype="Number" data-attr="rfl" min="0"/>
               </td>
+              <td class="attribute-next-cost">{{xpCosts.attributeNext.rfl}} XP</td>
               <td class="attribute-roll-cell">
                 <button type="button" class="attribute-roll" data-attribute="rfl" title="Roll RFL (Shift+Click for Double)">
                   <i class="fas fa-dice-d6"></i>
@@ -149,8 +153,9 @@
                 {{formatMod system.attributes.dex.linkMod}}
               </td>
               <td class="attribute-xp">
-                <input type="number" class="xp-input attr-xp-input" name="system.attributes.dex.xp" value="{{system.attributes.dex.xp}}" data-dtype="Number" data-attr="dex" min="0"/>
+                <input type="number" class="xp-input attr-xp-input" value="{{system.attributes.dex.xp}}" data-dtype="Number" data-attr="dex" min="0"/>
               </td>
+              <td class="attribute-next-cost">{{xpCosts.attributeNext.dex}} XP</td>
               <td class="attribute-roll-cell">
                 <button type="button" class="attribute-roll" data-attribute="dex" title="Roll DEX (Shift+Click for Double)">
                   <i class="fas fa-dice-d6"></i>
@@ -166,8 +171,9 @@
                 {{formatMod system.attributes.int.linkMod}}
               </td>
               <td class="attribute-xp">
-                <input type="number" class="xp-input attr-xp-input" name="system.attributes.int.xp" value="{{system.attributes.int.xp}}" data-dtype="Number" data-attr="int" min="0"/>
+                <input type="number" class="xp-input attr-xp-input" value="{{system.attributes.int.xp}}" data-dtype="Number" data-attr="int" min="0"/>
               </td>
+              <td class="attribute-next-cost">{{xpCosts.attributeNext.int}} XP</td>
               <td class="attribute-roll-cell">
                 <button type="button" class="attribute-roll" data-attribute="int" title="Roll INT (Shift+Click for Double)">
                   <i class="fas fa-dice-d6"></i>
@@ -183,8 +189,9 @@
                 {{formatMod system.attributes.wil.linkMod}}
               </td>
               <td class="attribute-xp">
-                <input type="number" class="xp-input attr-xp-input" name="system.attributes.wil.xp" value="{{system.attributes.wil.xp}}" data-dtype="Number" data-attr="wil" min="0"/>
+                <input type="number" class="xp-input attr-xp-input" value="{{system.attributes.wil.xp}}" data-dtype="Number" data-attr="wil" min="0"/>
               </td>
+              <td class="attribute-next-cost">{{xpCosts.attributeNext.wil}} XP</td>
               <td class="attribute-roll-cell">
                 <button type="button" class="attribute-roll" data-attribute="wil" title="Roll WIL (Shift+Click for Double)">
                   <i class="fas fa-dice-d6"></i>
@@ -200,8 +207,9 @@
                 {{formatMod system.attributes.cha.linkMod}}
               </td>
               <td class="attribute-xp">
-                <input type="number" class="xp-input attr-xp-input" name="system.attributes.cha.xp" value="{{system.attributes.cha.xp}}" data-dtype="Number" data-attr="cha" min="0"/>
+                <input type="number" class="xp-input attr-xp-input" value="{{system.attributes.cha.xp}}" data-dtype="Number" data-attr="cha" min="0"/>
               </td>
+              <td class="attribute-next-cost">{{xpCosts.attributeNext.cha}} XP</td>
               <td class="attribute-roll-cell">
                 <button type="button" class="attribute-roll" data-attribute="cha" title="Roll CHA (Shift+Click for Double)">
                   <i class="fas fa-dice-d6"></i>
@@ -231,7 +239,11 @@
             </div>
             <div class="edge-stat">
               <label>XP Invested</label>
-              <input type="number" class="xp-input attr-xp-input" name="system.attributes.edg.xp" value="{{system.attributes.edg.xp}}" data-dtype="Number" data-attr="edg" min="0"/>
+              <input type="number" class="xp-input attr-xp-input" value="{{system.attributes.edg.xp}}" data-dtype="Number" data-attr="edg" min="0"/>
+            </div>
+            <div class="edge-stat">
+              <label>Next Rank</label>
+              <span>{{xpCosts.attributeNext.edg}} XP</span>
             </div>
           </div>
           <div class="edge-actions">
@@ -254,10 +266,12 @@
           <thead>
             <tr>
               <th>Skill</th>
+              <th>Total Mod</th>
               <th>Level</th>
               <th>Links</th>
               <th>TN/C</th>
               <th>XP Invested</th>
+              <th>Next Level</th>
               <th></th>
             </tr>
           </thead>
@@ -269,14 +283,17 @@
                   <i class="fas fa-dice"></i> {{this.name}}
                 </a>
               </td>
+              <td class="skill-total-mod">{{formatMod this.effectiveLevel}}</td>
               <td class="skill-level">{{formatMod this.system.level}}</td>
               <td class="skill-links">
                 {{this.system.linkedAttribute1}}{{#if this.system.linkedAttribute2}}+{{this.system.linkedAttribute2}}{{/if}}
+                ({{formatMod this.totalLinkMod}})
               </td>
               <td class="skill-tn">{{this.system.targetNumber}}/{{this.system.complexity}}</td>
               <td class="skill-xp">
                 <input type="number" class="xp-input skill-xp-input" value="{{this.system.xp}}" data-item-id="{{this._id}}" data-dtype="Number" min="0"/>
               </td>
+              <td class="skill-next-cost">{{this.nextLevelCost}} XP</td>
               <td class="item-controls">
                 <a class="item-edit" title="Edit"><i class="fas fa-edit"></i></a>
                 <a class="item-delete" title="Delete"><i class="fas fa-trash"></i></a>

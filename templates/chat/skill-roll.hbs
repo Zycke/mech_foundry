@@ -4,7 +4,12 @@
     <span class="complexity">({{#if (eq complexity "S")}}Simple{{else}}Complex{{/if}})</span>
   </div>
   <div class="roll-details">
-    <div class="dice-formula">2d6 {{#if (gte modifier 0)}}+{{/if}}{{modifier}}</div>
+    <div class="dice-raw">
+      Dice: {{#each diceResults}}{{this}}{{#unless @last}} + {{/unless}}{{/each}} = {{rawDiceTotal}}
+    </div>
+    <div class="dice-formula">
+      {{rawDiceTotal}} {{#if (gte modifier 0)}}+{{/if}}{{modifier}} = {{total}}
+    </div>
     <div class="dice-result">
       <span class="roll-total">{{total}}</span>
       <span class="target-number">vs TN {{targetNumber}}</span>

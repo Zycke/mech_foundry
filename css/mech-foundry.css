@@ -169,6 +169,25 @@
   border: 1px solid var(--mf-accent);
 }
 
+.mech-foundry .xp-bar .xp-input.available {
+  font-size: 1.4em;
+  font-weight: bold;
+  color: var(--mf-light);
+  background: rgba(74, 157, 74, 0.4);
+  border: 1px solid var(--mf-success);
+  padding: 4px 15px;
+  border-radius: var(--mf-border-radius);
+  text-align: center;
+  width: 100px;
+  -moz-appearance: textfield;
+}
+
+.mech-foundry .xp-bar .xp-input.available::-webkit-outer-spin-button,
+.mech-foundry .xp-bar .xp-input.available::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
 /* ----------------------------------------- */
 /* Tabs                                       */
 /* ----------------------------------------- */
