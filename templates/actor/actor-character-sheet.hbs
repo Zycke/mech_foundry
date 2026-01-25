@@ -49,7 +49,7 @@
   <div class="xp-bar">
     <div class="xp-bar-item">
       <label>Available XP</label>
-      <span class="xp-value available">{{system.xp.value}}</span>
+      <input type="number" name="system.xp.value" class="xp-input available" value="{{system.xp.value}}" data-dtype="Number" min="0"/>
     </div>
     <div class="xp-bar-item">
       <label>Spent XP</label>
@@ -57,7 +57,7 @@
     </div>
     <div class="xp-bar-item">
       <label>Total XP</label>
-      <span class="xp-value total">{{add system.xp.value system.xp.spent}}</span>
+      <span class="xp-value total">{{system.xp.total}}</span>
     </div>
   </div>
 
@@ -85,41 +85,129 @@
               <th>Score</th>
               <th>Link</th>
               <th>XP Invested</th>
-              <th>Next Rank</th>
               <th></th>
             </tr>
           </thead>
           <tbody>
-            {{#each system.attributes as |attr key|}}
-            {{#unless (eq key "edg")}}
-            <tr class="attribute-row" data-attribute="{{key}}">
-              <td class="attribute-name">{{localize (lookup @root.config.attributes key)}}</td>
+            <tr class="attribute-row" data-attribute="str">
+              <td class="attribute-name">STR</td>
               <td class="attribute-score">
-                <span class="score-display">{{attr.value}}</span>
+                <span class="score-display">{{system.attributes.str.value}}</span>
               </td>
-              <td class="attribute-link {{#if (gt attr.linkMod 0)}}positive{{else if (lt attr.linkMod 0)}}negative{{/if}}">
-                {{formatMod attr.linkMod}}
+              <td class="attribute-link {{#if (gt system.attributes.str.linkMod 0)}}positive{{else if (lt system.attributes.str.linkMod 0)}}negative{{/if}}">
+                {{formatMod system.attributes.str.linkMod}}
               </td>
               <td class="attribute-xp">
-                <span class="xp-invested">{{attr.xp}}</span>
-              </td>
-              <td class="attribute-next">
-                {{#if (lt attr.value 10)}}
-                <button type="button" class="add-xp-btn" data-type="attribute" data-key="{{key}}" data-cost="{{lookup @root.xpCosts.attributeNext key}}" title="Add XP to increase rank">
-                  <i class="fas fa-plus"></i> {{lookup @root.xpCosts.attributeNext key}} XP
-                </button>
-                {{else}}
-                <span class="maxed">MAX</span>
-                {{/if}}
+                <input type="number" class="xp-input attr-xp-input" name="system.attributes.str.xp" value="{{system.attributes.str.xp}}" data-dtype="Number" data-attr="str" min="0"/>
               </td>
               <td class="attribute-roll-cell">
-                <button type="button" class="attribute-roll" data-attribute="{{key}}" title="Roll {{key}} (Shift+Click for Double)">
+                <button type="button" class="attribute-roll" data-attribute="str" title="Roll STR (Shift+Click for Double)">
                   <i class="fas fa-dice-d6"></i>
                 </button>
               </td>
             </tr>
-            {{/unless}}
-            {{/each}}
+            <tr class="attribute-row" data-attribute="bod">
+              <td class="attribute-name">BOD</td>
+              <td class="attribute-score">
+                <span class="score-display">{{system.attributes.bod.value}}</span>
+              </td>
+              <td class="attribute-link {{#if (gt system.attributes.bod.linkMod 0)}}positive{{else if (lt system.attributes.bod.linkMod 0)}}negative{{/if}}">
+                {{formatMod system.attributes.bod.linkMod}}
+              </td>
+              <td class="attribute-xp">
+                <input type="number" class="xp-input attr-xp-input" name="system.attributes.bod.xp" value="{{system.attributes.bod.xp}}" data-dtype="Number" data-attr="bod" min="0"/>
+              </td>
+              <td class="attribute-roll-cell">
+                <button type="button" class="attribute-roll" data-attribute="bod" title="Roll BOD (Shift+Click for Double)">
+                  <i class="fas fa-dice-d6"></i>
+                </button>
+              </td>
+            </tr>
+            <tr class="attribute-row" data-attribute="rfl">
+              <td class="attribute-name">RFL</td>
+              <td class="attribute-score">
+                <span class="score-display">{{system.attributes.rfl.value}}</span>
+              </td>
+              <td class="attribute-link {{#if (gt system.attributes.rfl.linkMod 0)}}positive{{else if (lt system.attributes.rfl.linkMod 0)}}negative{{/if}}">
+                {{formatMod system.attributes.rfl.linkMod}}
+              </td>
+              <td class="attribute-xp">
+                <input type="number" class="xp-input attr-xp-input" name="system.attributes.rfl.xp" value="{{system.attributes.rfl.xp}}" data-dtype="Number" data-attr="rfl" min="0"/>
+              </td>
+              <td class="attribute-roll-cell">
+                <button type="button" class="attribute-roll" data-attribute="rfl" title="Roll RFL (Shift+Click for Double)">
+                  <i class="fas fa-dice-d6"></i>
+                </button>
+              </td>
+            </tr>
+            <tr class="attribute-row" data-attribute="dex">
+              <td class="attribute-name">DEX</td>
+              <td class="attribute-score">
+                <span class="score-display">{{system.attributes.dex.value}}</span>
+              </td>
+              <td class="attribute-link {{#if (gt system.attributes.dex.linkMod 0)}}positive{{else if (lt system.attributes.dex.linkMod 0)}}negative{{/if}}">
+                {{formatMod system.attributes.dex.linkMod}}
+              </td>
+              <td class="attribute-xp">
+                <input type="number" class="xp-input attr-xp-input" name="system.attributes.dex.xp" value="{{system.attributes.dex.xp}}" data-dtype="Number" data-attr="dex" min="0"/>
+              </td>
+              <td class="attribute-roll-cell">
+                <button type="button" class="attribute-roll" data-attribute="dex" title="Roll DEX (Shift+Click for Double)">
+                  <i class="fas fa-dice-d6"></i>
+                </button>
+              </td>
+            </tr>
+            <tr class="attribute-row" data-attribute="int">
+              <td class="attribute-name">INT</td>
+              <td class="attribute-score">
+                <span class="score-display">{{system.attributes.int.value}}</span>
+              </td>
+              <td class="attribute-link {{#if (gt system.attributes.int.linkMod 0)}}positive{{else if (lt system.attributes.int.linkMod 0)}}negative{{/if}}">
+                {{formatMod system.attributes.int.linkMod}}
+              </td>
+              <td class="attribute-xp">
+                <input type="number" class="xp-input attr-xp-input" name="system.attributes.int.xp" value="{{system.attributes.int.xp}}" data-dtype="Number" data-attr="int" min="0"/>
+              </td>
+              <td class="attribute-roll-cell">
+                <button type="button" class="attribute-roll" data-attribute="int" title="Roll INT (Shift+Click for Double)">
+                  <i class="fas fa-dice-d6"></i>
+                </button>
+              </td>
+            </tr>
+            <tr class="attribute-row" data-attribute="wil">
+              <td class="attribute-name">WIL</td>
+              <td class="attribute-score">
+                <span class="score-display">{{system.attributes.wil.value}}</span>
+              </td>
+              <td class="attribute-link {{#if (gt system.attributes.wil.linkMod 0)}}positive{{else if (lt system.attributes.wil.linkMod 0)}}negative{{/if}}">
+                {{formatMod system.attributes.wil.linkMod}}
+              </td>
+              <td class="attribute-xp">
+                <input type="number" class="xp-input attr-xp-input" name="system.attributes.wil.xp" value="{{system.attributes.wil.xp}}" data-dtype="Number" data-attr="wil" min="0"/>
+              </td>
+              <td class="attribute-roll-cell">
+                <button type="button" class="attribute-roll" data-attribute="wil" title="Roll WIL (Shift+Click for Double)">
+                  <i class="fas fa-dice-d6"></i>
+                </button>
+              </td>
+            </tr>
+            <tr class="attribute-row" data-attribute="cha">
+              <td class="attribute-name">CHA</td>
+              <td class="attribute-score">
+                <span class="score-display">{{system.attributes.cha.value}}</span>
+              </td>
+              <td class="attribute-link {{#if (gt system.attributes.cha.linkMod 0)}}positive{{else if (lt system.attributes.cha.linkMod 0)}}negative{{/if}}">
+                {{formatMod system.attributes.cha.linkMod}}
+              </td>
+              <td class="attribute-xp">
+                <input type="number" class="xp-input attr-xp-input" name="system.attributes.cha.xp" value="{{system.attributes.cha.xp}}" data-dtype="Number" data-attr="cha" min="0"/>
+              </td>
+              <td class="attribute-roll-cell">
+                <button type="button" class="attribute-roll" data-attribute="cha" title="Roll CHA (Shift+Click for Double)">
+                  <i class="fas fa-dice-d6"></i>
+                </button>
+              </td>
+            </tr>
           </tbody>
         </table>
       </div>
@@ -142,16 +230,11 @@
               <input type="number" name="system.attributes.edg.burned" value="{{system.attributes.edg.burned}}" data-dtype="Number" min="0" max="{{system.attributes.edg.value}}"/>
             </div>
             <div class="edge-stat">
-              <label>XP</label>
-              <span class="xp-invested">{{system.attributes.edg.xp}}</span>
+              <label>XP Invested</label>
+              <input type="number" class="xp-input attr-xp-input" name="system.attributes.edg.xp" value="{{system.attributes.edg.xp}}" data-dtype="Number" data-attr="edg" min="0"/>
             </div>
           </div>
           <div class="edge-actions">
-            {{#if (lt system.attributes.edg.value 10)}}
-            <button type="button" class="add-xp-btn" data-type="attribute" data-key="edg" data-cost="{{xpCosts.attributeNext.edg}}" title="Add XP to increase Edge">
-              <i class="fas fa-plus"></i> {{xpCosts.attributeNext.edg}} XP
-            </button>
-            {{/if}}
             <button type="button" class="burn-edge" title="Burn Edge">
               <i class="fas fa-fire"></i> Burn Edge
             </button>
@@ -175,7 +258,6 @@
               <th>Links</th>
               <th>TN/C</th>
               <th>XP Invested</th>
-              <th>Next Level</th>
               <th></th>
             </tr>
           </thead>
@@ -192,15 +274,8 @@
                 {{this.system.linkedAttribute1}}{{#if this.system.linkedAttribute2}}+{{this.system.linkedAttribute2}}{{/if}}
               </td>
               <td class="skill-tn">{{this.system.targetNumber}}/{{this.system.complexity}}</td>
-              <td class="skill-xp">{{this.system.xp}}</td>
-              <td class="skill-next">
-                {{#if (lt this.system.level 10)}}
-                <button type="button" class="add-xp-btn" data-type="skill" data-item-id="{{this._id}}" data-cost="{{this.nextLevelCost}}" title="Add XP to increase level">
-                  <i class="fas fa-plus"></i> {{this.nextLevelCost}} XP
-                </button>
-                {{else}}
-                <span class="maxed">MAX</span>
-                {{/if}}
+              <td class="skill-xp">
+                <input type="number" class="xp-input skill-xp-input" value="{{this.system.xp}}" data-item-id="{{this._id}}" data-dtype="Number" min="0"/>
               </td>
               <td class="item-controls">
                 <a class="item-edit" title="Edit"><i class="fas fa-edit"></i></a>
@@ -227,7 +302,7 @@
               <th>TP</th>
               <th>Page Ref.</th>
               <th>XP Cost</th>
-              <th>Purchase</th>
+              <th>XP Invested</th>
               <th></th>
             </tr>
           </thead>
@@ -240,15 +315,12 @@
               </td>
               <td class="trait-cost">{{this.system.cost}}</td>
               <td class="trait-pageref">{{this.system.pageRef}}</td>
-              <td class="trait-xp">{{this.xpCost}}</td>
-              <td class="trait-purchase">
-                {{#unless this.system.purchased}}
-                <button type="button" class="add-xp-btn" data-type="trait" data-item-id="{{this._id}}" data-cost="{{this.xpCost}}" title="Purchase this trait">
-                  <i class="fas fa-plus"></i> Buy
-                </button>
-                {{else}}
+              <td class="trait-xpcost">{{this.xpCost}}</td>
+              <td class="trait-xp">
+                <input type="number" class="xp-input trait-xp-input" value="{{this.system.xp}}" data-item-id="{{this._id}}" data-xp-cost="{{this.xpCost}}" data-dtype="Number" min="0"/>
+                {{#if this.system.purchased}}
                 <span class="purchased"><i class="fas fa-check"></i></span>
-                {{/unless}}
+                {{/if}}
               </td>
               <td class="item-controls">
                 <a class="item-edit" title="Edit"><i class="fas fa-edit"></i></a>
@@ -274,10 +346,10 @@
               <label>Standard Damage</label>
               <div class="condition-boxes">
                 {{#times system.damageCapacity}}
-                <span class="condition-box {{#if (lte this @root.system.damage.value)}}filled{{/if}}" data-index="{{this}}" data-type="damage"></span>
+                <span class="condition-box {{#if (lt this @root.system.damage.value)}}filled{{/if}}" data-index="{{this}}" data-type="damage"></span>
                 {{/times}}
               </div>
-              <input type="number" name="system.damage.value" value="{{system.damage.value}}" min="0" max="{{system.damageCapacity}}" data-dtype="Number"/>
+              <input type="number" class="condition-input" name="system.damage.value" value="{{system.damage.value}}" min="0" max="{{system.damageCapacity}}" data-dtype="Number" data-max="{{system.damageCapacity}}"/>
             </div>
 
             {{!-- Fatigue Track --}}
@@ -285,10 +357,10 @@
               <label>Fatigue Damage</label>
               <div class="condition-boxes">
                 {{#times system.fatigueCapacity}}
-                <span class="condition-box {{#if (lte this @root.system.fatigue.value)}}filled{{/if}}" data-index="{{this}}" data-type="fatigue"></span>
+                <span class="condition-box {{#if (lt this @root.system.fatigue.value)}}filled{{/if}}" data-index="{{this}}" data-type="fatigue"></span>
                 {{/times}}
               </div>
-              <input type="number" name="system.fatigue.value" value="{{system.fatigue.value}}" min="0" max="{{system.fatigueCapacity}}" data-dtype="Number"/>
+              <input type="number" class="condition-input" name="system.fatigue.value" value="{{system.fatigue.value}}" min="0" max="{{system.fatigueCapacity}}" data-dtype="Number" data-max="{{system.fatigueCapacity}}"/>
             </div>
 
             {{!-- Status Checkboxes --}}

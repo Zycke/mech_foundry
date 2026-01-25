@@ -25,6 +25,11 @@ export class MechFoundryActor extends Actor {
 
     // Calculate derived values
     this._calculateDerivedStats(systemData);
+
+    // Calculate total XP (available + spent)
+    if (systemData.xp) {
+      systemData.xp.total = (systemData.xp.value || 0) + (systemData.xp.spent || 0);
+    }
   }
 
   /**
