@@ -45,18 +45,221 @@
     </div>
   </header>
 
+  {{!-- XP Display Bar (Always Visible) --}}
+  <div class="xp-bar">
+    <div class="xp-bar-item">
+      <label>Available XP</label>
+      <span class="xp-value available">{{system.xp.value}}</span>
+    </div>
+    <div class="xp-bar-item">
+      <label>Spent XP</label>
+      <span class="xp-value spent">{{system.xp.spent}}</span>
+    </div>
+    <div class="xp-bar-item">
+      <label>Total XP</label>
+      <span class="xp-value total">{{add system.xp.value system.xp.spent}}</span>
+    </div>
+  </div>
+
   {{!-- Sheet Tab Navigation --}}
   <nav class="sheet-tabs tabs" data-group="primary">
-    <a class="item" data-tab="combat">Combat</a>
     <a class="item" data-tab="attributes">Attributes</a>
     <a class="item" data-tab="skills">Skills</a>
     <a class="item" data-tab="traits">Traits</a>
+    <a class="item" data-tab="combat">Combat</a>
     <a class="item" data-tab="inventory">Inventory</a>
     <a class="item" data-tab="biography">Biography</a>
   </nav>
 
   {{!-- Sheet Body --}}
   <section class="sheet-body">
+
+    {{!-- Attributes Tab --}}
+    <div class="tab attributes" data-group="primary" data-tab="attributes">
+      <div class="attributes-section">
+        <h3 class="section-title">Attributes</h3>
+        <table class="attributes-table">
+          <thead>
+            <tr>
+              <th>Attribute</th>
+              <th>Score</th>
+              <th>Link</th>
+              <th>XP Invested</th>
+              <th>Next Rank</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {{#each system.attributes as |attr key|}}
+            {{#unless (eq key "edg")}}
+            <tr class="attribute-row" data-attribute="{{key}}">
+              <td class="attribute-name">{{localize (lookup @root.config.attributes key)}}</td>
+              <td class="attribute-score">
+                <span class="score-display">{{attr.value}}</span>
+              </td>
+              <td class="attribute-link {{#if (gt attr.linkMod 0)}}positive{{else if (lt attr.linkMod 0)}}negative{{/if}}">
+                {{formatMod attr.linkMod}}
+              </td>
+              <td class="attribute-xp">
+                <span class="xp-invested">{{attr.xp}}</span>
+              </td>
+              <td class="attribute-next">
+                {{#if (lt attr.value 10)}}
+                <button type="button" class="add-xp-btn" data-type="attribute" data-key="{{key}}" data-cost="{{lookup @root.xpCosts.attributeNext key}}" title="Add XP to increase rank">
+                  <i class="fas fa-plus"></i> {{lookup @root.xpCosts.attributeNext key}} XP
+                </button>
+                {{else}}
+                <span class="maxed">MAX</span>
+                {{/if}}
+              </td>
+              <td class="attribute-roll-cell">
+                <button type="button" class="attribute-roll" data-attribute="{{key}}" title="Roll {{key}} (Shift+Click for Double)">
+                  <i class="fas fa-dice-d6"></i>
+                </button>
+              </td>
+            </tr>
+            {{/unless}}
+            {{/each}}
+          </tbody>
+        </table>
+      </div>
+
+      {{!-- Edge Section --}}
+      <div class="edge-section">
+        <h3 class="section-title">Edge</h3>
+        <div class="edge-display">
+          <div class="edge-stats">
+            <div class="edge-stat">
+              <label>Score</label>
+              <span class="edge-score">{{system.attributes.edg.value}}</span>
+            </div>
+            <div class="edge-stat">
+              <label>Current</label>
+              <span class="edge-current-val">{{system.attributes.edg.current}}</span>
+            </div>
+            <div class="edge-stat">
+              <label>Burned</label>
+              <input type="number" name="system.attributes.edg.burned" value="{{system.attributes.edg.burned}}" data-dtype="Number" min="0" max="{{system.attributes.edg.value}}"/>
+            </div>
+            <div class="edge-stat">
+              <label>XP</label>
+              <span class="xp-invested">{{system.attributes.edg.xp}}</span>
+            </div>
+          </div>
+          <div class="edge-actions">
+            {{#if (lt system.attributes.edg.value 10)}}
+            <button type="button" class="add-xp-btn" data-type="attribute" data-key="edg" data-cost="{{xpCosts.attributeNext.edg}}" title="Add XP to increase Edge">
+              <i class="fas fa-plus"></i> {{xpCosts.attributeNext.edg}} XP
+            </button>
+            {{/if}}
+            <button type="button" class="burn-edge" title="Burn Edge">
+              <i class="fas fa-fire"></i> Burn Edge
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {{!-- Skills Tab --}}
+    <div class="tab skills" data-group="primary" data-tab="skills">
+      <div class="skills-section">
+        <div class="items-header">
+          <h3 class="section-title">Skills</h3>
+          <a class="item-create" data-type="skill"><i class="fas fa-plus"></i> Add Skill</a>
+        </div>
+        <table class="skills-table">
+          <thead>
+            <tr>
+              <th>Skill</th>
+              <th>Level</th>
+              <th>Links</th>
+              <th>TN/C</th>
+              <th>XP Invested</th>
+              <th>Next Level</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {{#each skills}}
+            <tr class="item skill-row" data-item-id="{{this._id}}">
+              <td class="skill-name">
+                <a class="skill-roll" title="Click to roll">
+                  <i class="fas fa-dice"></i> {{this.name}}
+                </a>
+              </td>
+              <td class="skill-level">{{formatMod this.system.level}}</td>
+              <td class="skill-links">
+                {{this.system.linkedAttribute1}}{{#if this.system.linkedAttribute2}}+{{this.system.linkedAttribute2}}{{/if}}
+              </td>
+              <td class="skill-tn">{{this.system.targetNumber}}/{{this.system.complexity}}</td>
+              <td class="skill-xp">{{this.system.xp}}</td>
+              <td class="skill-next">
+                {{#if (lt this.system.level 10)}}
+                <button type="button" class="add-xp-btn" data-type="skill" data-item-id="{{this._id}}" data-cost="{{this.nextLevelCost}}" title="Add XP to increase level">
+                  <i class="fas fa-plus"></i> {{this.nextLevelCost}} XP
+                </button>
+                {{else}}
+                <span class="maxed">MAX</span>
+                {{/if}}
+              </td>
+              <td class="item-controls">
+                <a class="item-edit" title="Edit"><i class="fas fa-edit"></i></a>
+                <a class="item-delete" title="Delete"><i class="fas fa-trash"></i></a>
+              </td>
+            </tr>
+            {{/each}}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    {{!-- Traits Tab --}}
+    <div class="tab traits" data-group="primary" data-tab="traits">
+      <div class="traits-section">
+        <div class="items-header">
+          <h3 class="section-title">Traits (Personal)</h3>
+          <a class="item-create" data-type="trait"><i class="fas fa-plus"></i> Add Trait</a>
+        </div>
+        <table class="traits-table">
+          <thead>
+            <tr>
+              <th>Trait</th>
+              <th>TP</th>
+              <th>Page Ref.</th>
+              <th>XP Cost</th>
+              <th>Purchase</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {{#each traits}}
+            <tr class="item trait-row {{this.system.traitType}}" data-item-id="{{this._id}}">
+              <td class="trait-name">
+                <span class="trait-indicator">{{#if (eq this.system.traitType "positive")}}+{{else}}-{{/if}}</span>
+                {{this.name}}
+              </td>
+              <td class="trait-cost">{{this.system.cost}}</td>
+              <td class="trait-pageref">{{this.system.pageRef}}</td>
+              <td class="trait-xp">{{this.xpCost}}</td>
+              <td class="trait-purchase">
+                {{#unless this.system.purchased}}
+                <button type="button" class="add-xp-btn" data-type="trait" data-item-id="{{this._id}}" data-cost="{{this.xpCost}}" title="Purchase this trait">
+                  <i class="fas fa-plus"></i> Buy
+                </button>
+                {{else}}
+                <span class="purchased"><i class="fas fa-check"></i></span>
+                {{/unless}}
+              </td>
+              <td class="item-controls">
+                <a class="item-edit" title="Edit"><i class="fas fa-edit"></i></a>
+                <a class="item-delete" title="Delete"><i class="fas fa-trash"></i></a>
+              </td>
+            </tr>
+            {{/each}}
+          </tbody>
+        </table>
+      </div>
+    </div>
 
     {{!-- Combat Tab --}}
     <div class="tab combat" data-group="primary" data-tab="combat">
@@ -247,160 +450,6 @@
             </table>
           </div>
         </div>
-      </div>
-    </div>
-
-    {{!-- Attributes Tab --}}
-    <div class="tab attributes" data-group="primary" data-tab="attributes">
-      <div class="attributes-section">
-        <h3 class="section-title">Attributes</h3>
-        <table class="attributes-table">
-          <thead>
-            <tr>
-              <th>Attribute</th>
-              <th>Score</th>
-              <th>Link</th>
-              <th>XP</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {{#each system.attributes as |attr key|}}
-            <tr class="attribute-row">
-              <td class="attribute-name">{{localize (lookup @root.config.attributes key)}}</td>
-              <td class="attribute-score">
-                <input type="number" name="system.attributes.{{key}}.value" value="{{attr.value}}" data-dtype="Number" min="1" max="10"/>
-              </td>
-              <td class="attribute-link {{#if (gt attr.linkMod 0)}}positive{{else if (lt attr.linkMod 0)}}negative{{/if}}">
-                {{formatMod attr.linkMod}}
-              </td>
-              <td class="attribute-xp">
-                <input type="number" name="system.attributes.{{key}}.xp" value="{{attr.xp}}" data-dtype="Number" min="0"/>
-              </td>
-              <td class="attribute-roll-cell">
-                <button type="button" class="attribute-roll" data-attribute="{{key}}" title="Roll {{key}} (Shift+Click for Double)">
-                  <i class="fas fa-dice-d6"></i>
-                </button>
-              </td>
-            </tr>
-            {{/each}}
-          </tbody>
-        </table>
-      </div>
-
-      {{!-- Edge Section --}}
-      <div class="edge-section">
-        <h3 class="section-title">Edge</h3>
-        <div class="edge-display">
-          <div class="edge-current">
-            <span class="edge-value">{{system.attributes.edg.current}}</span>
-            <span class="edge-separator">/</span>
-            <span class="edge-max">{{system.attributes.edg.value}}</span>
-          </div>
-          <div class="edge-burned">
-            <label>Burned:</label>
-            <input type="number" name="system.attributes.edg.burned" value="{{system.attributes.edg.burned}}" data-dtype="Number" min="0" max="{{system.attributes.edg.value}}"/>
-          </div>
-          <button type="button" class="burn-edge" title="Burn Edge">
-            <i class="fas fa-fire"></i> Burn Edge
-          </button>
-        </div>
-      </div>
-
-      {{!-- XP Section --}}
-      <div class="xp-section">
-        <h3 class="section-title">Experience Points</h3>
-        <div class="xp-display">
-          <div class="xp-field">
-            <label>Available XP</label>
-            <input type="number" name="system.xp.value" value="{{system.xp.value}}" data-dtype="Number"/>
-          </div>
-          <div class="xp-field">
-            <label>Spent XP</label>
-            <input type="number" name="system.xp.spent" value="{{system.xp.spent}}" data-dtype="Number"/>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    {{!-- Skills Tab --}}
-    <div class="tab skills" data-group="primary" data-tab="skills">
-      <div class="skills-section">
-        <div class="items-header">
-          <h3 class="section-title">Skills</h3>
-          <a class="item-create" data-type="skill"><i class="fas fa-plus"></i> Add Skill</a>
-        </div>
-        <table class="skills-table">
-          <thead>
-            <tr>
-              <th>Skill</th>
-              <th>Lvl</th>
-              <th>Links</th>
-              <th>TN/C</th>
-              <th>XP</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {{#each skills}}
-            <tr class="item skill-row" data-item-id="{{this._id}}">
-              <td class="skill-name">
-                <a class="skill-roll" title="Click to roll">
-                  <i class="fas fa-dice"></i> {{this.name}}
-                </a>
-              </td>
-              <td class="skill-level">{{formatMod this.system.level}}</td>
-              <td class="skill-links">
-                {{this.system.linkedAttribute1}}{{#if this.system.linkedAttribute2}}+{{this.system.linkedAttribute2}}{{/if}}
-              </td>
-              <td class="skill-tn">{{this.system.targetNumber}}/{{this.system.complexity}}</td>
-              <td class="skill-xp">{{this.system.xp}}</td>
-              <td class="item-controls">
-                <a class="item-edit" title="Edit"><i class="fas fa-edit"></i></a>
-                <a class="item-delete" title="Delete"><i class="fas fa-trash"></i></a>
-              </td>
-            </tr>
-            {{/each}}
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-    {{!-- Traits Tab --}}
-    <div class="tab traits" data-group="primary" data-tab="traits">
-      <div class="traits-section">
-        <div class="items-header">
-          <h3 class="section-title">Traits (Personal)</h3>
-          <a class="item-create" data-type="trait"><i class="fas fa-plus"></i> Add Trait</a>
-        </div>
-        <table class="traits-table">
-          <thead>
-            <tr>
-              <th>Trait</th>
-              <th>TP</th>
-              <th>Page Ref.</th>
-              <th>XP</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {{#each traits}}
-            <tr class="item trait-row {{this.system.traitType}}" data-item-id="{{this._id}}">
-              <td class="trait-name">
-                <span class="trait-indicator">{{#if (eq this.system.traitType "positive")}}+{{else}}-{{/if}}</span>
-                {{this.name}}
-              </td>
-              <td class="trait-cost">{{this.system.cost}}</td>
-              <td class="trait-pageref">{{this.system.pageRef}}</td>
-              <td class="trait-xp">{{this.system.xp}}</td>
-              <td class="item-controls">
-                <a class="item-edit" title="Edit"><i class="fas fa-edit"></i></a>
-                <a class="item-delete" title="Delete"><i class="fas fa-trash"></i></a>
-              </td>
-            </tr>
-            {{/each}}
-          </tbody>
-        </table>
       </div>
     </div>
 

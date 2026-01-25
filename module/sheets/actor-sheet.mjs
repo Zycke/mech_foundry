@@ -11,13 +11,129 @@ export class MechFoundryActorSheet extends ActorSheet {
       classes: ["mech-foundry", "sheet", "actor"],
       width: 850,
       height: 750,
-      tabs: [{ navSelector: ".sheet-tabs", contentSelector: ".sheet-body", initial: "combat" }]
+      tabs: [{ navSelector: ".sheet-tabs", contentSelector: ".sheet-body", initial: "attributes" }]
     });
   }
 
   /** @override */
   get template() {
     return `systems/mech-foundry/templates/actor/actor-${this.actor.type}-sheet.hbs`;
+  }
+
+  /* -------------------------------------------- */
+  /*  XP Cost Tables (A Time of War)              */
+  /* -------------------------------------------- */
+
+  /**
+   * XP cost to raise an attribute to a given score
+   * Based on A Time of War attribute progression
+   * Cost is cumulative total XP needed for that score
+   */
+  static ATTRIBUTE_XP_COSTS = {
+    1: 0,
+    2: 100,
+    3: 200,
+    4: 300,
+    5: 400,    // Standard starting value
+    6: 600,
+    7: 900,
+    8: 1200,
+    9: 1600,
+    10: 2100
+  };
+
+  /**
+   * XP cost to raise a Simple skill to a given level
+   */
+  static SIMPLE_SKILL_XP_COSTS = {
+    0: 0,
+    1: 20,
+    2: 50,
+    3: 100,
+    4: 170,
+    5: 260,
+    6: 370,
+    7: 500,
+    8: 650,
+    9: 820,
+    10: 1010
+  };
+
+  /**
+   * XP cost to raise a Complex skill to a given level
+   */
+  static COMPLEX_SKILL_XP_COSTS = {
+    0: 0,
+    1: 30,
+    2: 70,
+    3: 130,
+    4: 210,
+    5: 310,
+    6: 430,
+    7: 570,
+    8: 730,
+    9: 910,
+    10: 1110
+  };
+
+  /**
+   * Get XP cost for the next attribute level
+   * @param {number} currentScore Current attribute score
+   * @returns {number} XP cost to reach next level
+   */
+  static getAttributeNextCost(currentScore) {
+    if (currentScore >= 10) return 0;
+    const currentTotal = this.ATTRIBUTE_XP_COSTS[currentScore] || 0;
+    const nextTotal = this.ATTRIBUTE_XP_COSTS[currentScore + 1] || 0;
+    return nextTotal - currentTotal;
+  }
+
+  /**
+   * Get attribute score from total XP invested
+   * @param {number} xp Total XP invested
+   * @returns {number} Attribute score
+   */
+  static getAttributeScoreFromXP(xp) {
+    let score = 1;
+    for (let i = 10; i >= 1; i--) {
+      if (xp >= this.ATTRIBUTE_XP_COSTS[i]) {
+        score = i;
+        break;
+      }
+    }
+    return score;
+  }
+
+  /**
+   * Get skill level from total XP invested
+   * @param {number} xp Total XP invested
+   * @param {string} complexity 'S' for Simple, 'C' for Complex
+   * @returns {number} Skill level
+   */
+  static getSkillLevelFromXP(xp, complexity = 'S') {
+    const costs = complexity === 'C' ? this.COMPLEX_SKILL_XP_COSTS : this.SIMPLE_SKILL_XP_COSTS;
+    let level = 0;
+    for (let i = 10; i >= 0; i--) {
+      if (xp >= costs[i]) {
+        level = i;
+        break;
+      }
+    }
+    return level;
+  }
+
+  /**
+   * Get XP cost for the next skill level
+   * @param {number} currentLevel Current skill level
+   * @param {string} complexity 'S' for Simple, 'C' for Complex
+   * @returns {number} XP cost to reach next level
+   */
+  static getSkillNextCost(currentLevel, complexity = 'S') {
+    if (currentLevel >= 10) return 0;
+    const costs = complexity === 'C' ? this.COMPLEX_SKILL_XP_COSTS : this.SIMPLE_SKILL_XP_COSTS;
+    const currentTotal = costs[currentLevel] || 0;
+    const nextTotal = costs[currentLevel + 1] || 0;
+    return nextTotal - currentTotal;
   }
 
   /* -------------------------------------------- */
@@ -40,6 +156,12 @@ export class MechFoundryActorSheet extends ActorSheet {
     // Add roll data for TinyMCE editors
     context.rollData = this.actor.getRollData();
 
+    // Add whether user is GM
+    context.isGM = game.user.isGM;
+
+    // Prepare XP costs for attributes
+    context.xpCosts = this._prepareXPCosts(context.system);
+
     // Prepare character data and items
     this._prepareItems(context);
 
@@ -50,6 +172,24 @@ export class MechFoundryActorSheet extends ActorSheet {
     );
 
     return context;
+  }
+
+  /**
+   * Prepare XP cost data for the template
+   * @param {Object} systemData The actor's system data
+   * @returns {Object} XP costs object
+   */
+  _prepareXPCosts(systemData) {
+    const xpCosts = {
+      attributeNext: {}
+    };
+
+    // Calculate next level cost for each attribute
+    for (const [key, attr] of Object.entries(systemData.attributes || {})) {
+      xpCosts.attributeNext[key] = MechFoundryActorSheet.getAttributeNextCost(attr.value);
+    }
+
+    return xpCosts;
   }
 
   /**
@@ -71,7 +211,15 @@ export class MechFoundryActorSheet extends ActorSheet {
 
       // Calculate effective skill level (with link modifiers baked in)
       if (i.type === 'skill') {
-        let effectiveLevel = i.system.level || 0;
+        // Calculate skill level from XP
+        const complexity = i.system.complexity || 'S';
+        const calculatedLevel = MechFoundryActorSheet.getSkillLevelFromXP(i.system.xp || 0, complexity);
+        i.system.level = calculatedLevel;
+
+        // Calculate next level cost
+        i.nextLevelCost = MechFoundryActorSheet.getSkillNextCost(calculatedLevel, complexity);
+
+        let effectiveLevel = calculatedLevel;
         if (i.system.linkedAttribute1) {
           const attr = context.system.attributes[i.system.linkedAttribute1];
           if (attr) effectiveLevel += attr.linkMod || 0;
@@ -84,6 +232,10 @@ export class MechFoundryActorSheet extends ActorSheet {
         skills.push(i);
       }
       else if (i.type === 'trait') {
+        // Calculate trait XP cost from TP (Trait Points)
+        // Positive traits cost XP, negative traits give XP back
+        const tp = Math.abs(i.system.cost || 0);
+        i.xpCost = tp * 100; // 100 XP per Trait Point
         traits.push(i);
       }
       else if (i.type === 'weapon') {
@@ -160,6 +312,9 @@ export class MechFoundryActorSheet extends ActorSheet {
 
     // Edge burning
     html.on('click', '.burn-edge', this._onBurnEdge.bind(this));
+
+    // XP spending
+    html.on('click', '.add-xp-btn', this._onAddXP.bind(this));
 
     // Drag events for macros
     if (this.actor.isOwner) {
@@ -361,5 +516,166 @@ export class MechFoundryActorSheet extends ActorSheet {
       },
       default: "burn"
     }).render(true);
+  }
+
+  /**
+   * Handle XP spending for attributes, skills, and traits
+   * @param {Event} event The originating click event
+   * @private
+   */
+  async _onAddXP(event) {
+    event.preventDefault();
+    const button = event.currentTarget;
+    const type = button.dataset.type;
+    const cost = parseInt(button.dataset.cost);
+
+    const availableXP = this.actor.system.xp.value || 0;
+    const isGM = game.user.isGM;
+
+    let targetName = "";
+    let itemId = null;
+    let attrKey = null;
+
+    if (type === "attribute") {
+      attrKey = button.dataset.key;
+      targetName = attrKey.toUpperCase();
+    } else if (type === "skill" || type === "trait") {
+      itemId = button.dataset.itemId;
+      const item = this.actor.items.get(itemId);
+      targetName = item?.name || "Unknown";
+    }
+
+    // Build dialog content
+    let content = `
+      <form>
+        <p>Add XP to <strong>${targetName}</strong>?</p>
+        <p>Cost: <strong>${cost} XP</strong></p>
+        <p>Available XP: <strong>${availableXP}</strong></p>
+    `;
+
+    // Add Free XP option for GMs
+    if (isGM) {
+      content += `
+        <div class="form-group">
+          <label>
+            <input type="checkbox" name="freeXP" value="1"/>
+            Free XP (GM only - does not deduct from available XP)
+          </label>
+        </div>
+      `;
+    }
+
+    content += `</form>`;
+
+    new Dialog({
+      title: `Add XP to ${targetName}`,
+      content: content,
+      buttons: {
+        confirm: {
+          label: "Confirm",
+          callback: async (html) => {
+            const freeXP = isGM && html.find('[name="freeXP"]').is(':checked');
+
+            // Check if enough XP available (unless free XP)
+            if (!freeXP && cost > availableXP) {
+              ui.notifications.warn(`Not enough XP! Need ${cost}, have ${availableXP}.`);
+              return;
+            }
+
+            // Apply the XP
+            if (type === "attribute") {
+              await this._applyAttributeXP(attrKey, cost, freeXP);
+            } else if (type === "skill") {
+              await this._applySkillXP(itemId, cost, freeXP);
+            } else if (type === "trait") {
+              await this._applyTraitXP(itemId, cost, freeXP);
+            }
+
+            // Notify
+            const method = freeXP ? "granted (Free)" : "spent";
+            ui.notifications.info(`${cost} XP ${method} on ${targetName}.`);
+          }
+        },
+        cancel: {
+          label: "Cancel"
+        }
+      },
+      default: "confirm"
+    }).render(true);
+  }
+
+  /**
+   * Apply XP to an attribute
+   * @param {string} attrKey The attribute key
+   * @param {number} cost The XP cost
+   * @param {boolean} freeXP Whether this is free XP (GM only)
+   * @private
+   */
+  async _applyAttributeXP(attrKey, cost, freeXP) {
+    const attr = this.actor.system.attributes[attrKey];
+    const newXP = (attr.xp || 0) + cost;
+    const newScore = MechFoundryActorSheet.getAttributeScoreFromXP(newXP);
+
+    const updates = {
+      [`system.attributes.${attrKey}.xp`]: newXP,
+      [`system.attributes.${attrKey}.value`]: newScore
+    };
+
+    // Deduct from available XP unless free
+    if (!freeXP) {
+      updates["system.xp.value"] = (this.actor.system.xp.value || 0) - cost;
+      updates["system.xp.spent"] = (this.actor.system.xp.spent || 0) + cost;
+    }
+
+    await this.actor.update(updates);
+  }
+
+  /**
+   * Apply XP to a skill
+   * @param {string} itemId The skill item ID
+   * @param {number} cost The XP cost
+   * @param {boolean} freeXP Whether this is free XP (GM only)
+   * @private
+   */
+  async _applySkillXP(itemId, cost, freeXP) {
+    const item = this.actor.items.get(itemId);
+    if (!item) return;
+
+    const newXP = (item.system.xp || 0) + cost;
+    await item.update({ "system.xp": newXP });
+
+    // Deduct from available XP unless free
+    if (!freeXP) {
+      await this.actor.update({
+        "system.xp.value": (this.actor.system.xp.value || 0) - cost,
+        "system.xp.spent": (this.actor.system.xp.spent || 0) + cost
+      });
+    }
+  }
+
+  /**
+   * Apply XP to purchase a trait
+   * @param {string} itemId The trait item ID
+   * @param {number} cost The XP cost
+   * @param {boolean} freeXP Whether this is free XP (GM only)
+   * @private
+   */
+  async _applyTraitXP(itemId, cost, freeXP) {
+    const item = this.actor.items.get(itemId);
+    if (!item) return;
+
+    // Mark trait as purchased
+    await item.update({
+      "system.purchased": true,
+      "system.xp": cost
+    });
+
+    // Deduct from available XP unless free
+    if (!freeXP) {
+      await this.actor.update({
+        "system.xp.value": (this.actor.system.xp.value || 0) - cost,
+        "system.xp.spent": (this.actor.system.xp.spent || 0) + cost
+      });
+    }
   }
 }
