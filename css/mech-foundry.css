@@ -118,6 +118,58 @@
 }
 
 /* ----------------------------------------- */
+/* XP Bar (Always Visible)                    */
+/* ----------------------------------------- */
+
+.mech-foundry .xp-bar {
+  display: flex;
+  justify-content: center;
+  gap: 30px;
+  padding: 10px 15px;
+  background: linear-gradient(135deg, var(--mf-secondary), var(--mf-primary));
+  border-radius: var(--mf-border-radius);
+  margin-bottom: 10px;
+}
+
+.mech-foundry .xp-bar-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 100px;
+}
+
+.mech-foundry .xp-bar-item label {
+  font-size: 0.75em;
+  color: rgba(255, 255, 255, 0.8);
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.mech-foundry .xp-bar .xp-value {
+  font-size: 1.4em;
+  font-weight: bold;
+  color: var(--mf-light);
+  background: rgba(0, 0, 0, 0.2);
+  padding: 4px 15px;
+  border-radius: var(--mf-border-radius);
+}
+
+.mech-foundry .xp-bar .xp-value.available {
+  background: rgba(74, 157, 74, 0.4);
+  border: 1px solid var(--mf-success);
+}
+
+.mech-foundry .xp-bar .xp-value.spent {
+  background: rgba(196, 69, 54, 0.3);
+  border: 1px solid var(--mf-danger);
+}
+
+.mech-foundry .xp-bar .xp-value.total {
+  background: rgba(195, 129, 84, 0.3);
+  border: 1px solid var(--mf-accent);
+}
+
+/* ----------------------------------------- */
 /* Tabs                                       */
 /* ----------------------------------------- */
 
@@ -552,6 +604,83 @@
   width: 80px;
   text-align: center;
   font-size: 1.1em;
+}
+
+/* XP Add Buttons */
+.mech-foundry .add-xp-btn {
+  background: var(--mf-success);
+  color: white;
+  border: none;
+  border-radius: var(--mf-border-radius);
+  padding: 3px 8px;
+  font-size: 0.8em;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.mech-foundry .add-xp-btn:hover {
+  background: #3d8a3d;
+}
+
+.mech-foundry .add-xp-btn i {
+  margin-right: 3px;
+}
+
+.mech-foundry .maxed {
+  color: var(--mf-accent);
+  font-weight: bold;
+  font-size: 0.85em;
+  text-transform: uppercase;
+}
+
+.mech-foundry .purchased {
+  color: var(--mf-success);
+  font-size: 1.1em;
+}
+
+/* Attribute Score Display */
+.mech-foundry .score-display {
+  font-weight: bold;
+  font-size: 1.2em;
+  color: var(--mf-primary);
+}
+
+.mech-foundry .xp-invested {
+  font-size: 0.9em;
+  color: #666;
+}
+
+/* Edge Section Updates */
+.mech-foundry .edge-stats {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.mech-foundry .edge-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.mech-foundry .edge-stat label {
+  font-size: 0.75em;
+  color: #666;
+  margin-bottom: 4px;
+}
+
+.mech-foundry .edge-score,
+.mech-foundry .edge-current-val {
+  font-size: 1.5em;
+  font-weight: bold;
+  color: var(--mf-accent);
+}
+
+.mech-foundry .edge-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-left: auto;
 }
 
 /* ----------------------------------------- */

@@ -110,6 +110,7 @@
       "cost": 0,
       "traitType": "positive",
       "xp": 0,
+      "purchased": false,
       "pageRef": ""
     },
     "weapon": {
