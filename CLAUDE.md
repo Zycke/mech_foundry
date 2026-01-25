@@ -4,7 +4,7 @@ This file provides guidance to Claude Code when working with this repository.
 
 ## Project Overview
 
-**mech_foundry** - A new project (description to be added).
+**mech_foundry** - A new project to create a new game system for foundry VTT. This system will be based on and heavily influenced by "A Time of War", a tabletop rpg set in the battletech universe. 
 
 ## Project Structure
 
