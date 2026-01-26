@@ -83,9 +83,7 @@ export class MechFoundryActorSheet extends ActorSheet {
    */
   static getAttributeNextCost(currentScore) {
     if (currentScore >= 10) return 0;
-    const currentTotal = this.ATTRIBUTE_XP_COSTS[currentScore] || 0;
-    const nextTotal = this.ATTRIBUTE_XP_COSTS[currentScore + 1] || 0;
-    return nextTotal - currentTotal;
+    return this.ATTRIBUTE_XP_COSTS[currentScore + 1] || 0;
   }
 
   /**
@@ -131,9 +129,7 @@ export class MechFoundryActorSheet extends ActorSheet {
   static getSkillNextCost(currentLevel, complexity = 'S') {
     if (currentLevel >= 10) return 0;
     const costs = complexity === 'C' ? this.COMPLEX_SKILL_XP_COSTS : this.SIMPLE_SKILL_XP_COSTS;
-    const currentTotal = costs[currentLevel] || 0;
-    const nextTotal = costs[currentLevel + 1] || 0;
-    return nextTotal - currentTotal;
+    return costs[currentLevel + 1] || 0;
   }
 
   /* -------------------------------------------- */

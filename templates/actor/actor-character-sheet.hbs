@@ -216,42 +216,26 @@
                 </button>
               </td>
             </tr>
+            <tr class="attribute-row edge-row" data-attribute="edg">
+              <td class="attribute-name">EDG</td>
+              <td class="attribute-score">
+                <span class="score-display">{{system.attributes.edg.value}}</span>
+              </td>
+              <td class="attribute-link edge-current">
+                {{system.attributes.edg.current}}
+              </td>
+              <td class="attribute-xp">
+                <input type="number" class="xp-input attr-xp-input" value="{{system.attributes.edg.xp}}" data-dtype="Number" data-attr="edg" min="0"/>
+              </td>
+              <td class="attribute-next-cost">{{xpCosts.attributeNext.edg}} XP</td>
+              <td class="attribute-roll-cell">
+                <button type="button" class="burn-edge" title="Burn Edge">
+                  <i class="fas fa-fire"></i>
+                </button>
+              </td>
+            </tr>
           </tbody>
         </table>
-      </div>
-
-      {{!-- Edge Section --}}
-      <div class="edge-section">
-        <h3 class="section-title">Edge</h3>
-        <div class="edge-display">
-          <div class="edge-stats">
-            <div class="edge-stat">
-              <label>Score</label>
-              <span class="edge-score">{{system.attributes.edg.value}}</span>
-            </div>
-            <div class="edge-stat">
-              <label>Current</label>
-              <span class="edge-current-val">{{system.attributes.edg.current}}</span>
-            </div>
-            <div class="edge-stat">
-              <label>Burned</label>
-              <input type="number" name="system.attributes.edg.burned" value="{{system.attributes.edg.burned}}" data-dtype="Number" min="0" max="{{system.attributes.edg.value}}"/>
-            </div>
-            <div class="edge-stat">
-              <label>XP Invested</label>
-              <input type="number" class="xp-input attr-xp-input" value="{{system.attributes.edg.xp}}" data-dtype="Number" data-attr="edg" min="0"/>
-            </div>
-            <div class="edge-stat">
-              <label>Next Rank</label>
-              <span>{{xpCosts.attributeNext.edg}} XP</span>
-            </div>
-          </div>
-          <div class="edge-actions">
-            <button type="button" class="burn-edge" title="Burn Edge">
-              <i class="fas fa-fire"></i> Burn Edge
-            </button>
-          </div>
-        </div>
       </div>
     </div>
 
