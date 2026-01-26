@@ -1,0 +1,52 @@
+<form class="{{cssClass}} mech-foundry item-sheet fuel-sheet" autocomplete="off">
+  <header class="sheet-header">
+    <img class="item-img" src="{{item.img}}" data-edit="img" title="{{item.name}}"/>
+    <div class="header-fields">
+      <h1 class="item-name">
+        <input name="name" type="text" value="{{item.name}}" placeholder="Fuel Name"/>
+      </h1>
+    </div>
+  </header>
+
+  <nav class="sheet-tabs tabs" data-group="primary">
+    <a class="item" data-tab="details">Details</a>
+    <a class="item" data-tab="description">Description</a>
+  </nav>
+
+  <section class="sheet-body">
+    <div class="tab details" data-group="primary" data-tab="details">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Fuel Type</label>
+          <select name="system.fuelType">
+            <option value="alcohol" {{#if (eq system.fuelType "alcohol")}}selected{{/if}}>Alcohol</option>
+            <option value="coal" {{#if (eq system.fuelType "coal")}}selected{{/if}}>Coal</option>
+            <option value="petrochemical" {{#if (eq system.fuelType "petrochemical")}}selected{{/if}}>Petrochemical</option>
+            <option value="hydrogen" {{#if (eq system.fuelType "hydrogen")}}selected{{/if}}>Hydrogen</option>
+            <option value="naturalgas" {{#if (eq system.fuelType "naturalgas")}}selected{{/if}}>Natural Gas</option>
+            <option value="batteries" {{#if (eq system.fuelType "batteries")}}selected{{/if}}>Batteries</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Equipment Rating</label>
+          <input type="text" name="system.equipmentRating" value="{{system.equipmentRating}}" placeholder="e.g., A/A-A-A/B"/>
+        </div>
+        <div class="form-group">
+          <label>Cost per kg (C-bills)</label>
+          <input type="number" name="system.costPerKg" value="{{system.costPerKg}}" data-dtype="Number" min="0" step="0.01"/>
+        </div>
+      </div>
+
+      <div class="form-group full-width">
+        <label>Notes</label>
+        <input type="text" name="system.notes" value="{{system.notes}}" placeholder="e.g., Used by ICE engine and steam types"/>
+      </div>
+    </div>
+
+    <div class="tab description" data-group="primary" data-tab="description">
+      <div class="editor-container">
+        {{editor system.description target="system.description" button=true owner=owner editable=editable}}
+      </div>
+    </div>
+  </section>
+</form>

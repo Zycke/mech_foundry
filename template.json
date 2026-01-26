@@ -89,7 +89,7 @@
     }
   },
   "Item": {
-    "types": ["skill", "trait", "weapon", "armor", "vehicle", "electronics", "powerpack", "healthcare", "prosthetics", "drugpoison"],
+    "types": ["skill", "trait", "weapon", "armor", "vehicle", "fuel", "electronics", "powerpack", "healthcare", "prosthetics", "drugpoison"],
     "templates": {
       "base": {
         "description": ""
@@ -161,9 +161,33 @@
     },
     "vehicle": {
       "templates": ["base"],
-      "vehicleType": "",
-      "mass": "",
-      "traits": "",
+      "vehicleType": "wheeled",
+      "equipmentRating": "",
+      "cost": 0,
+      "armor": {
+        "front": 0,
+        "side": 0,
+        "back": 0,
+        "rotor": 0,
+        "bar": 0
+      },
+      "fuel": {
+        "capacity": 0,
+        "type": "P"
+      },
+      "range": "",
+      "speed": "",
+      "affiliation": "",
+      "crew": "",
+      "passengers": "",
+      "cargo": 0,
+      "notes": ""
+    },
+    "fuel": {
+      "templates": ["base"],
+      "fuelType": "petrochemical",
+      "equipmentRating": "",
+      "costPerKg": 0,
       "notes": ""
     },
     "electronics": {
