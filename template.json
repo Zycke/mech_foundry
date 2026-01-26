@@ -89,7 +89,7 @@
     }
   },
   "Item": {
-    "types": ["skill", "trait", "weapon", "armor", "equipment", "vehicle", "electronics", "powerpack", "healthcare", "prosthetics", "drugpoison"],
+    "types": ["skill", "trait", "weapon", "armor", "vehicle", "electronics", "powerpack", "healthcare", "prosthetics", "drugpoison"],
     "templates": {
       "base": {
         "description": ""
@@ -158,11 +158,6 @@
         "legs": false
       },
       "equipped": true
-    },
-    "equipment": {
-      "templates": ["base", "equipment_base"],
-      "quantity": 1,
-      "powerUse": 0
     },
     "vehicle": {
       "templates": ["base"],
