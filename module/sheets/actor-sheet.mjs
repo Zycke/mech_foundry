@@ -26,54 +26,38 @@ export class MechFoundryActorSheet extends ActorSheet {
 
   /**
    * XP cost to raise an attribute to a given score
-   * Based on A Time of War attribute progression
-   * Cost is cumulative total XP needed for that score
+   * Based on A Time of War attribute progression (p.60)
+   * Total XP needed for that score (Level × 100)
    */
   static ATTRIBUTE_XP_COSTS = {
-    1: 0,
-    2: 100,
-    3: 200,
-    4: 300,
-    5: 400,    // Standard starting value
+    1: 100,
+    2: 200,
+    3: 300,
+    4: 400,
+    5: 500,    // Standard starting value
     6: 600,
-    7: 900,
-    8: 1200,
-    9: 1600,
-    10: 2100
+    7: 700,
+    8: 800,
+    9: 900,
+    10: 1000
   };
 
   /**
-   * XP cost to raise a Simple skill to a given level
+   * XP cost for Standard skill progression (A Time of War p.60)
+   * Using Standard rate for all skills
    */
-  static SIMPLE_SKILL_XP_COSTS = {
-    0: 0,
-    1: 20,
-    2: 50,
-    3: 100,
-    4: 170,
-    5: 260,
-    6: 370,
-    7: 500,
-    8: 650,
-    9: 820,
-    10: 1010
-  };
-
-  /**
-   * XP cost to raise a Complex skill to a given level
-   */
-  static COMPLEX_SKILL_XP_COSTS = {
-    0: 0,
+  static STANDARD_SKILL_XP_COSTS = {
+    0: 20,
     1: 30,
-    2: 70,
-    3: 130,
-    4: 210,
-    5: 310,
-    6: 430,
-    7: 570,
-    8: 730,
-    9: 910,
-    10: 1110
+    2: 50,
+    3: 80,
+    4: 120,
+    5: 170,
+    6: 230,
+    7: 300,
+    8: 380,
+    9: 470,
+    10: 570
   };
 
   /**
@@ -89,47 +73,43 @@ export class MechFoundryActorSheet extends ActorSheet {
   /**
    * Get attribute score from total XP invested
    * @param {number} xp Total XP invested
-   * @returns {number} Attribute score
+   * @returns {number} Attribute score (0 if insufficient XP)
    */
   static getAttributeScoreFromXP(xp) {
-    let score = 1;
+    if (xp < 100) return 0;  // Need at least 100 XP for level 1
     for (let i = 10; i >= 1; i--) {
       if (xp >= this.ATTRIBUTE_XP_COSTS[i]) {
-        score = i;
-        break;
+        return i;
       }
     }
-    return score;
+    return 0;
   }
 
   /**
    * Get skill level from total XP invested
+   * Uses Standard skill progression rate
    * @param {number} xp Total XP invested
-   * @param {string} complexity 'S' for Simple, 'C' for Complex
-   * @returns {number} Skill level
+   * @returns {number} Skill level (-1 if insufficient XP for level 0)
    */
-  static getSkillLevelFromXP(xp, complexity = 'S') {
-    const costs = complexity === 'C' ? this.COMPLEX_SKILL_XP_COSTS : this.SIMPLE_SKILL_XP_COSTS;
-    let level = 0;
+  static getSkillLevelFromXP(xp) {
+    if (xp < 20) return -1;  // Need at least 20 XP for level 0
     for (let i = 10; i >= 0; i--) {
-      if (xp >= costs[i]) {
-        level = i;
-        break;
+      if (xp >= this.STANDARD_SKILL_XP_COSTS[i]) {
+        return i;
       }
     }
-    return level;
+    return -1;
   }
 
   /**
    * Get XP cost for the next skill level
+   * Uses Standard skill progression rate
    * @param {number} currentLevel Current skill level
-   * @param {string} complexity 'S' for Simple, 'C' for Complex
-   * @returns {number} XP cost to reach next level
+   * @returns {number} Total XP needed for next level
    */
-  static getSkillNextCost(currentLevel, complexity = 'S') {
+  static getSkillNextCost(currentLevel) {
     if (currentLevel >= 10) return 0;
-    const costs = complexity === 'C' ? this.COMPLEX_SKILL_XP_COSTS : this.SIMPLE_SKILL_XP_COSTS;
-    return costs[currentLevel + 1] || 0;
+    return this.STANDARD_SKILL_XP_COSTS[currentLevel + 1] || 0;
   }
 
   /* -------------------------------------------- */
@@ -207,13 +187,12 @@ export class MechFoundryActorSheet extends ActorSheet {
 
       // Calculate effective skill level (with link modifiers baked in)
       if (i.type === 'skill') {
-        // Calculate skill level from XP
-        const complexity = i.system.complexity || 'S';
-        const calculatedLevel = MechFoundryActorSheet.getSkillLevelFromXP(i.system.xp || 0, complexity);
+        // Calculate skill level from XP (using Standard rate)
+        const calculatedLevel = MechFoundryActorSheet.getSkillLevelFromXP(i.system.xp || 0);
         i.system.level = calculatedLevel;
 
         // Calculate next level cost
-        i.nextLevelCost = MechFoundryActorSheet.getSkillNextCost(calculatedLevel, complexity);
+        i.nextLevelCost = MechFoundryActorSheet.getSkillNextCost(calculatedLevel);
 
         // Calculate total link modifier for display
         let totalLinkMod = 0;
@@ -692,12 +671,18 @@ export class MechFoundryActorSheet extends ActorSheet {
    */
   async _onAttributeXPChange(event) {
     event.preventDefault();
+    event.stopPropagation();
     const input = event.currentTarget;
     const attrKey = input.dataset.attr;
     const newXP = parseInt(input.value) || 0;
-    const currentXP = this.actor.system.attributes[attrKey]?.xp || 0;
+
+    // Get the ACTUAL current XP from actor data (not the input which may have been changed)
+    const currentXP = foundry.utils.getProperty(this.actor, `system.attributes.${attrKey}.xp`) || 0;
 
     if (newXP === currentXP) return;
+
+    // Immediately revert the input to show original value while dialog is open
+    input.value = currentXP;
 
     const isGM = game.user.isGM;
     const xpDifference = newXP - currentXP;
@@ -705,7 +690,6 @@ export class MechFoundryActorSheet extends ActorSheet {
     // If reducing XP, only GM can do this
     if (xpDifference < 0 && !isGM) {
       ui.notifications.warn("Only the GM can reduce XP invested.");
-      input.value = currentXP;
       return;
     }
 
@@ -720,6 +704,7 @@ export class MechFoundryActorSheet extends ActorSheet {
    */
   async _onSkillXPChange(event) {
     event.preventDefault();
+    event.stopPropagation();
     const input = event.currentTarget;
     const itemId = input.dataset.itemId;
     const item = this.actor.items.get(itemId);
@@ -730,13 +715,15 @@ export class MechFoundryActorSheet extends ActorSheet {
 
     if (newXP === currentXP) return;
 
+    // Immediately revert the input to show original value while dialog is open
+    input.value = currentXP;
+
     const isGM = game.user.isGM;
     const xpDifference = newXP - currentXP;
 
     // If reducing XP, only GM can do this
     if (xpDifference < 0 && !isGM) {
       ui.notifications.warn("Only the GM can reduce XP invested.");
-      input.value = currentXP;
       return;
     }
 
@@ -751,6 +738,7 @@ export class MechFoundryActorSheet extends ActorSheet {
    */
   async _onTraitXPChange(event) {
     event.preventDefault();
+    event.stopPropagation();
     const input = event.currentTarget;
     const itemId = input.dataset.itemId;
     const item = this.actor.items.get(itemId);
@@ -762,13 +750,15 @@ export class MechFoundryActorSheet extends ActorSheet {
 
     if (newXP === currentXP) return;
 
+    // Immediately revert the input to show original value while dialog is open
+    input.value = currentXP;
+
     const isGM = game.user.isGM;
     const xpDifference = newXP - currentXP;
 
     // If reducing XP, only GM can do this
     if (xpDifference < 0 && !isGM) {
       ui.notifications.warn("Only the GM can reduce XP invested.");
-      input.value = currentXP;
       return;
     }
 
@@ -801,8 +791,7 @@ export class MechFoundryActorSheet extends ActorSheet {
     } else if (type === "skill") {
       const item = this.actor.items.get(itemId);
       targetName = item?.name || "Unknown";
-      const complexity = item?.system.complexity || 'S';
-      newValue = MechFoundryActorSheet.getSkillLevelFromXP(newXP, complexity);
+      newValue = MechFoundryActorSheet.getSkillLevelFromXP(newXP);
     } else if (type === "trait") {
       const item = this.actor.items.get(itemId);
       targetName = item?.name || "Unknown";
