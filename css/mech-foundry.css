@@ -998,10 +998,50 @@
   padding: 10px;
 }
 
+/* Consistent form-row styling for all item sheets */
+.mech-foundry.item-sheet .form-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 10px;
+  align-items: flex-end;
+}
+
+.mech-foundry.item-sheet .form-row .form-group {
+  flex: 1;
+  margin-bottom: 0;
+}
+
+/* Standardized input sizing */
+.mech-foundry.item-sheet .form-group input[type="text"],
+.mech-foundry.item-sheet .form-group input[type="number"],
+.mech-foundry.item-sheet .form-group select {
+  width: 100%;
+  padding: 5px 8px;
+  border: 1px solid var(--mf-border);
+  border-radius: var(--mf-border-radius);
+  box-sizing: border-box;
+}
+
+/* Override max-width for inputs in form-row */
+.mech-foundry.item-sheet .form-row .form-group input[type="number"] {
+  max-width: none;
+}
+
+/* Full width form groups */
+.mech-foundry.item-sheet .form-group.full-width {
+  width: 100%;
+}
+
+.mech-foundry.item-sheet .form-group.full-width input {
+  width: 100%;
+  max-width: none;
+}
+
 /* Checkbox groups for coverage, vectors, etc. */
 .mech-foundry.item-sheet .checkbox-group {
   flex-direction: row;
   align-items: center;
+  flex: 0 0 auto;
 }
 
 .mech-foundry.item-sheet .checkbox-group label {
@@ -1032,7 +1072,7 @@
 
 .mech-foundry.item-sheet .range-fields .form-group {
   flex: 1;
-  min-width: 60px;
+  min-width: 50px;
 }
 
 .mech-foundry.item-sheet .range-fields input {
@@ -1046,18 +1086,14 @@
   text-align: center;
 }
 
-/* Electronics, Power Pack, Healthcare sheets */
-.mech-foundry.electronics-sheet .form-row,
-.mech-foundry.powerpack-sheet .form-row,
-.mech-foundry.healthcare-sheet .form-row,
-.mech-foundry.prosthetics-sheet .form-row,
-.mech-foundry.drugpoison-sheet .form-row {
-  margin-bottom: 10px;
-}
-
 /* Notes field */
 .mech-foundry.item-sheet .form-group input[name="system.notes"] {
   width: 100%;
+  max-width: none;
+}
+
+/* Affiliation field */
+.mech-foundry.item-sheet .form-group input[name="system.affiliation"] {
   max-width: none;
 }
 
