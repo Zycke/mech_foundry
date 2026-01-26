@@ -89,10 +89,17 @@
     }
   },
   "Item": {
-    "types": ["skill", "trait", "weapon", "armor", "equipment", "vehicle"],
+    "types": ["skill", "trait", "weapon", "armor", "equipment", "vehicle", "electronics", "powerpack", "healthcare", "prosthetics", "drugpoison"],
     "templates": {
       "base": {
         "description": ""
+      },
+      "equipment_base": {
+        "equipmentRating": "",
+        "cost": 0,
+        "affiliation": "",
+        "mass": 0,
+        "notes": ""
       }
     },
     "skill": {
@@ -114,8 +121,8 @@
       "pageRef": ""
     },
     "weapon": {
-      "templates": ["base"],
-      "weaponType": "ranged",
+      "templates": ["base", "equipment_base"],
+      "weaponType": "smallarms",
       "ap": 0,
       "bd": 1,
       "subduing": false,
@@ -131,11 +138,11 @@
         "value": 0,
         "max": 0
       },
-      "notes": ""
+      "reloadCost": 0,
+      "reloadMass": 0
     },
     "armor": {
-      "templates": ["base"],
-      "location": "torso",
+      "templates": ["base", "equipment_base"],
       "armorType": "",
       "bar": {
         "m": 0,
@@ -143,22 +150,60 @@
         "e": 0,
         "x": 0
       },
-      "equipped": true,
-      "notes": ""
+      "patchCost": 0,
+      "coverage": {
+        "head": false,
+        "torso": false,
+        "arms": false,
+        "legs": false
+      },
+      "equipped": true
     },
     "equipment": {
-      "templates": ["base"],
+      "templates": ["base", "equipment_base"],
       "quantity": 1,
-      "location": "",
-      "stats": "",
-      "encumbering": false,
-      "notes": ""
+      "powerUse": 0
     },
     "vehicle": {
       "templates": ["base"],
       "vehicleType": "",
       "mass": "",
       "traits": "",
+      "notes": ""
+    },
+    "electronics": {
+      "templates": ["base", "equipment_base"],
+      "range": "",
+      "powerUse": 0
+    },
+    "powerpack": {
+      "templates": ["base", "equipment_base"],
+      "powerCapacity": 0
+    },
+    "healthcare": {
+      "templates": ["base", "equipment_base"],
+      "powerUse": 0
+    },
+    "prosthetics": {
+      "templates": ["base"],
+      "equipmentRating": "",
+      "cost": 0,
+      "affiliation": "",
+      "notes": ""
+    },
+    "drugpoison": {
+      "templates": ["base"],
+      "equipmentRating": "",
+      "basePrice": 0,
+      "primaryVector": {
+        "ingested": false,
+        "injected": false,
+        "inhaled": false,
+        "contact": false
+      },
+      "drugStrength": 0,
+      "poisonAP": 0,
+      "duration": "",
       "notes": ""
     }
   }

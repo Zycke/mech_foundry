@@ -1,0 +1,85 @@
+<form class="{{cssClass}} mech-foundry item-sheet drugpoison-sheet" autocomplete="off">
+  <header class="sheet-header">
+    <img class="item-img" src="{{item.img}}" data-edit="img" title="{{item.name}}"/>
+    <div class="header-fields">
+      <h1 class="item-name">
+        <input name="name" type="text" value="{{item.name}}" placeholder="Drug/Poison Name"/>
+      </h1>
+    </div>
+  </header>
+
+  <nav class="sheet-tabs tabs" data-group="primary">
+    <a class="item" data-tab="details">Details</a>
+    <a class="item" data-tab="description">Description</a>
+  </nav>
+
+  <section class="sheet-body">
+    <div class="tab details" data-group="primary" data-tab="details">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Equipment Rating</label>
+          <input type="text" name="system.equipmentRating" value="{{system.equipmentRating}}" placeholder="e.g., D/C-C-C/D"/>
+        </div>
+        <div class="form-group">
+          <label>Base Price (C-bills)</label>
+          <input type="number" name="system.basePrice" value="{{system.basePrice}}" data-dtype="Number" min="0"/>
+        </div>
+      </div>
+
+      <h3>Primary Vector</h3>
+      <div class="vector-checkboxes form-row">
+        <div class="form-group checkbox-group">
+          <label>
+            <input type="checkbox" name="system.primaryVector.ingested" {{#if system.primaryVector.ingested}}checked{{/if}}/>
+            Ingested
+          </label>
+        </div>
+        <div class="form-group checkbox-group">
+          <label>
+            <input type="checkbox" name="system.primaryVector.injected" {{#if system.primaryVector.injected}}checked{{/if}}/>
+            Injected
+          </label>
+        </div>
+        <div class="form-group checkbox-group">
+          <label>
+            <input type="checkbox" name="system.primaryVector.inhaled" {{#if system.primaryVector.inhaled}}checked{{/if}}/>
+            Inhaled
+          </label>
+        </div>
+        <div class="form-group checkbox-group">
+          <label>
+            <input type="checkbox" name="system.primaryVector.contact" {{#if system.primaryVector.contact}}checked{{/if}}/>
+            Contact
+          </label>
+        </div>
+      </div>
+
+      <h3>Effects</h3>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Drug Strength</label>
+          <input type="number" name="system.drugStrength" value="{{system.drugStrength}}" data-dtype="Number" min="0"/>
+        </div>
+        <div class="form-group">
+          <label>Poison AP</label>
+          <input type="number" name="system.poisonAP" value="{{system.poisonAP}}" data-dtype="Number" min="0"/>
+        </div>
+        <div class="form-group">
+          <label>Duration</label>
+          <input type="text" name="system.duration" value="{{system.duration}}" placeholder="e.g., 1d6 hours"/>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Notes</label>
+        <input type="text" name="system.notes" value="{{system.notes}}"/>
+      </div>
+    </div>
+
+    <div class="tab description" data-group="primary" data-tab="description">
+      <div class="editor-container">
+        {{editor system.description target="system.description" button=true owner=owner editable=editable}}
+      </div>
+    </div>
+  </section>
+</form>

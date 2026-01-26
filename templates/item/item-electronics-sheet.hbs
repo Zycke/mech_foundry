@@ -1,9 +1,9 @@
-<form class="{{cssClass}} mech-foundry item-sheet equipment-sheet" autocomplete="off">
+<form class="{{cssClass}} mech-foundry item-sheet electronics-sheet" autocomplete="off">
   <header class="sheet-header">
     <img class="item-img" src="{{item.img}}" data-edit="img" title="{{item.name}}"/>
     <div class="header-fields">
       <h1 class="item-name">
-        <input name="name" type="text" value="{{item.name}}" placeholder="Equipment Name"/>
+        <input name="name" type="text" value="{{item.name}}" placeholder="Electronics Name"/>
       </h1>
     </div>
   </header>
@@ -39,8 +39,8 @@
 
       <div class="form-row">
         <div class="form-group">
-          <label>Quantity</label>
-          <input type="number" name="system.quantity" value="{{system.quantity}}" min="0" data-dtype="Number"/>
+          <label>Range</label>
+          <input type="text" name="system.range" value="{{system.range}}" placeholder="e.g., 100m, LOS"/>
         </div>
         <div class="form-group">
           <label>Power Use</label>

@@ -1,9 +1,9 @@
-<form class="{{cssClass}} mech-foundry item-sheet equipment-sheet" autocomplete="off">
+<form class="{{cssClass}} mech-foundry item-sheet powerpack-sheet" autocomplete="off">
   <header class="sheet-header">
     <img class="item-img" src="{{item.img}}" data-edit="img" title="{{item.name}}"/>
     <div class="header-fields">
       <h1 class="item-name">
-        <input name="name" type="text" value="{{item.name}}" placeholder="Equipment Name"/>
+        <input name="name" type="text" value="{{item.name}}" placeholder="Power Pack Name"/>
       </h1>
     </div>
   </header>
@@ -37,15 +37,9 @@
         </div>
       </div>
 
-      <div class="form-row">
-        <div class="form-group">
-          <label>Quantity</label>
-          <input type="number" name="system.quantity" value="{{system.quantity}}" min="0" data-dtype="Number"/>
-        </div>
-        <div class="form-group">
-          <label>Power Use</label>
-          <input type="number" name="system.powerUse" value="{{system.powerUse}}" data-dtype="Number" min="0"/>
-        </div>
+      <div class="form-group">
+        <label>Power Capacity</label>
+        <input type="number" name="system.powerCapacity" value="{{system.powerCapacity}}" data-dtype="Number" min="0"/>
       </div>
 
       <div class="form-group">

@@ -16,6 +16,11 @@ export const preloadHandlebarsTemplates = async function() {
     "systems/mech-foundry/templates/item/item-armor-sheet.hbs",
     "systems/mech-foundry/templates/item/item-equipment-sheet.hbs",
     "systems/mech-foundry/templates/item/item-vehicle-sheet.hbs",
+    "systems/mech-foundry/templates/item/item-electronics-sheet.hbs",
+    "systems/mech-foundry/templates/item/item-powerpack-sheet.hbs",
+    "systems/mech-foundry/templates/item/item-healthcare-sheet.hbs",
+    "systems/mech-foundry/templates/item/item-prosthetics-sheet.hbs",
+    "systems/mech-foundry/templates/item/item-drugpoison-sheet.hbs",
 
     // Chat partials
     "systems/mech-foundry/templates/chat/skill-roll.hbs"
