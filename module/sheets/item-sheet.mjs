@@ -34,6 +34,10 @@ export class MechFoundryItemSheet extends ItemSheet {
     // Add config data
     context.config = game.mechfoundry?.config || {};
 
+    // IMPORTANT: Ensure owner and editable are set for editor helper
+    context.owner = this.document.isOwner;
+    context.editable = this.isEditable;
+
     // Enrich description for editor
     context.enrichedDescription = await TextEditor.enrichHTML(
       this.item.system.description,

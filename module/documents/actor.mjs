@@ -166,8 +166,23 @@ export class MechFoundryActor extends Actor {
     const skillData = skill.system;
     const targetNumber = skillData.targetNumber || 7;
 
-    // Calculate total modifier
-    let totalMod = skillData.level || 0;
+    // Calculate skill level from XP (matches actor-sheet.mjs logic)
+    const complexity = skillData.complexity || 'S';
+    const xp = skillData.xp || 0;
+    const costs = complexity === 'C'
+      ? [0, 30, 70, 130, 210, 310, 430, 570, 730, 910, 1110]  // Complex
+      : [0, 20, 50, 90, 140, 200, 270, 350, 440, 540, 650];   // Simple
+
+    let skillLevel = 0;
+    for (let i = 10; i >= 0; i--) {
+      if (xp >= costs[i]) {
+        skillLevel = i;
+        break;
+      }
+    }
+
+    // Calculate total modifier using calculated skill level
+    let totalMod = skillLevel;
 
     // Add linked attribute modifiers
     if (skillData.linkedAttribute1) {

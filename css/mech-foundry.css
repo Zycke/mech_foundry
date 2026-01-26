@@ -922,6 +922,21 @@
   color: var(--mf-dark);
 }
 
+/* Item sheet input width control */
+.mech-foundry.item-sheet .form-group input[type="number"] {
+  max-width: 80px;
+}
+
+.mech-foundry.item-sheet .form-group input[name="system.pageRef"] {
+  max-width: 150px;
+}
+
+/* Edge attribute styling */
+.mech-foundry .attributes-table .edge-current {
+  color: var(--mf-accent);
+  font-weight: bold;
+}
+
 .mech-foundry.item-sheet .form-group input,
 .mech-foundry.item-sheet .form-group select {
   padding: 5px 8px;
