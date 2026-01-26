@@ -8,61 +8,111 @@
     </div>
   </header>
 
-  <section class="sheet-body sheet-content">
-    <div class="form-row">
-      <div class="form-group">
-        <label>Location</label>
-        <select name="system.location">
-          <option value="head" {{#if (eq system.location "head")}}selected{{/if}}>Head</option>
-          <option value="torso" {{#if (eq system.location "torso")}}selected{{/if}}>Torso</option>
-          <option value="arms" {{#if (eq system.location "arms")}}selected{{/if}}>Arms</option>
-          <option value="legs" {{#if (eq system.location "legs")}}selected{{/if}}>Legs</option>
-          <option value="full" {{#if (eq system.location "full")}}selected{{/if}}>Full Body</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label>Armor Type</label>
-        <input type="text" name="system.armorType" value="{{system.armorType}}" placeholder="e.g., Flak Vest"/>
-      </div>
-    </div>
+  <nav class="sheet-tabs tabs" data-group="primary">
+    <a class="item" data-tab="details">Details</a>
+    <a class="item" data-tab="description">Description</a>
+  </nav>
 
-    <div class="form-group">
-      <label>Barrier Armor Rating (BAR) - M/B/E/X</label>
-      <div class="bar-inputs">
-        <div class="bar-input">
+  <section class="sheet-body">
+    <div class="tab details" data-group="primary" data-tab="details">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Armor Type</label>
+          <input type="text" name="system.armorType" value="{{system.armorType}}" placeholder="e.g., Flak Vest"/>
+        </div>
+        <div class="form-group">
+          <label>Equipment Rating</label>
+          <input type="text" name="system.equipmentRating" value="{{system.equipmentRating}}" placeholder="e.g., C/A-A-A/C"/>
+        </div>
+      </div>
+
+      <h3>Barrier Armor Rating (BAR)</h3>
+      <div class="bar-inputs form-row">
+        <div class="form-group">
           <label>M (Melee)</label>
           <input type="number" name="system.bar.m" value="{{system.bar.m}}" data-dtype="Number" min="0"/>
         </div>
-        <div class="bar-input">
+        <div class="form-group">
           <label>B (Ballistic)</label>
           <input type="number" name="system.bar.b" value="{{system.bar.b}}" data-dtype="Number" min="0"/>
         </div>
-        <div class="bar-input">
+        <div class="form-group">
           <label>E (Energy)</label>
           <input type="number" name="system.bar.e" value="{{system.bar.e}}" data-dtype="Number" min="0"/>
         </div>
-        <div class="bar-input">
+        <div class="form-group">
           <label>X (Explosive)</label>
           <input type="number" name="system.bar.x" value="{{system.bar.x}}" data-dtype="Number" min="0"/>
         </div>
       </div>
+
+      <h3>Coverage</h3>
+      <div class="coverage-checkboxes form-row">
+        <div class="form-group checkbox-group">
+          <label>
+            <input type="checkbox" name="system.coverage.head" {{#if system.coverage.head}}checked{{/if}}/>
+            Head
+          </label>
+        </div>
+        <div class="form-group checkbox-group">
+          <label>
+            <input type="checkbox" name="system.coverage.torso" {{#if system.coverage.torso}}checked{{/if}}/>
+            Torso
+          </label>
+        </div>
+        <div class="form-group checkbox-group">
+          <label>
+            <input type="checkbox" name="system.coverage.arms" {{#if system.coverage.arms}}checked{{/if}}/>
+            Arms
+          </label>
+        </div>
+        <div class="form-group checkbox-group">
+          <label>
+            <input type="checkbox" name="system.coverage.legs" {{#if system.coverage.legs}}checked{{/if}}/>
+            Legs
+          </label>
+        </div>
+      </div>
+
+      <h3>Cost & Weight</h3>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Cost (C-bills)</label>
+          <input type="number" name="system.cost" value="{{system.cost}}" data-dtype="Number" min="0"/>
+        </div>
+        <div class="form-group">
+          <label>Patch Cost</label>
+          <input type="number" name="system.patchCost" value="{{system.patchCost}}" data-dtype="Number" min="0"/>
+        </div>
+        <div class="form-group">
+          <label>Mass (kg)</label>
+          <input type="number" name="system.mass" value="{{system.mass}}" data-dtype="Number" min="0" step="0.1"/>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>Affiliation</label>
+          <input type="text" name="system.affiliation" value="{{system.affiliation}}" placeholder="e.g., IS, Clan"/>
+        </div>
+        <div class="form-group checkbox-group">
+          <label>
+            <input type="checkbox" name="system.equipped" {{#if system.equipped}}checked{{/if}}/>
+            Equipped
+          </label>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Notes</label>
+        <input type="text" name="system.notes" value="{{system.notes}}"/>
+      </div>
     </div>
 
-    <div class="form-group">
-      <label>
-        <input type="checkbox" name="system.equipped" {{#if system.equipped}}checked{{/if}}/>
-        Equipped
-      </label>
-    </div>
-
-    <div class="form-group">
-      <label>Notes</label>
-      <input type="text" name="system.notes" value="{{system.notes}}"/>
-    </div>
-
-    <div class="editor-container">
-      <label>Description</label>
-      {{editor system.description target="system.description" button=true owner=owner editable=editable}}
+    <div class="tab description" data-group="primary" data-tab="description">
+      <div class="editor-container">
+        {{editor system.description target="system.description" button=true owner=owner editable=editable}}
+      </div>
     </div>
   </section>
 </form>

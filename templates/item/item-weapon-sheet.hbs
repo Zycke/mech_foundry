@@ -15,33 +15,44 @@
 
   <section class="sheet-body">
     <div class="tab details" data-group="primary" data-tab="details">
-      <div class="form-group">
-        <label>Weapon Type</label>
-        <select name="system.weaponType">
-          <option value="melee" {{#if (eq system.weaponType "melee")}}selected{{/if}}>Melee</option>
-          <option value="ranged" {{#if (eq system.weaponType "ranged")}}selected{{/if}}>Ranged</option>
-          <option value="thrown" {{#if (eq system.weaponType "thrown")}}selected{{/if}}>Thrown</option>
-        </select>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Weapon Type</label>
+          <select name="system.weaponType">
+            <option value="melee" {{#if (eq system.weaponType "melee")}}selected{{/if}}>Melee</option>
+            <option value="archaic" {{#if (eq system.weaponType "archaic")}}selected{{/if}}>Archaic</option>
+            <option value="smallarms" {{#if (eq system.weaponType "smallarms")}}selected{{/if}}>Small Arms</option>
+            <option value="support" {{#if (eq system.weaponType "support")}}selected{{/if}}>Support</option>
+            <option value="explosives" {{#if (eq system.weaponType "explosives")}}selected{{/if}}>Explosives</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Equipment Rating</label>
+          <input type="text" name="system.equipmentRating" value="{{system.equipmentRating}}" placeholder="e.g., C/A-A-A/C"/>
+        </div>
       </div>
-      <div class="form-group">
-        <label>Armor Penetration (AP)</label>
-        <input type="number" name="system.ap" value="{{system.ap}}" data-dtype="Number"/>
-      </div>
-      <div class="form-group">
-        <label>Base Damage (BD)</label>
-        <input type="number" name="system.bd" value="{{system.bd}}" data-dtype="Number"/>
-      </div>
-      <div class="form-group">
-        <label>
-          <input type="checkbox" name="system.subduing" {{#if system.subduing}}checked{{/if}}/>
-          Subduing Damage
-        </label>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>Armor Penetration (AP)</label>
+          <input type="number" name="system.ap" value="{{system.ap}}" data-dtype="Number"/>
+        </div>
+        <div class="form-group">
+          <label>Base Damage (BD)</label>
+          <input type="number" name="system.bd" value="{{system.bd}}" data-dtype="Number"/>
+        </div>
+        <div class="form-group checkbox-group">
+          <label>
+            <input type="checkbox" name="system.subduing" {{#if system.subduing}}checked{{/if}}/>
+            Subduing
+          </label>
+        </div>
       </div>
 
       <h3>Range (meters)</h3>
-      <div class="range-fields">
+      <div class="range-fields form-row">
         <div class="form-group">
-          <label>Point Blank</label>
+          <label>PB</label>
           <input type="number" name="system.range.pointBlank" value="{{system.range.pointBlank}}" data-dtype="Number"/>
         </div>
         <div class="form-group">
@@ -63,13 +74,44 @@
       </div>
 
       <h3>Ammunition</h3>
-      <div class="form-group">
-        <label>Current</label>
-        <input type="number" name="system.ammo.value" value="{{system.ammo.value}}" data-dtype="Number"/>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Current</label>
+          <input type="number" name="system.ammo.value" value="{{system.ammo.value}}" data-dtype="Number"/>
+        </div>
+        <div class="form-group">
+          <label>Max (Shots)</label>
+          <input type="number" name="system.ammo.max" value="{{system.ammo.max}}" data-dtype="Number"/>
+        </div>
       </div>
-      <div class="form-group">
-        <label>Max</label>
-        <input type="number" name="system.ammo.max" value="{{system.ammo.max}}" data-dtype="Number"/>
+
+      <h3>Cost & Weight</h3>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Cost (C-bills)</label>
+          <input type="number" name="system.cost" value="{{system.cost}}" data-dtype="Number" min="0"/>
+        </div>
+        <div class="form-group">
+          <label>Reload Cost</label>
+          <input type="number" name="system.reloadCost" value="{{system.reloadCost}}" data-dtype="Number" min="0"/>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Mass (kg)</label>
+          <input type="number" name="system.mass" value="{{system.mass}}" data-dtype="Number" min="0" step="0.1"/>
+        </div>
+        <div class="form-group">
+          <label>Reload Mass (kg)</label>
+          <input type="number" name="system.reloadMass" value="{{system.reloadMass}}" data-dtype="Number" min="0" step="0.1"/>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>Affiliation</label>
+          <input type="text" name="system.affiliation" value="{{system.affiliation}}" placeholder="e.g., IS, Clan"/>
+        </div>
       </div>
 
       <div class="form-group">

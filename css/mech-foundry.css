@@ -980,6 +980,91 @@
 /* Responsive                                 */
 /* ----------------------------------------- */
 
+/* ----------------------------------------- */
+/* Item Sheet Enhancements                   */
+/* ----------------------------------------- */
+
+.mech-foundry.item-sheet h3 {
+  margin: 15px 0 8px 0;
+  padding: 4px 8px;
+  background: var(--mf-secondary);
+  color: var(--mf-light);
+  font-size: 0.9em;
+  font-weight: bold;
+  border-radius: var(--mf-border-radius);
+}
+
+.mech-foundry.item-sheet .tab.details {
+  padding: 10px;
+}
+
+/* Checkbox groups for coverage, vectors, etc. */
+.mech-foundry.item-sheet .checkbox-group {
+  flex-direction: row;
+  align-items: center;
+}
+
+.mech-foundry.item-sheet .checkbox-group label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin: 0;
+  font-weight: normal;
+}
+
+.mech-foundry.item-sheet .checkbox-group input[type="checkbox"] {
+  width: auto;
+  margin: 0;
+}
+
+.mech-foundry.item-sheet .coverage-checkboxes,
+.mech-foundry.item-sheet .vector-checkboxes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+  margin-bottom: 10px;
+}
+
+.mech-foundry.item-sheet .range-fields {
+  display: flex;
+  gap: 8px;
+}
+
+.mech-foundry.item-sheet .range-fields .form-group {
+  flex: 1;
+  min-width: 60px;
+}
+
+.mech-foundry.item-sheet .range-fields input {
+  width: 100%;
+  text-align: center;
+}
+
+/* Weapon sheet specific */
+.mech-foundry.weapon-sheet .range-fields label {
+  font-size: 0.8em;
+  text-align: center;
+}
+
+/* Electronics, Power Pack, Healthcare sheets */
+.mech-foundry.electronics-sheet .form-row,
+.mech-foundry.powerpack-sheet .form-row,
+.mech-foundry.healthcare-sheet .form-row,
+.mech-foundry.prosthetics-sheet .form-row,
+.mech-foundry.drugpoison-sheet .form-row {
+  margin-bottom: 10px;
+}
+
+/* Notes field */
+.mech-foundry.item-sheet .form-group input[name="system.notes"] {
+  width: 100%;
+  max-width: none;
+}
+
+/* ----------------------------------------- */
+/* Responsive                                 */
+/* ----------------------------------------- */
+
 @media (max-width: 800px) {
   .mech-foundry .combat-layout {
     grid-template-columns: 1fr;
