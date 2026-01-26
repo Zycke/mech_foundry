@@ -166,14 +166,11 @@ export class MechFoundryActor extends Actor {
     const skillData = skill.system;
     const targetNumber = skillData.targetNumber || 7;
 
-    // Calculate skill level from XP (matches actor-sheet.mjs logic)
-    const complexity = skillData.complexity || 'S';
+    // Calculate skill level from XP (Standard rate, A Time of War p.60)
     const xp = skillData.xp || 0;
-    const costs = complexity === 'C'
-      ? [0, 30, 70, 130, 210, 310, 430, 570, 730, 910, 1110]  // Complex
-      : [0, 20, 50, 90, 140, 200, 270, 350, 440, 540, 650];   // Simple
+    const costs = [20, 30, 50, 80, 120, 170, 230, 300, 380, 470, 570];
 
-    let skillLevel = 0;
+    let skillLevel = -1;  // No level if less than 20 XP
     for (let i = 10; i >= 0; i--) {
       if (xp >= costs[i]) {
         skillLevel = i;
