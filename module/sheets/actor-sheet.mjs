@@ -384,6 +384,9 @@ export class MechFoundryActorSheet extends ActorSheet {
     // Weapon attack roll
     html.on('click', '.weapon-attack-roll', this._onWeaponAttack.bind(this));
 
+    // Weapon reload
+    html.on('click', '.weapon-reload', this._onWeaponReload.bind(this));
+
     // Drag events for macros
     if (this.actor.isOwner) {
       let handler = (ev) => this._onDragStart(ev);
@@ -1239,5 +1242,29 @@ export class MechFoundryActorSheet extends ActorSheet {
         });
       }
     }).render(true);
+  }
+
+  /**
+   * Handle weapon reload
+   * @param {Event} event The originating click event
+   * @private
+   */
+  async _onWeaponReload(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    const li = $(event.currentTarget).parents(".item");
+    const weapon = this.actor.items.get(li.data("itemId"));
+    if (!weapon) return;
+
+    const maxAmmo = weapon.system.ammo?.max || 0;
+    const currentAmmo = weapon.system.ammo?.value || 0;
+
+    if (currentAmmo >= maxAmmo) {
+      ui.notifications.info(`${weapon.name} is already fully loaded.`);
+      return;
+    }
+
+    await weapon.update({ "system.ammo.value": maxAmmo });
+    ui.notifications.info(`${weapon.name} reloaded to ${maxAmmo} rounds.`);
   }
 }
