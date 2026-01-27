@@ -352,6 +352,17 @@ export class MechFoundryActor extends Actor {
     const totalMod = skillMod + inputMod + injuryMod + fatigueMod - recoilMod - firingModeMod;
     const targetNumber = skill?.system.targetNumber || 7;
 
+    // Get weapon damage values
+    const baseDamage = weaponData.bd || 0;
+    const ap = weaponData.ap || 0;
+    const apFactor = weaponData.apFactor || '';
+    const isSubduing = weaponData.subduing || weaponData.bdFactor === 'D';
+    const str = this.system.attributes.str?.value || 5;
+
+    // Calculate extra shots for burst fire damage cap
+    const extraShots = (firingMode === 'burst') ? (options.burstShots || 1) - 1 :
+                       (firingMode === 'controlled') ? (options.controlledShots || 2) - 1 : 0;
+
     // Make attack roll(s)
     const results = [];
     for (let i = 0; i < numAttacks; i++) {
@@ -363,13 +374,66 @@ export class MechFoundryActor extends Actor {
       const success = roll.total >= targetNumber;
       const marginOfSuccess = roll.total - targetNumber;
 
+      // Calculate damage if attack succeeds
+      let standardDamage = 0;
+      let fatigueDamage = 0;
+      let mosDamage = 0;
+      let strDamage = 0;
+
+      if (success && marginOfSuccess >= 0) {
+        if (isMelee) {
+          // Melee damage: (Weapon Damage) + ceil(STR / 4) + ceil(MoS × 0.25)
+          // Unarmed: No weapon damage, AP = 0M, damage as Subduing
+          strDamage = Math.ceil(str / 4);
+          mosDamage = Math.ceil(marginOfSuccess * 0.25);
+
+          if (baseDamage === 0) {
+            // Unarmed - damage is subduing (fatigue)
+            fatigueDamage = strDamage + mosDamage;
+          } else {
+            // Armed melee
+            standardDamage = baseDamage + strDamage + mosDamage;
+            fatigueDamage = 1; // All damage causes 1 fatigue
+          }
+        } else if (attackType === 'Burst Fire' || attackType === 'Controlled Burst') {
+          // Burst/Controlled: Base damage + 1 per MoS (capped at extra shots)
+          mosDamage = Math.min(marginOfSuccess, extraShots);
+          standardDamage = baseDamage + mosDamage;
+          fatigueDamage = isSubduing ? 0 : 1;
+
+          if (isSubduing) {
+            fatigueDamage = standardDamage;
+            standardDamage = 0;
+          }
+        } else if (isSubduing || attackType === 'Subduing') {
+          // Subduing: Base damage + floor(MoS × 0.25), dealt as fatigue only
+          mosDamage = Math.floor(marginOfSuccess * 0.25);
+          fatigueDamage = baseDamage + mosDamage;
+          standardDamage = 0;
+        } else {
+          // Standard Ranged / Suppression Fire / Area Effect / Splash Fire
+          // Base damage + floor(MoS × 0.25) + 1 fatigue
+          mosDamage = Math.floor(marginOfSuccess * 0.25);
+          standardDamage = baseDamage + mosDamage;
+          fatigueDamage = 1;
+        }
+      }
+
       results.push({
         roll,
         total: roll.total,
         diceResults,
         success,
         marginOfSuccess,
-        targetIndex: numAttacks > 1 ? i + 1 : null
+        targetIndex: numAttacks > 1 ? i + 1 : null,
+        // Damage info
+        standardDamage,
+        fatigueDamage,
+        baseDamage: isMelee ? baseDamage + strDamage : baseDamage,
+        mosDamage,
+        ap,
+        apFactor,
+        isSubduing: isSubduing || (isMelee && baseDamage === 0)
       });
     }
 

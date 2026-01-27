@@ -1076,6 +1076,71 @@
   border-top: 1px dashed var(--mf-border);
 }
 
+/* Damage Section in Chat */
+.mech-foundry.roll-result .damage-section {
+  margin-top: 8px;
+  padding: 8px;
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: var(--mf-border-radius);
+  border-left: 3px solid var(--mf-danger);
+}
+
+.mech-foundry.roll-result .damage-header {
+  font-weight: bold;
+  font-size: 0.9em;
+  margin-bottom: 5px;
+  color: var(--mf-dark);
+  text-transform: uppercase;
+}
+
+.mech-foundry.roll-result .damage-details {
+  font-size: 0.9em;
+}
+
+.mech-foundry.roll-result .damage-line {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 2px;
+}
+
+.mech-foundry.roll-result .damage-label {
+  font-weight: bold;
+  min-width: 60px;
+}
+
+.mech-foundry.roll-result .damage-value {
+  font-weight: bold;
+  font-size: 1.1em;
+  color: var(--mf-danger);
+}
+
+.mech-foundry.roll-result .damage-line.subduing .damage-value,
+.mech-foundry.roll-result .damage-line.fatigue .damage-value {
+  color: var(--mf-warning);
+}
+
+.mech-foundry.roll-result .damage-line.ap .damage-value {
+  color: var(--mf-primary);
+}
+
+.mech-foundry.roll-result .damage-breakdown {
+  font-size: 0.85em;
+  color: var(--mf-secondary);
+  font-style: italic;
+}
+
+/* Weapon Reload Button */
+.mech-foundry .weapon-reload {
+  color: var(--mf-secondary);
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.mech-foundry .weapon-reload:hover {
+  color: var(--mf-success);
+}
+
 /* Legacy Roll Result Styling */
 .mech-foundry.roll-result .dice-formula {
   font-family: monospace;

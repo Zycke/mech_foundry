@@ -12,6 +12,37 @@
     <div class="roll-mos {{#if this.success}}success{{else}}failure{{/if}}">
       MoS: {{this.marginOfSuccess}} [{{#if this.success}}Success{{else}}Failure{{/if}}]
     </div>
+
+    {{#if this.success}}
+    <div class="damage-section">
+      <div class="damage-header">Damage</div>
+      <div class="damage-details">
+        {{#if this.isSubduing}}
+        <div class="damage-line subduing">
+          <span class="damage-label">Fatigue:</span>
+          <span class="damage-value">{{this.fatigueDamage}}</span>
+          <span class="damage-breakdown">({{this.baseDamage}} base{{#if this.mosDamage}} + {{this.mosDamage}} MoS{{/if}})</span>
+        </div>
+        {{else}}
+        <div class="damage-line standard">
+          <span class="damage-label">Standard:</span>
+          <span class="damage-value">{{this.standardDamage}}</span>
+          <span class="damage-breakdown">({{this.baseDamage}} base{{#if this.mosDamage}} + {{this.mosDamage}} MoS{{/if}})</span>
+        </div>
+        {{#if this.fatigueDamage}}
+        <div class="damage-line fatigue">
+          <span class="damage-label">Fatigue:</span>
+          <span class="damage-value">{{this.fatigueDamage}}</span>
+        </div>
+        {{/if}}
+        {{/if}}
+        <div class="damage-line ap">
+          <span class="damage-label">AP:</span>
+          <span class="damage-value">{{this.ap}}{{this.apFactor}}</span>
+        </div>
+      </div>
+    </div>
+    {{/if}}
   </div>
   {{/each}}
 
