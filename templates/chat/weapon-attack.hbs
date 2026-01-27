@@ -1,0 +1,29 @@
+<div class="mech-foundry weapon-attack-result">
+  <div class="attack-header">
+    <strong>{{weaponName}}</strong>
+    <span class="attack-info">{{skillName}} | {{apDisplay}}/{{bdDisplay}}</span>
+  </div>
+
+  {{#if (ne firingMode "single")}}
+  <div class="firing-mode">
+    Mode: {{firingMode}} ({{ammoUsed}} rounds)
+  </div>
+  {{/if}}
+
+  {{#each results}}
+  <div class="attack-roll {{#if this.success}}success{{else}}failure{{/if}}">
+    {{#if this.targetIndex}}<span class="target-num">Target {{this.targetIndex}}:</span>{{/if}}
+    <span class="dice">[{{this.diceResults.[0]}}] + [{{this.diceResults.[1]}}]</span>
+    <span class="modifier">{{#if (gte ../totalMod 0)}}+{{/if}}{{../totalMod}}</span>
+    = <span class="total">{{this.total}}</span>
+    vs TN {{../targetNumber}}
+    <span class="result">
+      {{#if this.success}}
+        <i class="fas fa-check"></i> Hit (MoS: +{{this.marginOfSuccess}})
+      {{else}}
+        <i class="fas fa-times"></i> Miss (MoS: {{this.marginOfSuccess}})
+      {{/if}}
+    </span>
+  </div>
+  {{/each}}
+</div>

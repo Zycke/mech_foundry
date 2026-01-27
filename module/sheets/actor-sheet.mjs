@@ -381,6 +381,9 @@ export class MechFoundryActorSheet extends ActorSheet {
     // Carry status toggle
     html.on('click', '.carry-status-toggle', this._onCarryStatusToggle.bind(this));
 
+    // Weapon attack roll
+    html.on('click', '.weapon-attack-roll', this._onWeaponAttack.bind(this));
+
     // Drag events for macros
     if (this.actor.isOwner) {
       let handler = (ev) => this._onDragStart(ev);
@@ -1111,5 +1114,130 @@ export class MechFoundryActorSheet extends ActorSheet {
     }
 
     await item.update({ "system.carryStatus": newStatus });
+  }
+
+  /**
+   * Handle weapon attack roll
+   * @param {Event} event The originating click event
+   * @private
+   */
+  async _onWeaponAttack(event) {
+    event.preventDefault();
+    const li = $(event.currentTarget).parents(".item");
+    const weapon = this.actor.items.get(li.data("itemId"));
+    if (!weapon) return;
+
+    const hasBurstFire = weapon.system.bdFactor === 'B';
+    const burstRating = weapon.system.burstRating || 0;
+    const recoil = weapon.system.recoil || 0;
+    const currentAmmo = weapon.system.ammo?.value || 0;
+    const maxAmmo = weapon.system.ammo?.max || 0;
+
+    // Build firing mode options
+    let firingModeHtml = '';
+    if (hasBurstFire) {
+      firingModeHtml = `
+        <div class="form-group">
+          <label>Firing Mode</label>
+          <select name="firingMode" class="firing-mode-select">
+            <option value="single">Single Shot</option>
+            <option value="burst">Burst Fire</option>
+            <option value="controlled">Controlled Burst</option>
+            <option value="suppression">Suppression Fire</option>
+          </select>
+        </div>
+        <div class="burst-options" style="display: none;">
+          <div class="form-group">
+            <label>Shots (max ${burstRating})</label>
+            <input type="number" name="burstShots" value="1" min="1" max="${burstRating}"/>
+          </div>
+        </div>
+        <div class="controlled-options" style="display: none;">
+          <div class="form-group">
+            <label>Shots</label>
+            <select name="controlledShots">
+              <option value="2">2 shots</option>
+              <option value="3">3 shots</option>
+            </select>
+          </div>
+        </div>
+        <div class="suppression-options" style="display: none;">
+          <div class="form-group">
+            <label>Area (m\u00b2)</label>
+            <input type="number" name="suppressionArea" value="1" min="1"/>
+          </div>
+          <div class="form-group">
+            <label>Rounds per m\u00b2 (1-5)</label>
+            <input type="number" name="roundsPerSqm" value="1" min="1" max="5"/>
+          </div>
+          <div class="form-group">
+            <label>Number of Targets</label>
+            <input type="number" name="numTargets" value="1" min="1"/>
+          </div>
+        </div>
+      `;
+    }
+
+    const dialogContent = `
+      <form class="weapon-attack-dialog">
+        <div class="form-group">
+          <label>Weapon: <strong>${weapon.name}</strong></label>
+        </div>
+        <div class="form-group">
+          <label>Linked Skill: <strong>${weapon.system.skill || 'None'}</strong></label>
+        </div>
+        <div class="form-group">
+          <label>Current Ammo: <strong>${currentAmmo}/${maxAmmo}</strong></label>
+        </div>
+        <hr/>
+        <div class="form-group">
+          <label>Modifier</label>
+          <input type="number" name="modifier" value="0"/>
+        </div>
+        ${firingModeHtml}
+      </form>
+    `;
+
+    new Dialog({
+      title: `Attack with ${weapon.name}`,
+      content: dialogContent,
+      buttons: {
+        attack: {
+          icon: '<i class="fas fa-crosshairs"></i>',
+          label: "Attack",
+          callback: async (html) => {
+            const modifier = parseInt(html.find('[name="modifier"]').val()) || 0;
+            const firingMode = html.find('[name="firingMode"]').val() || 'single';
+
+            const options = {
+              modifier,
+              firingMode,
+              burstShots: parseInt(html.find('[name="burstShots"]').val()) || 1,
+              controlledShots: parseInt(html.find('[name="controlledShots"]').val()) || 2,
+              suppressionArea: parseInt(html.find('[name="suppressionArea"]').val()) || 1,
+              roundsPerSqm: parseInt(html.find('[name="roundsPerSqm"]').val()) || 1,
+              numTargets: parseInt(html.find('[name="numTargets"]').val()) || 1
+            };
+
+            await this.actor.rollWeaponAttack(weapon._id, options);
+          }
+        },
+        cancel: {
+          icon: '<i class="fas fa-times"></i>',
+          label: "Cancel"
+        }
+      },
+      default: "attack",
+      render: (html) => {
+        // Toggle firing mode options
+        html.find('.firing-mode-select').on('change', (e) => {
+          const mode = e.currentTarget.value;
+          html.find('.burst-options, .controlled-options, .suppression-options').hide();
+          if (mode === 'burst') html.find('.burst-options').show();
+          else if (mode === 'controlled') html.find('.controlled-options').show();
+          else if (mode === 'suppression') html.find('.suppression-options').show();
+        });
+      }
+    }).render(true);
   }
 }

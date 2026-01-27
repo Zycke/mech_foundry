@@ -587,14 +587,14 @@
       {{#if inventory.weapons.length}}
       <div class="inventory-category weapons-category">
         <h3 class="section-title">Weapons</h3>
-        <table class="inventory-table">
+        <table class="inventory-table centered-data">
           <thead>
             <tr>
               <th class="status-col"></th>
               <th>Name</th>
-              <th>Type</th>
+              <th>Skill</th>
               <th>AP/BD</th>
-              <th>Range</th>
+              <th>Range (PB/S/M/L/E)</th>
               <th>Ammo</th>
               <th>Mass</th>
               <th></th>
@@ -608,11 +608,13 @@
                   {{#if (eq this.system.carryStatus "equipped")}}<i class="fas fa-hand-rock"></i>{{else if (eq this.system.carryStatus "carried")}}<i class="fas fa-suitcase"></i>{{else}}<i class="fas fa-warehouse"></i>{{/if}}
                 </a>
               </td>
-              <td class="item-name">{{this.name}}</td>
-              <td class="weapon-type">{{this.system.weaponType}}</td>
-              <td class="weapon-apbd">{{this.system.ap}}/{{this.system.bd}}{{#if this.system.subduing}}S{{/if}}</td>
+              <td class="item-name">
+                <a class="weapon-attack-roll" title="Click to attack">{{this.name}}</a>
+              </td>
+              <td class="weapon-skill">{{this.system.skill}}</td>
+              <td class="weapon-apbd">{{this.system.ap}}{{this.system.apFactor}}/{{this.system.bd}}{{this.system.bdFactor}}</td>
               <td class="weapon-range">
-                {{#if (eq this.system.weaponType "melee")}}Melee{{else}}{{this.system.range.short}}/{{this.system.range.medium}}/{{this.system.range.long}}{{/if}}
+                {{#if (eq this.system.weaponType "melee")}}Melee{{else}}{{this.system.range.pointBlank}}/{{this.system.range.short}}/{{this.system.range.medium}}/{{this.system.range.long}}/{{this.system.range.extreme}}{{/if}}
               </td>
               <td class="weapon-ammo">{{#if this.system.ammo.max}}{{this.system.ammo.value}}/{{this.system.ammo.max}}{{else}}—{{/if}}</td>
               <td class="item-mass">{{this.system.mass}}</td>
