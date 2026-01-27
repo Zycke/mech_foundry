@@ -125,8 +125,12 @@
       "templates": ["base", "equipment_base"],
       "weaponType": "smallarms",
       "ap": 0,
+      "apFactor": "B",
       "bd": 1,
+      "bdFactor": "",
       "subduing": false,
+      "recoil": 0,
+      "burstRating": 0,
       "range": {
         "pointBlank": "",
         "short": "",

@@ -238,6 +238,139 @@ export class MechFoundryActor extends Actor {
   }
 
   /**
+   * Roll a weapon attack
+   * @param {string} weaponId The weapon item ID
+   * @param {Object} options Attack options
+   */
+  async rollWeaponAttack(weaponId, options = {}) {
+    const weapon = this.items.get(weaponId);
+    if (!weapon || weapon.type !== 'weapon') return;
+
+    const weaponData = weapon.system;
+    const hasBurstFire = weaponData.bdFactor === 'B';
+    const recoil = weaponData.recoil || 0;
+    const burstRating = weaponData.burstRating || 0;
+    const currentAmmo = weaponData.ammo?.value || 0;
+    const firingMode = options.firingMode || 'single';
+
+    // Calculate ammo consumption
+    let ammoUsed = 1;
+    let attackModifier = options.modifier || 0;
+    let numAttacks = 1;
+
+    if (firingMode === 'burst' && hasBurstFire) {
+      ammoUsed = options.burstShots || 1;
+      attackModifier -= recoil;  // Apply recoil penalty
+    } else if (firingMode === 'controlled' && hasBurstFire) {
+      ammoUsed = options.controlledShots || 2;
+      attackModifier -= 1;  // Fixed -1 modifier
+    } else if (firingMode === 'suppression' && hasBurstFire) {
+      ammoUsed = burstRating * 2;
+      numAttacks = options.numTargets || 1;
+      const area = options.suppressionArea || 1;
+      const roundsPerSqm = options.roundsPerSqm || 1;
+      attackModifier += roundsPerSqm - area - recoil;
+    }
+
+    // Check ammo
+    if (weaponData.ammo?.max > 0 && currentAmmo < ammoUsed) {
+      ui.notifications.error(`Not enough ammunition! Need ${ammoUsed}, have ${currentAmmo}.`);
+      return;
+    }
+
+    // Find linked skill
+    const skillName = weaponData.skill;
+    let skill = null;
+    let skillLevel = 0;
+    let linkMod = 0;
+
+    if (skillName) {
+      skill = this.items.find(i => i.type === 'skill' && i.name === skillName);
+      if (skill) {
+        // Calculate skill level from XP
+        const xp = skill.system.xp || 0;
+        const costs = [20, 30, 50, 80, 120, 170, 230, 300, 380, 470, 570];
+        skillLevel = -1;
+        for (let i = 10; i >= 0; i--) {
+          if (xp >= costs[i]) {
+            skillLevel = i;
+            break;
+          }
+        }
+
+        // Add linked attribute modifiers
+        if (skill.system.linkedAttribute1) {
+          const attr1 = this.system.attributes[skill.system.linkedAttribute1];
+          if (attr1) linkMod += attr1.linkMod || 0;
+        }
+        if (skill.system.linkedAttribute2) {
+          const attr2 = this.system.attributes[skill.system.linkedAttribute2];
+          if (attr2) linkMod += attr2.linkMod || 0;
+        }
+      }
+    }
+
+    // Apply injury/fatigue
+    attackModifier += this.system.injuryModifier || 0;
+    attackModifier += this.system.fatigueModifier || 0;
+
+    // Calculate total modifier
+    const totalMod = skillLevel + linkMod + attackModifier;
+    const targetNumber = skill?.system.targetNumber || 7;
+
+    // Make attack roll(s)
+    const results = [];
+    for (let i = 0; i < numAttacks; i++) {
+      const rollFormula = `2d6 + ${totalMod}`;
+      const roll = new Roll(rollFormula);
+      await roll.evaluate();
+
+      const diceResults = roll.dice[0].results.map(r => r.result);
+      const success = roll.total >= targetNumber;
+      const marginOfSuccess = roll.total - targetNumber;
+
+      results.push({
+        roll,
+        total: roll.total,
+        diceResults,
+        success,
+        marginOfSuccess,
+        targetIndex: numAttacks > 1 ? i + 1 : null
+      });
+    }
+
+    // Reduce ammo
+    if (weaponData.ammo?.max > 0) {
+      await weapon.update({ "system.ammo.value": Math.max(0, currentAmmo - ammoUsed) });
+    }
+
+    // Create chat message
+    const messageContent = await renderTemplate(
+      "systems/mech-foundry/templates/chat/weapon-attack.hbs",
+      {
+        weaponName: weapon.name,
+        skillName: skillName || "Untrained",
+        firingMode: firingMode,
+        ammoUsed: ammoUsed,
+        totalMod: totalMod,
+        targetNumber: targetNumber,
+        results: results,
+        apDisplay: `${weaponData.ap}${weaponData.apFactor || ''}`,
+        bdDisplay: `${weaponData.bd}${weaponData.bdFactor || ''}`
+      }
+    );
+
+    ChatMessage.create({
+      speaker: ChatMessage.getSpeaker({ actor: this }),
+      flavor: `${weapon.name} Attack`,
+      content: messageContent,
+      rolls: results.map(r => r.roll)
+    });
+
+    return results;
+  }
+
+  /**
    * Roll an attribute check (single or double attribute)
    * @param {string} attr1Key First attribute key
    * @param {string} attr2Key Optional second attribute key for double checks

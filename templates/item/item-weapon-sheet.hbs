@@ -27,22 +27,74 @@
           </select>
         </div>
         <div class="form-group">
+          <label>Skill</label>
+          <select name="system.skill">
+            <option value="" {{#unless system.skill}}selected{{/unless}}>-- Select --</option>
+            <option value="Melee Weapons" {{#if (eq system.skill "Melee Weapons")}}selected{{/if}}>Melee Weapons</option>
+            <option value="Archery" {{#if (eq system.skill "Archery")}}selected{{/if}}>Archery</option>
+            <option value="Small Arms (Pistols)" {{#if (eq system.skill "Small Arms (Pistols)")}}selected{{/if}}>Small Arms (Pistols)</option>
+            <option value="Small Arms (SMGs)" {{#if (eq system.skill "Small Arms (SMGs)")}}selected{{/if}}>Small Arms (SMGs)</option>
+            <option value="Small Arms (Rifles)" {{#if (eq system.skill "Small Arms (Rifles)")}}selected{{/if}}>Small Arms (Rifles)</option>
+            <option value="Support Weapons" {{#if (eq system.skill "Support Weapons")}}selected{{/if}}>Support Weapons</option>
+            <option value="Artillery" {{#if (eq system.skill "Artillery")}}selected{{/if}}>Artillery</option>
+            <option value="Thrown Weapons" {{#if (eq system.skill "Thrown Weapons")}}selected{{/if}}>Thrown Weapons</option>
+            <option value="Demolitions" {{#if (eq system.skill "Demolitions")}}selected{{/if}}>Demolitions</option>
+          </select>
+        </div>
+        <div class="form-group">
           <label>Equipment Rating</label>
           <input type="text" name="system.equipmentRating" value="{{system.equipmentRating}}" placeholder="e.g., C/A-A-A/C"/>
         </div>
+      </div>
+
+      <h3>Damage</h3>
+      <div class="form-row">
         <div class="form-group">
           <label>AP</label>
           <input type="number" name="system.ap" value="{{system.ap}}" data-dtype="Number"/>
         </div>
         <div class="form-group">
+          <label>AP Factor</label>
+          <select name="system.apFactor">
+            <option value="B" {{#if (eq system.apFactor "B")}}selected{{/if}}>B - Ballistic</option>
+            <option value="E" {{#if (eq system.apFactor "E")}}selected{{/if}}>E - Energy</option>
+            <option value="M" {{#if (eq system.apFactor "M")}}selected{{/if}}>M - Melee</option>
+            <option value="S" {{#if (eq system.apFactor "S")}}selected{{/if}}>S - Special</option>
+            <option value="X" {{#if (eq system.apFactor "X")}}selected{{/if}}>X - Explosive</option>
+          </select>
+        </div>
+        <div class="form-group">
           <label>BD</label>
           <input type="number" name="system.bd" value="{{system.bd}}" data-dtype="Number"/>
+        </div>
+        <div class="form-group">
+          <label>BD Factor</label>
+          <select name="system.bdFactor" class="bd-factor-select">
+            <option value="" {{#unless system.bdFactor}}selected{{/unless}}>None</option>
+            <option value="A" {{#if (eq system.bdFactor "A")}}selected{{/if}}>A - Area-Effect</option>
+            <option value="B" {{#if (eq system.bdFactor "B")}}selected{{/if}}>B - Burst-Fire</option>
+            <option value="C" {{#if (eq system.bdFactor "C")}}selected{{/if}}>C - Continuous</option>
+            <option value="D" {{#if (eq system.bdFactor "D")}}selected{{/if}}>D - Subduing</option>
+            <option value="S" {{#if (eq system.bdFactor "S")}}selected{{/if}}>S - Splash</option>
+          </select>
         </div>
         <div class="form-group checkbox-group">
           <label>
             <input type="checkbox" name="system.subduing" {{#if system.subduing}}checked{{/if}}/>
             Subduing
           </label>
+        </div>
+      </div>
+
+      {{!-- Burst Fire Fields - conditionally shown --}}
+      <div class="form-row burst-fire-fields" {{#unless (eq system.bdFactor "B")}}style="display: none;"{{/unless}}>
+        <div class="form-group">
+          <label>Recoil</label>
+          <input type="number" name="system.recoil" value="{{system.recoil}}" data-dtype="Number" min="0"/>
+        </div>
+        <div class="form-group">
+          <label>Burst Rating</label>
+          <input type="number" name="system.burstRating" value="{{system.burstRating}}" data-dtype="Number" min="1"/>
         </div>
       </div>
 

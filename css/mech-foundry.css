@@ -903,6 +903,38 @@
   margin: 0;
 }
 
+/* Center inventory table data */
+.mech-foundry .inventory-table.centered-data td,
+.mech-foundry .inventory-table.centered-data th {
+  text-align: center;
+}
+
+.mech-foundry .inventory-table.centered-data td.item-name,
+.mech-foundry .inventory-table.centered-data th:nth-child(2) {
+  text-align: left;
+}
+
+/* Clickable weapon name */
+.mech-foundry .weapon-attack-roll {
+  cursor: pointer;
+  color: var(--mf-primary);
+  text-decoration: none;
+}
+
+.mech-foundry .weapon-attack-roll:hover {
+  color: var(--mf-accent);
+  text-decoration: underline;
+}
+
+/* Burst fire conditional fields */
+.mech-foundry.item-sheet .burst-fire-fields {
+  background: rgba(212, 160, 23, 0.1);
+  padding: 10px;
+  border-radius: var(--mf-border-radius);
+  border: 1px dashed var(--mf-warning);
+  margin-top: 10px;
+}
+
 /* Legacy C-Bills styling (for backwards compatibility) */
 .mech-foundry .cbills-field input {
   width: 150px;
@@ -1014,6 +1046,64 @@
   font-size: 0.9em;
   opacity: 0.8;
   margin-left: 5px;
+}
+
+/* Weapon Attack Chat Message */
+.mech-foundry.weapon-attack-result {
+  padding: 8px;
+}
+
+.mech-foundry.weapon-attack-result .attack-header {
+  margin-bottom: 5px;
+  border-bottom: 1px solid var(--mf-border);
+  padding-bottom: 5px;
+}
+
+.mech-foundry.weapon-attack-result .attack-info {
+  font-size: 0.85em;
+  color: var(--mf-secondary);
+  margin-left: 10px;
+}
+
+.mech-foundry.weapon-attack-result .firing-mode {
+  font-style: italic;
+  font-size: 0.9em;
+  margin-bottom: 5px;
+}
+
+.mech-foundry.weapon-attack-result .attack-roll {
+  padding: 4px 8px;
+  margin: 3px 0;
+  border-radius: var(--mf-border-radius);
+}
+
+.mech-foundry.weapon-attack-result .attack-roll.success {
+  background: rgba(74, 157, 74, 0.2);
+}
+
+.mech-foundry.weapon-attack-result .attack-roll.failure {
+  background: rgba(196, 69, 54, 0.2);
+}
+
+.mech-foundry.weapon-attack-result .dice {
+  font-family: monospace;
+}
+
+.mech-foundry.weapon-attack-result .total {
+  font-weight: bold;
+}
+
+.mech-foundry.weapon-attack-result .result i.fa-check {
+  color: var(--mf-success);
+}
+
+.mech-foundry.weapon-attack-result .result i.fa-times {
+  color: var(--mf-danger);
+}
+
+.mech-foundry.weapon-attack-result .target-num {
+  font-weight: bold;
+  margin-right: 5px;
 }
 
 /* ----------------------------------------- */

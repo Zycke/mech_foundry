@@ -55,5 +55,15 @@ export class MechFoundryItemSheet extends ItemSheet {
 
     // Everything below here is only needed if the sheet is editable
     if (!this.isEditable) return;
+
+    // Burst fire field visibility toggle (weapon sheets)
+    html.on('change', '.bd-factor-select', (event) => {
+      const burstFields = html.find('.burst-fire-fields');
+      if (event.currentTarget.value === 'B') {
+        burstFields.show();
+      } else {
+        burstFields.hide();
+      }
+    });
   }
 }
