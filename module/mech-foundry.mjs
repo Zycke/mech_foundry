@@ -211,6 +211,16 @@ function _registerHandlebarsHelpers() {
     return Math.floor(a / b);
   });
 
+  // Absolute value
+  Handlebars.registerHelper('abs', function(value) {
+    return Math.abs(value);
+  });
+
+  // Not equal
+  Handlebars.registerHelper('ne', function(a, b) {
+    return a !== b;
+  });
+
   // Percentage calculation
   Handlebars.registerHelper('percentage', function(current, max) {
     if (max === 0) return 0;

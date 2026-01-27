@@ -178,25 +178,24 @@ export class MechFoundryActor extends Actor {
       }
     }
 
-    // Calculate total modifier using calculated skill level
-    let totalMod = skillLevel;
-
-    // Add linked attribute modifiers
+    // Track linked attribute modifiers separately
+    let linkMod = 0;
     if (skillData.linkedAttribute1) {
       const attr1 = this.system.attributes[skillData.linkedAttribute1];
-      if (attr1) totalMod += attr1.linkMod || 0;
+      if (attr1) linkMod += attr1.linkMod || 0;
     }
     if (skillData.linkedAttribute2) {
       const attr2 = this.system.attributes[skillData.linkedAttribute2];
-      if (attr2) totalMod += attr2.linkMod || 0;
+      if (attr2) linkMod += attr2.linkMod || 0;
     }
 
-    // Apply injury and fatigue modifiers
-    totalMod += this.system.injuryModifier || 0;
-    totalMod += this.system.fatigueModifier || 0;
+    // Get injury and fatigue modifiers
+    const injuryMod = this.system.injuryModifier || 0;
+    const fatigueMod = this.system.fatigueModifier || 0;
+    const inputMod = options.modifier || 0;
 
-    // Apply any additional modifiers from options
-    totalMod += options.modifier || 0;
+    // Calculate total modifier
+    const totalMod = skillLevel + linkMod + injuryMod + fatigueMod + inputMod;
 
     const rollFormula = `2d6 + ${totalMod}`;
     const roll = new Roll(rollFormula);
@@ -204,7 +203,6 @@ export class MechFoundryActor extends Actor {
 
     // Extract raw dice results for display
     const diceResults = roll.dice[0].results.map(r => r.result);
-    const rawDiceTotal = diceResults.reduce((a, b) => a + b, 0);
 
     const success = roll.total >= targetNumber;
     const marginOfSuccess = roll.total - targetNumber;
@@ -214,21 +212,22 @@ export class MechFoundryActor extends Actor {
       "systems/mech-foundry/templates/chat/skill-roll.hbs",
       {
         skillName: skill.name,
-        roll: roll,
         total: roll.total,
         targetNumber: targetNumber,
-        modifier: totalMod,
         success: success,
         marginOfSuccess: marginOfSuccess,
-        complexity: skillData.complexity,
         diceResults: diceResults,
-        rawDiceTotal: rawDiceTotal
+        // Broken down modifiers for display
+        skillMod: skillLevel + linkMod,
+        inputMod: inputMod,
+        injuryMod: injuryMod,
+        fatigueMod: fatigueMod
       }
     );
 
     const messageData = {
       speaker: ChatMessage.getSpeaker({ actor: this }),
-      flavor: `${skill.name} Check (TN ${targetNumber})`,
+      flavor: `${skill.name} Skill Check`,
       content: messageContent,
       rolls: [roll]
     };
@@ -252,24 +251,60 @@ export class MechFoundryActor extends Actor {
     const burstRating = weaponData.burstRating || 0;
     const currentAmmo = weaponData.ammo?.value || 0;
     const firingMode = options.firingMode || 'single';
+    const weaponType = weaponData.weaponType || 'smallarms';
+
+    // Track modifiers separately for display
+    let recoilMod = 0;
+    let firingModeMod = 0;
+    const inputMod = options.modifier || 0;
+    const injuryMod = this.system.injuryModifier || 0;
+    const fatigueMod = this.system.fatigueModifier || 0;
+
+    // Determine attack type
+    let attackType = 'Standard Ranged';
+    const isMelee = weaponType === 'melee';
+
+    if (isMelee) {
+      attackType = 'Standard Melee';
+    } else if (firingMode === 'burst' && hasBurstFire) {
+      attackType = 'Burst Fire';
+    } else if (firingMode === 'controlled' && hasBurstFire) {
+      attackType = 'Controlled Burst';
+    } else if (firingMode === 'suppression' && hasBurstFire) {
+      attackType = 'Suppression Fire';
+    }
+
+    // Check BD Factor for special attack types
+    if (weaponData.bdFactor === 'A') {
+      attackType = 'Area Effect';
+    } else if (weaponData.bdFactor === 'S') {
+      attackType = 'Splash Fire';
+    } else if (weaponData.bdFactor === 'D' || weaponData.subduing) {
+      attackType = 'Subduing';
+    }
+
+    // Override with explicit attack type if provided
+    if (options.attackType) {
+      attackType = options.attackType;
+    }
 
     // Calculate ammo consumption
     let ammoUsed = 1;
-    let attackModifier = options.modifier || 0;
     let numAttacks = 1;
 
     if (firingMode === 'burst' && hasBurstFire) {
       ammoUsed = options.burstShots || 1;
-      attackModifier -= recoil;  // Apply recoil penalty
+      recoilMod = recoil;  // Track recoil separately
     } else if (firingMode === 'controlled' && hasBurstFire) {
       ammoUsed = options.controlledShots || 2;
-      attackModifier -= 1;  // Fixed -1 modifier
+      firingModeMod = 1;  // Fixed -1 modifier (stored positive, applied negative)
     } else if (firingMode === 'suppression' && hasBurstFire) {
       ammoUsed = burstRating * 2;
       numAttacks = options.numTargets || 1;
       const area = options.suppressionArea || 1;
       const roundsPerSqm = options.roundsPerSqm || 1;
-      attackModifier += roundsPerSqm - area - recoil;
+      recoilMod = recoil;
+      firingModeMod = area - roundsPerSqm;  // Area penalty minus rounds benefit
     }
 
     // Check ammo
@@ -310,12 +345,11 @@ export class MechFoundryActor extends Actor {
       }
     }
 
-    // Apply injury/fatigue
-    attackModifier += this.system.injuryModifier || 0;
-    attackModifier += this.system.fatigueModifier || 0;
+    // Combined skill modifier
+    const skillMod = skillLevel + linkMod;
 
     // Calculate total modifier
-    const totalMod = skillLevel + linkMod + attackModifier;
+    const totalMod = skillMod + inputMod + injuryMod + fatigueMod - recoilMod - firingModeMod;
     const targetNumber = skill?.system.targetNumber || 7;
 
     // Make attack roll(s)
@@ -349,14 +383,18 @@ export class MechFoundryActor extends Actor {
       "systems/mech-foundry/templates/chat/weapon-attack.hbs",
       {
         weaponName: weapon.name,
-        skillName: skillName || "Untrained",
+        attackType: attackType,
         firingMode: firingMode,
         ammoUsed: ammoUsed,
-        totalMod: totalMod,
         targetNumber: targetNumber,
         results: results,
-        apDisplay: `${weaponData.ap}${weaponData.apFactor || ''}`,
-        bdDisplay: `${weaponData.bd}${weaponData.bdFactor || ''}`
+        // Broken down modifiers for display
+        skillMod: skillMod,
+        inputMod: inputMod,
+        recoilMod: recoilMod,
+        firingModeMod: firingModeMod,
+        injuryMod: injuryMod,
+        fatigueMod: fatigueMod
       }
     );
 
