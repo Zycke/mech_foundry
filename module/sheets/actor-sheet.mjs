@@ -181,6 +181,21 @@ export class MechFoundryActorSheet extends ActorSheet {
     const equipment = [];
     const vehicles = [];
 
+    // Initialize inventory categories
+    const inventory = {
+      armor: [],
+      weapons: [],
+      electronics: [],
+      powerpacks: [],
+      healthcare: [],
+      prosthetics: [],
+      drugpoisons: [],
+      vehicles: [],
+      fuel: []
+    };
+
+    let totalWeight = 0;
+
     // Iterate through items, allocating to containers
     for (let i of context.items) {
       i.img = i.img || Item.DEFAULT_ICON;
@@ -217,15 +232,68 @@ export class MechFoundryActorSheet extends ActorSheet {
       }
       else if (i.type === 'weapon') {
         weapons.push(i);
+        inventory.weapons.push(i);
+        // Add weight if equipped or carried
+        const status = i.system.carryStatus || 'carried';
+        if (status !== 'stored') {
+          totalWeight += parseFloat(i.system.mass) || 0;
+        }
       }
       else if (i.type === 'armor') {
         armor.push(i);
+        inventory.armor.push(i);
+        // Add weight if equipped or carried
+        const status = i.system.carryStatus || 'carried';
+        if (status !== 'stored') {
+          totalWeight += parseFloat(i.system.mass) || 0;
+        }
       }
       else if (i.type === 'equipment') {
         equipment.push(i);
       }
       else if (i.type === 'vehicle') {
         vehicles.push(i);
+        inventory.vehicles.push(i);
+        // Vehicles don't contribute to carried weight
+      }
+      else if (i.type === 'electronics') {
+        inventory.electronics.push(i);
+        const status = i.system.carryStatus || 'carried';
+        if (status !== 'stored') {
+          totalWeight += parseFloat(i.system.mass) || 0;
+        }
+      }
+      else if (i.type === 'powerpack') {
+        inventory.powerpacks.push(i);
+        const status = i.system.carryStatus || 'carried';
+        if (status !== 'stored') {
+          totalWeight += parseFloat(i.system.mass) || 0;
+        }
+      }
+      else if (i.type === 'healthcare') {
+        inventory.healthcare.push(i);
+        const status = i.system.carryStatus || 'carried';
+        if (status !== 'stored') {
+          totalWeight += parseFloat(i.system.mass) || 0;
+        }
+      }
+      else if (i.type === 'prosthetics') {
+        inventory.prosthetics.push(i);
+        // Prosthetics don't have mass field
+      }
+      else if (i.type === 'drugpoison') {
+        inventory.drugpoisons.push(i);
+        const status = i.system.carryStatus || 'carried';
+        if (status !== 'stored') {
+          totalWeight += parseFloat(i.system.mass) || 0;
+        }
+      }
+      else if (i.type === 'fuel') {
+        inventory.fuel.push(i);
+        const status = i.system.carryStatus || 'carried';
+        if (status !== 'stored') {
+          totalWeight += parseFloat(i.system.mass) || 0;
+        }
       }
     }
 
@@ -239,6 +307,12 @@ export class MechFoundryActorSheet extends ActorSheet {
     context.armor = armor;
     context.equipment = equipment;
     context.vehicles = vehicles;
+
+    // Add inventory data
+    inventory.totalWeight = totalWeight.toFixed(1);
+    inventory.hasItems = Object.values(inventory)
+      .some(arr => Array.isArray(arr) && arr.length > 0);
+    context.inventory = inventory;
 
     // Calculate highest equipped BAR (M type as default)
     context.equippedBAR = armor
@@ -300,6 +374,12 @@ export class MechFoundryActorSheet extends ActorSheet {
 
     // Condition monitor max validation
     html.on('change', '.condition-input', this._onConditionChange.bind(this));
+
+    // Add Inventory Item (with type selection dialog)
+    html.on('click', '.add-inventory-item', this._onAddInventoryItem.bind(this));
+
+    // Carry status toggle
+    html.on('click', '.carry-status-toggle', this._onCarryStatusToggle.bind(this));
 
     // Drag events for macros
     if (this.actor.isOwner) {
@@ -948,5 +1028,88 @@ export class MechFoundryActorSheet extends ActorSheet {
     if (value < 0) {
       input.value = 0;
     }
+  }
+
+  /**
+   * Handle adding a new inventory item with type selection dialog
+   * @param {Event} event The originating click event
+   * @private
+   */
+  async _onAddInventoryItem(event) {
+    event.preventDefault();
+
+    const itemTypes = [
+      { type: 'weapon', label: 'Weapon' },
+      { type: 'armor', label: 'Armor' },
+      { type: 'electronics', label: 'Electronics' },
+      { type: 'powerpack', label: 'Power Pack' },
+      { type: 'healthcare', label: 'Health Care' },
+      { type: 'prosthetics', label: 'Prosthetics' },
+      { type: 'drugpoison', label: 'Drugs & Poisons' },
+      { type: 'vehicle', label: 'Vehicle' },
+      { type: 'fuel', label: 'Fuel' }
+    ];
+
+    const options = itemTypes.map(t =>
+      `<option value="${t.type}">${t.label}</option>`
+    ).join('');
+
+    new Dialog({
+      title: "Add Inventory Item",
+      content: `
+        <form>
+          <div class="form-group">
+            <label>Item Type</label>
+            <select name="type">${options}</select>
+          </div>
+        </form>
+      `,
+      buttons: {
+        create: {
+          label: "Create",
+          callback: async (html) => {
+            const type = html.find('[name="type"]').val();
+            const typeLabel = itemTypes.find(t => t.type === type)?.label || type;
+            await Item.create({
+              name: `New ${typeLabel}`,
+              type: type,
+              system: {}
+            }, { parent: this.actor });
+          }
+        },
+        cancel: {
+          label: "Cancel"
+        }
+      },
+      default: "create"
+    }).render(true);
+  }
+
+  /**
+   * Handle carry status toggle (equipped/carried/stored)
+   * @param {Event} event The originating click event
+   * @private
+   */
+  async _onCarryStatusToggle(event) {
+    event.preventDefault();
+    const element = event.currentTarget;
+    const li = $(element).parents(".item");
+    const item = this.actor.items.get(li.data("itemId"));
+    if (!item) return;
+
+    const currentStatus = item.system.carryStatus || 'carried';
+    const canEquip = ['weapon', 'armor'].includes(item.type);
+
+    let newStatus;
+    if (canEquip) {
+      // Cycle: equipped -> carried -> stored -> equipped
+      newStatus = currentStatus === 'equipped' ? 'carried' :
+                  currentStatus === 'carried' ? 'stored' : 'equipped';
+    } else {
+      // Cycle: carried -> stored -> carried
+      newStatus = currentStatus === 'carried' ? 'stored' : 'carried';
+    }
+
+    await item.update({ "system.carryStatus": newStatus });
   }
 }

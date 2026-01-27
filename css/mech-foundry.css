@@ -753,14 +753,157 @@
 /* Inventory Tab                              */
 /* ----------------------------------------- */
 
+/* Inventory Header Bar */
+.mech-foundry .inventory-header-bar {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  padding: 10px 15px;
+  background: linear-gradient(135deg, var(--mf-secondary), var(--mf-primary));
+  border-radius: var(--mf-border-radius);
+  margin-bottom: 15px;
+}
+
+.mech-foundry .inventory-header-bar label {
+  font-weight: bold;
+  font-size: 0.85em;
+  color: rgba(255, 255, 255, 0.8);
+  text-transform: uppercase;
+  margin-bottom: 4px;
+  display: block;
+}
+
 .mech-foundry .cbills-section {
+  display: flex;
+  flex-direction: column;
+}
+
+.mech-foundry .cbills-section input {
+  width: 120px;
+  font-size: 1.1em;
+  text-align: right;
+  font-weight: bold;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid var(--mf-accent);
+  border-radius: var(--mf-border-radius);
+  padding: 4px 8px;
+}
+
+.mech-foundry .weight-section {
+  display: flex;
+  flex-direction: column;
+}
+
+.mech-foundry .weight-section .weight-value {
+  font-size: 1.2em;
+  font-weight: bold;
+  color: var(--mf-light);
+  background: rgba(0, 0, 0, 0.2);
+  padding: 4px 15px;
+  border-radius: var(--mf-border-radius);
+}
+
+.mech-foundry .add-item-section {
+  margin-left: auto;
+}
+
+.mech-foundry .add-inventory-item {
+  background: var(--mf-accent);
+  color: white;
+  border: none;
+  border-radius: var(--mf-border-radius);
+  padding: 8px 15px;
+  cursor: pointer;
+  font-size: 0.9em;
+  font-weight: bold;
+  transition: background 0.2s;
+}
+
+.mech-foundry .add-inventory-item:hover {
+  background: darkorange;
+}
+
+.mech-foundry .add-inventory-item i {
+  margin-right: 5px;
+}
+
+/* Inventory Categories */
+.mech-foundry .inventory-category {
+  margin-bottom: 15px;
   background: var(--mf-bg-light);
   border: 1px solid var(--mf-border);
   border-radius: var(--mf-border-radius);
   padding: 10px;
-  margin-bottom: 15px;
 }
 
+.mech-foundry .inventory-category .section-title {
+  margin: -10px -10px 10px -10px;
+  padding: 6px 10px;
+  border-radius: var(--mf-border-radius) var(--mf-border-radius) 0 0;
+}
+
+.mech-foundry .inventory-table {
+  width: 100%;
+}
+
+.mech-foundry .inventory-table th.status-col {
+  width: 30px;
+}
+
+.mech-foundry .inventory-table .item-status {
+  width: 30px;
+  text-align: center;
+}
+
+/* Carry Status Toggle */
+.mech-foundry .carry-status-toggle {
+  cursor: pointer;
+  font-size: 1.1em;
+  transition: color 0.2s;
+}
+
+.mech-foundry .carry-status-toggle[data-status="equipped"] {
+  color: var(--mf-success);
+}
+
+.mech-foundry .carry-status-toggle[data-status="carried"] {
+  color: var(--mf-primary);
+}
+
+.mech-foundry .carry-status-toggle[data-status="stored"] {
+  color: var(--mf-border);
+}
+
+.mech-foundry .carry-status-toggle:hover {
+  color: var(--mf-accent);
+}
+
+/* Item name column */
+.mech-foundry .inventory-table .item-name {
+  font-weight: 500;
+}
+
+/* Item mass column */
+.mech-foundry .inventory-table .item-mass {
+  text-align: center;
+}
+
+/* Empty inventory message */
+.mech-foundry .inventory-empty {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--mf-border);
+  font-style: italic;
+  background: var(--mf-bg-light);
+  border: 1px dashed var(--mf-border);
+  border-radius: var(--mf-border-radius);
+}
+
+.mech-foundry .inventory-empty p {
+  margin: 0;
+}
+
+/* Legacy C-Bills styling (for backwards compatibility) */
 .mech-foundry .cbills-field input {
   width: 150px;
   font-size: 1.2em;
