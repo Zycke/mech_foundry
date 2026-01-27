@@ -1009,6 +1009,74 @@
   border-radius: var(--mf-border-radius);
 }
 
+/* New Chat Card Format */
+.mech-foundry.roll-result .roll-title {
+  font-weight: bold;
+  font-size: 1.1em;
+  margin-bottom: 5px;
+  color: var(--mf-dark);
+}
+
+.mech-foundry.roll-result .attack-type {
+  font-size: 0.9em;
+  color: var(--mf-secondary);
+  font-style: italic;
+  margin-bottom: 5px;
+}
+
+.mech-foundry.roll-result .roll-formula {
+  font-family: monospace;
+  background: rgba(0, 0, 0, 0.05);
+  padding: 4px 8px;
+  border-radius: var(--mf-border-radius);
+  margin-bottom: 4px;
+}
+
+.mech-foundry.roll-result .roll-tn {
+  font-size: 0.9em;
+  color: var(--mf-secondary);
+  margin-bottom: 4px;
+}
+
+.mech-foundry.roll-result .roll-mos {
+  font-weight: bold;
+  margin-top: 4px;
+}
+
+.mech-foundry.roll-result .roll-mos.success {
+  color: var(--mf-success);
+}
+
+.mech-foundry.roll-result .roll-mos.failure {
+  color: var(--mf-danger);
+}
+
+.mech-foundry.roll-result .attack-roll {
+  margin-bottom: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--mf-border);
+}
+
+.mech-foundry.roll-result .attack-roll:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.mech-foundry.roll-result .target-label {
+  font-weight: bold;
+  margin-bottom: 3px;
+}
+
+.mech-foundry.roll-result .ammo-info {
+  font-size: 0.85em;
+  color: var(--mf-secondary);
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--mf-border);
+}
+
+/* Legacy Roll Result Styling */
 .mech-foundry.roll-result .dice-formula {
   font-family: monospace;
   background: rgba(0,0,0,0.1);

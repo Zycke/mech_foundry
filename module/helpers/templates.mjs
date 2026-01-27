@@ -23,6 +23,7 @@ export const preloadHandlebarsTemplates = async function() {
     "systems/mech-foundry/templates/item/item-drugpoison-sheet.hbs",
 
     // Chat partials
-    "systems/mech-foundry/templates/chat/skill-roll.hbs"
+    "systems/mech-foundry/templates/chat/skill-roll.hbs",
+    "systems/mech-foundry/templates/chat/weapon-attack.hbs"
   ]);
 };

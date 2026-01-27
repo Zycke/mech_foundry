@@ -1,28 +1,10 @@
 <div class="mech-foundry roll-result skill-roll">
-  <div class="roll-header">
-    <span class="skill-name">{{skillName}}</span>
-    <span class="complexity">({{#if (eq complexity "S")}}Simple{{else}}Complex{{/if}})</span>
+  <div class="roll-title">{{skillName}} Skill Check</div>
+  <div class="roll-formula">
+    [{{diceResults.[0]}}]+[{{diceResults.[1]}}] + ({{skillMod}}){{#if inputMod}}{{#if (gte inputMod 0)}} + {{inputMod}}{{else}} - {{abs inputMod}}{{/if}}{{/if}}{{#if injuryMod}}{{#if (gte injuryMod 0)}} + {{injuryMod}}{{else}} - {{abs injuryMod}}{{/if}}{{/if}}{{#if fatigueMod}}{{#if (gte fatigueMod 0)}} + {{fatigueMod}}{{else}} - {{abs fatigueMod}}{{/if}}{{/if}} = {{total}}
   </div>
-  <div class="roll-details">
-    <div class="dice-raw">
-      Dice: {{#each diceResults}}{{this}}{{#unless @last}} + {{/unless}}{{/each}} = {{rawDiceTotal}}
-    </div>
-    <div class="dice-formula">
-      {{rawDiceTotal}} {{#if (gte modifier 0)}}+{{/if}}{{modifier}} = {{total}}
-    </div>
-    <div class="dice-result">
-      <span class="roll-total">{{total}}</span>
-      <span class="target-number">vs TN {{targetNumber}}</span>
-    </div>
-  </div>
-  <div class="roll-outcome {{#if success}}success{{else}}failure{{/if}}">
-    {{#if success}}
-      <i class="fas fa-check-circle"></i> Success
-    {{else}}
-      <i class="fas fa-times-circle"></i> Failure
-    {{/if}}
-    <span class="margin-of-success">
-      (MoS: {{#if (gte marginOfSuccess 0)}}+{{/if}}{{marginOfSuccess}})
-    </span>
+  <div class="roll-tn">TN: {{targetNumber}}</div>
+  <div class="roll-mos {{#if success}}success{{else}}failure{{/if}}">
+    MoS: {{marginOfSuccess}} [{{#if success}}Success{{else}}Failure{{/if}}]
   </div>
 </div>
