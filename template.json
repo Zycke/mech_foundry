@@ -99,7 +99,8 @@
         "cost": 0,
         "affiliation": "",
         "mass": 0,
-        "notes": ""
+        "notes": "",
+        "carryStatus": "carried"
       }
     },
     "skill": {
@@ -164,6 +165,7 @@
       "vehicleType": "wheeled",
       "equipmentRating": "",
       "cost": 0,
+      "carryStatus": "stored",
       "armor": {
         "front": 0,
         "side": 0,
@@ -188,6 +190,8 @@
       "fuelType": "petrochemical",
       "equipmentRating": "",
       "costPerKg": 0,
+      "mass": 0,
+      "carryStatus": "carried",
       "notes": ""
     },
     "electronics": {
@@ -208,12 +212,15 @@
       "equipmentRating": "",
       "cost": 0,
       "affiliation": "",
+      "carryStatus": "carried",
       "notes": ""
     },
     "drugpoison": {
       "templates": ["base"],
       "equipmentRating": "",
       "basePrice": 0,
+      "mass": 0,
+      "carryStatus": "carried",
       "primaryVector": {
         "ingested": false,
         "injected": false,
