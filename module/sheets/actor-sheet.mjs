@@ -147,6 +147,9 @@ export class MechFoundryActorSheet extends ActorSheet {
       { async: true }
     );
 
+    // Prepare life stages data with default modules for single-module stages
+    context.lifeStagesData = this._prepareLifeStagesData(context.system);
+
     return context;
   }
 
@@ -511,6 +514,14 @@ export class MechFoundryActorSheet extends ActorSheet {
 
     // Weapon reload
     html.on('click', '.weapon-reload', this._onWeaponReload.bind(this));
+
+    // Life Modules event handlers
+    html.on('click', '.add-language', this._onAddLanguage.bind(this));
+    html.on('click', '.remove-language', this._onRemoveLanguage.bind(this));
+    html.on('click', '.add-module', this._onAddModule.bind(this));
+    html.on('click', '.remove-module', this._onRemoveModule.bind(this));
+    html.on('click', '.add-entry', this._onAddEntry.bind(this));
+    html.on('click', '.remove-entry', this._onRemoveEntry.bind(this));
 
     // Drag events for macros
     if (this.actor.isOwner) {
@@ -1426,5 +1437,136 @@ export class MechFoundryActorSheet extends ActorSheet {
 
     await weapon.update({ "system.ammo.value": maxAmmo });
     ui.notifications.info(`${weapon.name} reloaded to ${maxAmmo} rounds.`);
+  }
+
+  /* -------------------------------------------- */
+  /*  Life Modules Handlers                        */
+  /* -------------------------------------------- */
+
+  /**
+   * Prepare life stages data, ensuring single-module stages have a default module
+   * @param {Object} systemData The actor's system data
+   * @returns {Object} Prepared life stages data
+   */
+  _prepareLifeStagesData(systemData) {
+    const lifeStages = foundry.utils.deepClone(systemData.lifeStages || {});
+    const languages = foundry.utils.deepClone(systemData.languages || {});
+
+    // Ensure all stages exist
+    const stageKeys = ['stage0', 'stage1', 'stage2', 'stage3', 'stage4'];
+    for (const stageKey of stageKeys) {
+      if (!lifeStages[stageKey]) {
+        lifeStages[stageKey] = { modules: {} };
+      }
+      if (!lifeStages[stageKey].modules) {
+        lifeStages[stageKey].modules = {};
+      }
+    }
+
+    // Single-module stages (0, 1, 2) should always have exactly one module
+    const singleModuleStages = ['stage0', 'stage1', 'stage2'];
+    for (const stageKey of singleModuleStages) {
+      const moduleKeys = Object.keys(lifeStages[stageKey].modules || {});
+      if (moduleKeys.length === 0) {
+        const id = foundry.utils.randomID();
+        lifeStages[stageKey].modules[id] = {
+          name: "",
+          xpCost: 0,
+          attributes: {},
+          skills: {},
+          traits: {}
+        };
+      }
+    }
+
+    return {
+      ...lifeStages,
+      languages
+    };
+  }
+
+  /**
+   * Handle adding a new language
+   * @param {Event} event
+   */
+  async _onAddLanguage(event) {
+    event.preventDefault();
+    const id = foundry.utils.randomID();
+    const languages = foundry.utils.deepClone(this.actor.system.languages || {});
+    languages[id] = { type: "secondary", name: "" };
+    await this.actor.update({ "system.languages": languages });
+  }
+
+  /**
+   * Handle removing a language
+   * @param {Event} event
+   */
+  async _onRemoveLanguage(event) {
+    event.preventDefault();
+    const langId = event.currentTarget.dataset.langId;
+    await this.actor.update({ [`system.languages.-=${langId}`]: null });
+  }
+
+  /**
+   * Handle adding a module to a stage
+   * @param {Event} event
+   */
+  async _onAddModule(event) {
+    event.preventDefault();
+    const stage = event.currentTarget.dataset.stage;
+    const id = foundry.utils.randomID();
+    const path = `system.lifeStages.${stage}.modules`;
+    const modules = foundry.utils.deepClone(foundry.utils.getProperty(this.actor, path) || {});
+
+    modules[id] = {
+      name: "",
+      xpCost: 0,
+      attributes: {},
+      skills: {},
+      traits: {}
+    };
+
+    await this.actor.update({ [path]: modules });
+  }
+
+  /**
+   * Handle removing a module from a stage
+   * @param {Event} event
+   */
+  async _onRemoveModule(event) {
+    event.preventDefault();
+    const stage = event.currentTarget.dataset.stage;
+    const moduleId = event.currentTarget.dataset.moduleId;
+    await this.actor.update({
+      [`system.lifeStages.${stage}.modules.-=${moduleId}`]: null
+    });
+  }
+
+  /**
+   * Handle adding an entry (attribute/skill/trait) to a module
+   * @param {Event} event
+   */
+  async _onAddEntry(event) {
+    event.preventDefault();
+    const { stage, module: moduleId, type } = event.currentTarget.dataset;
+    const id = foundry.utils.randomID();
+    const path = `system.lifeStages.${stage}.modules.${moduleId}.${type}`;
+    const entries = foundry.utils.deepClone(foundry.utils.getProperty(this.actor, path) || {});
+
+    entries[id] = { value: "" };
+
+    await this.actor.update({ [path]: entries });
+  }
+
+  /**
+   * Handle removing an entry from a module
+   * @param {Event} event
+   */
+  async _onRemoveEntry(event) {
+    event.preventDefault();
+    const { stage, module: moduleId, type, entry: entryId } = event.currentTarget.dataset;
+    await this.actor.update({
+      [`system.lifeStages.${stage}.modules.${moduleId}.${type}.-=${entryId}`]: null
+    });
   }
 }

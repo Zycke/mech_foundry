@@ -951,31 +951,388 @@
 
     {{!-- Biography Tab --}}
     <div class="tab biography" data-group="primary" data-tab="biography">
-      {{!-- Life Modules Section --}}
-      <div class="lifemodules-section">
-        <h3 class="section-title">Biography - Life Modules</h3>
-        <table class="lifemodules-table">
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>Life Module</th>
-              <th>Other Notes</th>
-            </tr>
-          </thead>
-          <tbody>
-            {{#each system.lifeModules as |module key|}}
-            <tr class="lifemodule-row">
-              <td class="lifemodule-number">{{key}}</td>
-              <td class="lifemodule-name">
-                <input type="text" name="system.lifeModules.{{key}}.name" value="{{module.name}}" placeholder="{{#if (eq key '1')}}Early Childhood{{else if (eq key '2')}}Late Childhood{{/if}}"/>
-              </td>
-              <td class="lifemodule-notes">
-                <input type="text" name="system.lifeModules.{{key}}.notes" value="{{module.notes}}"/>
-              </td>
-            </tr>
+      {{!-- Phenotype & Affiliation Row --}}
+      <div class="bio-header-row">
+        <div class="form-group">
+          <label>Phenotype</label>
+          <input type="text" name="system.phenotype" value="{{system.phenotype}}" placeholder="e.g., Caucasian, Asian, etc."/>
+        </div>
+        <div class="form-group">
+          <label>Affiliation</label>
+          <input type="text" name="system.affiliation" value="{{system.affiliation}}" placeholder="e.g., Federated Suns"/>
+        </div>
+      </div>
+
+      {{!-- Languages Section --}}
+      <div class="languages-section">
+        <div class="section-header">
+          <h3 class="section-title">Languages</h3>
+          <a class="add-language" title="Add Language"><i class="fas fa-plus"></i></a>
+        </div>
+        <div class="languages-list">
+          {{#each lifeStagesData.languages as |lang langId|}}
+          <div class="language-row" data-lang-id="{{langId}}">
+            <select name="system.languages.{{langId}}.type">
+              <option value="primary" {{#if (eq lang.type "primary")}}selected{{/if}}>Primary</option>
+              <option value="secondary" {{#if (eq lang.type "secondary")}}selected{{/if}}>Secondary</option>
+            </select>
+            <input type="text" name="system.languages.{{langId}}.name" value="{{lang.name}}" placeholder="Language name"/>
+            <a class="remove-language" data-lang-id="{{langId}}" title="Remove"><i class="fas fa-trash"></i></a>
+          </div>
+          {{else}}
+          <p class="no-languages">No languages added. Click + to add one.</p>
+          {{/each}}
+        </div>
+      </div>
+
+      {{!-- Life Stages Grid --}}
+      <div class="life-stages-grid">
+        {{!-- Stage 0: Affiliation --}}
+        <div class="life-stage-panel" data-stage="stage0">
+          <div class="stage-header">
+            <h3 class="section-title">Stage 0: Affiliation</h3>
+          </div>
+          <div class="module-subpanels">
+            {{#each lifeStagesData.stage0.modules as |mod modId|}}
+            <div class="module-subpanel" data-module-id="{{modId}}">
+              <div class="subpanel-header">
+                <input type="text" name="system.lifeStages.stage0.modules.{{modId}}.name" value="{{mod.name}}" placeholder="Module Name" class="module-name-input"/>
+              </div>
+              <div class="subpanel-xp">
+                <label>XP Cost</label>
+                <input type="number" name="system.lifeStages.stage0.modules.{{modId}}.xpCost" value="{{mod.xpCost}}" data-dtype="Number" min="0"/>
+              </div>
+              <div class="subpanel-columns">
+                <div class="subpanel-column">
+                  <div class="column-header">
+                    <label>Attributes</label>
+                    <a class="add-entry" data-stage="stage0" data-module="{{modId}}" data-type="attributes"><i class="fas fa-plus"></i></a>
+                  </div>
+                  <div class="column-entries">
+                    {{#each mod.attributes as |attr attrId|}}
+                    <div class="entry-row" data-entry-id="{{attrId}}">
+                      <input type="text" name="system.lifeStages.stage0.modules.{{modId}}.attributes.{{attrId}}.value" value="{{attr.value}}" placeholder="e.g., STR +1"/>
+                      <a class="remove-entry" data-stage="stage0" data-module="{{modId}}" data-type="attributes" data-entry="{{attrId}}"><i class="fas fa-times"></i></a>
+                    </div>
+                    {{/each}}
+                  </div>
+                </div>
+                <div class="subpanel-column">
+                  <div class="column-header">
+                    <label>Skills</label>
+                    <a class="add-entry" data-stage="stage0" data-module="{{modId}}" data-type="skills"><i class="fas fa-plus"></i></a>
+                  </div>
+                  <div class="column-entries">
+                    {{#each mod.skills as |skill skillId|}}
+                    <div class="entry-row" data-entry-id="{{skillId}}">
+                      <input type="text" name="system.lifeStages.stage0.modules.{{modId}}.skills.{{skillId}}.value" value="{{skill.value}}" placeholder="e.g., Computers +2"/>
+                      <a class="remove-entry" data-stage="stage0" data-module="{{modId}}" data-type="skills" data-entry="{{skillId}}"><i class="fas fa-times"></i></a>
+                    </div>
+                    {{/each}}
+                  </div>
+                </div>
+                <div class="subpanel-column">
+                  <div class="column-header">
+                    <label>Traits</label>
+                    <a class="add-entry" data-stage="stage0" data-module="{{modId}}" data-type="traits"><i class="fas fa-plus"></i></a>
+                  </div>
+                  <div class="column-entries">
+                    {{#each mod.traits as |trait traitId|}}
+                    <div class="entry-row" data-entry-id="{{traitId}}">
+                      <input type="text" name="system.lifeStages.stage0.modules.{{modId}}.traits.{{traitId}}.value" value="{{trait.value}}" placeholder="e.g., Fast Learner"/>
+                      <a class="remove-entry" data-stage="stage0" data-module="{{modId}}" data-type="traits" data-entry="{{traitId}}"><i class="fas fa-times"></i></a>
+                    </div>
+                    {{/each}}
+                  </div>
+                </div>
+              </div>
+            </div>
+            {{else}}
+            <div class="module-subpanel empty-module">
+              <p class="empty-message">No module data. Enter details above.</p>
+            </div>
             {{/each}}
-          </tbody>
-        </table>
+          </div>
+        </div>
+
+        {{!-- Stage 1: Early Childhood --}}
+        <div class="life-stage-panel" data-stage="stage1">
+          <div class="stage-header">
+            <h3 class="section-title">Stage 1: Early Childhood</h3>
+          </div>
+          <div class="module-subpanels">
+            {{#each lifeStagesData.stage1.modules as |mod modId|}}
+            <div class="module-subpanel" data-module-id="{{modId}}">
+              <div class="subpanel-header">
+                <input type="text" name="system.lifeStages.stage1.modules.{{modId}}.name" value="{{mod.name}}" placeholder="Module Name" class="module-name-input"/>
+              </div>
+              <div class="subpanel-xp">
+                <label>XP Cost</label>
+                <input type="number" name="system.lifeStages.stage1.modules.{{modId}}.xpCost" value="{{mod.xpCost}}" data-dtype="Number" min="0"/>
+              </div>
+              <div class="subpanel-columns">
+                <div class="subpanel-column">
+                  <div class="column-header">
+                    <label>Attributes</label>
+                    <a class="add-entry" data-stage="stage1" data-module="{{modId}}" data-type="attributes"><i class="fas fa-plus"></i></a>
+                  </div>
+                  <div class="column-entries">
+                    {{#each mod.attributes as |attr attrId|}}
+                    <div class="entry-row" data-entry-id="{{attrId}}">
+                      <input type="text" name="system.lifeStages.stage1.modules.{{modId}}.attributes.{{attrId}}.value" value="{{attr.value}}" placeholder="e.g., STR +1"/>
+                      <a class="remove-entry" data-stage="stage1" data-module="{{modId}}" data-type="attributes" data-entry="{{attrId}}"><i class="fas fa-times"></i></a>
+                    </div>
+                    {{/each}}
+                  </div>
+                </div>
+                <div class="subpanel-column">
+                  <div class="column-header">
+                    <label>Skills</label>
+                    <a class="add-entry" data-stage="stage1" data-module="{{modId}}" data-type="skills"><i class="fas fa-plus"></i></a>
+                  </div>
+                  <div class="column-entries">
+                    {{#each mod.skills as |skill skillId|}}
+                    <div class="entry-row" data-entry-id="{{skillId}}">
+                      <input type="text" name="system.lifeStages.stage1.modules.{{modId}}.skills.{{skillId}}.value" value="{{skill.value}}" placeholder="e.g., Computers +2"/>
+                      <a class="remove-entry" data-stage="stage1" data-module="{{modId}}" data-type="skills" data-entry="{{skillId}}"><i class="fas fa-times"></i></a>
+                    </div>
+                    {{/each}}
+                  </div>
+                </div>
+                <div class="subpanel-column">
+                  <div class="column-header">
+                    <label>Traits</label>
+                    <a class="add-entry" data-stage="stage1" data-module="{{modId}}" data-type="traits"><i class="fas fa-plus"></i></a>
+                  </div>
+                  <div class="column-entries">
+                    {{#each mod.traits as |trait traitId|}}
+                    <div class="entry-row" data-entry-id="{{traitId}}">
+                      <input type="text" name="system.lifeStages.stage1.modules.{{modId}}.traits.{{traitId}}.value" value="{{trait.value}}" placeholder="e.g., Fast Learner"/>
+                      <a class="remove-entry" data-stage="stage1" data-module="{{modId}}" data-type="traits" data-entry="{{traitId}}"><i class="fas fa-times"></i></a>
+                    </div>
+                    {{/each}}
+                  </div>
+                </div>
+              </div>
+            </div>
+            {{else}}
+            <div class="module-subpanel empty-module">
+              <p class="empty-message">No module data. Enter details above.</p>
+            </div>
+            {{/each}}
+          </div>
+        </div>
+
+        {{!-- Stage 2: Late Childhood --}}
+        <div class="life-stage-panel" data-stage="stage2">
+          <div class="stage-header">
+            <h3 class="section-title">Stage 2: Late Childhood</h3>
+          </div>
+          <div class="module-subpanels">
+            {{#each lifeStagesData.stage2.modules as |mod modId|}}
+            <div class="module-subpanel" data-module-id="{{modId}}">
+              <div class="subpanel-header">
+                <input type="text" name="system.lifeStages.stage2.modules.{{modId}}.name" value="{{mod.name}}" placeholder="Module Name" class="module-name-input"/>
+              </div>
+              <div class="subpanel-xp">
+                <label>XP Cost</label>
+                <input type="number" name="system.lifeStages.stage2.modules.{{modId}}.xpCost" value="{{mod.xpCost}}" data-dtype="Number" min="0"/>
+              </div>
+              <div class="subpanel-columns">
+                <div class="subpanel-column">
+                  <div class="column-header">
+                    <label>Attributes</label>
+                    <a class="add-entry" data-stage="stage2" data-module="{{modId}}" data-type="attributes"><i class="fas fa-plus"></i></a>
+                  </div>
+                  <div class="column-entries">
+                    {{#each mod.attributes as |attr attrId|}}
+                    <div class="entry-row" data-entry-id="{{attrId}}">
+                      <input type="text" name="system.lifeStages.stage2.modules.{{modId}}.attributes.{{attrId}}.value" value="{{attr.value}}" placeholder="e.g., STR +1"/>
+                      <a class="remove-entry" data-stage="stage2" data-module="{{modId}}" data-type="attributes" data-entry="{{attrId}}"><i class="fas fa-times"></i></a>
+                    </div>
+                    {{/each}}
+                  </div>
+                </div>
+                <div class="subpanel-column">
+                  <div class="column-header">
+                    <label>Skills</label>
+                    <a class="add-entry" data-stage="stage2" data-module="{{modId}}" data-type="skills"><i class="fas fa-plus"></i></a>
+                  </div>
+                  <div class="column-entries">
+                    {{#each mod.skills as |skill skillId|}}
+                    <div class="entry-row" data-entry-id="{{skillId}}">
+                      <input type="text" name="system.lifeStages.stage2.modules.{{modId}}.skills.{{skillId}}.value" value="{{skill.value}}" placeholder="e.g., Computers +2"/>
+                      <a class="remove-entry" data-stage="stage2" data-module="{{modId}}" data-type="skills" data-entry="{{skillId}}"><i class="fas fa-times"></i></a>
+                    </div>
+                    {{/each}}
+                  </div>
+                </div>
+                <div class="subpanel-column">
+                  <div class="column-header">
+                    <label>Traits</label>
+                    <a class="add-entry" data-stage="stage2" data-module="{{modId}}" data-type="traits"><i class="fas fa-plus"></i></a>
+                  </div>
+                  <div class="column-entries">
+                    {{#each mod.traits as |trait traitId|}}
+                    <div class="entry-row" data-entry-id="{{traitId}}">
+                      <input type="text" name="system.lifeStages.stage2.modules.{{modId}}.traits.{{traitId}}.value" value="{{trait.value}}" placeholder="e.g., Fast Learner"/>
+                      <a class="remove-entry" data-stage="stage2" data-module="{{modId}}" data-type="traits" data-entry="{{traitId}}"><i class="fas fa-times"></i></a>
+                    </div>
+                    {{/each}}
+                  </div>
+                </div>
+              </div>
+            </div>
+            {{else}}
+            <div class="module-subpanel empty-module">
+              <p class="empty-message">No module data. Enter details above.</p>
+            </div>
+            {{/each}}
+          </div>
+        </div>
+
+        {{!-- Stage 3: Higher Education --}}
+        <div class="life-stage-panel" data-stage="stage3">
+          <div class="stage-header">
+            <h3 class="section-title">Stage 3: Higher Education</h3>
+            <a class="add-module" data-stage="stage3" title="Add Module"><i class="fas fa-plus"></i></a>
+          </div>
+          <div class="module-subpanels">
+            {{#each lifeStagesData.stage3.modules as |mod modId|}}
+            <div class="module-subpanel" data-module-id="{{modId}}">
+              <div class="subpanel-header">
+                <input type="text" name="system.lifeStages.stage3.modules.{{modId}}.name" value="{{mod.name}}" placeholder="Module Name" class="module-name-input"/>
+                <a class="remove-module" data-stage="stage3" data-module-id="{{modId}}" title="Remove Module"><i class="fas fa-trash"></i></a>
+              </div>
+              <div class="subpanel-xp">
+                <label>XP Cost</label>
+                <input type="number" name="system.lifeStages.stage3.modules.{{modId}}.xpCost" value="{{mod.xpCost}}" data-dtype="Number" min="0"/>
+              </div>
+              <div class="subpanel-columns">
+                <div class="subpanel-column">
+                  <div class="column-header">
+                    <label>Attributes</label>
+                    <a class="add-entry" data-stage="stage3" data-module="{{modId}}" data-type="attributes"><i class="fas fa-plus"></i></a>
+                  </div>
+                  <div class="column-entries">
+                    {{#each mod.attributes as |attr attrId|}}
+                    <div class="entry-row" data-entry-id="{{attrId}}">
+                      <input type="text" name="system.lifeStages.stage3.modules.{{modId}}.attributes.{{attrId}}.value" value="{{attr.value}}" placeholder="e.g., STR +1"/>
+                      <a class="remove-entry" data-stage="stage3" data-module="{{modId}}" data-type="attributes" data-entry="{{attrId}}"><i class="fas fa-times"></i></a>
+                    </div>
+                    {{/each}}
+                  </div>
+                </div>
+                <div class="subpanel-column">
+                  <div class="column-header">
+                    <label>Skills</label>
+                    <a class="add-entry" data-stage="stage3" data-module="{{modId}}" data-type="skills"><i class="fas fa-plus"></i></a>
+                  </div>
+                  <div class="column-entries">
+                    {{#each mod.skills as |skill skillId|}}
+                    <div class="entry-row" data-entry-id="{{skillId}}">
+                      <input type="text" name="system.lifeStages.stage3.modules.{{modId}}.skills.{{skillId}}.value" value="{{skill.value}}" placeholder="e.g., Computers +2"/>
+                      <a class="remove-entry" data-stage="stage3" data-module="{{modId}}" data-type="skills" data-entry="{{skillId}}"><i class="fas fa-times"></i></a>
+                    </div>
+                    {{/each}}
+                  </div>
+                </div>
+                <div class="subpanel-column">
+                  <div class="column-header">
+                    <label>Traits</label>
+                    <a class="add-entry" data-stage="stage3" data-module="{{modId}}" data-type="traits"><i class="fas fa-plus"></i></a>
+                  </div>
+                  <div class="column-entries">
+                    {{#each mod.traits as |trait traitId|}}
+                    <div class="entry-row" data-entry-id="{{traitId}}">
+                      <input type="text" name="system.lifeStages.stage3.modules.{{modId}}.traits.{{traitId}}.value" value="{{trait.value}}" placeholder="e.g., Fast Learner"/>
+                      <a class="remove-entry" data-stage="stage3" data-module="{{modId}}" data-type="traits" data-entry="{{traitId}}"><i class="fas fa-times"></i></a>
+                    </div>
+                    {{/each}}
+                  </div>
+                </div>
+              </div>
+            </div>
+            {{else}}
+            <div class="module-subpanel empty-module">
+              <p class="empty-message">No modules added. Click + to add one.</p>
+            </div>
+            {{/each}}
+          </div>
+        </div>
+
+        {{!-- Stage 4: Real Life --}}
+        <div class="life-stage-panel" data-stage="stage4">
+          <div class="stage-header">
+            <h3 class="section-title">Stage 4: Real Life</h3>
+            <a class="add-module" data-stage="stage4" title="Add Module"><i class="fas fa-plus"></i></a>
+          </div>
+          <div class="module-subpanels">
+            {{#each lifeStagesData.stage4.modules as |mod modId|}}
+            <div class="module-subpanel" data-module-id="{{modId}}">
+              <div class="subpanel-header">
+                <input type="text" name="system.lifeStages.stage4.modules.{{modId}}.name" value="{{mod.name}}" placeholder="Module Name" class="module-name-input"/>
+                <a class="remove-module" data-stage="stage4" data-module-id="{{modId}}" title="Remove Module"><i class="fas fa-trash"></i></a>
+              </div>
+              <div class="subpanel-xp">
+                <label>XP Cost</label>
+                <input type="number" name="system.lifeStages.stage4.modules.{{modId}}.xpCost" value="{{mod.xpCost}}" data-dtype="Number" min="0"/>
+              </div>
+              <div class="subpanel-columns">
+                <div class="subpanel-column">
+                  <div class="column-header">
+                    <label>Attributes</label>
+                    <a class="add-entry" data-stage="stage4" data-module="{{modId}}" data-type="attributes"><i class="fas fa-plus"></i></a>
+                  </div>
+                  <div class="column-entries">
+                    {{#each mod.attributes as |attr attrId|}}
+                    <div class="entry-row" data-entry-id="{{attrId}}">
+                      <input type="text" name="system.lifeStages.stage4.modules.{{modId}}.attributes.{{attrId}}.value" value="{{attr.value}}" placeholder="e.g., STR +1"/>
+                      <a class="remove-entry" data-stage="stage4" data-module="{{modId}}" data-type="attributes" data-entry="{{attrId}}"><i class="fas fa-times"></i></a>
+                    </div>
+                    {{/each}}
+                  </div>
+                </div>
+                <div class="subpanel-column">
+                  <div class="column-header">
+                    <label>Skills</label>
+                    <a class="add-entry" data-stage="stage4" data-module="{{modId}}" data-type="skills"><i class="fas fa-plus"></i></a>
+                  </div>
+                  <div class="column-entries">
+                    {{#each mod.skills as |skill skillId|}}
+                    <div class="entry-row" data-entry-id="{{skillId}}">
+                      <input type="text" name="system.lifeStages.stage4.modules.{{modId}}.skills.{{skillId}}.value" value="{{skill.value}}" placeholder="e.g., Computers +2"/>
+                      <a class="remove-entry" data-stage="stage4" data-module="{{modId}}" data-type="skills" data-entry="{{skillId}}"><i class="fas fa-times"></i></a>
+                    </div>
+                    {{/each}}
+                  </div>
+                </div>
+                <div class="subpanel-column">
+                  <div class="column-header">
+                    <label>Traits</label>
+                    <a class="add-entry" data-stage="stage4" data-module="{{modId}}" data-type="traits"><i class="fas fa-plus"></i></a>
+                  </div>
+                  <div class="column-entries">
+                    {{#each mod.traits as |trait traitId|}}
+                    <div class="entry-row" data-entry-id="{{traitId}}">
+                      <input type="text" name="system.lifeStages.stage4.modules.{{modId}}.traits.{{traitId}}.value" value="{{trait.value}}" placeholder="e.g., Fast Learner"/>
+                      <a class="remove-entry" data-stage="stage4" data-module="{{modId}}" data-type="traits" data-entry="{{traitId}}"><i class="fas fa-times"></i></a>
+                    </div>
+                    {{/each}}
+                  </div>
+                </div>
+              </div>
+            </div>
+            {{else}}
+            <div class="module-subpanel empty-module">
+              <p class="empty-message">No modules added. Click + to add one.</p>
+            </div>
+            {{/each}}
+          </div>
+        </div>
+
+        {{!-- Empty placeholder to maintain grid --}}
+        <div class="life-stage-placeholder"></div>
       </div>
 
       {{!-- Other Notes / Biography --}}
