@@ -497,6 +497,9 @@ export class MechFoundryActorSheet extends ActorSheet {
     // Condition monitor max validation
     html.on('change', '.condition-input', this._onConditionChange.bind(this));
 
+    // Condition box click (damage/fatigue bubbles)
+    html.on('click', '.condition-box', this._onConditionBoxClick.bind(this));
+
     // Add Inventory Item (with type selection dialog)
     html.on('click', '.add-inventory-item', this._onAddInventoryItem.bind(this));
 
@@ -1155,6 +1158,34 @@ export class MechFoundryActorSheet extends ActorSheet {
     }
     if (value < 0) {
       input.value = 0;
+    }
+  }
+
+  /**
+   * Handle clicking on a condition box (damage/fatigue bubble)
+   * Clicking an empty box fills it and all boxes to its left
+   * Clicking a filled box empties it and all boxes to its right
+   * @param {Event} event The click event
+   * @private
+   */
+  async _onConditionBoxClick(event) {
+    event.preventDefault();
+    const box = event.currentTarget;
+    const index = parseInt(box.dataset.index);
+    const type = box.dataset.type; // 'damage' or 'fatigue'
+    const isFilled = box.classList.contains('filled');
+
+    // Determine the new value
+    // Index is 0-based, so clicking box 0 means 1 damage, box 1 means 2 damage, etc.
+    // If the box is filled, we want to set damage to this index (unfill this and all to the right)
+    // If the box is empty, we want to set damage to index + 1 (fill this and all to the left)
+    const newValue = isFilled ? index : index + 1;
+
+    // Update the appropriate value
+    if (type === 'damage') {
+      await this.actor.update({ "system.damage.value": newValue });
+    } else if (type === 'fatigue') {
+      await this.actor.update({ "system.fatigue.value": newValue });
     }
   }
 

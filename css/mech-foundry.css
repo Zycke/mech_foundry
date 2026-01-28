@@ -291,6 +291,11 @@
   transition: all 0.2s;
 }
 
+.mech-foundry .condition-box:hover {
+  transform: scale(1.15);
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.3);
+}
+
 .mech-foundry .damage-track .condition-box.filled {
   background: var(--mf-danger);
   border-color: darkred;
@@ -1059,7 +1064,7 @@
 
 .mech-foundry .encumbrance-effects {
   font-size: 0.75em;
-  color: var(--mf-secondary);
+  color: rgba(255, 255, 255, 0.9);
   margin-top: 2px;
   max-width: 200px;
 }
