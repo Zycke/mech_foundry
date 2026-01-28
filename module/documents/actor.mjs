@@ -74,29 +74,69 @@ export class MechFoundryActor extends Actor {
     // Set fatigue.max for token bar compatibility
     if (systemData.fatigue) systemData.fatigue.max = systemData.fatigueCapacity;
 
-    // Movement rates (meters per turn)
+    // Calculate carried weight for encumbrance
+    const carriedWeight = this._calculateCarriedWeight();
+    const encumbrance = this._calculateEncumbrance(str, carriedWeight);
+    systemData.encumbrance = encumbrance;
+
+    // Movement rates (meters per turn) - base values
     systemData.movement = systemData.movement || {};
 
     // Walk = STR + RFL
-    systemData.movement.walk = str + rfl;
+    let baseWalk = str + rfl;
 
     // Run/Evade = 10 + STR + RFL (+ Running Skill if applicable)
     const runningSkill = this._getSkillLevel("running") || 0;
-    systemData.movement.run = 10 + str + rfl + runningSkill;
+    let baseRun = 10 + str + rfl + runningSkill;
 
     // Sprint = Run x 2
-    systemData.movement.sprint = systemData.movement.run * 2;
+    let baseSprint = baseRun * 2;
 
     // Climb = based on Climbing skill, default is Walk/4
     const climbingSkill = this._getSkillLevel("climbing") || 0;
-    systemData.movement.climb = Math.floor(systemData.movement.walk / 4) + climbingSkill;
+    let baseClimb = Math.floor(baseWalk / 4) + climbingSkill;
 
     // Crawl = Walk / 4
-    systemData.movement.crawl = Math.floor(systemData.movement.walk / 4);
+    let baseCrawl = Math.floor(baseWalk / 4);
 
     // Swim = based on Swimming skill, default is Walk/4
     const swimmingSkill = this._getSkillLevel("swimming") || 0;
-    systemData.movement.swim = Math.floor(systemData.movement.walk / 4) + swimmingSkill;
+    let baseSwim = Math.floor(baseWalk / 4) + swimmingSkill;
+
+    // Apply encumbrance penalties
+    if (encumbrance.level === 'overloaded') {
+      // Overloaded: All movement = 1 (crawl only)
+      systemData.movement.walk = 1;
+      systemData.movement.run = 1;
+      systemData.movement.sprint = 1;
+      systemData.movement.climb = 1;
+      systemData.movement.crawl = 1;
+      systemData.movement.swim = 1;
+    } else if (encumbrance.level === 'veryEncumbered') {
+      // Very Encumbered: Divide by 3
+      systemData.movement.walk = Math.floor(baseWalk / 3);
+      systemData.movement.run = Math.floor(baseRun / 3);
+      systemData.movement.sprint = Math.floor(baseSprint / 3);
+      systemData.movement.climb = Math.floor(baseClimb / 3);
+      systemData.movement.crawl = Math.floor(baseCrawl / 3);
+      systemData.movement.swim = Math.floor(baseSwim / 3);
+    } else if (encumbrance.level === 'encumbered') {
+      // Encumbered: Divide by 2
+      systemData.movement.walk = Math.floor(baseWalk / 2);
+      systemData.movement.run = Math.floor(baseRun / 2);
+      systemData.movement.sprint = Math.floor(baseSprint / 2);
+      systemData.movement.climb = Math.floor(baseClimb / 2);
+      systemData.movement.crawl = Math.floor(baseCrawl / 2);
+      systemData.movement.swim = Math.floor(baseSwim / 2);
+    } else {
+      // Unencumbered: No penalty
+      systemData.movement.walk = baseWalk;
+      systemData.movement.run = baseRun;
+      systemData.movement.sprint = baseSprint;
+      systemData.movement.climb = baseClimb;
+      systemData.movement.crawl = baseCrawl;
+      systemData.movement.swim = baseSwim;
+    }
 
     // Calculate Injury Modifier (-1 per 25% of damage capacity)
     const damagePercent = (systemData.damage?.value || 0) / systemData.damageCapacity;
@@ -112,6 +152,89 @@ export class MechFoundryActor extends Actor {
       systemData.attributes.edg.current =
         systemData.attributes.edg.value - (systemData.attributes.edg.burned || 0);
     }
+  }
+
+  /**
+   * Calculate total carried weight from all items
+   * @returns {number} Total weight in kg
+   */
+  _calculateCarriedWeight() {
+    let totalWeight = 0;
+
+    for (const item of this.items) {
+      // Skip items that are stored (not carried or equipped)
+      const status = item.system.carryStatus || 'carried';
+      if (status === 'stored') continue;
+
+      // Skip vehicles - they carry you, not the other way around
+      if (item.type === 'vehicle') continue;
+
+      // Add item mass
+      const mass = parseFloat(item.system.mass) || 0;
+      totalWeight += mass;
+    }
+
+    return totalWeight;
+  }
+
+  /**
+   * Calculate encumbrance level based on STR and carried weight
+   * @param {number} str Character's STR score
+   * @param {number} weight Total carried weight in kg
+   * @returns {Object} Encumbrance data
+   */
+  _calculateEncumbrance(str, weight) {
+    // Encumbrance thresholds based on STR
+    const thresholds = {
+      0: { encumbered: 0.1, veryEncumbered: 0.5, overloaded: 1 },
+      1: { encumbered: 5, veryEncumbered: 10, overloaded: 15 },
+      2: { encumbered: 10, veryEncumbered: 20, overloaded: 25 },
+      3: { encumbered: 15, veryEncumbered: 30, overloaded: 50 },
+      4: { encumbered: 20, veryEncumbered: 40, overloaded: 75 },
+      5: { encumbered: 30, veryEncumbered: 60, overloaded: 100 },
+      6: { encumbered: 40, veryEncumbered: 80, overloaded: 125 },
+      7: { encumbered: 55, veryEncumbered: 110, overloaded: 150 },
+      8: { encumbered: 70, veryEncumbered: 140, overloaded: 200 },
+      9: { encumbered: 85, veryEncumbered: 170, overloaded: 250 },
+      10: { encumbered: 100, veryEncumbered: 200, overloaded: 300 }
+    };
+
+    let limits;
+    if (str <= 10) {
+      limits = thresholds[str] || thresholds[5];
+    } else {
+      // STR 11+: (STR x 15)kg, (STR x 30)kg, (STR x 45)kg
+      limits = {
+        encumbered: str * 15,
+        veryEncumbered: str * 30,
+        overloaded: str * 45
+      };
+    }
+
+    // Determine encumbrance level
+    let level = 'unencumbered';
+    let effects = '';
+
+    if (weight >= limits.overloaded) {
+      level = 'overloaded';
+      effects = 'Movement = 1 (crawl only)';
+    } else if (weight >= limits.veryEncumbered) {
+      level = 'veryEncumbered';
+      effects = 'Movement ÷3, +1 fatigue/turn';
+    } else if (weight >= limits.encumbered) {
+      level = 'encumbered';
+      effects = 'Movement ÷2, +1 fatigue if sprint/melee';
+    }
+
+    return {
+      level,
+      label: level === 'veryEncumbered' ? 'Very Encumbered' :
+             level === 'unencumbered' ? 'Unencumbered' :
+             level.charAt(0).toUpperCase() + level.slice(1),
+      effects,
+      limits,
+      carriedWeight: weight
+    };
   }
 
   /**

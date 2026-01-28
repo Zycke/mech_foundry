@@ -437,50 +437,96 @@
           {{!-- Personal Armor Section --}}
           <div class="armor-section">
             <div class="items-header">
-              <h3 class="section-title">Personal Armor</h3>
+              <h3 class="section-title">Personal Armor (Equipped)</h3>
               <a class="item-create" data-type="armor"><i class="fas fa-plus"></i></a>
             </div>
-            <table class="armor-table">
+
+            {{!-- Total Armor Display --}}
+            <div class="total-armor-display">
+              <table class="total-armor-table">
+                <thead>
+                  <tr>
+                    <th>Location</th>
+                    <th>M</th>
+                    <th>B</th>
+                    <th>E</th>
+                    <th>X</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Head</td>
+                    <td>{{totalArmor.head.m}}</td>
+                    <td>{{totalArmor.head.b}}</td>
+                    <td>{{totalArmor.head.e}}</td>
+                    <td>{{totalArmor.head.x}}</td>
+                  </tr>
+                  <tr>
+                    <td>Torso</td>
+                    <td>{{totalArmor.torso.m}}</td>
+                    <td>{{totalArmor.torso.b}}</td>
+                    <td>{{totalArmor.torso.e}}</td>
+                    <td>{{totalArmor.torso.x}}</td>
+                  </tr>
+                  <tr>
+                    <td>Arms</td>
+                    <td>{{totalArmor.arms.m}}</td>
+                    <td>{{totalArmor.arms.b}}</td>
+                    <td>{{totalArmor.arms.e}}</td>
+                    <td>{{totalArmor.arms.x}}</td>
+                  </tr>
+                  <tr>
+                    <td>Legs</td>
+                    <td>{{totalArmor.legs.m}}</td>
+                    <td>{{totalArmor.legs.b}}</td>
+                    <td>{{totalArmor.legs.e}}</td>
+                    <td>{{totalArmor.legs.x}}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            {{#if equippedArmor.length}}
+            <table class="armor-table equipped-armor-table">
               <thead>
                 <tr>
-                  <th></th>
-                  <th>Location</th>
                   <th>Armor Type</th>
+                  <th>Coverage</th>
                   <th colspan="4">BAR (M/B/E/X)</th>
                   <th></th>
                 </tr>
               </thead>
               <tbody>
-                {{#each armor}}
+                {{#each equippedArmor}}
                 <tr class="item" data-item-id="{{this._id}}">
-                  <td class="armor-equipped">
-                    <span class="armor-toggle" title="Toggle Equipped">
-                      {{#if this.system.equipped}}<i class="fas fa-check-circle"></i>{{else}}<i class="far fa-circle"></i>{{/if}}
-                    </span>
-                  </td>
-                  <td class="armor-location">{{this.system.location}}</td>
                   <td class="armor-type">{{this.name}}</td>
+                  <td class="armor-coverage">
+                    {{#if this.system.coverage.head}}H{{/if}}{{#if this.system.coverage.torso}}T{{/if}}{{#if this.system.coverage.arms}}A{{/if}}{{#if this.system.coverage.legs}}L{{/if}}
+                  </td>
                   <td class="armor-bar">{{this.system.bar.m}}</td>
                   <td class="armor-bar">{{this.system.bar.b}}</td>
                   <td class="armor-bar">{{this.system.bar.e}}</td>
                   <td class="armor-bar">{{this.system.bar.x}}</td>
                   <td class="item-controls">
                     <a class="item-edit" title="Edit"><i class="fas fa-edit"></i></a>
-                    <a class="item-delete" title="Delete"><i class="fas fa-trash"></i></a>
                   </td>
                 </tr>
                 {{/each}}
               </tbody>
             </table>
+            {{else}}
+            <p class="no-equipped-items">No armor equipped. Equip armor from the Inventory tab.</p>
+            {{/if}}
           </div>
 
           {{!-- Weapons Section --}}
           <div class="weapons-section">
             <div class="items-header">
-              <h3 class="section-title">Weapons</h3>
+              <h3 class="section-title">Weapons (Equipped)</h3>
               <a class="item-create" data-type="weapon"><i class="fas fa-plus"></i></a>
             </div>
-            <table class="weapons-table">
+            {{#if equippedWeapons.length}}
+            <table class="weapons-table equipped-weapons-table">
               <thead>
                 <tr>
                   <th>Weapon</th>
@@ -488,39 +534,36 @@
                   <th>AP/BD</th>
                   <th>Range</th>
                   <th>Ammo</th>
-                  <th>Notes</th>
                   <th></th>
                 </tr>
               </thead>
               <tbody>
-                {{#each weapons}}
+                {{#each equippedWeapons}}
                 <tr class="item" data-item-id="{{this._id}}">
-                  <td class="weapon-name">{{this.name}}</td>
+                  <td class="weapon-name">
+                    <a class="weapon-attack-roll" title="Click to attack">{{this.name}}</a>
+                  </td>
                   <td class="weapon-skill">{{this.system.skill}}</td>
-                  <td class="weapon-apbd">{{this.system.ap}}/{{this.system.bd}}{{#if this.system.subduing}}D{{/if}}</td>
+                  <td class="weapon-apbd">{{this.system.ap}}{{this.system.apFactor}}/{{this.system.bd}}{{this.system.bdFactor}}</td>
                   <td class="weapon-range">
-                    {{#if (eq this.system.weaponType "melee")}}
-                    Melee
-                    {{else}}
-                    {{this.system.range.short}}/{{this.system.range.medium}}/{{this.system.range.long}}
-                    {{/if}}
+                    {{#if (eq this.system.weaponType "melee")}}Melee{{else}}{{this.system.range.short}}/{{this.system.range.medium}}/{{this.system.range.long}}{{/if}}
                   </td>
                   <td class="weapon-ammo">
                     {{#if this.system.ammo.max}}
-                    {{this.system.ammo.value}}/{{this.system.ammo.max}}
-                    {{else}}
-                    N/A
-                    {{/if}}
+                      {{this.system.ammo.value}}/{{this.system.ammo.max}}
+                      {{#if (ne this.system.weaponType "melee")}}<a class="weapon-reload" data-item-id="{{this._id}}" title="Reload"><i class="fas fa-redo"></i></a>{{/if}}
+                    {{else}}—{{/if}}
                   </td>
-                  <td class="weapon-notes">{{this.system.notes}}</td>
                   <td class="item-controls">
                     <a class="item-edit" title="Edit"><i class="fas fa-edit"></i></a>
-                    <a class="item-delete" title="Delete"><i class="fas fa-trash"></i></a>
                   </td>
                 </tr>
                 {{/each}}
               </tbody>
             </table>
+            {{else}}
+            <p class="no-equipped-items">No weapons equipped. Equip weapons from the Inventory tab.</p>
+            {{/if}}
           </div>
         </div>
       </div>
@@ -537,6 +580,12 @@
         <div class="weight-section">
           <label>Carried Weight</label>
           <span class="weight-value">{{inventory.totalWeight}} kg</span>
+        </div>
+        <div class="encumbrance-section">
+          <span class="encumbrance-status {{inventory.encumbrance.level}}">{{inventory.encumbrance.label}}</span>
+          {{#if inventory.encumbrance.effects}}
+          <span class="encumbrance-effects">{{inventory.encumbrance.effects}}</span>
+          {{/if}}
         </div>
         <div class="add-item-section">
           <button type="button" class="add-inventory-item"><i class="fas fa-plus"></i> Add Item</button>
@@ -609,17 +658,21 @@
                 </a>
               </td>
               <td class="item-name">
-                <a class="weapon-attack-roll" title="Click to attack">{{this.name}}</a>
+                {{#if (eq this.system.carryStatus "equipped")}}<a class="weapon-attack-roll" title="Click to attack">{{this.name}}</a>{{else}}{{this.name}}{{/if}}
               </td>
               <td class="weapon-skill">{{this.system.skill}}</td>
               <td class="weapon-apbd">{{this.system.ap}}{{this.system.apFactor}}/{{this.system.bd}}{{this.system.bdFactor}}</td>
               <td class="weapon-range">
                 {{#if (eq this.system.weaponType "melee")}}Melee{{else}}{{this.system.range.pointBlank}}/{{this.system.range.short}}/{{this.system.range.medium}}/{{this.system.range.long}}/{{this.system.range.extreme}}{{/if}}
               </td>
-              <td class="weapon-ammo">{{#if this.system.ammo.max}}{{this.system.ammo.value}}/{{this.system.ammo.max}}{{else}}—{{/if}}</td>
+              <td class="weapon-ammo">
+                {{#if this.system.ammo.max}}
+                  {{this.system.ammo.value}}/{{this.system.ammo.max}}
+                  {{#if (ne this.system.weaponType "melee")}}<a class="weapon-reload" data-item-id="{{this._id}}" title="Reload"><i class="fas fa-redo"></i></a>{{/if}}
+                {{else}}—{{/if}}
+              </td>
               <td class="item-mass">{{this.system.mass}}</td>
               <td class="item-controls">
-                {{#if this.system.ammo.max}}<a class="weapon-reload" title="Reload"><i class="fas fa-redo"></i></a>{{/if}}
                 <a class="item-edit" title="Edit"><i class="fas fa-edit"></i></a>
                 <a class="item-delete" title="Delete"><i class="fas fa-trash"></i></a>
               </td>

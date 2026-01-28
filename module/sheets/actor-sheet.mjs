@@ -308,16 +308,138 @@ export class MechFoundryActorSheet extends ActorSheet {
     context.equipment = equipment;
     context.vehicles = vehicles;
 
+    // Filter equipped items for combat tab
+    context.equippedWeapons = weapons.filter(w => w.system.carryStatus === 'equipped');
+    context.equippedArmor = armor.filter(a => a.system.carryStatus === 'equipped');
+
+    // Calculate total armor per body part
+    context.totalArmor = this._calculateTotalArmor(context.equippedArmor);
+
     // Add inventory data
     inventory.totalWeight = totalWeight.toFixed(1);
     inventory.hasItems = Object.values(inventory)
       .some(arr => Array.isArray(arr) && arr.length > 0);
+
+    // Calculate encumbrance
+    const str = context.system.attributes?.str?.value || 5;
+    const encumbrance = this._calculateEncumbrance(str, totalWeight);
+    inventory.encumbrance = encumbrance;
+
     context.inventory = inventory;
 
     // Calculate highest equipped BAR (M type as default)
     context.equippedBAR = armor
-      .filter(a => a.system.equipped)
+      .filter(a => a.system.equipped || a.system.carryStatus === 'equipped')
       .reduce((max, a) => Math.max(max, a.system.bar?.m || 0), 0);
+  }
+
+  /**
+   * Calculate total armor per body part from equipped armor
+   * @param {Array} equippedArmor Array of equipped armor items
+   * @returns {Object} Total armor values per location
+   */
+  _calculateTotalArmor(equippedArmor) {
+    const totalArmor = {
+      head: { m: 0, b: 0, e: 0, x: 0 },
+      torso: { m: 0, b: 0, e: 0, x: 0 },
+      arms: { m: 0, b: 0, e: 0, x: 0 },
+      legs: { m: 0, b: 0, e: 0, x: 0 }
+    };
+
+    for (const armor of equippedArmor) {
+      const coverage = armor.system.coverage || {};
+      const bar = armor.system.bar || { m: 0, b: 0, e: 0, x: 0 };
+
+      if (coverage.head) {
+        totalArmor.head.m += bar.m || 0;
+        totalArmor.head.b += bar.b || 0;
+        totalArmor.head.e += bar.e || 0;
+        totalArmor.head.x += bar.x || 0;
+      }
+      if (coverage.torso) {
+        totalArmor.torso.m += bar.m || 0;
+        totalArmor.torso.b += bar.b || 0;
+        totalArmor.torso.e += bar.e || 0;
+        totalArmor.torso.x += bar.x || 0;
+      }
+      if (coverage.arms) {
+        totalArmor.arms.m += bar.m || 0;
+        totalArmor.arms.b += bar.b || 0;
+        totalArmor.arms.e += bar.e || 0;
+        totalArmor.arms.x += bar.x || 0;
+      }
+      if (coverage.legs) {
+        totalArmor.legs.m += bar.m || 0;
+        totalArmor.legs.b += bar.b || 0;
+        totalArmor.legs.e += bar.e || 0;
+        totalArmor.legs.x += bar.x || 0;
+      }
+    }
+
+    return totalArmor;
+  }
+
+  /**
+   * Calculate encumbrance level based on STR and carried weight
+   * @param {number} str Character's STR score
+   * @param {number} weight Total carried weight in kg
+   * @returns {Object} Encumbrance data
+   */
+  _calculateEncumbrance(str, weight) {
+    // Encumbrance thresholds based on STR
+    const thresholds = {
+      0: { encumbered: 0.1, veryEncumbered: 0.5, overloaded: 1 },
+      1: { encumbered: 5, veryEncumbered: 10, overloaded: 15 },
+      2: { encumbered: 10, veryEncumbered: 20, overloaded: 25 },
+      3: { encumbered: 15, veryEncumbered: 30, overloaded: 50 },
+      4: { encumbered: 20, veryEncumbered: 40, overloaded: 75 },
+      5: { encumbered: 30, veryEncumbered: 60, overloaded: 100 },
+      6: { encumbered: 40, veryEncumbered: 80, overloaded: 125 },
+      7: { encumbered: 55, veryEncumbered: 110, overloaded: 150 },
+      8: { encumbered: 70, veryEncumbered: 140, overloaded: 200 },
+      9: { encumbered: 85, veryEncumbered: 170, overloaded: 250 },
+      10: { encumbered: 100, veryEncumbered: 200, overloaded: 300 }
+    };
+
+    let limits;
+    if (str <= 10) {
+      limits = thresholds[str] || thresholds[5];
+    } else {
+      // STR 11+: (STR x 15)kg, (STR x 30)kg, (STR x 45)kg
+      limits = {
+        encumbered: str * 15,
+        veryEncumbered: str * 30,
+        overloaded: str * 45
+      };
+    }
+
+    // Determine encumbrance level
+    let level = 'unencumbered';
+    let effects = '';
+    let movementMultiplier = 1;
+
+    if (weight >= limits.overloaded) {
+      level = 'overloaded';
+      effects = 'Movement reduced to 1 (crawl only)';
+      movementMultiplier = 0; // Special case - set to 1
+    } else if (weight >= limits.veryEncumbered) {
+      level = 'veryEncumbered';
+      effects = 'Triple MP cost, +1 fatigue/turn if moving (except walk/crawl) or melee';
+      movementMultiplier = 1/3;
+    } else if (weight >= limits.encumbered) {
+      level = 'encumbered';
+      effects = 'Double MP cost, +1 fatigue/turn if sprinting or melee';
+      movementMultiplier = 0.5;
+    }
+
+    return {
+      level,
+      label: level === 'veryEncumbered' ? 'Very Encumbered' :
+             level.charAt(0).toUpperCase() + level.slice(1),
+      effects,
+      limits,
+      movementMultiplier
+    };
   }
 
   /* -------------------------------------------- */
@@ -1252,8 +1374,15 @@ export class MechFoundryActorSheet extends ActorSheet {
   async _onWeaponReload(event) {
     event.preventDefault();
     event.stopPropagation();
-    const li = $(event.currentTarget).parents(".item");
-    const weapon = this.actor.items.get(li.data("itemId"));
+
+    // Get item ID from the element's data attribute or parent
+    let itemId = event.currentTarget.dataset.itemId;
+    if (!itemId) {
+      const li = $(event.currentTarget).parents(".item");
+      itemId = li.data("itemId");
+    }
+
+    const weapon = this.actor.items.get(itemId);
     if (!weapon) return;
 
     const maxAmmo = weapon.system.ammo?.max || 0;
