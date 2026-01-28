@@ -964,6 +964,113 @@
 }
 
 /* ----------------------------------------- */
+/* Total Armor Display                        */
+/* ----------------------------------------- */
+
+.mech-foundry .total-armor-display {
+  margin-bottom: 15px;
+  padding: 10px;
+  background: rgba(26, 95, 122, 0.1);
+  border-radius: var(--mf-border-radius);
+  border: 1px solid var(--mf-primary);
+}
+
+.mech-foundry .total-armor-table {
+  width: 100%;
+  font-size: 0.9em;
+}
+
+.mech-foundry .total-armor-table th,
+.mech-foundry .total-armor-table td {
+  text-align: center;
+  padding: 4px 8px;
+}
+
+.mech-foundry .total-armor-table th:first-child,
+.mech-foundry .total-armor-table td:first-child {
+  text-align: left;
+  font-weight: bold;
+}
+
+.mech-foundry .total-armor-table th {
+  background: var(--mf-primary);
+  color: var(--mf-light);
+}
+
+.mech-foundry .total-armor-table tbody tr:nth-child(even) {
+  background: rgba(0, 0, 0, 0.03);
+}
+
+/* No Equipped Items Message */
+.mech-foundry .no-equipped-items {
+  text-align: center;
+  padding: 15px;
+  color: var(--mf-border);
+  font-style: italic;
+  background: rgba(0, 0, 0, 0.03);
+  border-radius: var(--mf-border-radius);
+  margin: 10px 0;
+}
+
+/* Equipped Tables */
+.mech-foundry .equipped-armor-table,
+.mech-foundry .equipped-weapons-table {
+  margin-top: 10px;
+}
+
+/* ----------------------------------------- */
+/* Encumbrance Section                        */
+/* ----------------------------------------- */
+
+.mech-foundry .encumbrance-section {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.mech-foundry .encumbrance-status {
+  font-weight: bold;
+  font-size: 0.95em;
+  padding: 4px 10px;
+  border-radius: var(--mf-border-radius);
+  text-transform: uppercase;
+}
+
+.mech-foundry .encumbrance-status.unencumbered {
+  background: rgba(74, 157, 74, 0.2);
+  color: var(--mf-success);
+}
+
+.mech-foundry .encumbrance-status.encumbered {
+  background: rgba(212, 160, 23, 0.2);
+  color: darkorange;
+}
+
+.mech-foundry .encumbrance-status.veryEncumbered {
+  background: rgba(196, 69, 54, 0.2);
+  color: var(--mf-danger);
+}
+
+.mech-foundry .encumbrance-status.overloaded {
+  background: rgba(196, 69, 54, 0.4);
+  color: darkred;
+  font-weight: bold;
+}
+
+.mech-foundry .encumbrance-effects {
+  font-size: 0.75em;
+  color: var(--mf-secondary);
+  margin-top: 2px;
+  max-width: 200px;
+}
+
+/* Reload button inline with ammo */
+.mech-foundry .weapon-ammo .weapon-reload {
+  margin-left: 5px;
+  font-size: 0.9em;
+}
+
+/* ----------------------------------------- */
 /* Biography Tab                              */
 /* ----------------------------------------- */
 
