@@ -618,7 +618,7 @@
               <td class="item-name">{{this.name}}</td>
               <td class="armor-bar">{{this.system.bar.m}}/{{this.system.bar.b}}/{{this.system.bar.e}}/{{this.system.bar.x}}</td>
               <td class="armor-coverage">
-                {{#if this.system.coverage.head}}H{{/if}}{{#if this.system.coverage.torso}}T{{/if}}{{#if this.system.coverage.arms}}A{{/if}}{{#if this.system.coverage.legs}}L{{/if}}
+                {{#if this.system.coverage.head}}Head{{/if}}{{#if (and this.system.coverage.head (or this.system.coverage.torso this.system.coverage.arms this.system.coverage.legs))}}, {{/if}}{{#if this.system.coverage.torso}}Torso{{/if}}{{#if (and this.system.coverage.torso (or this.system.coverage.arms this.system.coverage.legs))}}, {{/if}}{{#if this.system.coverage.arms}}Arms{{/if}}{{#if (and this.system.coverage.arms this.system.coverage.legs)}}, {{/if}}{{#if this.system.coverage.legs}}Legs{{/if}}
               </td>
               <td class="item-mass">{{this.system.mass}}</td>
               <td class="item-controls">
