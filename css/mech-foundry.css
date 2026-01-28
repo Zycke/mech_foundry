@@ -1076,10 +1076,37 @@
 }
 
 /* ----------------------------------------- */
-/* Biography Tab                              */
+/* Biography Tab - Life Modules               */
 /* ----------------------------------------- */
 
-.mech-foundry .lifemodules-section {
+/* Bio Header Row - Phenotype & Affiliation */
+.mech-foundry .bio-header-row {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 15px;
+}
+
+.mech-foundry .bio-header-row .form-group {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.mech-foundry .bio-header-row label {
+  font-weight: bold;
+  font-size: 0.85em;
+  margin-bottom: 4px;
+  color: var(--mf-dark);
+}
+
+.mech-foundry .bio-header-row input {
+  padding: 6px 10px;
+  border: 1px solid var(--mf-border);
+  border-radius: var(--mf-border-radius);
+}
+
+/* Languages Section */
+.mech-foundry .languages-section {
   background: var(--mf-bg-light);
   border: 1px solid var(--mf-border);
   border-radius: var(--mf-border-radius);
@@ -1087,19 +1114,267 @@
   margin-bottom: 15px;
 }
 
-.mech-foundry .lifemodules-table .lifemodule-number {
-  width: 30px;
-  text-align: center;
-  font-weight: bold;
+.mech-foundry .languages-section .section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
 }
 
-.mech-foundry .lifemodules-table .lifemodule-name input,
-.mech-foundry .lifemodules-table .lifemodule-notes input {
-  width: 100%;
-  border: 1px solid #ddd;
+.mech-foundry .languages-section .section-title {
+  margin: 0;
+  flex: 1;
+}
+
+.mech-foundry .languages-section .add-language {
+  background: var(--mf-secondary);
+  color: var(--mf-light);
+  padding: 4px 10px;
+  border-radius: var(--mf-border-radius);
+  cursor: pointer;
+  font-size: 0.85em;
+}
+
+.mech-foundry .languages-section .add-language:hover {
+  background: var(--mf-accent);
+}
+
+.mech-foundry .languages-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.mech-foundry .language-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 5px;
+  background: rgba(0, 0, 0, 0.03);
+  border-radius: var(--mf-border-radius);
+}
+
+.mech-foundry .language-row select {
+  width: 100px;
   padding: 4px;
+  border: 1px solid var(--mf-border);
+  border-radius: var(--mf-border-radius);
 }
 
+.mech-foundry .language-row input {
+  flex: 1;
+  padding: 4px 8px;
+  border: 1px solid var(--mf-border);
+  border-radius: var(--mf-border-radius);
+}
+
+.mech-foundry .language-row .remove-language {
+  color: var(--mf-danger);
+  cursor: pointer;
+  opacity: 0.6;
+}
+
+.mech-foundry .language-row .remove-language:hover {
+  opacity: 1;
+}
+
+.mech-foundry .no-languages {
+  color: var(--mf-border);
+  font-style: italic;
+  text-align: center;
+  padding: 10px;
+  margin: 0;
+}
+
+/* Life Stages Grid */
+.mech-foundry .life-stages-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 15px;
+  margin-bottom: 15px;
+}
+
+.mech-foundry .life-stage-panel {
+  background: var(--mf-bg-light);
+  border: 1px solid var(--mf-border);
+  border-radius: var(--mf-border-radius);
+  padding: 10px;
+  min-height: 200px;
+}
+
+.mech-foundry .life-stage-placeholder {
+  /* Empty placeholder for grid alignment */
+}
+
+.mech-foundry .stage-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.mech-foundry .stage-header .section-title {
+  margin: 0;
+  flex: 1;
+  font-size: 0.9em;
+}
+
+.mech-foundry .stage-header .add-module {
+  background: var(--mf-secondary);
+  color: var(--mf-light);
+  padding: 3px 8px;
+  border-radius: var(--mf-border-radius);
+  cursor: pointer;
+  font-size: 0.8em;
+}
+
+.mech-foundry .stage-header .add-module:hover {
+  background: var(--mf-accent);
+}
+
+/* Module Sub-panels */
+.mech-foundry .module-subpanels {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mech-foundry .module-subpanel {
+  background: rgba(0, 0, 0, 0.03);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: var(--mf-border-radius);
+  padding: 10px;
+}
+
+.mech-foundry .module-subpanel.empty-module {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100px;
+  color: var(--mf-border);
+  font-style: italic;
+}
+
+.mech-foundry .subpanel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  gap: 10px;
+}
+
+.mech-foundry .module-name-input {
+  flex: 1;
+  padding: 5px 8px;
+  border: 1px solid var(--mf-border);
+  border-radius: var(--mf-border-radius);
+  font-weight: bold;
+  font-size: 0.95em;
+}
+
+.mech-foundry .subpanel-header .remove-module {
+  color: var(--mf-danger);
+  cursor: pointer;
+  opacity: 0.6;
+}
+
+.mech-foundry .subpanel-header .remove-module:hover {
+  opacity: 1;
+}
+
+.mech-foundry .subpanel-xp {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px dashed var(--mf-border);
+}
+
+.mech-foundry .subpanel-xp label {
+  font-size: 0.85em;
+  font-weight: bold;
+  color: var(--mf-dark);
+}
+
+.mech-foundry .subpanel-xp input {
+  width: 80px;
+  padding: 4px 8px;
+  border: 1px solid var(--mf-border);
+  border-radius: var(--mf-border-radius);
+  text-align: center;
+}
+
+/* Three Column Layout */
+.mech-foundry .subpanel-columns {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.mech-foundry .subpanel-column {
+  display: flex;
+  flex-direction: column;
+}
+
+.mech-foundry .column-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--mf-border);
+}
+
+.mech-foundry .column-header label {
+  font-size: 0.8em;
+  font-weight: bold;
+  text-transform: uppercase;
+  color: var(--mf-primary);
+}
+
+.mech-foundry .column-header .add-entry {
+  color: var(--mf-secondary);
+  cursor: pointer;
+  font-size: 0.8em;
+}
+
+.mech-foundry .column-header .add-entry:hover {
+  color: var(--mf-accent);
+}
+
+.mech-foundry .column-entries {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.mech-foundry .entry-row {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.mech-foundry .entry-row input {
+  flex: 1;
+  padding: 3px 6px;
+  border: 1px solid var(--mf-border);
+  border-radius: var(--mf-border-radius);
+  font-size: 0.85em;
+}
+
+.mech-foundry .entry-row .remove-entry {
+  color: var(--mf-danger);
+  cursor: pointer;
+  opacity: 0.5;
+  font-size: 0.8em;
+}
+
+.mech-foundry .entry-row .remove-entry:hover {
+  opacity: 1;
+}
+
+/* Biography Notes Section */
 .mech-foundry .biography-section {
   background: var(--mf-bg-light);
   border: 1px solid var(--mf-border);
@@ -1582,6 +1857,18 @@
 @media (max-width: 800px) {
   .mech-foundry .combat-layout {
     grid-template-columns: 1fr;
+  }
+
+  .mech-foundry .life-stages-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .mech-foundry .subpanel-columns {
+    grid-template-columns: 1fr;
+  }
+
+  .mech-foundry .bio-header-row {
+    flex-direction: column;
   }
 
   .mech-foundry .personal-data-grid {
