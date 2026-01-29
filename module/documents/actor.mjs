@@ -20,6 +20,9 @@ export class MechFoundryActor extends Actor {
     const actorData = this;
     const systemData = actorData.system;
 
+    // Calculate total attribute scores (base + modifier, capped at 9)
+    this._calculateAttributeTotals(systemData);
+
     // Calculate Link Attribute Modifiers for all attributes
     this._calculateLinkModifiers(systemData);
 
@@ -33,13 +36,28 @@ export class MechFoundryActor extends Actor {
   }
 
   /**
+   * Calculate total attribute scores (base value + modifier, capped at 9)
+   * @param {Object} systemData
+   */
+  _calculateAttributeTotals(systemData) {
+    for (let [key, attr] of Object.entries(systemData.attributes || {})) {
+      const baseValue = attr.value || 0;
+      const modifier = attr.modifier || 0;
+      // Total is base + modifier, capped at 9
+      attr.total = Math.min(baseValue + modifier, 9);
+    }
+  }
+
+  /**
    * Calculate Link Attribute Modifiers based on A Time of War rules
+   * Uses total score (base + modifier, capped at 9)
    * 1: -2, 2-3: -1, 4-6: +0, 7-9: +1, 10: +2
    * @param {Object} systemData
    */
   _calculateLinkModifiers(systemData) {
     for (let [key, attr] of Object.entries(systemData.attributes || {})) {
-      const value = attr.value;
+      // Use total (base + modifier, already capped at 9) for link modifier
+      const value = attr.total;
       if (value <= 1) {
         attr.linkMod = -2;
       } else if (value <= 3) {
@@ -56,13 +74,15 @@ export class MechFoundryActor extends Actor {
 
   /**
    * Calculate derived statistics
+   * Uses total attribute scores (base + modifier, capped at 9)
    * @param {Object} systemData
    */
   _calculateDerivedStats(systemData) {
-    const str = systemData.attributes.str?.value || 5;
-    const bod = systemData.attributes.bod?.value || 5;
-    const rfl = systemData.attributes.rfl?.value || 5;
-    const wil = systemData.attributes.wil?.value || 5;
+    // Use total (base + modifier) for derived stats
+    const str = systemData.attributes.str?.total || 5;
+    const bod = systemData.attributes.bod?.total || 5;
+    const rfl = systemData.attributes.rfl?.total || 5;
+    const wil = systemData.attributes.wil?.total || 5;
 
     // Damage Capacity = BOD x 2
     systemData.damageCapacity = bod * 2;
@@ -147,10 +167,10 @@ export class MechFoundryActor extends Actor {
     const fatigueDiff = (systemData.fatigue?.value || 0) - wil;
     systemData.fatigueModifier = fatigueDiff > 0 ? -fatigueDiff : 0;
 
-    // Current Edge (value - burned)
+    // Current Edge (total - burned)
     if (systemData.attributes.edg) {
       systemData.attributes.edg.current =
-        systemData.attributes.edg.value - (systemData.attributes.edg.burned || 0);
+        systemData.attributes.edg.total - (systemData.attributes.edg.burned || 0);
     }
   }
 
@@ -597,6 +617,7 @@ export class MechFoundryActor extends Actor {
 
   /**
    * Roll an attribute check (single or double attribute)
+   * Uses total attribute scores (base + modifier, capped at 9)
    * @param {string} attr1Key First attribute key
    * @param {string} attr2Key Optional second attribute key for double checks
    * @param {object} options Additional options
@@ -605,14 +626,15 @@ export class MechFoundryActor extends Actor {
     const attr1 = this.system.attributes[attr1Key];
     if (!attr1) return;
 
-    let totalMod = attr1.value;
+    // Use total (base + modifier) for attribute rolls
+    let totalMod = attr1.total;
     let targetNumber = 12; // Single attribute check TN
     let checkName = attr1Key.toUpperCase();
 
     if (attr2Key) {
       const attr2 = this.system.attributes[attr2Key];
       if (attr2) {
-        totalMod += attr2.value;
+        totalMod += attr2.total;
         targetNumber = 18; // Double attribute check TN
         checkName = `${attr1Key.toUpperCase()} + ${attr2Key.toUpperCase()}`;
       }
@@ -668,7 +690,7 @@ export class MechFoundryActor extends Actor {
    */
   async burnEdge(points, timing = 'before') {
     const edg = this.system.attributes.edg;
-    const available = edg.value - (edg.burned || 0);
+    const available = edg.total - (edg.burned || 0);
 
     if (points > available) {
       ui.notifications.warn("Not enough Edge points available!");
@@ -761,10 +783,10 @@ export class MechFoundryActor extends Actor {
 
   /**
    * Recover fatigue (Complex Action)
-   * Recovers fatigue points equal to BOD score
+   * Recovers fatigue points equal to BOD score (total)
    */
   async recoverFatigue() {
-    const bod = this.system.attributes.bod.value;
+    const bod = this.system.attributes.bod.total;
     const currentFatigue = this.system.fatigue.value || 0;
     const newFatigue = Math.max(0, currentFatigue - bod);
 

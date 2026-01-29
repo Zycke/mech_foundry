@@ -18,35 +18,43 @@
       "attributes": {
         "str": {
           "value": 5,
-          "xp": 0
+          "xp": 0,
+          "modifier": 0
         },
         "bod": {
           "value": 5,
-          "xp": 0
+          "xp": 0,
+          "modifier": 0
         },
         "rfl": {
           "value": 5,
-          "xp": 0
+          "xp": 0,
+          "modifier": 0
         },
         "dex": {
           "value": 5,
-          "xp": 0
+          "xp": 0,
+          "modifier": 0
         },
         "int": {
           "value": 5,
-          "xp": 0
+          "xp": 0,
+          "modifier": 0
         },
         "wil": {
           "value": 5,
-          "xp": 0
+          "xp": 0,
+          "modifier": 0
         },
         "cha": {
           "value": 5,
-          "xp": 0
+          "xp": 0,
+          "modifier": 0
         },
         "edg": {
           "value": 5,
           "xp": 0,
+          "modifier": 0,
           "burned": 0
         }
       }
