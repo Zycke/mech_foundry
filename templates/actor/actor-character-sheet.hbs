@@ -83,6 +83,7 @@
             <tr>
               <th>Attribute</th>
               <th>Score</th>
+              <th>Mod</th>
               <th>Link</th>
               <th>XP Invested</th>
               <th>Next Rank</th>
@@ -93,7 +94,10 @@
             <tr class="attribute-row" data-attribute="str">
               <td class="attribute-name">STR</td>
               <td class="attribute-score">
-                <span class="score-display">{{system.attributes.str.value}}</span>
+                <span class="score-display">{{system.attributes.str.total}}</span>
+              </td>
+              <td class="attribute-modifier">
+                <input type="number" class="mod-input" name="system.attributes.str.modifier" value="{{system.attributes.str.modifier}}" data-dtype="Number"/>
               </td>
               <td class="attribute-link {{#if (gt system.attributes.str.linkMod 0)}}positive{{else if (lt system.attributes.str.linkMod 0)}}negative{{/if}}">
                 {{formatMod system.attributes.str.linkMod}}
@@ -111,7 +115,10 @@
             <tr class="attribute-row" data-attribute="bod">
               <td class="attribute-name">BOD</td>
               <td class="attribute-score">
-                <span class="score-display">{{system.attributes.bod.value}}</span>
+                <span class="score-display">{{system.attributes.bod.total}}</span>
+              </td>
+              <td class="attribute-modifier">
+                <input type="number" class="mod-input" name="system.attributes.bod.modifier" value="{{system.attributes.bod.modifier}}" data-dtype="Number"/>
               </td>
               <td class="attribute-link {{#if (gt system.attributes.bod.linkMod 0)}}positive{{else if (lt system.attributes.bod.linkMod 0)}}negative{{/if}}">
                 {{formatMod system.attributes.bod.linkMod}}
@@ -129,7 +136,10 @@
             <tr class="attribute-row" data-attribute="rfl">
               <td class="attribute-name">RFL</td>
               <td class="attribute-score">
-                <span class="score-display">{{system.attributes.rfl.value}}</span>
+                <span class="score-display">{{system.attributes.rfl.total}}</span>
+              </td>
+              <td class="attribute-modifier">
+                <input type="number" class="mod-input" name="system.attributes.rfl.modifier" value="{{system.attributes.rfl.modifier}}" data-dtype="Number"/>
               </td>
               <td class="attribute-link {{#if (gt system.attributes.rfl.linkMod 0)}}positive{{else if (lt system.attributes.rfl.linkMod 0)}}negative{{/if}}">
                 {{formatMod system.attributes.rfl.linkMod}}
@@ -147,7 +157,10 @@
             <tr class="attribute-row" data-attribute="dex">
               <td class="attribute-name">DEX</td>
               <td class="attribute-score">
-                <span class="score-display">{{system.attributes.dex.value}}</span>
+                <span class="score-display">{{system.attributes.dex.total}}</span>
+              </td>
+              <td class="attribute-modifier">
+                <input type="number" class="mod-input" name="system.attributes.dex.modifier" value="{{system.attributes.dex.modifier}}" data-dtype="Number"/>
               </td>
               <td class="attribute-link {{#if (gt system.attributes.dex.linkMod 0)}}positive{{else if (lt system.attributes.dex.linkMod 0)}}negative{{/if}}">
                 {{formatMod system.attributes.dex.linkMod}}
@@ -165,7 +178,10 @@
             <tr class="attribute-row" data-attribute="int">
               <td class="attribute-name">INT</td>
               <td class="attribute-score">
-                <span class="score-display">{{system.attributes.int.value}}</span>
+                <span class="score-display">{{system.attributes.int.total}}</span>
+              </td>
+              <td class="attribute-modifier">
+                <input type="number" class="mod-input" name="system.attributes.int.modifier" value="{{system.attributes.int.modifier}}" data-dtype="Number"/>
               </td>
               <td class="attribute-link {{#if (gt system.attributes.int.linkMod 0)}}positive{{else if (lt system.attributes.int.linkMod 0)}}negative{{/if}}">
                 {{formatMod system.attributes.int.linkMod}}
@@ -183,7 +199,10 @@
             <tr class="attribute-row" data-attribute="wil">
               <td class="attribute-name">WIL</td>
               <td class="attribute-score">
-                <span class="score-display">{{system.attributes.wil.value}}</span>
+                <span class="score-display">{{system.attributes.wil.total}}</span>
+              </td>
+              <td class="attribute-modifier">
+                <input type="number" class="mod-input" name="system.attributes.wil.modifier" value="{{system.attributes.wil.modifier}}" data-dtype="Number"/>
               </td>
               <td class="attribute-link {{#if (gt system.attributes.wil.linkMod 0)}}positive{{else if (lt system.attributes.wil.linkMod 0)}}negative{{/if}}">
                 {{formatMod system.attributes.wil.linkMod}}
@@ -201,7 +220,10 @@
             <tr class="attribute-row" data-attribute="cha">
               <td class="attribute-name">CHA</td>
               <td class="attribute-score">
-                <span class="score-display">{{system.attributes.cha.value}}</span>
+                <span class="score-display">{{system.attributes.cha.total}}</span>
+              </td>
+              <td class="attribute-modifier">
+                <input type="number" class="mod-input" name="system.attributes.cha.modifier" value="{{system.attributes.cha.modifier}}" data-dtype="Number"/>
               </td>
               <td class="attribute-link {{#if (gt system.attributes.cha.linkMod 0)}}positive{{else if (lt system.attributes.cha.linkMod 0)}}negative{{/if}}">
                 {{formatMod system.attributes.cha.linkMod}}
@@ -219,7 +241,10 @@
             <tr class="attribute-row edge-row" data-attribute="edg">
               <td class="attribute-name">EDG</td>
               <td class="attribute-score">
-                <span class="score-display">{{system.attributes.edg.value}}</span>
+                <span class="score-display">{{system.attributes.edg.total}}</span>
+              </td>
+              <td class="attribute-modifier">
+                <input type="number" class="mod-input" name="system.attributes.edg.modifier" value="{{system.attributes.edg.modifier}}" data-dtype="Number"/>
               </td>
               <td class="attribute-link edge-current">
                 {{system.attributes.edg.current}}
@@ -951,15 +976,11 @@
 
     {{!-- Biography Tab --}}
     <div class="tab biography" data-group="primary" data-tab="biography">
-      {{!-- Phenotype & Affiliation Row --}}
+      {{!-- Phenotype Row --}}
       <div class="bio-header-row">
         <div class="form-group">
           <label>Phenotype</label>
-          <input type="text" name="system.phenotype" value="{{system.phenotype}}" placeholder="e.g., Caucasian, Asian, etc."/>
-        </div>
-        <div class="form-group">
-          <label>Affiliation</label>
-          <input type="text" name="system.affiliation" value="{{system.affiliation}}" placeholder="e.g., Federated Suns"/>
+          <input type="text" name="system.phenotype" value="{{system.phenotype}}" placeholder="e.g., Aerospace, Belter, etc."/>
         </div>
       </div>
 

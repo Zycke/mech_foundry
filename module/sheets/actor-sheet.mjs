@@ -323,8 +323,8 @@ export class MechFoundryActorSheet extends ActorSheet {
     inventory.hasItems = Object.values(inventory)
       .some(arr => Array.isArray(arr) && arr.length > 0);
 
-    // Calculate encumbrance
-    const str = context.system.attributes?.str?.value || 5;
+    // Calculate encumbrance (use total STR including modifiers)
+    const str = context.system.attributes?.str?.total || 5;
     const encumbrance = this._calculateEncumbrance(str, totalWeight);
     inventory.encumbrance = encumbrance;
 
@@ -667,7 +667,7 @@ export class MechFoundryActorSheet extends ActorSheet {
     event.preventDefault();
 
     const edg = this.actor.system.attributes.edg;
-    const available = edg.value - (edg.burned || 0);
+    const available = edg.total - (edg.burned || 0);
 
     if (available <= 0) {
       ui.notifications.warn("No Edge points available to burn!");
