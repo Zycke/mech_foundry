@@ -1014,8 +1014,10 @@
                 <td class="effect-details">
                   {{#if (eq this.system.effectType "continuous_damage")}}
                   <span class="damage-info">
-                    {{#if this.system.continuousDamage.standardDamage}}Std: {{this.system.continuousDamage.standardDamage}}{{/if}}
-                    {{#if this.system.continuousDamage.fatigueDamage}}Fat: {{this.system.continuousDamage.fatigueDamage}}{{/if}}
+                    {{#if this.system.continuousDamage}}
+                      {{#if this.system.continuousDamage.standardDamage}}Std: {{this.system.continuousDamage.standardDamage}}{{/if}}
+                      {{#if this.system.continuousDamage.fatigueDamage}}Fat: {{this.system.continuousDamage.fatigueDamage}}{{/if}}
+                    {{/if}}
                   </span>
                   {{else}}
                   <span class="modifier-count">{{#if this.system.persistentModifiers}}{{this.system.persistentModifiers.length}}{{else}}0{{/if}} modifier(s)</span>
