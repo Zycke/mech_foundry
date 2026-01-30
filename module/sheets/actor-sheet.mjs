@@ -11,7 +11,8 @@ export class MechFoundryActorSheet extends ActorSheet {
       classes: ["mech-foundry", "sheet", "actor"],
       width: 850,
       height: 750,
-      tabs: [{ navSelector: ".sheet-tabs", contentSelector: ".sheet-body", initial: "attributes" }]
+      tabs: [{ navSelector: ".sheet-tabs", contentSelector: ".sheet-body", initial: "attributes" }],
+      dragDrop: [{ dragSelector: ".item", dropSelector: null }]
     });
   }
 
@@ -200,8 +201,13 @@ export class MechFoundryActorSheet extends ActorSheet {
 
     let totalWeight = 0;
 
-    // Ensure items array exists (defensive check for edge cases)
-    const items = context.items || [];
+    // Get items directly from the actor and convert to plain objects
+    // In Foundry v11+, we need to explicitly get items from the actor
+    const items = this.actor.items.map(i => {
+      const itemData = i.toObject(false);
+      itemData._id = i.id; // Ensure _id is set for template data-item-id attributes
+      return itemData;
+    });
 
     // Iterate through items, allocating to containers
     for (let i of items) {
@@ -488,8 +494,10 @@ export class MechFoundryActorSheet extends ActorSheet {
 
     // Render the item sheet for viewing/editing
     html.on('click', '.item-edit', (ev) => {
-      const li = $(ev.currentTarget).parents(".item");
-      const item = this.actor.items.get(li.data("itemId"));
+      // Get item ID from button's data attribute first, then fall back to parent
+      const btn = $(ev.currentTarget);
+      const itemId = btn.data("itemId") || btn.parents(".item").data("itemId");
+      const item = this.actor.items.get(itemId);
       if (item) item.sheet.render(true);
     });
 
@@ -501,11 +509,14 @@ export class MechFoundryActorSheet extends ActorSheet {
 
     // Delete Inventory Item
     html.on('click', '.item-delete', (ev) => {
-      const li = $(ev.currentTarget).parents(".item");
-      const item = this.actor.items.get(li.data("itemId"));
+      // Get item ID from button's data attribute first, then fall back to parent
+      const btn = $(ev.currentTarget);
+      const itemId = btn.data("itemId") || btn.parents(".item").data("itemId");
+      const item = this.actor.items.get(itemId);
       if (!item) return;
+      const container = btn.parents(".item");
       item.delete();
-      li.slideUp(200, () => this.render(false));
+      container.slideUp(200, () => this.render(false));
     });
 
     // Rollable abilities - Skills
@@ -598,6 +609,17 @@ export class MechFoundryActorSheet extends ActorSheet {
       type: type,
       system: {}
     };
+
+    // Set default values for activeEffect items
+    if (type === 'activeEffect') {
+      itemData.name = "New Effect";
+      itemData.system = {
+        active: true,
+        effectType: 'persistent',
+        continuousDamage: { standardDamage: 0, fatigueDamage: 0 },
+        persistentModifiers: []
+      };
+    }
 
     return await Item.create(itemData, { parent: this.actor });
   }
