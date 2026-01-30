@@ -383,7 +383,21 @@ export class OpposedRollHelper {
             icon: '<i class="fas fa-shield-alt"></i>',
             label: game.i18n.localize('MECHFOUNDRY.Defend'),
             callback: async (html) => {
-              const selectedOption = html.find('[name="defenseOption"]:checked').val();
+              // Try multiple selectors to find the checked radio button
+              let selectedOption = html.find('input[name="defenseOption"]:checked').val();
+
+              // Fallback: if jQuery selector didn't work, try vanilla JS
+              if (!selectedOption) {
+                const form = html[0].querySelector('form') || html[0];
+                const checked = form.querySelector('input[name="defenseOption"]:checked');
+                selectedOption = checked?.value;
+              }
+
+              // If still no selection, default to first option (not decline)
+              if (!selectedOption && options.length > 0) {
+                selectedOption = options[0].id;
+              }
+
               const modifier = parseInt(html.find('[name="modifier"]').val()) || 0;
 
               const defenseResult = await this._makeDefenseRoll(
