@@ -355,7 +355,11 @@ export class MechFoundryActorSheet extends ActorSheet {
     const activeModifiersSummary = [];
     for (const effect of activeEffects) {
       if (effect.system.active && effect.system.effectType === 'persistent') {
-        for (const mod of (effect.system.persistentModifiers || [])) {
+        // Ensure persistentModifiers is an array (may be {} from old data)
+        const modifiers = Array.isArray(effect.system.persistentModifiers)
+          ? effect.system.persistentModifiers
+          : [];
+        for (const mod of modifiers) {
           let targetLabel = mod.target;
           if (mod.targetType === 'attribute') {
             targetLabel = mod.target.toUpperCase();
@@ -1738,7 +1742,10 @@ export class MechFoundryActorSheet extends ActorSheet {
       item.system.active = item.system.active ?? true;
       item.system.effectType = item.system.effectType || 'persistent';
       item.system.continuousDamage = item.system.continuousDamage || { standardDamage: 0, fatigueDamage: 0 };
-      item.system.persistentModifiers = item.system.persistentModifiers || [];
+      // Ensure persistentModifiers is always an array (may be {} from old data)
+      item.system.persistentModifiers = Array.isArray(item.system.persistentModifiers)
+        ? item.system.persistentModifiers
+        : [];
     }
 
     // Remove any properties that shouldn't be copied (like _id, ownership, etc.)

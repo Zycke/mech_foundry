@@ -31,6 +31,13 @@ export class MechFoundryItemSheet extends ItemSheet {
     context.system = itemData.system;
     context.flags = itemData.flags;
 
+    // For activeEffect items, ensure persistentModifiers is always an array
+    if (this.item.type === 'activeEffect' && context.system) {
+      context.system.persistentModifiers = Array.isArray(context.system.persistentModifiers)
+        ? context.system.persistentModifiers
+        : [];
+    }
+
     // Add config data
     context.config = game.mechfoundry?.config || {};
 
