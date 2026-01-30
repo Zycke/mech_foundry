@@ -283,7 +283,10 @@ export class MechFoundryActor extends Actor {
     const modifiersByTarget = {};
 
     for (const effect of activeEffects) {
-      const modifiers = effect.system.persistentModifiers || [];
+      // Ensure persistentModifiers is an array (may be {} from old data)
+      const modifiers = Array.isArray(effect.system.persistentModifiers)
+        ? effect.system.persistentModifiers
+        : [];
       for (const mod of modifiers) {
         if (mod.targetType !== targetType) continue;
 
@@ -355,7 +358,10 @@ export class MechFoundryActor extends Actor {
     );
 
     for (const effect of activeEffects) {
-      const modifiers = effect.system.persistentModifiers || [];
+      // Ensure persistentModifiers is an array (may be {} from old data)
+      const modifiers = Array.isArray(effect.system.persistentModifiers)
+        ? effect.system.persistentModifiers
+        : [];
       for (const mod of modifiers) {
         if (mod.targetType !== 'skill') continue;
 
