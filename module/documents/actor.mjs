@@ -23,16 +23,25 @@ export class MechFoundryActor extends Actor {
     // Calculate total attribute scores (base + modifier, capped at 9)
     this._calculateAttributeTotals(systemData);
 
+    // Apply active effect modifiers to attributes
+    this._applyActiveEffectModifiers(systemData, 'attribute');
+
     // Calculate Link Attribute Modifiers for all attributes
     this._calculateLinkModifiers(systemData);
 
     // Calculate derived values
     this._calculateDerivedStats(systemData);
 
+    // Apply active effect modifiers to movement
+    this._applyActiveEffectModifiers(systemData, 'movement');
+
     // Calculate total XP (available + spent)
     if (systemData.xp) {
       systemData.xp.total = (systemData.xp.value || 0) + (systemData.xp.spent || 0);
     }
+
+    // Store active skill modifiers for use in rolls
+    systemData.activeSkillModifiers = this._getActiveSkillModifiers();
   }
 
   /**
@@ -258,6 +267,79 @@ export class MechFoundryActor extends Actor {
   }
 
   /**
+   * Apply active effect modifiers to system data
+   * @param {Object} systemData The actor's system data
+   * @param {string} targetType The type of modifier to apply ('attribute', 'movement', or 'skill')
+   */
+  _applyActiveEffectModifiers(systemData, targetType) {
+    // Get all active persistent effects
+    const activeEffects = this.items.filter(i =>
+      i.type === 'activeEffect' &&
+      i.system.active &&
+      i.system.effectType === 'persistent'
+    );
+
+    for (const effect of activeEffects) {
+      const modifiers = effect.system.persistentModifiers || [];
+      for (const mod of modifiers) {
+        if (mod.targetType !== targetType) continue;
+
+        const target = mod.target;
+        const value = mod.value || 0;
+
+        if (targetType === 'attribute' && systemData.attributes[target]) {
+          // Apply modifier to attribute total (after base calculation)
+          systemData.attributes[target].total += value;
+          // Track effect modifier separately for display
+          if (!systemData.attributes[target].effectMod) {
+            systemData.attributes[target].effectMod = 0;
+          }
+          systemData.attributes[target].effectMod += value;
+        } else if (targetType === 'movement' && systemData.movement && systemData.movement[target] !== undefined) {
+          // Apply modifier to movement value
+          systemData.movement[target] += value;
+          // Ensure movement doesn't go below 0
+          if (systemData.movement[target] < 0) {
+            systemData.movement[target] = 0;
+          }
+        }
+      }
+    }
+  }
+
+  /**
+   * Get active skill modifiers from persistent effects
+   * @returns {Object} Map of skill name to total modifier
+   */
+  _getActiveSkillModifiers() {
+    const skillModifiers = {};
+
+    // Get all active persistent effects
+    const activeEffects = this.items.filter(i =>
+      i.type === 'activeEffect' &&
+      i.system.active &&
+      i.system.effectType === 'persistent'
+    );
+
+    for (const effect of activeEffects) {
+      const modifiers = effect.system.persistentModifiers || [];
+      for (const mod of modifiers) {
+        if (mod.targetType !== 'skill') continue;
+
+        const skillName = mod.target.toLowerCase();
+        const value = mod.value || 0;
+
+        if (!skillModifiers[skillName]) {
+          skillModifiers[skillName] = 0;
+        }
+        skillModifiers[skillName] += value;
+      }
+    }
+
+    return skillModifiers;
+  }
+
+  /**
    * Get a skill level by name/id
    * @param {string} skillName
    * @returns {number|null}
@@ -337,8 +419,12 @@ export class MechFoundryActor extends Actor {
     const fatigueMod = this.system.fatigueModifier || 0;
     const inputMod = options.modifier || 0;
 
+    // Get active effect skill modifiers
+    const activeSkillMods = this.system.activeSkillModifiers || {};
+    const effectMod = activeSkillMods[skill.name.toLowerCase()] || 0;
+
     // Calculate total modifier
-    const totalMod = skillLevel + linkMod + injuryMod + fatigueMod + inputMod;
+    const totalMod = skillLevel + linkMod + injuryMod + fatigueMod + inputMod + effectMod;
 
     const rollFormula = `2d6 + ${totalMod}`;
     const roll = new Roll(rollFormula);

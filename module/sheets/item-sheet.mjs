@@ -65,5 +65,59 @@ export class MechFoundryItemSheet extends ItemSheet {
         burstFields.hide();
       }
     });
+
+    // Active Effect specific handlers
+    if (this.item.type === 'activeEffect') {
+      // Effect type toggle - show/hide relevant sections
+      html.on('change', '.effect-type-select', (event) => {
+        const effectType = event.currentTarget.value;
+        if (effectType === 'continuous_damage') {
+          html.find('.continuous-damage-section').removeClass('hidden');
+          html.find('.persistent-effect-section').addClass('hidden');
+        } else {
+          html.find('.continuous-damage-section').addClass('hidden');
+          html.find('.persistent-effect-section').removeClass('hidden');
+        }
+      });
+
+      // Add modifier button
+      html.on('click', '.add-modifier', async (event) => {
+        event.preventDefault();
+        const modifiers = foundry.utils.deepClone(this.item.system.persistentModifiers || []);
+        modifiers.push({
+          targetType: 'attribute',
+          target: 'str',
+          value: 0
+        });
+        await this.item.update({ 'system.persistentModifiers': modifiers });
+      });
+
+      // Remove modifier button
+      html.on('click', '.remove-modifier', async (event) => {
+        event.preventDefault();
+        const index = parseInt(event.currentTarget.dataset.index);
+        const modifiers = foundry.utils.deepClone(this.item.system.persistentModifiers || []);
+        modifiers.splice(index, 1);
+        await this.item.update({ 'system.persistentModifiers': modifiers });
+      });
+
+      // Target type change - update target field accordingly
+      html.on('change', '.modifier-target-type', async (event) => {
+        const row = event.currentTarget.closest('.modifier-row');
+        const index = parseInt(row.dataset.index);
+        const targetType = event.currentTarget.value;
+        const modifiers = foundry.utils.deepClone(this.item.system.persistentModifiers || []);
+
+        // Set default target based on type
+        let defaultTarget = '';
+        if (targetType === 'attribute') defaultTarget = 'str';
+        else if (targetType === 'movement') defaultTarget = 'walk';
+        else defaultTarget = ''; // skill - user enters name
+
+        modifiers[index].targetType = targetType;
+        modifiers[index].target = defaultTarget;
+        await this.item.update({ 'system.persistentModifiers': modifiers });
+      });
+    }
   }
 }

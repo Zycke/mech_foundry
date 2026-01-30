@@ -1,0 +1,123 @@
+<form class="{{cssClass}} mech-foundry item-sheet activeeffect-sheet" autocomplete="off">
+  <header class="sheet-header">
+    <img class="item-img" src="{{item.img}}" data-edit="img" title="{{item.name}}"/>
+    <div class="header-fields">
+      <h1 class="item-name">
+        <input name="name" type="text" value="{{item.name}}" placeholder="Effect Name"/>
+      </h1>
+      <div class="active-toggle">
+        <label>
+          <input type="checkbox" name="system.active" {{#if system.active}}checked{{/if}}/>
+          Active
+        </label>
+      </div>
+    </div>
+  </header>
+
+  <nav class="sheet-tabs tabs" data-group="primary">
+    <a class="item" data-tab="details">Details</a>
+    <a class="item" data-tab="description">Description</a>
+  </nav>
+
+  <section class="sheet-body">
+    <div class="tab details" data-group="primary" data-tab="details">
+      {{!-- Effect Type Selection --}}
+      <div class="form-row">
+        <div class="form-group">
+          <label>Effect Type</label>
+          <select name="system.effectType" class="effect-type-select">
+            <option value="continuous_damage" {{#if (eq system.effectType "continuous_damage")}}selected{{/if}}>Continuous Damage</option>
+            <option value="persistent" {{#if (eq system.effectType "persistent")}}selected{{/if}}>Persistent Effect</option>
+          </select>
+        </div>
+      </div>
+
+      {{!-- Continuous Damage Section --}}
+      <div class="continuous-damage-section {{#unless (eq system.effectType "continuous_damage")}}hidden{{/unless}}">
+        <h3>Continuous Damage (Applied at End of Round)</h3>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Standard Damage</label>
+            <input type="number" name="system.continuousDamage.standardDamage" value="{{system.continuousDamage.standardDamage}}" data-dtype="Number" min="0"/>
+          </div>
+          <div class="form-group">
+            <label>Fatigue Damage</label>
+            <input type="number" name="system.continuousDamage.fatigueDamage" value="{{system.continuousDamage.fatigueDamage}}" data-dtype="Number" min="0"/>
+          </div>
+        </div>
+      </div>
+
+      {{!-- Persistent Effect Section --}}
+      <div class="persistent-effect-section {{#unless (eq system.effectType "persistent")}}hidden{{/unless}}">
+        <h3>Persistent Modifiers</h3>
+        <p class="hint">Add modifiers that apply while this effect is active.</p>
+
+        <div class="modifiers-list">
+          {{#each system.persistentModifiers}}
+          <div class="modifier-row" data-index="{{@index}}">
+            <div class="form-group target-group">
+              <label>Target</label>
+              <select name="system.persistentModifiers.{{@index}}.targetType" class="modifier-target-type">
+                <option value="attribute" {{#if (eq this.targetType "attribute")}}selected{{/if}}>Attribute</option>
+                <option value="skill" {{#if (eq this.targetType "skill")}}selected{{/if}}>Skill</option>
+                <option value="movement" {{#if (eq this.targetType "movement")}}selected{{/if}}>Movement</option>
+              </select>
+            </div>
+
+            <div class="form-group target-name-group">
+              <label>Specific Target</label>
+              {{#if (eq this.targetType "attribute")}}
+              <select name="system.persistentModifiers.{{@index}}.target">
+                <option value="str" {{#if (eq this.target "str")}}selected{{/if}}>STR</option>
+                <option value="bod" {{#if (eq this.target "bod")}}selected{{/if}}>BOD</option>
+                <option value="rfl" {{#if (eq this.target "rfl")}}selected{{/if}}>RFL</option>
+                <option value="dex" {{#if (eq this.target "dex")}}selected{{/if}}>DEX</option>
+                <option value="int" {{#if (eq this.target "int")}}selected{{/if}}>INT</option>
+                <option value="wil" {{#if (eq this.target "wil")}}selected{{/if}}>WIL</option>
+                <option value="cha" {{#if (eq this.target "cha")}}selected{{/if}}>CHA</option>
+                <option value="edg" {{#if (eq this.target "edg")}}selected{{/if}}>EDG</option>
+              </select>
+              {{else if (eq this.targetType "movement")}}
+              <select name="system.persistentModifiers.{{@index}}.target">
+                <option value="walk" {{#if (eq this.target "walk")}}selected{{/if}}>Walk</option>
+                <option value="run" {{#if (eq this.target "run")}}selected{{/if}}>Run</option>
+                <option value="sprint" {{#if (eq this.target "sprint")}}selected{{/if}}>Sprint</option>
+                <option value="climb" {{#if (eq this.target "climb")}}selected{{/if}}>Climb</option>
+                <option value="crawl" {{#if (eq this.target "crawl")}}selected{{/if}}>Crawl</option>
+                <option value="swim" {{#if (eq this.target "swim")}}selected{{/if}}>Swim</option>
+              </select>
+              {{else}}
+              <input type="text" name="system.persistentModifiers.{{@index}}.target" value="{{this.target}}" placeholder="Skill Name"/>
+              {{/if}}
+            </div>
+
+            <div class="form-group modifier-value-group">
+              <label>Modifier</label>
+              <input type="number" name="system.persistentModifiers.{{@index}}.value" value="{{this.value}}" data-dtype="Number"/>
+            </div>
+
+            <div class="form-group modifier-actions">
+              <button type="button" class="remove-modifier" data-index="{{@index}}" title="Remove Modifier">
+                <i class="fas fa-trash"></i>
+              </button>
+            </div>
+          </div>
+          {{/each}}
+        </div>
+
+        <div class="modifier-controls">
+          <button type="button" class="add-modifier">
+            <i class="fas fa-plus"></i> Add Modifier
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab description" data-group="primary" data-tab="description">
+      <div class="editor-container">
+        <label>Description / Notes</label>
+        {{editor system.description target="system.description" button=true owner=owner editable=editable}}
+      </div>
+    </div>
+  </section>
+</form>
