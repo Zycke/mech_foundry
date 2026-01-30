@@ -1001,7 +1001,7 @@ export class MechFoundryActor extends Actor {
 
     await ChatMessage.create({
       speaker: ChatMessage.getSpeaker({ actor: this }),
-      flavor: game.i18n.localize('MECHFOUNDRY.OpposedMeleeAttack'),
+      flavor: "Opposed Melee Attack",
       content: messageContent,
       rolls: rolls
     });
