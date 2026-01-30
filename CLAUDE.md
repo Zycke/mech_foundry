@@ -197,3 +197,4 @@ export class MechFoundryActorSheet extends ActorSheet {
 - Test with minimum supported Foundry version
 - Use `game.system.id` to reference system in code
 - Compendium packs go in `packs/` directory
+- **Version bumps are required**: Increment the version number in `system.json` with every update/commit
