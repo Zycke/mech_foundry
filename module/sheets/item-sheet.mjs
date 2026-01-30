@@ -23,7 +23,7 @@ export class MechFoundryItemSheet extends ItemSheet {
 
   /** @override */
   async getData() {
-    const context = super.getData();
+    const context = await super.getData();
 
     // Use a safe clone of the item data for further operations
     const itemData = this.document.toObject(false);
