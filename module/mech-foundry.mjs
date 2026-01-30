@@ -340,3 +340,78 @@ Hooks.on("combatStart", (combat) => {
     return b.initiative - a.initiative;
   });
 });
+
+// Apply continuous damage effects at end of round (when "Next Round" is pressed)
+Hooks.on("combatRound", async (combat, updateData, updateOptions) => {
+  // Only run for the GM to prevent duplicate processing
+  if (!game.user.isGM) return;
+
+  // Process each combatant
+  for (const combatant of combat.combatants) {
+    const actor = combatant.actor;
+    if (!actor) continue;
+
+    // Find all active continuous damage effects
+    const continuousDamageEffects = actor.items.filter(i =>
+      i.type === 'activeEffect' &&
+      i.system.active &&
+      i.system.effectType === 'continuous_damage'
+    );
+
+    if (continuousDamageEffects.length === 0) continue;
+
+    // Calculate total continuous damage
+    let totalStandardDamage = 0;
+    let totalFatigueDamage = 0;
+    const effectNames = [];
+
+    for (const effect of continuousDamageEffects) {
+      const stdDmg = effect.system.continuousDamage?.standardDamage || 0;
+      const fatDmg = effect.system.continuousDamage?.fatigueDamage || 0;
+
+      if (stdDmg > 0 || fatDmg > 0) {
+        totalStandardDamage += stdDmg;
+        totalFatigueDamage += fatDmg;
+        effectNames.push(effect.name);
+      }
+    }
+
+    // Apply damage if any
+    if (totalStandardDamage > 0 || totalFatigueDamage > 0) {
+      const currentDamage = actor.system.damage?.value || 0;
+      const currentFatigue = actor.system.fatigue?.value || 0;
+      const maxDamage = actor.system.damage?.max || actor.system.damageCapacity || 10;
+      const maxFatigue = actor.system.fatigue?.max || actor.system.fatigueCapacity || 10;
+
+      const newDamage = Math.min(currentDamage + totalStandardDamage, maxDamage);
+      const newFatigue = Math.min(currentFatigue + totalFatigueDamage, maxFatigue);
+
+      // Update actor
+      await actor.update({
+        "system.damage.value": newDamage,
+        "system.fatigue.value": newFatigue
+      });
+
+      // Send chat message
+      const damageMsg = [];
+      if (totalStandardDamage > 0) damageMsg.push(`${totalStandardDamage} standard damage`);
+      if (totalFatigueDamage > 0) damageMsg.push(`${totalFatigueDamage} fatigue damage`);
+
+      ChatMessage.create({
+        speaker: ChatMessage.getSpeaker({ actor: actor }),
+        content: `<div class="mech-foundry continuous-damage">
+          <strong>${actor.name}</strong> takes ${damageMsg.join(' and ')} from continuous effects:
+          <em>${effectNames.join(', ')}</em>
+        </div>`
+      });
+
+      // Check for unconsciousness/death conditions
+      if (newDamage >= maxDamage) {
+        ui.notifications.error(`${actor.name} has died from continuous damage!`);
+      } else if (newFatigue >= maxFatigue) {
+        ui.notifications.warn(`${actor.name} has fallen unconscious from continuous damage!`);
+        await actor.update({ "system.unconscious": true });
+      }
+    }
+  }
+});

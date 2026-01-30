@@ -137,5 +137,23 @@
   "MECHFOUNDRY.SettingShowRollDetails": "Show Roll Details",
   "MECHFOUNDRY.SettingShowRollDetailsHint": "Show detailed roll information in chat messages.",
   "MECHFOUNDRY.SettingDefaultDifficulty": "Default Difficulty",
-  "MECHFOUNDRY.SettingDefaultDifficultyHint": "The default difficulty modifier for action checks."
+  "MECHFOUNDRY.SettingDefaultDifficultyHint": "The default difficulty modifier for action checks.",
+
+  "MECHFOUNDRY.Conditions": "Conditions",
+  "MECHFOUNDRY.ActiveEffects": "Active Effects",
+  "MECHFOUNDRY.ActiveEffect": "Active Effect",
+  "MECHFOUNDRY.EffectType": "Effect Type",
+  "MECHFOUNDRY.ContinuousDamage": "Continuous Damage",
+  "MECHFOUNDRY.PersistentEffect": "Persistent Effect",
+  "MECHFOUNDRY.Active": "Active",
+  "MECHFOUNDRY.Inactive": "Inactive",
+  "MECHFOUNDRY.ToggleActive": "Toggle Active",
+  "MECHFOUNDRY.Modifier": "Modifier",
+  "MECHFOUNDRY.Target": "Target",
+  "MECHFOUNDRY.AddModifier": "Add Modifier",
+  "MECHFOUNDRY.RemoveModifier": "Remove Modifier",
+  "MECHFOUNDRY.Attribute": "Attribute",
+  "MECHFOUNDRY.MovementType": "Movement Type",
+  "MECHFOUNDRY.NoActiveEffects": "No active effects.",
+  "MECHFOUNDRY.DamagePerRound": "Damage Per Round"
 }

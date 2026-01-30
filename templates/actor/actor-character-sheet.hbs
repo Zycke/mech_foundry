@@ -68,6 +68,7 @@
     <a class="item" data-tab="traits">Traits</a>
     <a class="item" data-tab="combat">Combat</a>
     <a class="item" data-tab="inventory">Inventory</a>
+    <a class="item" data-tab="conditions">Conditions</a>
     <a class="item" data-tab="biography">Biography</a>
   </nav>
 
@@ -972,6 +973,88 @@
         <p>No items in inventory. Click "Add Item" or drag items here to add them.</p>
       </div>
       {{/unless}}
+    </div>
+
+    {{!-- Conditions Tab --}}
+    <div class="tab conditions" data-group="primary" data-tab="conditions">
+      <div class="conditions-section">
+        <div class="section-header">
+          <h3 class="section-title">Active Effects</h3>
+          <button type="button" class="item-create" data-type="activeEffect" title="Add Effect">
+            <i class="fas fa-plus"></i> Add Effect
+          </button>
+        </div>
+
+        <div class="active-effects-list">
+          {{#if activeEffects.length}}
+          <table class="effects-table">
+            <thead>
+              <tr>
+                <th class="effect-active">Active</th>
+                <th class="effect-name">Name</th>
+                <th class="effect-type">Type</th>
+                <th class="effect-details">Details</th>
+                <th class="effect-controls">Controls</th>
+              </tr>
+            </thead>
+            <tbody>
+              {{#each activeEffects}}
+              <li class="item effect-row {{#unless this.system.active}}inactive{{/unless}}" data-item-id="{{this._id}}">
+                <td class="effect-active">
+                  <input type="checkbox" class="effect-toggle" data-item-id="{{this._id}}" {{#if this.system.active}}checked{{/if}} title="Toggle Active"/>
+                </td>
+                <td class="effect-name">
+                  <img class="effect-img" src="{{this.img}}" width="24" height="24"/>
+                  <span>{{this.name}}</span>
+                </td>
+                <td class="effect-type">
+                  {{#if (eq this.system.effectType "continuous_damage")}}
+                  <span class="tag damage-tag">Continuous Damage</span>
+                  {{else}}
+                  <span class="tag persistent-tag">Persistent</span>
+                  {{/if}}
+                </td>
+                <td class="effect-details">
+                  {{#if (eq this.system.effectType "continuous_damage")}}
+                  <span class="damage-info">
+                    {{#if this.system.continuousDamage.standardDamage}}Std: {{this.system.continuousDamage.standardDamage}}{{/if}}
+                    {{#if this.system.continuousDamage.fatigueDamage}}Fat: {{this.system.continuousDamage.fatigueDamage}}{{/if}}
+                  </span>
+                  {{else}}
+                  <span class="modifier-count">{{this.system.persistentModifiers.length}} modifier(s)</span>
+                  {{/if}}
+                </td>
+                <td class="effect-controls">
+                  <a class="item-edit" title="Edit"><i class="fas fa-edit"></i></a>
+                  <a class="item-delete" title="Delete"><i class="fas fa-trash"></i></a>
+                </td>
+              </li>
+              {{/each}}
+            </tbody>
+          </table>
+          {{else}}
+          <p class="no-effects">No active effects. Click "Add Effect" or drag an Active Effect item here.</p>
+          {{/if}}
+        </div>
+
+        {{!-- Summary of Active Modifiers --}}
+        {{#if hasActiveModifiers}}
+        <div class="active-modifiers-summary">
+          <h4>Current Active Modifiers</h4>
+          <ul class="modifier-summary-list">
+            {{#each activeModifiersSummary}}
+            <li>
+              <span class="modifier-target">{{this.target}}</span>
+              <span class="modifier-value {{#if (lt this.value 0)}}negative{{else}}positive{{/if}}">
+                {{formatMod this.value}}
+              </span>
+              <span class="modifier-source">({{this.source}})</span>
+            </li>
+            {{/each}}
+          </ul>
+        </div>
+        {{/if}}
+      </div>
     </div>
 
     {{!-- Biography Tab --}}

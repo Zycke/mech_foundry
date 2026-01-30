@@ -183,6 +183,7 @@ export class MechFoundryActorSheet extends ActorSheet {
     const armor = [];
     const equipment = [];
     const vehicles = [];
+    const activeEffects = [];
 
     // Initialize inventory categories
     const inventory = {
@@ -298,6 +299,9 @@ export class MechFoundryActorSheet extends ActorSheet {
           totalWeight += parseFloat(i.system.mass) || 0;
         }
       }
+      else if (i.type === 'activeEffect') {
+        activeEffects.push(i);
+      }
     }
 
     // Sort skills alphabetically
@@ -334,6 +338,32 @@ export class MechFoundryActorSheet extends ActorSheet {
     context.equippedBAR = armor
       .filter(a => a.system.equipped || a.system.carryStatus === 'equipped')
       .reduce((max, a) => Math.max(max, a.system.bar?.m || 0), 0);
+
+    // Add active effects
+    context.activeEffects = activeEffects;
+
+    // Calculate active modifiers summary for display
+    const activeModifiersSummary = [];
+    for (const effect of activeEffects) {
+      if (effect.system.active && effect.system.effectType === 'persistent') {
+        for (const mod of (effect.system.persistentModifiers || [])) {
+          let targetLabel = mod.target;
+          if (mod.targetType === 'attribute') {
+            targetLabel = mod.target.toUpperCase();
+          } else if (mod.targetType === 'movement') {
+            targetLabel = mod.target.charAt(0).toUpperCase() + mod.target.slice(1);
+          }
+          activeModifiersSummary.push({
+            target: targetLabel,
+            value: mod.value,
+            source: effect.name,
+            targetType: mod.targetType
+          });
+        }
+      }
+    }
+    context.activeModifiersSummary = activeModifiersSummary;
+    context.hasActiveModifiers = activeModifiersSummary.length > 0;
   }
 
   /**
@@ -525,6 +555,9 @@ export class MechFoundryActorSheet extends ActorSheet {
 
     // Phenotype selection handler
     html.on('change', '.phenotype-select', this._onPhenotypeChange.bind(this));
+
+    // Active Effect toggle
+    html.on('change', '.effect-toggle', this._onEffectToggle.bind(this));
 
     // Drag events for macros
     if (this.actor.isOwner) {
@@ -1571,6 +1604,20 @@ export class MechFoundryActorSheet extends ActorSheet {
     await this.actor.update({
       [`system.lifeStages.${stage}.modules.${moduleId}.${type}.-=${entryId}`]: null
     });
+  }
+
+  /**
+   * Handle toggling an active effect's active state
+   * @param {Event} event The change event
+   */
+  async _onEffectToggle(event) {
+    event.preventDefault();
+    const checkbox = event.currentTarget;
+    const itemId = checkbox.dataset.itemId;
+    const item = this.actor.items.get(itemId);
+    if (!item) return;
+
+    await item.update({ "system.active": checkbox.checked });
   }
 
   /**

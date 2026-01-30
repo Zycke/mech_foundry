@@ -1885,3 +1885,277 @@
     grid-template-columns: repeat(2, 1fr);
   }
 }
+
+/* ----------------------------------------- */
+/* Active Effects / Conditions Tab            */
+/* ----------------------------------------- */
+
+.mech-foundry .conditions-section {
+  padding: 10px;
+}
+
+.mech-foundry .conditions-section .section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.mech-foundry .conditions-section .section-title {
+  margin: 0;
+}
+
+.mech-foundry .active-effects-list {
+  margin-bottom: 20px;
+}
+
+.mech-foundry .effects-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.mech-foundry .effects-table th,
+.mech-foundry .effects-table td {
+  padding: 8px;
+  text-align: left;
+  border-bottom: 1px solid var(--mf-border);
+}
+
+.mech-foundry .effects-table th {
+  background: var(--mf-primary);
+  color: var(--mf-light);
+  font-weight: bold;
+  text-transform: uppercase;
+  font-size: 0.85em;
+}
+
+.mech-foundry .effect-row {
+  transition: background-color 0.2s;
+}
+
+.mech-foundry .effect-row:hover {
+  background: rgba(26, 95, 122, 0.1);
+}
+
+.mech-foundry .effect-row.inactive {
+  opacity: 0.5;
+}
+
+.mech-foundry .effect-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mech-foundry .effect-img {
+  border-radius: var(--mf-border-radius);
+  border: 1px solid var(--mf-border);
+}
+
+.mech-foundry .effect-type .tag {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 0.8em;
+  font-weight: bold;
+}
+
+.mech-foundry .damage-tag {
+  background: var(--mf-danger);
+  color: white;
+}
+
+.mech-foundry .persistent-tag {
+  background: var(--mf-secondary);
+  color: white;
+}
+
+.mech-foundry .effect-controls {
+  display: flex;
+  gap: 5px;
+}
+
+.mech-foundry .effect-controls a {
+  cursor: pointer;
+  color: var(--mf-dark);
+}
+
+.mech-foundry .effect-controls a:hover {
+  color: var(--mf-primary);
+}
+
+.mech-foundry .no-effects {
+  text-align: center;
+  padding: 20px;
+  color: #666;
+  font-style: italic;
+}
+
+.mech-foundry .active-modifiers-summary {
+  background: rgba(26, 95, 122, 0.1);
+  padding: 15px;
+  border-radius: var(--mf-border-radius);
+  border: 1px solid var(--mf-primary);
+}
+
+.mech-foundry .active-modifiers-summary h4 {
+  margin: 0 0 10px 0;
+  color: var(--mf-primary);
+}
+
+.mech-foundry .modifier-summary-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.mech-foundry .modifier-summary-list li {
+  display: flex;
+  gap: 10px;
+  padding: 4px 0;
+  border-bottom: 1px dashed #ccc;
+}
+
+.mech-foundry .modifier-summary-list li:last-child {
+  border-bottom: none;
+}
+
+.mech-foundry .modifier-target {
+  font-weight: bold;
+  min-width: 80px;
+}
+
+.mech-foundry .modifier-value {
+  font-weight: bold;
+}
+
+.mech-foundry .modifier-value.positive {
+  color: var(--mf-success);
+}
+
+.mech-foundry .modifier-value.negative {
+  color: var(--mf-danger);
+}
+
+.mech-foundry .modifier-source {
+  color: #666;
+  font-style: italic;
+}
+
+/* ----------------------------------------- */
+/* Active Effect Item Sheet                   */
+/* ----------------------------------------- */
+
+.mech-foundry.activeeffect-sheet .active-toggle {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 5px;
+}
+
+.mech-foundry.activeeffect-sheet .active-toggle label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+}
+
+.mech-foundry.activeeffect-sheet .continuous-damage-section,
+.mech-foundry.activeeffect-sheet .persistent-effect-section {
+  margin-top: 15px;
+  padding: 15px;
+  background: rgba(26, 95, 122, 0.05);
+  border-radius: var(--mf-border-radius);
+  border: 1px solid var(--mf-border);
+}
+
+.mech-foundry.activeeffect-sheet .continuous-damage-section.hidden,
+.mech-foundry.activeeffect-sheet .persistent-effect-section.hidden {
+  display: none;
+}
+
+.mech-foundry.activeeffect-sheet h3 {
+  margin: 0 0 15px 0;
+  color: var(--mf-primary);
+  font-size: 1em;
+}
+
+.mech-foundry.activeeffect-sheet .hint {
+  color: #666;
+  font-size: 0.9em;
+  font-style: italic;
+  margin-bottom: 15px;
+}
+
+.mech-foundry.activeeffect-sheet .modifiers-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mech-foundry.activeeffect-sheet .modifier-row {
+  display: flex;
+  gap: 10px;
+  align-items: flex-end;
+  padding: 10px;
+  background: white;
+  border-radius: var(--mf-border-radius);
+  border: 1px solid #ddd;
+}
+
+.mech-foundry.activeeffect-sheet .modifier-row .form-group {
+  flex: 1;
+  margin-bottom: 0;
+}
+
+.mech-foundry.activeeffect-sheet .modifier-actions {
+  flex: 0 0 auto;
+}
+
+.mech-foundry.activeeffect-sheet .remove-modifier {
+  background: var(--mf-danger);
+  color: white;
+  border: none;
+  padding: 5px 10px;
+  border-radius: var(--mf-border-radius);
+  cursor: pointer;
+}
+
+.mech-foundry.activeeffect-sheet .remove-modifier:hover {
+  background: #a33527;
+}
+
+.mech-foundry.activeeffect-sheet .modifier-controls {
+  margin-top: 15px;
+}
+
+.mech-foundry.activeeffect-sheet .add-modifier {
+  background: var(--mf-primary);
+  color: white;
+  border: none;
+  padding: 8px 15px;
+  border-radius: var(--mf-border-radius);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.mech-foundry.activeeffect-sheet .add-modifier:hover {
+  background: var(--mf-dark);
+}
+
+/* ----------------------------------------- */
+/* Continuous Damage Chat Message             */
+/* ----------------------------------------- */
+
+.mech-foundry.continuous-damage {
+  padding: 10px;
+  background: rgba(196, 69, 54, 0.1);
+  border-left: 3px solid var(--mf-danger);
+  border-radius: var(--mf-border-radius);
+}
+
+.mech-foundry.continuous-damage em {
+  color: #666;
+}

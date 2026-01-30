@@ -94,7 +94,7 @@
     }
   },
   "Item": {
-    "types": ["skill", "trait", "weapon", "armor", "vehicle", "fuel", "electronics", "powerpack", "healthcare", "prosthetics", "drugpoison"],
+    "types": ["skill", "trait", "weapon", "armor", "vehicle", "fuel", "electronics", "powerpack", "healthcare", "prosthetics", "drugpoison", "activeEffect"],
     "templates": {
       "base": {
         "description": ""
@@ -240,6 +240,16 @@
       "poisonAP": 0,
       "duration": "",
       "notes": ""
+    },
+    "activeEffect": {
+      "templates": ["base"],
+      "effectType": "persistent",
+      "active": true,
+      "continuousDamage": {
+        "standardDamage": 0,
+        "fatigueDamage": 0
+      },
+      "persistentModifiers": []
     }
   }
 }
