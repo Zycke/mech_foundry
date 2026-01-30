@@ -117,7 +117,7 @@ export class MechFoundryActorSheet extends ActorSheet {
   /** @override */
   async getData() {
     // Retrieve base data structure
-    const context = super.getData();
+    const context = await super.getData();
 
     // Use a safe clone of the actor data for further operations
     const actorData = this.document.toObject(false);
