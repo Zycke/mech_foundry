@@ -1018,7 +1018,7 @@
                     {{#if this.system.continuousDamage.fatigueDamage}}Fat: {{this.system.continuousDamage.fatigueDamage}}{{/if}}
                   </span>
                   {{else}}
-                  <span class="modifier-count">{{this.system.persistentModifiers.length}} modifier(s)</span>
+                  <span class="modifier-count">{{#if this.system.persistentModifiers}}{{this.system.persistentModifiers.length}}{{else}}0{{/if}} modifier(s)</span>
                   {{/if}}
                 </td>
                 <td class="effect-controls">
