@@ -5,12 +5,6 @@
       <h1 class="item-name">
         <input name="name" type="text" value="{{item.name}}" placeholder="Effect Name"/>
       </h1>
-      <div class="active-toggle">
-        <label>
-          <input type="checkbox" name="system.active" {{#if system.active}}checked{{/if}}/>
-          Active
-        </label>
-      </div>
     </div>
   </header>
 
@@ -50,7 +44,7 @@
       {{!-- Persistent Effect Section --}}
       <div class="persistent-effect-section {{#unless (eq system.effectType "persistent")}}hidden{{/unless}}">
         <h3>Persistent Modifiers</h3>
-        <p class="hint">Add modifiers that apply while this effect is active.</p>
+        <p class="hint">Add modifiers that apply while this effect is active. Use additive for flat bonuses/penalties (e.g., -2) or multiplicative for percentage changes (e.g., 0.5 for half).</p>
 
         <div class="modifiers-list">
           {{#each system.persistentModifiers}}
@@ -91,9 +85,17 @@
               {{/if}}
             </div>
 
+            <div class="form-group operation-group">
+              <label>Operation</label>
+              <select name="system.persistentModifiers.{{@index}}.operation">
+                <option value="add" {{#if (eq this.operation "add")}}selected{{/if}}{{#unless this.operation}}selected{{/unless}}>Additive (+/-)</option>
+                <option value="multiply" {{#if (eq this.operation "multiply")}}selected{{/if}}>Multiplicative (×)</option>
+              </select>
+            </div>
+
             <div class="form-group modifier-value-group">
-              <label>Modifier</label>
-              <input type="number" name="system.persistentModifiers.{{@index}}.value" value="{{this.value}}" data-dtype="Number"/>
+              <label>Value</label>
+              <input type="number" name="system.persistentModifiers.{{@index}}.value" value="{{this.value}}" data-dtype="Number" step="any"/>
             </div>
 
             <div class="form-group modifier-actions">

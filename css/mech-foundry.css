@@ -2037,6 +2037,10 @@
   color: var(--mf-danger);
 }
 
+.mech-foundry .modifier-value.multiplicative {
+  color: var(--mf-warning);
+}
+
 .mech-foundry .modifier-source {
   color: #666;
   font-style: italic;
@@ -2106,6 +2110,14 @@
 .mech-foundry.activeeffect-sheet .modifier-row .form-group {
   flex: 1;
   margin-bottom: 0;
+}
+
+.mech-foundry.activeeffect-sheet .modifier-row .operation-group {
+  flex: 0 0 120px;
+}
+
+.mech-foundry.activeeffect-sheet .modifier-row .modifier-value-group {
+  flex: 0 0 80px;
 }
 
 .mech-foundry.activeeffect-sheet .modifier-actions {

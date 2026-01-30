@@ -87,6 +87,7 @@ export class MechFoundryItemSheet extends ItemSheet {
         modifiers.push({
           targetType: 'attribute',
           target: 'str',
+          operation: 'add',
           value: 0
         });
         await this.item.update({ 'system.persistentModifiers': modifiers });
