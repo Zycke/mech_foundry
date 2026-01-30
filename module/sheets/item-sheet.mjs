@@ -85,14 +85,11 @@ export class MechFoundryItemSheet extends ItemSheet {
         event.preventDefault();
         event.stopPropagation();
 
-        // First, submit the form to save any pending changes to existing modifiers
-        // This prevents losing unsaved edits when adding a new modifier
-        await this.submit({ preventClose: true, preventRender: true });
+        // Gather current form data manually to preserve unsaved changes
+        const formElement = html[0].closest('form');
+        const modifiers = this._gatherModifiersFromForm(formElement);
 
-        // Now get the freshly saved modifiers and add a new one
-        const currentModifiers = this.item.system.persistentModifiers;
-        const modifiers = Array.isArray(currentModifiers) ? foundry.utils.deepClone(currentModifiers) : [];
-
+        // Add new modifier
         modifiers.push({
           targetType: 'attribute',
           target: 'str',
@@ -108,13 +105,11 @@ export class MechFoundryItemSheet extends ItemSheet {
         event.preventDefault();
         event.stopPropagation();
 
-        // First, submit the form to save any pending changes to other modifiers
-        await this.submit({ preventClose: true, preventRender: true });
+        // Gather current form data manually to preserve unsaved changes
+        const formElement = html[0].closest('form');
+        const modifiers = this._gatherModifiersFromForm(formElement);
 
         const index = parseInt(event.currentTarget.dataset.index);
-        const currentModifiers = this.item.system.persistentModifiers;
-        const modifiers = Array.isArray(currentModifiers) ? foundry.utils.deepClone(currentModifiers) : [];
-
         if (index >= 0 && index < modifiers.length) {
           modifiers.splice(index, 1);
           await this.item.update({ 'system.persistentModifiers': modifiers });
@@ -125,14 +120,13 @@ export class MechFoundryItemSheet extends ItemSheet {
       html.on('change', '.modifier-target-type', async (event) => {
         event.stopPropagation();
 
-        // First, submit the form to save any pending changes to other fields
-        await this.submit({ preventClose: true, preventRender: true });
+        // Gather current form data manually to preserve unsaved changes
+        const formElement = html[0].closest('form');
+        const modifiers = this._gatherModifiersFromForm(formElement);
 
         const row = event.currentTarget.closest('.modifier-row');
         const index = parseInt(row.dataset.index);
         const targetType = event.currentTarget.value;
-        const currentModifiers = this.item.system.persistentModifiers;
-        const modifiers = Array.isArray(currentModifiers) ? foundry.utils.deepClone(currentModifiers) : [];
 
         if (index >= 0 && index < modifiers.length) {
           // Set default target based on type
@@ -147,5 +141,33 @@ export class MechFoundryItemSheet extends ItemSheet {
         }
       });
     }
+  }
+
+  /**
+   * Gather modifier data from form inputs to preserve unsaved changes
+   * @param {HTMLElement} formElement The form element
+   * @returns {Array} Array of modifier objects
+   */
+  _gatherModifiersFromForm(formElement) {
+    const modifiers = [];
+    const rows = formElement.querySelectorAll('.modifier-row');
+
+    rows.forEach((row, index) => {
+      const targetTypeSelect = row.querySelector(`[name="system.persistentModifiers.${index}.targetType"]`);
+      const targetInput = row.querySelector(`[name="system.persistentModifiers.${index}.target"]`);
+      const operationSelect = row.querySelector(`[name="system.persistentModifiers.${index}.operation"]`);
+      const valueInput = row.querySelector(`[name="system.persistentModifiers.${index}.value"]`);
+
+      if (targetTypeSelect && targetInput && operationSelect && valueInput) {
+        modifiers.push({
+          targetType: targetTypeSelect.value,
+          target: targetInput.value,
+          operation: operationSelect.value,
+          value: parseFloat(valueInput.value) || 0
+        });
+      }
+    });
+
+    return modifiers;
   }
 }
