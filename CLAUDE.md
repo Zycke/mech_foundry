@@ -6,6 +6,11 @@ This file provides guidance to Claude Code when working with this repository.
 
 **mech_foundry** - A new project to create a new game system for foundry VTT. This system will be based on and heavily influenced by "A Time of War", a tabletop rpg set in the battletech universe.
 
+## Working Guidelines
+
+- **Ask clarifying questions**: When a request or requirement is unclear, ambiguous, or not fully described, ask clarifying questions before proceeding. It's better to confirm intent than to make assumptions that may need to be reworked later.
+- **Reference "A Time of War" rules**: When planning or implementing game mechanics, always refer to the rules from "A Time of War" (the BattleTech tabletop RPG) as the authoritative source. This ensures the system accurately represents the intended gameplay experience and stays true to the source material.
+
 ## Foundry VTT System Development
 
 This project follows Foundry VTT system development conventions. Key documentation:
