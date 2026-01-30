@@ -118,7 +118,17 @@
             data-fatigue="{{attackerDamage.fatigueDamage}}"
             data-subduing="{{attackerDamage.isSubduing}}"
             data-location="{{attackerHitLocation.armorLocation}}">
-      Apply Damage
+      Apply Damage to {{defenderName}}
+    </button>
+    {{else if showDefenderChoice}}
+    {{!-- Hidden button for mutual damage scenario --}}
+    <button class="apply-damage apply-attacker-damage" style="display:none;"
+            data-target-id="{{defenderActorId}}"
+            data-standard="{{attackerArmorCalc.finalDamage}}"
+            data-fatigue="{{attackerDamage.fatigueDamage}}"
+            data-subduing="{{attackerDamage.isSubduing}}"
+            data-location="{{attackerHitLocation.armorLocation}}">
+      Apply Damage to {{defenderName}}
     </button>
     {{/if}}
   </div>
@@ -191,7 +201,17 @@
             data-fatigue="{{defenderDamage.fatigueDamage}}"
             data-subduing="{{defenderDamage.isSubduing}}"
             data-location="{{defenderHitLocation.armorLocation}}">
-      Apply Damage
+      Apply Damage to {{attackerName}}
+    </button>
+    {{else if showDefenderChoice}}
+    {{!-- Hidden button for mutual damage scenario --}}
+    <button class="apply-damage apply-defender-damage" style="display:none;"
+            data-target-id="{{attackerActorId}}"
+            data-standard="{{defenderArmorCalc.finalDamage}}"
+            data-fatigue="{{defenderDamage.fatigueDamage}}"
+            data-subduing="{{defenderDamage.isSubduing}}"
+            data-location="{{defenderHitLocation.armorLocation}}">
+      Apply Damage to {{attackerName}}
     </button>
     {{/if}}
   </div>

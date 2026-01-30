@@ -491,8 +491,11 @@ Hooks.on('renderChatMessage', (message, html, data) => {
 
     // Disable the button and update text
     button.disabled = true;
-    button.textContent = game.i18n.localize('MECHFOUNDRY.DamageApplied') || 'Damage Applied';
+    button.textContent = "Damage Applied";
     button.classList.add('disabled');
+
+    // Show notification of damage applied
+    ui.notifications.info(`Applied ${isSubduing ? fatigueDamage + ' fatigue' : standardDamage + ' standard'} damage to ${target.name}`);
   });
 
   // Defender Choice button handlers (Block vs Mutual Damage)
@@ -522,12 +525,16 @@ Hooks.on('renderChatMessage', (message, html, data) => {
       btn.classList.add('disabled');
     });
 
-    // Update the choice section to show selection
+    // Update the choice section to show selection and reveal damage buttons if mutual
     const choiceSection = html.find('.defender-choice-section');
     if (choice === 'block') {
-      choiceSection.html(`<div class="choice-made">${game.i18n.localize('MECHFOUNDRY.DefenderChoseBlock') || 'Defender chose to block!'}</div>`);
+      choiceSection.html(`<div class="choice-made">Defender chose to block!</div>`);
     } else {
-      choiceSection.html(`<div class="choice-made">${game.i18n.localize('MECHFOUNDRY.DefenderChoseMutual') || 'Defender chose mutual damage!'}</div>`);
+      // Mutual damage - show both Apply Damage buttons
+      choiceSection.html(`<div class="choice-made">Both combatants deal damage!</div>`);
+      // Show the hidden damage application buttons
+      html.find('.apply-attacker-damage').show();
+      html.find('.apply-defender-damage').show();
     }
   });
 });

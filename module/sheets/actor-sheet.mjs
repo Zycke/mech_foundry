@@ -639,7 +639,61 @@ export class MechFoundryActorSheet extends ActorSheet {
     event.preventDefault();
     const element = event.currentTarget;
     const itemId = element.closest('.item').dataset.itemId;
-    return this.actor.rollSkill(itemId);
+    const skill = this.actor.items.get(itemId);
+    if (!skill) return;
+
+    // Check for selected target
+    const target = OpposedRollHelper.getTarget();
+    const hasTarget = !!target;
+    const targetName = target?.name || '';
+
+    // Build target section
+    let targetHtml = '';
+    if (hasTarget) {
+      targetHtml = `
+        <div class="form-group target-info">
+          <label>Target: <strong>${targetName}</strong></label>
+        </div>
+        <hr/>
+      `;
+    }
+
+    const dialogContent = `
+      <form class="skill-roll-dialog">
+        <div class="form-group">
+          <label>Skill: <strong>${skill.name}</strong></label>
+        </div>
+        <div class="form-group">
+          <label>Target Number: <strong>${skill.system.targetNumber || 7}</strong></label>
+        </div>
+        <hr/>
+        ${targetHtml}
+        <div class="form-group">
+          <label>Modifier</label>
+          <input type="number" name="modifier" value="0"/>
+        </div>
+      </form>
+    `;
+
+    new Dialog({
+      title: `${skill.name} Skill Check`,
+      content: dialogContent,
+      buttons: {
+        roll: {
+          icon: '<i class="fas fa-dice"></i>',
+          label: "Roll",
+          callback: async (html) => {
+            const modifier = parseInt(html.find('[name="modifier"]').val()) || 0;
+            await this.actor.rollSkill(itemId, { modifier });
+          }
+        },
+        cancel: {
+          icon: '<i class="fas fa-times"></i>',
+          label: "Cancel"
+        }
+      },
+      default: "roll"
+    }).render(true);
   }
 
   /**
@@ -652,44 +706,81 @@ export class MechFoundryActorSheet extends ActorSheet {
     const element = event.currentTarget;
     const attributeKey = element.dataset.attribute;
 
-    // Check if shift is held for double attribute check
-    if (event.shiftKey) {
-      // Show dialog to select second attribute
-      const attributes = Object.keys(this.actor.system.attributes);
-      const options = attributes
-        .filter(a => a !== attributeKey)
-        .map(a => `<option value="${a}">${a.toUpperCase()}</option>`)
-        .join('');
+    // Check for selected target
+    const target = OpposedRollHelper.getTarget();
+    const hasTarget = !!target;
+    const targetName = target?.name || '';
 
-      const content = `
-        <form>
-          <div class="form-group">
-            <label>Second Attribute</label>
-            <select name="attr2">${options}</select>
-          </div>
-        </form>
+    // Build target section
+    let targetHtml = '';
+    if (hasTarget) {
+      targetHtml = `
+        <div class="form-group target-info">
+          <label>Target: <strong>${targetName}</strong></label>
+        </div>
+        <hr/>
       `;
+    }
 
-      new Dialog({
-        title: "Double Attribute Check",
-        content: content,
-        buttons: {
-          roll: {
-            label: "Roll",
-            callback: (html) => {
-              const attr2 = html.find('[name="attr2"]').val();
-              this.actor.rollAttribute(attributeKey, attr2);
-            }
-          },
-          cancel: {
-            label: "Cancel"
+    // Build attribute options for double check
+    const attributes = Object.keys(this.actor.system.attributes);
+    const attr2Options = attributes
+      .filter(a => a !== attributeKey)
+      .map(a => `<option value="${a}">${a.toUpperCase()}</option>`)
+      .join('');
+
+    const content = `
+      <form class="attribute-roll-dialog">
+        <div class="form-group">
+          <label>Attribute: <strong>${attributeKey.toUpperCase()}</strong></label>
+        </div>
+        <hr/>
+        ${targetHtml}
+        <div class="form-group">
+          <label>
+            <input type="checkbox" name="doubleCheck"/>
+            Double Attribute Check (TN 18)
+          </label>
+        </div>
+        <div class="form-group double-attr-select" style="display: none;">
+          <label>Second Attribute</label>
+          <select name="attr2">${attr2Options}</select>
+        </div>
+        <div class="form-group">
+          <label>Modifier</label>
+          <input type="number" name="modifier" value="0"/>
+        </div>
+      </form>
+    `;
+
+    new Dialog({
+      title: `${attributeKey.toUpperCase()} Attribute Check`,
+      content: content,
+      buttons: {
+        roll: {
+          icon: '<i class="fas fa-dice"></i>',
+          label: "Roll",
+          callback: async (html) => {
+            const modifier = parseInt(html.find('[name="modifier"]').val()) || 0;
+            const isDoubleCheck = html.find('[name="doubleCheck"]').is(':checked');
+            const attr2 = isDoubleCheck ? html.find('[name="attr2"]').val() : null;
+            await this.actor.rollAttribute(attributeKey, attr2, { modifier });
           }
         },
-        default: "roll"
-      }).render(true);
-    } else {
-      return this.actor.rollAttribute(attributeKey);
-    }
+        cancel: {
+          icon: '<i class="fas fa-times"></i>',
+          label: "Cancel"
+        }
+      },
+      default: "roll",
+      render: (html) => {
+        // Toggle second attribute select visibility
+        html.find('[name="doubleCheck"]').on('change', (e) => {
+          const checked = e.currentTarget.checked;
+          html.find('.double-attr-select').toggle(checked);
+        });
+      }
+    }).render(true);
   }
 
   /**
@@ -1387,13 +1478,13 @@ export class MechFoundryActorSheet extends ActorSheet {
     if (hasTarget) {
       targetHtml = `
         <div class="form-group target-info">
-          <label>${game.i18n.localize('MECHFOUNDRY.TargetSelected')}: <strong>${targetName}</strong></label>
+          <label>Target: <strong>${targetName}</strong></label>
         </div>
         ${isMelee ? `
         <div class="form-group opposed-roll-option">
           <label>
             <input type="checkbox" name="opposedRoll" checked/>
-            ${game.i18n.localize('MECHFOUNDRY.OpposedRoll')}
+            Opposed Roll
           </label>
         </div>
         ` : ''}
@@ -1402,7 +1493,7 @@ export class MechFoundryActorSheet extends ActorSheet {
     } else {
       targetHtml = `
         <div class="form-group no-target-hint">
-          <em>${game.i18n.localize('MECHFOUNDRY.SelectTargetForOpposed')}</em>
+          <em>Select a target for opposed rolls</em>
         </div>
         <hr/>
       `;
@@ -1493,7 +1584,8 @@ export class MechFoundryActorSheet extends ActorSheet {
               controlledShots: parseInt(html.find('[name="controlledShots"]').val()) || 2,
               suppressionArea: parseInt(html.find('[name="suppressionArea"]').val()) || 1,
               roundsPerSqm: parseInt(html.find('[name="roundsPerSqm"]').val()) || 1,
-              numTargets: parseInt(html.find('[name="numTargets"]').val()) || 1
+              numTargets: parseInt(html.find('[name="numTargets"]').val()) || 1,
+              target: hasTarget ? target : null
             };
 
             // For melee attacks with target and opposed roll checked, use opposed roll flow
