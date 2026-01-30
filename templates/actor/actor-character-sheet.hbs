@@ -980,7 +980,11 @@
       <div class="bio-header-row">
         <div class="form-group">
           <label>Phenotype</label>
-          <input type="text" name="system.phenotype" value="{{system.phenotype}}" placeholder="e.g., Aerospace, Belter, etc."/>
+          <select class="phenotype-select" name="system.phenotype">
+            {{#each config.phenotypes as |phenotype key|}}
+            <option value="{{key}}" {{#if (eq key ../system.phenotype)}}selected{{/if}}>{{phenotype.label}}</option>
+            {{/each}}
+          </select>
         </div>
       </div>
 
