@@ -200,8 +200,11 @@ export class MechFoundryActorSheet extends ActorSheet {
 
     let totalWeight = 0;
 
+    // Ensure items array exists (defensive check for edge cases)
+    const items = context.items || [];
+
     // Iterate through items, allocating to containers
-    for (let i of context.items) {
+    for (let i of items) {
       i.img = i.img || Item.DEFAULT_ICON;
 
       // Calculate effective skill level (with link modifiers baked in)
@@ -487,7 +490,7 @@ export class MechFoundryActorSheet extends ActorSheet {
     html.on('click', '.item-edit', (ev) => {
       const li = $(ev.currentTarget).parents(".item");
       const item = this.actor.items.get(li.data("itemId"));
-      item.sheet.render(true);
+      if (item) item.sheet.render(true);
     });
 
     // Everything below here is only needed if the sheet is editable
@@ -500,6 +503,7 @@ export class MechFoundryActorSheet extends ActorSheet {
     html.on('click', '.item-delete', (ev) => {
       const li = $(ev.currentTarget).parents(".item");
       const item = this.actor.items.get(li.data("itemId"));
+      if (!item) return;
       item.delete();
       li.slideUp(200, () => this.render(false));
     });
@@ -1635,21 +1639,27 @@ export class MechFoundryActorSheet extends ActorSheet {
    * @override
    */
   async _onDropItem(event, data) {
-    // Check if the user has permission to modify this actor
-    if (!this.actor.isOwner) return false;
+    try {
+      // Check if the user has permission to modify this actor
+      if (!this.actor.isOwner) return false;
 
-    // Retrieve the dropped item
-    const item = await Item.implementation.fromDropData(data);
-    if (!item) return false;
+      // Retrieve the dropped item
+      const item = await Item.implementation.fromDropData(data);
+      if (!item) return false;
 
-    // If the item is from the same actor, just sort it
-    if (this.actor.uuid === item.parent?.uuid) {
-      return this._onSortItem(event, item.toObject());
+      // If the item is from the same actor, just sort it
+      if (this.actor.uuid === item.parent?.uuid) {
+        return this._onSortItem(event, item.toObject());
+      }
+
+      // Otherwise, create a copy of the item on this actor
+      const itemData = item.toObject();
+      return this._onDropItemCreate(itemData);
+    } catch (err) {
+      console.error("Mech Foundry | Error handling item drop:", err);
+      ui.notifications?.error("Failed to drop item. See console for details.");
+      return false;
     }
-
-    // Otherwise, create a copy of the item on this actor
-    const itemData = item.toObject();
-    return this._onDropItemCreate(itemData);
   }
 
   /**
@@ -1659,21 +1669,32 @@ export class MechFoundryActorSheet extends ActorSheet {
    * @override
    */
   async _onDropItemCreate(itemData) {
-    // Ensure itemData is an array
-    const items = Array.isArray(itemData) ? itemData : [itemData];
+    try {
+      // Ensure itemData is an array
+      const items = Array.isArray(itemData) ? itemData : [itemData];
 
-    // Filter out items that cannot be added to this actor
-    const toCreate = [];
-    for (const item of items) {
-      const result = await this._onDropSingleItem(item);
-      if (result) toCreate.push(result);
+      // Filter out items that cannot be added to this actor
+      const toCreate = [];
+      for (const item of items) {
+        const result = await this._onDropSingleItem(item);
+        if (result) toCreate.push(result);
+      }
+
+      // Don't create if nothing to create
+      if (toCreate.length === 0) return [];
+
+      // Create the owned items
+      const created = await this.actor.createEmbeddedDocuments("Item", toCreate);
+
+      // Force a re-render to ensure the sheet updates
+      this.render(false);
+
+      return created;
+    } catch (err) {
+      console.error("Mech Foundry | Error creating dropped item:", err);
+      ui.notifications?.error("Failed to create item. See console for details.");
+      return [];
     }
-
-    // Don't create if nothing to create
-    if (toCreate.length === 0) return [];
-
-    // Create the owned items as normal
-    return this.actor.createEmbeddedDocuments("Item", toCreate);
   }
 
   /**
