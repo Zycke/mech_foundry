@@ -1,5 +1,6 @@
 import { OpposedRollHelper } from '../helpers/opposed-rolls.mjs';
 import { SocketHandler, SOCKET_EVENTS } from '../helpers/socket-handler.mjs';
+import { DiceMechanics } from '../helpers/dice-mechanics.mjs';
 
 /**
  * Extend the base Actor document for Mech Foundry system
@@ -495,15 +496,21 @@ export class MechFoundryActor extends Actor {
     // Extract raw dice results for display
     const diceResults = roll.dice[0].results.map(r => r.result);
 
-    const success = roll.total >= targetNumber;
-    const marginOfSuccess = roll.total - targetNumber;
+    // Check for special roll mechanics (Fumble, Stunning Success, Miraculous Feat)
+    const specialRoll = await DiceMechanics.evaluateSpecialRoll(diceResults);
+    const successInfo = DiceMechanics.determineSuccess(roll.total, targetNumber, specialRoll);
+
+    const success = successInfo.success;
+    const marginOfSuccess = successInfo.mos;
+    const finalTotal = successInfo.finalTotal;
 
     // Create chat message
     const messageContent = await renderTemplate(
       "systems/mech-foundry/templates/chat/skill-roll.hbs",
       {
         skillName: skill.name,
-        total: roll.total,
+        total: finalTotal,
+        rawTotal: roll.total,
         targetNumber: targetNumber,
         success: success,
         marginOfSuccess: marginOfSuccess,
@@ -512,7 +519,9 @@ export class MechFoundryActor extends Actor {
         skillMod: skillLevel + linkMod,
         inputMod: inputMod,
         injuryMod: injuryMod,
-        fatigueMod: fatigueMod
+        fatigueMod: fatigueMod,
+        // Special roll info
+        specialRoll: specialRoll
       }
     );
 
@@ -524,7 +533,7 @@ export class MechFoundryActor extends Actor {
     };
 
     ChatMessage.create(messageData);
-    return { roll, success, marginOfSuccess };
+    return { roll, success, marginOfSuccess, specialRoll };
   }
 
   /**
@@ -662,8 +671,14 @@ export class MechFoundryActor extends Actor {
       await roll.evaluate();
 
       const diceResults = roll.dice[0].results.map(r => r.result);
-      const success = roll.total >= targetNumber;
-      const marginOfSuccess = roll.total - targetNumber;
+
+      // Check for special roll mechanics (Fumble, Stunning Success, Miraculous Feat)
+      const specialRoll = await DiceMechanics.evaluateSpecialRoll(diceResults);
+      const successInfo = DiceMechanics.determineSuccess(roll.total, targetNumber, specialRoll);
+
+      const success = successInfo.success;
+      const marginOfSuccess = successInfo.mos;
+      const finalTotal = successInfo.finalTotal;
 
       // Calculate damage if attack succeeds
       let standardDamage = 0;
@@ -742,7 +757,8 @@ export class MechFoundryActor extends Actor {
 
       results.push({
         roll,
-        total: roll.total,
+        total: finalTotal,
+        rawTotal: roll.total,
         diceResults,
         success,
         marginOfSuccess,
@@ -760,7 +776,9 @@ export class MechFoundryActor extends Actor {
         armorCalc,
         canApplyDamage,
         targetActorId,
-        damageTypeName
+        damageTypeName,
+        // Special roll info
+        specialRoll
       });
     }
 

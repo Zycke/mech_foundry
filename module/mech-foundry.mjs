@@ -20,6 +20,7 @@ import { MechFoundryItemSheet } from "./sheets/item-sheet.mjs";
 import { preloadHandlebarsTemplates } from "./helpers/templates.mjs";
 import { SocketHandler, SOCKET_EVENTS } from "./helpers/socket-handler.mjs";
 import { OpposedRollHelper } from "./helpers/opposed-rolls.mjs";
+import { DiceMechanics } from "./helpers/dice-mechanics.mjs";
 
 /* -------------------------------------------- */
 /*  Init Hook                                   */
@@ -31,6 +32,7 @@ Hooks.once('init', function() {
   // Add custom constants for configuration
   game.mechfoundry = {
     MechFoundryActor,
+    DiceMechanics,
     config: MECHFOUNDRY
   };
 
