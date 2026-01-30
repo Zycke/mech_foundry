@@ -150,6 +150,34 @@ export class MechFoundryItemSheet extends ItemSheet {
     }
   }
 
+  /** @override */
+  async _updateObject(event, formData) {
+    // Handle persistentModifiers - Foundry converts array notation to object with numeric keys
+    // We need to convert it back to a proper array before saving
+    if (this.item.type === 'activeEffect') {
+      const expanded = foundry.utils.expandObject(formData);
+      if (expanded.system?.persistentModifiers && !Array.isArray(expanded.system.persistentModifiers)) {
+        // Convert object with numeric keys to array
+        const modifiersObj = expanded.system.persistentModifiers;
+        const modifiersArray = [];
+        const keys = Object.keys(modifiersObj).sort((a, b) => parseInt(a) - parseInt(b));
+        for (const key of keys) {
+          modifiersArray.push(modifiersObj[key]);
+        }
+        // Update formData with the array
+        // First, delete all the old dot-notation keys
+        for (const key of Object.keys(formData)) {
+          if (key.startsWith('system.persistentModifiers.')) {
+            delete formData[key];
+          }
+        }
+        // Set the array directly
+        formData['system.persistentModifiers'] = modifiersArray;
+      }
+    }
+    return super._updateObject(event, formData);
+  }
+
   /**
    * Gather modifier data from form inputs to preserve unsaved changes
    * @param {HTMLElement} formElement The form element
