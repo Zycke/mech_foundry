@@ -126,6 +126,33 @@ const MECHFOUNDRY = {
     verySmall: -2,
     extremelySmall: -3,
     tiny: -4
+  },
+  // Phenotype configurations (A Time of War p.116)
+  phenotypes: {
+    normal: {
+      label: "Normal Human",
+      modifiers: { str: 0, bod: 0, dex: 0, rfl: 0, int: 0, wil: 0, cha: 0, edg: 0 },
+      maxValues: { str: 8, bod: 8, dex: 8, rfl: 8, int: 8, wil: 8, cha: 9, edg: 9 },
+      bonusTraits: []
+    },
+    aerospace: {
+      label: "Aerospace",
+      modifiers: { str: -1, bod: -1, dex: 2, rfl: 2, int: 0, wil: 0, cha: 0, edg: 0 },
+      maxValues: { str: 7, bod: 7, dex: 9, rfl: 9, int: 9, wil: 8, cha: 8, edg: 8 },
+      bonusTraits: ["G-Tolerance", "Glass Jaw", "Field Aptitude: Clan Fighter Pilot"]
+    },
+    elemental: {
+      label: "Elemental",
+      modifiers: { str: 2, bod: 1, dex: -1, rfl: 0, int: 0, wil: 0, cha: 0, edg: 0 },
+      maxValues: { str: 9, bod: 9, dex: 7, rfl: 8, int: 8, wil: 9, cha: 8, edg: 8 },
+      bonusTraits: ["Toughness", "Field Aptitude: Elemental"]
+    },
+    mechwarrior: {
+      label: "MechWarrior",
+      modifiers: { str: 0, bod: 0, dex: 1, rfl: 1, int: 0, wil: 0, cha: 0, edg: 0 },
+      maxValues: { str: 8, bod: 8, dex: 9, rfl: 9, int: 8, wil: 8, cha: 9, edg: 8 },
+      bonusTraits: ["Field Aptitude: Clan MechWarrior"]
+    }
   }
 };
 
@@ -303,11 +330,11 @@ Hooks.on("preCreateCombatant", async (combatant, data, options, userId) => {
 
 // Initiative tiebreaker by RFL
 Hooks.on("combatStart", (combat) => {
-  // Sort combatants with same initiative by RFL
+  // Sort combatants with same initiative by RFL (using total including modifiers)
   const turns = combat.turns.sort((a, b) => {
     if (a.initiative === b.initiative) {
-      const rflA = a.actor?.system.attributes.rfl?.value || 0;
-      const rflB = b.actor?.system.attributes.rfl?.value || 0;
+      const rflA = a.actor?.system.attributes.rfl?.total || 0;
+      const rflB = b.actor?.system.attributes.rfl?.total || 0;
       return rflB - rflA;
     }
     return b.initiative - a.initiative;

@@ -523,6 +523,9 @@ export class MechFoundryActorSheet extends ActorSheet {
     html.on('click', '.add-entry', this._onAddEntry.bind(this));
     html.on('click', '.remove-entry', this._onRemoveEntry.bind(this));
 
+    // Phenotype selection handler
+    html.on('change', '.phenotype-select', this._onPhenotypeChange.bind(this));
+
     // Drag events for macros
     if (this.actor.isOwner) {
       let handler = (ev) => this._onDragStart(ev);
@@ -1568,5 +1571,44 @@ export class MechFoundryActorSheet extends ActorSheet {
     await this.actor.update({
       [`system.lifeStages.${stage}.modules.${moduleId}.${type}.-=${entryId}`]: null
     });
+  }
+
+  /**
+   * Handle phenotype selection change
+   * Automatically applies attribute modifiers based on selected phenotype
+   * @param {Event} event The change event
+   */
+  async _onPhenotypeChange(event) {
+    event.preventDefault();
+    const phenotypeKey = event.currentTarget.value;
+    const phenotypes = game.mechfoundry?.config?.phenotypes || {};
+    const phenotype = phenotypes[phenotypeKey];
+
+    if (!phenotype) {
+      // If no valid phenotype selected, reset all modifiers to 0
+      const updates = {
+        "system.phenotype": phenotypeKey
+      };
+      for (const attr of ['str', 'bod', 'dex', 'rfl', 'int', 'wil', 'cha', 'edg']) {
+        updates[`system.attributes.${attr}.modifier`] = 0;
+      }
+      await this.actor.update(updates);
+      return;
+    }
+
+    // Apply phenotype modifiers to all attributes
+    const updates = {
+      "system.phenotype": phenotypeKey
+    };
+    for (const [attr, mod] of Object.entries(phenotype.modifiers)) {
+      updates[`system.attributes.${attr}.modifier`] = mod;
+    }
+
+    await this.actor.update(updates);
+
+    // Notify about bonus traits (informational only)
+    if (phenotype.bonusTraits && phenotype.bonusTraits.length > 0) {
+      ui.notifications.info(`${phenotype.label} phenotype includes these traits: ${phenotype.bonusTraits.join(', ')}`);
+    }
   }
 }
