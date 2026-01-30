@@ -2569,3 +2569,88 @@
   gap: 8px;
   cursor: pointer;
 }
+
+/* ----------------------------------------- */
+/* Special Roll Mechanics (Fumble, etc.)     */
+/* ----------------------------------------- */
+
+.mech-foundry .special-roll {
+  padding: 8px 12px;
+  margin-bottom: 8px;
+  border-radius: var(--mf-border-radius);
+  font-weight: bold;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  animation: special-roll-pulse 0.5s ease-out;
+}
+
+@keyframes special-roll-pulse {
+  0% { transform: scale(1.05); opacity: 0.8; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* Fumble - Snake Eyes (both dice show 1) */
+.mech-foundry .special-roll.fumble {
+  background: linear-gradient(135deg, #8b0000, #c44536);
+  color: #fff;
+  border: 2px solid #5a0000;
+  box-shadow: 0 2px 8px rgba(139, 0, 0, 0.4);
+}
+
+/* Stunning Success - Boxcars (both dice show 6) */
+.mech-foundry .special-roll.stunning-success {
+  background: linear-gradient(135deg, #2e8b57, #4a9d4a);
+  color: #fff;
+  border: 2px solid #1a5430;
+  box-shadow: 0 2px 8px rgba(46, 139, 87, 0.4);
+}
+
+/* Miraculous Feat - Stunning Success with 3+ consecutive bonus 6s */
+.mech-foundry .special-roll.miraculous-feat {
+  background: linear-gradient(135deg, #c38154, #ffd700);
+  color: #1a1a1a;
+  border: 2px solid #9a6b43;
+  box-shadow: 0 2px 10px rgba(255, 215, 0, 0.5);
+  animation: miraculous-glow 1s ease-in-out infinite alternate;
+}
+
+@keyframes miraculous-glow {
+  0% { box-shadow: 0 2px 10px rgba(255, 215, 0, 0.5); }
+  100% { box-shadow: 0 4px 20px rgba(255, 215, 0, 0.8); }
+}
+
+.mech-foundry .special-roll .bonus-dice {
+  display: block;
+  font-size: 0.85em;
+  font-weight: normal;
+  text-transform: none;
+  margin-top: 4px;
+  opacity: 0.9;
+}
+
+.mech-foundry.roll-result .roll-raw {
+  font-size: 0.8em;
+  color: #888;
+  font-style: italic;
+  margin-bottom: 4px;
+}
+
+/* Opposed roll special styling */
+.mech-foundry.opposed-roll .special-roll {
+  margin: 4px 0 8px 0;
+  padding: 5px 10px;
+  font-size: 0.9em;
+}
+
+.mech-foundry.opposed-roll .special-roll .bonus-dice {
+  display: inline;
+  margin-left: 5px;
+  font-size: 0.9em;
+}
+
+.mech-foundry.opposed-roll .roll-raw {
+  font-size: 0.8em;
+  color: #888;
+  font-style: italic;
+}

@@ -922,12 +922,19 @@ export class MechFoundryActor extends Actor {
 
     const roll = await new Roll(`2d6 + ${totalMod}`).evaluate();
     const diceResults = roll.dice[0].results.map(r => r.result);
-    const success = roll.total >= targetNumber;
-    const mos = roll.total - targetNumber;
+
+    // Check for special roll mechanics (Fumble, Stunning Success, Miraculous Feat)
+    const specialRoll = await DiceMechanics.evaluateSpecialRoll(diceResults);
+    const successInfo = DiceMechanics.determineSuccess(roll.total, targetNumber, specialRoll);
+
+    const success = successInfo.success;
+    const mos = successInfo.mos;
+    const finalTotal = successInfo.finalTotal;
 
     return {
       roll,
-      total: roll.total,
+      total: finalTotal,
+      rawTotal: roll.total,
       diceResults,
       success,
       mos,
@@ -936,7 +943,8 @@ export class MechFoundryActor extends Actor {
       skillMod,
       inputMod,
       injuryMod,
-      fatigueMod
+      fatigueMod,
+      specialRoll
     };
   }
 
@@ -1105,22 +1113,40 @@ export class MechFoundryActor extends Actor {
     const diceResults = roll.dice[0].results.map(r => r.result);
     const rawDiceTotal = diceResults.reduce((a, b) => a + b, 0);
 
-    const success = roll.total >= targetNumber;
-    const marginOfSuccess = roll.total - targetNumber;
+    // Check for special roll mechanics (Fumble, Stunning Success, Miraculous Feat)
+    const specialRoll = await DiceMechanics.evaluateSpecialRoll(diceResults);
+    const successInfo = DiceMechanics.determineSuccess(roll.total, targetNumber, specialRoll);
+
+    const success = successInfo.success;
+    const marginOfSuccess = successInfo.mos;
+    const finalTotal = successInfo.finalTotal;
+
+    // Build special roll display
+    let specialRollHtml = '';
+    if (specialRoll.isFumble) {
+      specialRollHtml = `<div class="special-roll fumble">${specialRoll.displayText}</div>`;
+    } else if (specialRoll.isStunningSuccess) {
+      const bonusDiceStr = DiceMechanics.formatBonusDice(specialRoll.bonusDice);
+      specialRollHtml = `<div class="special-roll ${specialRoll.isMiraculousFeat ? 'miraculous-feat' : 'stunning-success'}">
+        ${specialRoll.displayText}
+        <span class="bonus-dice">(Bonus: ${bonusDiceStr})</span>
+      </div>`;
+    }
 
     const messageData = {
       speaker: ChatMessage.getSpeaker({ actor: this }),
       flavor: `${checkName} Attribute Check (TN ${targetNumber})`,
       content: `
         <div class="mech-foundry roll-result">
+          ${specialRollHtml}
           <div class="dice-raw">Dice: ${diceResults.join(' + ')} = ${rawDiceTotal}</div>
-          <div class="dice-formula">${rawDiceTotal} ${totalMod >= 0 ? '+' : ''}${totalMod} = ${roll.total}</div>
+          <div class="dice-formula">${rawDiceTotal} ${totalMod >= 0 ? '+' : ''}${totalMod}${specialRoll.bonusTotal ? ` + ${specialRoll.bonusTotal} bonus` : ''} = ${finalTotal}</div>
           <div class="dice-result">
-            <strong>Roll:</strong> ${roll.total}
+            <strong>Roll:</strong> ${finalTotal}
             <span class="target">(Target: ${targetNumber})</span>
           </div>
           <div class="result ${success ? 'success' : 'failure'}">
-            ${success ? 'Success' : 'Failure'}
+            ${success ? 'Success' : 'Failure'}${successInfo.autoResult ? ' (Auto)' : ''}
             <span class="margin">(MoS: ${marginOfSuccess >= 0 ? '+' : ''}${marginOfSuccess})</span>
           </div>
         </div>
@@ -1129,7 +1155,7 @@ export class MechFoundryActor extends Actor {
     };
 
     ChatMessage.create(messageData);
-    return { roll, success, marginOfSuccess };
+    return { roll, success, marginOfSuccess, specialRoll };
   }
 
   /**
@@ -1346,14 +1372,35 @@ export class MechFoundryActor extends Actor {
     let totalMod = wil.linkMod || 0;
     totalMod += this.system.injuryModifier || 0;
     totalMod += this.system.fatigueModifier || 0;
+    const targetNumber = 7;
 
     const roll = new Roll(`2d6 + ${totalMod}`);
     await roll.evaluate();
 
-    const success = roll.total >= 7;
+    // Extract raw dice results for display
+    const diceResults = roll.dice[0].results.map(r => r.result);
+
+    // Check for special roll mechanics (Fumble, Stunning Success, Miraculous Feat)
+    const specialRoll = await DiceMechanics.evaluateSpecialRoll(diceResults);
+    const successInfo = DiceMechanics.determineSuccess(roll.total, targetNumber, specialRoll);
+
+    const success = successInfo.success;
+    const finalTotal = successInfo.finalTotal;
 
     if (!success) {
       await this.update({ "system.unconscious": true });
+    }
+
+    // Build special roll display
+    let specialRollHtml = '';
+    if (specialRoll.isFumble) {
+      specialRollHtml = `<div class="special-roll fumble">${specialRoll.displayText}</div>`;
+    } else if (specialRoll.isStunningSuccess) {
+      const bonusDiceStr = DiceMechanics.formatBonusDice(specialRoll.bonusDice);
+      specialRollHtml = `<div class="special-roll ${specialRoll.isMiraculousFeat ? 'miraculous-feat' : 'stunning-success'}">
+        ${specialRoll.displayText}
+        <span class="bonus-dice">(Bonus: ${bonusDiceStr})</span>
+      </div>`;
     }
 
     ChatMessage.create({
@@ -1361,11 +1408,13 @@ export class MechFoundryActor extends Actor {
       flavor: "Consciousness Check (TN 7)",
       content: `
         <div class="mech-foundry roll-result">
+          ${specialRollHtml}
+          <div class="dice-formula">[${diceResults.join(']+[')}] + ${totalMod}${specialRoll.bonusTotal ? ` + ${specialRoll.bonusTotal} bonus` : ''} = ${finalTotal}</div>
           <div class="dice-result">
-            <strong>Roll:</strong> ${roll.total}
+            <strong>Roll:</strong> ${finalTotal}
           </div>
           <div class="result ${success ? 'success' : 'failure'}">
-            ${success ? 'Remains Conscious!' : 'Falls Unconscious!'}
+            ${success ? 'Remains Conscious!' : 'Falls Unconscious!'}${successInfo.autoResult ? ' (Auto)' : ''}
           </div>
         </div>
       `,

@@ -1,10 +1,26 @@
 <div class="mech-foundry roll-result skill-roll">
   <div class="roll-title">{{skillName}} Skill Check</div>
-  <div class="roll-formula">
-    [{{diceResults.[0]}}]+[{{diceResults.[1]}}] + ({{skillMod}}){{#if inputMod}}{{#if (gte inputMod 0)}} + {{inputMod}}{{else}} - {{abs inputMod}}{{/if}}{{/if}}{{#if injuryMod}}{{#if (gte injuryMod 0)}} + {{injuryMod}}{{else}} - {{abs injuryMod}}{{/if}}{{/if}}{{#if fatigueMod}}{{#if (gte fatigueMod 0)}} + {{fatigueMod}}{{else}} - {{abs fatigueMod}}{{/if}}{{/if}} = {{total}}
+
+  {{!-- Special Roll Display --}}
+  {{#if specialRoll.isFumble}}
+  <div class="special-roll fumble">{{specialRoll.displayText}}</div>
+  {{else if specialRoll.isStunningSuccess}}
+  <div class="special-roll {{#if specialRoll.isMiraculousFeat}}miraculous-feat{{else}}stunning-success{{/if}}">
+    {{specialRoll.displayText}}
+    {{#if specialRoll.bonusDice.length}}
+    <span class="bonus-dice">(Bonus dice: {{#each specialRoll.bonusDice}}+{{this}}{{#unless @last}}, {{/unless}}{{/each}} = +{{specialRoll.bonusTotal}})</span>
+    {{/if}}
   </div>
+  {{/if}}
+
+  <div class="roll-formula">
+    [{{diceResults.[0]}}]+[{{diceResults.[1]}}] + ({{skillMod}}){{#if inputMod}}{{#if (gte inputMod 0)}} + {{inputMod}}{{else}} - {{abs inputMod}}{{/if}}{{/if}}{{#if injuryMod}}{{#if (gte injuryMod 0)}} + {{injuryMod}}{{else}} - {{abs injuryMod}}{{/if}}{{/if}}{{#if fatigueMod}}{{#if (gte fatigueMod 0)}} + {{fatigueMod}}{{else}} - {{abs fatigueMod}}{{/if}}{{/if}}{{#if specialRoll.bonusTotal}} + {{specialRoll.bonusTotal}} bonus{{/if}} = {{total}}
+  </div>
+  {{#if (ne total rawTotal)}}
+  <div class="roll-raw">(Base roll: {{rawTotal}})</div>
+  {{/if}}
   <div class="roll-tn">TN: {{targetNumber}}</div>
   <div class="roll-mos {{#if success}}success{{else}}failure{{/if}}">
-    MoS: {{marginOfSuccess}} [{{#if success}}Success{{else}}Failure{{/if}}]
+    MoS: {{marginOfSuccess}} [{{#if success}}Success{{else}}Failure{{/if}}{{#if specialRoll.isFumble}} (Auto){{else if specialRoll.isMiraculousFeat}} (Auto){{/if}}]
   </div>
 </div>

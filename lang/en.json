@@ -212,5 +212,14 @@
   "MECHFOUNDRY.TargetSelected": "Target",
   "MECHFOUNDRY.DamageApplied": "Damage Applied",
   "MECHFOUNDRY.DefenderChoseBlock": "Defender chose to block!",
-  "MECHFOUNDRY.DefenderChoseMutual": "Defender chose mutual damage!"
+  "MECHFOUNDRY.DefenderChoseMutual": "Defender chose mutual damage!",
+
+  "MECHFOUNDRY.Fumble": "FUMBLE!",
+  "MECHFOUNDRY.FumbleDesc": "Both dice show 1 (snake eyes) - automatic failure!",
+  "MECHFOUNDRY.StunningSuccess": "Stunning Success!",
+  "MECHFOUNDRY.StunningSuccessDesc": "Both dice show 6 (boxcars) - roll extra d6, continue on 6s!",
+  "MECHFOUNDRY.MiraculousFeat": "MIRACULOUS FEAT!",
+  "MECHFOUNDRY.MiraculousFeatDesc": "Three or more consecutive bonus 6s - automatic success!",
+  "MECHFOUNDRY.BonusDice": "Bonus dice",
+  "MECHFOUNDRY.Auto": "Auto"
 }

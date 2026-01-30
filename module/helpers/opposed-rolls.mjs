@@ -4,6 +4,7 @@
  */
 
 import { SocketHandler, SOCKET_EVENTS } from './socket-handler.mjs';
+import { DiceMechanics } from './dice-mechanics.mjs';
 
 export class OpposedRollHelper {
 
@@ -488,20 +489,28 @@ export class OpposedRollHelper {
 
     const roll = await new Roll(`2d6 + ${totalMod}`).evaluate();
     const diceResults = roll.dice[0].results.map(r => r.result);
-    const success = roll.total >= targetNumber;
-    const mos = roll.total - targetNumber;
+
+    // Check for special roll mechanics (Fumble, Stunning Success, Miraculous Feat)
+    const specialRoll = await DiceMechanics.evaluateSpecialRoll(diceResults);
+    const successInfo = DiceMechanics.determineSuccess(roll.total, targetNumber, specialRoll);
+
+    const success = successInfo.success;
+    const mos = successInfo.mos;
+    const finalTotal = successInfo.finalTotal;
 
     return {
       type: 'attribute',
       name: "RFL+DEX Save (TN 18)",
       roll: roll,
-      total: roll.total,
+      total: finalTotal,
+      rawTotal: roll.total,
       targetNumber: targetNumber,
       success: success,
       mos: mos,
       diceResults: diceResults,
       modifier: totalMod,
-      declined: false
+      declined: false,
+      specialRoll: specialRoll
     };
   }
 
@@ -541,15 +550,22 @@ export class OpposedRollHelper {
 
     const roll = await new Roll(`2d6 + ${totalMod}`).evaluate();
     const diceResults = roll.dice[0].results.map(r => r.result);
-    const success = roll.total >= targetNumber;
-    const mos = roll.total - targetNumber;
+
+    // Check for special roll mechanics (Fumble, Stunning Success, Miraculous Feat)
+    const specialRoll = await DiceMechanics.evaluateSpecialRoll(diceResults);
+    const successInfo = DiceMechanics.determineSuccess(roll.total, targetNumber, specialRoll);
+
+    const success = successInfo.success;
+    const mos = successInfo.mos;
+    const finalTotal = successInfo.finalTotal;
 
     return {
       type: 'skill',
       name: skill.name,
       skillId: skillId,
       roll: roll,
-      total: roll.total,
+      total: finalTotal,
+      rawTotal: roll.total,
       targetNumber: targetNumber,
       success: success,
       mos: mos,
@@ -557,7 +573,8 @@ export class OpposedRollHelper {
       modifier: totalMod,
       skillLevel: skillLevel,
       linkMod: linkMod,
-      declined: false
+      declined: false,
+      specialRoll: specialRoll
     };
   }
 

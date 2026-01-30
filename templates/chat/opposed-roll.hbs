@@ -9,12 +9,26 @@
     </div>
     <div class="combatant-weapon">{{attackerWeaponName}}</div>
     <div class="roll-details">
-      <div class="roll-formula">
-        [{{attackerResult.diceResults.[0]}}]+[{{attackerResult.diceResults.[1]}}] + {{attackerResult.modifier}} = {{attackerResult.total}}
+      {{!-- Attacker Special Roll Display --}}
+      {{#if attackerResult.specialRoll.isFumble}}
+      <div class="special-roll fumble">{{attackerResult.specialRoll.displayText}}</div>
+      {{else if attackerResult.specialRoll.isStunningSuccess}}
+      <div class="special-roll {{#if attackerResult.specialRoll.isMiraculousFeat}}miraculous-feat{{else}}stunning-success{{/if}}">
+        {{attackerResult.specialRoll.displayText}}
+        {{#if attackerResult.specialRoll.bonusDice.length}}
+        <span class="bonus-dice">(+{{attackerResult.specialRoll.bonusTotal}})</span>
+        {{/if}}
       </div>
+      {{/if}}
+      <div class="roll-formula">
+        [{{attackerResult.diceResults.[0]}}]+[{{attackerResult.diceResults.[1]}}] + {{attackerResult.modifier}}{{#if attackerResult.specialRoll.bonusTotal}} + {{attackerResult.specialRoll.bonusTotal}} bonus{{/if}} = {{attackerResult.total}}
+      </div>
+      {{#if (ne attackerResult.total attackerResult.rawTotal)}}
+      <div class="roll-raw">(Base roll: {{attackerResult.rawTotal}})</div>
+      {{/if}}
       <div class="roll-tn">TN: {{attackerResult.targetNumber}}</div>
       <div class="roll-mos {{#if attackerResult.success}}success{{else}}failure{{/if}}">
-        MoS: {{attackerResult.mos}} [{{#if attackerResult.success}}Success{{else}}Failure{{/if}}]
+        MoS: {{attackerResult.mos}} [{{#if attackerResult.success}}Success{{else}}Failure{{/if}}{{#if attackerResult.specialRoll.isFumble}} (Auto){{else if attackerResult.specialRoll.isMiraculousFeat}} (Auto){{/if}}]
       </div>
     </div>
   </div>
@@ -35,12 +49,26 @@
     {{else}}
     <div class="combatant-defense">{{defenderResult.name}}</div>
     <div class="roll-details">
-      <div class="roll-formula">
-        [{{defenderResult.diceResults.[0]}}]+[{{defenderResult.diceResults.[1]}}] + {{defenderResult.modifier}} = {{defenderResult.total}}
+      {{!-- Defender Special Roll Display --}}
+      {{#if defenderResult.specialRoll.isFumble}}
+      <div class="special-roll fumble">{{defenderResult.specialRoll.displayText}}</div>
+      {{else if defenderResult.specialRoll.isStunningSuccess}}
+      <div class="special-roll {{#if defenderResult.specialRoll.isMiraculousFeat}}miraculous-feat{{else}}stunning-success{{/if}}">
+        {{defenderResult.specialRoll.displayText}}
+        {{#if defenderResult.specialRoll.bonusDice.length}}
+        <span class="bonus-dice">(+{{defenderResult.specialRoll.bonusTotal}})</span>
+        {{/if}}
       </div>
+      {{/if}}
+      <div class="roll-formula">
+        [{{defenderResult.diceResults.[0]}}]+[{{defenderResult.diceResults.[1]}}] + {{defenderResult.modifier}}{{#if defenderResult.specialRoll.bonusTotal}} + {{defenderResult.specialRoll.bonusTotal}} bonus{{/if}} = {{defenderResult.total}}
+      </div>
+      {{#if (ne defenderResult.total defenderResult.rawTotal)}}
+      <div class="roll-raw">(Base roll: {{defenderResult.rawTotal}})</div>
+      {{/if}}
       <div class="roll-tn">TN: {{defenderResult.targetNumber}}</div>
       <div class="roll-mos {{#if defenderResult.success}}success{{else}}failure{{/if}}">
-        MoS: {{defenderResult.mos}} [{{#if defenderResult.success}}Success{{else}}Failure{{/if}}]
+        MoS: {{defenderResult.mos}} [{{#if defenderResult.success}}Success{{else}}Failure{{/if}}{{#if defenderResult.specialRoll.isFumble}} (Auto){{else if defenderResult.specialRoll.isMiraculousFeat}} (Auto){{/if}}]
       </div>
     </div>
     {{/if}}
