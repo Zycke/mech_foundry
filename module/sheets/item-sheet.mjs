@@ -10,7 +10,7 @@ export class MechFoundryItemSheet extends ItemSheet {
       classes: ["mech-foundry", "sheet", "item"],
       width: 520,
       height: 480,
-      tabs: [{ navSelector: ".sheet-tabs", contentSelector: ".sheet-body", initial: "description" }]
+      tabs: [{ navSelector: ".sheet-tabs", contentSelector: ".sheet-body", initial: "details" }]
     });
   }
 
@@ -83,41 +83,58 @@ export class MechFoundryItemSheet extends ItemSheet {
       // Add modifier button
       html.on('click', '.add-modifier', async (event) => {
         event.preventDefault();
-        const modifiers = foundry.utils.deepClone(this.item.system.persistentModifiers || []);
+        event.stopPropagation();
+
+        // Ensure persistentModifiers exists as an array
+        const currentModifiers = this.item.system.persistentModifiers;
+        const modifiers = Array.isArray(currentModifiers) ? foundry.utils.deepClone(currentModifiers) : [];
+
         modifiers.push({
           targetType: 'attribute',
           target: 'str',
           operation: 'add',
           value: 0
         });
+
         await this.item.update({ 'system.persistentModifiers': modifiers });
       });
 
       // Remove modifier button
       html.on('click', '.remove-modifier', async (event) => {
         event.preventDefault();
+        event.stopPropagation();
+
         const index = parseInt(event.currentTarget.dataset.index);
-        const modifiers = foundry.utils.deepClone(this.item.system.persistentModifiers || []);
-        modifiers.splice(index, 1);
-        await this.item.update({ 'system.persistentModifiers': modifiers });
+        const currentModifiers = this.item.system.persistentModifiers;
+        const modifiers = Array.isArray(currentModifiers) ? foundry.utils.deepClone(currentModifiers) : [];
+
+        if (index >= 0 && index < modifiers.length) {
+          modifiers.splice(index, 1);
+          await this.item.update({ 'system.persistentModifiers': modifiers });
+        }
       });
 
       // Target type change - update target field accordingly
       html.on('change', '.modifier-target-type', async (event) => {
+        event.stopPropagation();
+
         const row = event.currentTarget.closest('.modifier-row');
         const index = parseInt(row.dataset.index);
         const targetType = event.currentTarget.value;
-        const modifiers = foundry.utils.deepClone(this.item.system.persistentModifiers || []);
+        const currentModifiers = this.item.system.persistentModifiers;
+        const modifiers = Array.isArray(currentModifiers) ? foundry.utils.deepClone(currentModifiers) : [];
 
-        // Set default target based on type
-        let defaultTarget = '';
-        if (targetType === 'attribute') defaultTarget = 'str';
-        else if (targetType === 'movement') defaultTarget = 'walk';
-        else defaultTarget = ''; // skill - user enters name
+        if (index >= 0 && index < modifiers.length) {
+          // Set default target based on type
+          let defaultTarget = '';
+          if (targetType === 'attribute') defaultTarget = 'str';
+          else if (targetType === 'movement') defaultTarget = 'walk';
+          else defaultTarget = ''; // skill - user enters name
 
-        modifiers[index].targetType = targetType;
-        modifiers[index].target = defaultTarget;
-        await this.item.update({ 'system.persistentModifiers': modifiers });
+          modifiers[index].targetType = targetType;
+          modifiers[index].target = defaultTarget;
+          await this.item.update({ 'system.persistentModifiers': modifiers });
+        }
       });
     }
   }
