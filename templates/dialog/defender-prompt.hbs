@@ -1,10 +1,10 @@
 <form class="mech-foundry defender-prompt-dialog">
   <div class="attack-warning">
-    <p><strong>{{attackerName}}</strong> {{localize "MECHFOUNDRY.IsAttackingYouWith"}} <strong>{{weaponName}}</strong>!</p>
+    <p><strong>{{attackerName}}</strong> is attacking you with <strong>{{weaponName}}</strong>!</p>
   </div>
 
   <div class="form-group">
-    <label>{{localize "MECHFOUNDRY.ChooseDefense"}}</label>
+    <label>Choose Defense</label>
   </div>
 
   <div class="defense-options">
@@ -21,7 +21,7 @@
         <span class="option-total">(+{{this.total}})</span>
         {{/if}}
         {{#if (eq this.type "decline")}}
-        <span class="option-warning">({{localize "MECHFOUNDRY.AutoFailMoS"}} -3)</span>
+        <span class="option-warning">(Auto-fail MoS -3)</span>
         {{/if}}
       </label>
     </div>
@@ -31,7 +31,7 @@
   <hr/>
 
   <div class="form-group">
-    <label>{{localize "MECHFOUNDRY.AdditionalModifier"}}</label>
+    <label>Additional Modifiers</label>
     <input type="number" name="modifier" value="0"/>
   </div>
 </form>

@@ -64,7 +64,7 @@ export class OpposedRollHelper {
     const dex = actor.system.attributes.dex?.total || 0;
     options.push({
       id: 'attribute',
-      name: game.i18n.localize('MECHFOUNDRY.AttributeCheckRFLDEX'),
+      name: "RFL+DEX Save (TN 18)",
       type: 'attribute',
       attrs: ['rfl', 'dex'],
       total: rfl + dex
@@ -73,7 +73,7 @@ export class OpposedRollHelper {
     // Option to decline defense
     options.push({
       id: 'decline',
-      name: game.i18n.localize('MECHFOUNDRY.DoNotDefend'),
+      name: "Do Not Defend",
       type: 'decline'
     });
 
@@ -124,7 +124,7 @@ export class OpposedRollHelper {
       // Tie goes to defender
       if (attackerMoS === defenderMoS) {
         result.outcome = "tie";
-        result.description = game.i18n.localize('MECHFOUNDRY.OpposedTie');
+        result.description = "Tie - Defender blocks the attack!";
         return result;
       }
 
@@ -132,7 +132,7 @@ export class OpposedRollHelper {
       if (attackerMoS > defenderMoS) {
         result.outcome = "attacker_hits";
         result.attackerDealsDefenderDamage = true;
-        result.description = game.i18n.localize('MECHFOUNDRY.OpposedAttackerHits');
+        result.description = "Attacker lands the blow!";
         return result;
       }
 
@@ -140,7 +140,7 @@ export class OpposedRollHelper {
       if (defenderMoS > attackerMoS) {
         result.outcome = "defender_choice";
         result.defenderChoice = true;
-        result.description = game.i18n.localize('MECHFOUNDRY.OpposedDefenderChoice');
+        result.description = "Defender has the advantage - choose to block or counter-attack!";
         return result;
       }
     }
@@ -149,7 +149,7 @@ export class OpposedRollHelper {
     if (attackerSuccess && !defenderSuccess) {
       result.outcome = "attacker_hits";
       result.attackerDealsDefenderDamage = true;
-      result.description = game.i18n.localize('MECHFOUNDRY.OpposedAttackerHits');
+      result.description = "Attacker lands the blow!";
       return result;
     }
 
@@ -157,14 +157,14 @@ export class OpposedRollHelper {
     if (!attackerSuccess && defenderSuccess) {
       result.outcome = "counterstrike";
       result.defenderDealsAttackerDamage = true;
-      result.description = game.i18n.localize('MECHFOUNDRY.OpposedCounterstrike');
+      result.description = "Defender counterstrikes!";
       return result;
     }
 
     // Both fail - mutual miss
     if (!attackerSuccess && !defenderSuccess) {
       result.outcome = "mutual_miss";
-      result.description = game.i18n.localize('MECHFOUNDRY.OpposedMutualMiss');
+      result.description = "Both combatants miss.";
       return result;
     }
 
@@ -183,19 +183,19 @@ export class OpposedRollHelper {
 
     if (total <= 2) {
       location = "head";
-      displayLocation = game.i18n.localize('MECHFOUNDRY.HitLocation.Head');
+      displayLocation = "Head";
       armorLocation = "head";
     } else if (total === 3) {
       location = "leftFoot";
-      displayLocation = game.i18n.localize('MECHFOUNDRY.HitLocation.LeftFoot');
+      displayLocation = "Left Foot";
       armorLocation = "legs";
     } else if (total === 4) {
       location = "leftHand";
-      displayLocation = game.i18n.localize('MECHFOUNDRY.HitLocation.LeftHand');
+      displayLocation = "Left Hand";
       armorLocation = "arms";
     } else if (total === 5) {
       location = "leftArm";
-      displayLocation = game.i18n.localize('MECHFOUNDRY.HitLocation.LeftArm');
+      displayLocation = "Left Arm";
       armorLocation = "arms";
     } else if (total === 6 || total === 8) {
       // Torso - roll 1d6 for chest vs abdomen
@@ -203,31 +203,31 @@ export class OpposedRollHelper {
       subRoll = torsoRoll.total;
       if (torsoRoll.total <= 4) {
         location = "chest";
-        displayLocation = game.i18n.localize('MECHFOUNDRY.HitLocation.Chest');
+        displayLocation = "Chest";
       } else {
         location = "abdomen";
-        displayLocation = game.i18n.localize('MECHFOUNDRY.HitLocation.Abdomen');
+        displayLocation = "Abdomen";
       }
       armorLocation = "torso";
     } else if (total === 7) {
       location = "legs";
-      displayLocation = game.i18n.localize('MECHFOUNDRY.HitLocation.Legs');
+      displayLocation = "Legs";
       armorLocation = "legs";
     } else if (total === 9) {
       location = "rightArm";
-      displayLocation = game.i18n.localize('MECHFOUNDRY.HitLocation.RightArm');
+      displayLocation = "Right Arm";
       armorLocation = "arms";
     } else if (total === 10) {
       location = "rightHand";
-      displayLocation = game.i18n.localize('MECHFOUNDRY.HitLocation.RightHand');
+      displayLocation = "Right Hand";
       armorLocation = "arms";
     } else if (total === 11) {
       location = "rightFoot";
-      displayLocation = game.i18n.localize('MECHFOUNDRY.HitLocation.RightFoot');
+      displayLocation = "Right Foot";
       armorLocation = "legs";
     } else { // 12+
       location = "head";
-      displayLocation = game.i18n.localize('MECHFOUNDRY.HitLocation.Head');
+      displayLocation = "Head";
       armorLocation = "head";
     }
 
@@ -334,7 +334,7 @@ export class OpposedRollHelper {
       apFactor,
       damageType,
       isSubduing,
-      weaponName: weapon?.name || game.i18n.localize('MECHFOUNDRY.Unarmed')
+      weaponName: weapon?.name || "Unarmed"
     };
   }
 
@@ -369,42 +369,64 @@ export class OpposedRollHelper {
       "systems/mech-foundry/templates/dialog/defender-prompt.hbs",
       {
         attackerName: data.attackerName,
-        weaponName: data.weaponName || game.i18n.localize('MECHFOUNDRY.MeleeAttack'),
+        weaponName: data.weaponName || "Melee Attack",
         options: options
       }
     );
 
+    // Store reference to options for use in callback
+    const defenseOptions = options;
+    const helper = this;
+
     return new Promise((resolve) => {
+      let resolved = false;
+
       const dialog = new Dialog({
-        title: game.i18n.localize('MECHFOUNDRY.DefendAgainstAttack'),
+        title: "Defend Against Attack",
         content: content,
         buttons: {
           defend: {
             icon: '<i class="fas fa-shield-alt"></i>',
-            label: game.i18n.localize('MECHFOUNDRY.Defend'),
+            label: "Defend",
             callback: async (html) => {
-              // Try multiple selectors to find the checked radio button
-              let selectedOption = html.find('input[name="defenseOption"]:checked').val();
+              if (resolved) return;
+              resolved = true;
 
-              // Fallback: if jQuery selector didn't work, try vanilla JS
+              // Get the form element - html is a jQuery object wrapping the dialog content
+              const formElement = html[0].querySelector('form.defender-prompt-dialog');
+
+              let selectedOption = null;
+              let modifier = 0;
+
+              if (formElement) {
+                // Use FormData to extract values
+                const formData = new FormData(formElement);
+                selectedOption = formData.get('defenseOption');
+                modifier = parseInt(formData.get('modifier')) || 0;
+              }
+
+              // Fallback: try direct query
               if (!selectedOption) {
-                const form = html[0].querySelector('form') || html[0];
-                const checked = form.querySelector('input[name="defenseOption"]:checked');
+                const checked = html[0].querySelector('input[name="defenseOption"]:checked');
                 selectedOption = checked?.value;
               }
 
-              // If still no selection, default to first option (not decline)
-              if (!selectedOption && options.length > 0) {
-                selectedOption = options[0].id;
+              // Fallback: try jQuery on entire html
+              if (!selectedOption) {
+                selectedOption = html.find('input[name="defenseOption"]:checked').val();
               }
 
-              const modifier = parseInt(html.find('[name="modifier"]').val()) || 0;
+              // Final fallback: use first non-decline option
+              if (!selectedOption && defenseOptions.length > 0) {
+                const firstNonDecline = defenseOptions.find(o => o.type !== 'decline');
+                selectedOption = firstNonDecline ? firstNonDecline.id : defenseOptions[0].id;
+              }
 
-              const defenseResult = await this._makeDefenseRoll(
+              const defenseResult = await helper._makeDefenseRoll(
                 actor,
                 selectedOption,
                 modifier,
-                options
+                defenseOptions
               );
 
               resolve(defenseResult);
@@ -413,8 +435,11 @@ export class OpposedRollHelper {
         },
         default: "defend",
         close: () => {
-          // If closed without action, treat as declined
-          resolve({ declined: true, mos: -3, success: false });
+          // If closed without clicking button, treat as declined
+          if (!resolved) {
+            resolved = true;
+            resolve({ declined: true, mos: -3, success: false });
+          }
         }
       }, { width: 400 });
 
@@ -468,7 +493,7 @@ export class OpposedRollHelper {
 
     return {
       type: 'attribute',
-      name: game.i18n.localize('MECHFOUNDRY.AttributeCheckRFLDEX'),
+      name: "RFL+DEX Save (TN 18)",
       roll: roll,
       total: roll.total,
       targetNumber: targetNumber,
@@ -551,10 +576,10 @@ export class OpposedRollHelper {
    */
   static getDamageTypeName(damageType) {
     const types = {
-      'm': game.i18n.localize('MECHFOUNDRY.DamageType.Melee'),
-      'b': game.i18n.localize('MECHFOUNDRY.DamageType.Ballistic'),
-      'e': game.i18n.localize('MECHFOUNDRY.DamageType.Energy'),
-      'x': game.i18n.localize('MECHFOUNDRY.DamageType.Explosive')
+      'm': "Melee",
+      'b': "Ballistic",
+      'e': "Energy",
+      'x': "Explosive"
     };
     return types[damageType] || damageType.toUpperCase();
   }
