@@ -138,13 +138,13 @@ const MECHFOUNDRY = {
     aerospace: {
       label: "Aerospace",
       modifiers: { str: -1, bod: -1, dex: 2, rfl: 2, int: 0, wil: 0, cha: 0, edg: 0 },
-      maxValues: { str: 7, bod: 7, dex: 9, rfl: 9, int: 9, wil: 8, cha: 8, edg: 8 },
+      maxValues: { str: 7, bod: 7, dex: 9, rfl: 9, int: 8, wil: 8, cha: 9, edg: 8 },
       bonusTraits: ["G-Tolerance", "Glass Jaw", "Field Aptitude: Clan Fighter Pilot"]
     },
     elemental: {
       label: "Elemental",
-      modifiers: { str: 2, bod: 1, dex: -1, rfl: 0, int: 0, wil: 0, cha: 0, edg: 0 },
-      maxValues: { str: 9, bod: 9, dex: 7, rfl: 8, int: 8, wil: 9, cha: 8, edg: 8 },
+      modifiers: { str: 2, bod: 1, dex: -1, rfl: 0, int: 1, wil: 0, cha: 0, edg: 0 },
+      maxValues: { str: 9, bod: 9, dex: 7, rfl: 8, int: 9, wil: 8, cha: 9, edg: 8 },
       bonusTraits: ["Toughness", "Field Aptitude: Elemental"]
     },
     mechwarrior: {
