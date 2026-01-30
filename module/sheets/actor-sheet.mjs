@@ -564,10 +564,16 @@ export class MechFoundryActorSheet extends ActorSheet {
     // Drag events for macros
     if (this.actor.isOwner) {
       let handler = (ev) => this._onDragStart(ev);
+      // Handle li.item elements (skills, traits, inventory items)
       html.find('li.item').each((i, li) => {
         if (li.classList.contains("inventory-header")) return;
         li.setAttribute("draggable", true);
         li.addEventListener("dragstart", handler, false);
+      });
+      // Handle tr.item elements (active effects in conditions table)
+      html.find('tr.item').each((i, tr) => {
+        tr.setAttribute("draggable", true);
+        tr.addEventListener("dragstart", handler, false);
       });
     }
   }
@@ -1620,6 +1626,50 @@ export class MechFoundryActorSheet extends ActorSheet {
     if (!item) return;
 
     await item.update({ "system.active": checkbox.checked });
+  }
+
+  /**
+   * Handle dropping of Item data onto the Actor sheet
+   * @param {DragEvent} event The concluding drag event
+   * @param {Object} data The dropped data transfer
+   * @override
+   */
+  async _onDropItemCreate(itemData) {
+    // Ensure itemData is an array
+    const items = Array.isArray(itemData) ? itemData : [itemData];
+
+    // Filter out items that cannot be added to this actor
+    const toCreate = [];
+    for (const item of items) {
+      const result = await this._onDropSingleItem(item);
+      if (result) toCreate.push(result);
+    }
+
+    // Create the owned items as normal
+    return this.actor.createEmbeddedDocuments("Item", toCreate);
+  }
+
+  /**
+   * Process a single dropped item and prepare it for creation
+   * @param {Object} itemData The item data being dropped
+   * @returns {Object|null} The processed item data or null if it should be rejected
+   * @private
+   */
+  async _onDropSingleItem(itemData) {
+    // Clone the item data to avoid modifying the original
+    const item = foundry.utils.deepClone(itemData);
+
+    // For activeEffect items dropped from compendiums or other actors, ensure defaults
+    if (item.type === 'activeEffect') {
+      // Set default values if not present
+      item.system = item.system || {};
+      item.system.active = item.system.active ?? true;
+      item.system.effectType = item.system.effectType || 'persistent';
+      item.system.continuousDamage = item.system.continuousDamage || { standardDamage: 0, fatigueDamage: 0 };
+      item.system.persistentModifiers = item.system.persistentModifiers || [];
+    }
+
+    return item;
   }
 
   /**

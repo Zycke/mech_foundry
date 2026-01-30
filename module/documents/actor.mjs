@@ -959,6 +959,75 @@ export class MechFoundryActor extends Actor {
   }
 
   /**
+   * Apply standard damage to this actor (used by active effects)
+   * @param {number} amount Amount of standard damage to apply
+   * @returns {Object} Result with newDamage value and any triggered conditions
+   */
+  async applyStandardDamage(amount) {
+    if (amount <= 0) return { newDamage: this.system.damage?.value || 0, died: false };
+
+    const currentDamage = this.system.damage?.value || 0;
+    const maxDamage = this.system.damageCapacity || 10;
+    const newDamage = Math.min(currentDamage + amount, maxDamage);
+
+    await this.update({
+      "system.damage.value": newDamage
+    });
+
+    // Check for death
+    const died = newDamage >= maxDamage;
+    if (died) {
+      ui.notifications.error(`${this.name} has died!`);
+    }
+
+    return { newDamage, died };
+  }
+
+  /**
+   * Apply fatigue damage to this actor (used by active effects)
+   * @param {number} amount Amount of fatigue damage to apply
+   * @returns {Object} Result with newFatigue value and any triggered conditions
+   */
+  async applyFatigueDamage(amount) {
+    if (amount <= 0) return { newFatigue: this.system.fatigue?.value || 0, unconscious: false, excessDamage: 0 };
+
+    const currentFatigue = this.system.fatigue?.value || 0;
+    const maxFatigue = this.system.fatigueCapacity || 10;
+    const newFatigue = Math.min(currentFatigue + amount, maxFatigue);
+
+    await this.update({
+      "system.fatigue.value": newFatigue
+    });
+
+    // Check for unconsciousness
+    let unconscious = false;
+    let excessDamage = 0;
+
+    if (newFatigue >= maxFatigue) {
+      unconscious = true;
+      ui.notifications.warn(`${this.name} has fallen unconscious!`);
+      await this.update({ "system.unconscious": true });
+
+      // Calculate excess fatigue that becomes standard damage
+      excessDamage = (currentFatigue + amount) - maxFatigue;
+      if (excessDamage > 0) {
+        const currentDamage = this.system.damage?.value || 0;
+        const maxDamage = this.system.damageCapacity || 10;
+        const newDamage = Math.min(currentDamage + excessDamage, maxDamage);
+        await this.update({
+          "system.damage.value": newDamage
+        });
+
+        if (newDamage >= maxDamage) {
+          ui.notifications.error(`${this.name} has died from excess fatigue!`);
+        }
+      }
+    }
+
+    return { newFatigue, unconscious, excessDamage };
+  }
+
+  /**
    * Roll consciousness check (TN 7)
    */
   async rollConsciousness() {
