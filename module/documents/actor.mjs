@@ -279,6 +279,9 @@ export class MechFoundryActor extends Actor {
       i.system.effectType === 'persistent'
     );
 
+    // Collect modifiers by target, separating additive and multiplicative
+    const modifiersByTarget = {};
+
     for (const effect of activeEffects) {
       const modifiers = effect.system.persistentModifiers || [];
       for (const mod of modifiers) {
@@ -286,30 +289,60 @@ export class MechFoundryActor extends Actor {
 
         const target = mod.target;
         const value = mod.value || 0;
+        const operation = mod.operation || 'add';
 
-        if (targetType === 'attribute' && systemData.attributes[target]) {
-          // Apply modifier to attribute total (after base calculation)
-          systemData.attributes[target].total += value;
-          // Track effect modifier separately for display
-          if (!systemData.attributes[target].effectMod) {
-            systemData.attributes[target].effectMod = 0;
-          }
-          systemData.attributes[target].effectMod += value;
-        } else if (targetType === 'movement' && systemData.movement && systemData.movement[target] !== undefined) {
-          // Apply modifier to movement value
-          systemData.movement[target] += value;
-          // Ensure movement doesn't go below 0
-          if (systemData.movement[target] < 0) {
-            systemData.movement[target] = 0;
-          }
+        if (!modifiersByTarget[target]) {
+          modifiersByTarget[target] = { additive: [], multiplicative: [] };
         }
+
+        if (operation === 'multiply') {
+          modifiersByTarget[target].multiplicative.push(value);
+        } else {
+          modifiersByTarget[target].additive.push(value);
+        }
+      }
+    }
+
+    // Apply modifiers: additive first, then multiplicative
+    for (const [target, mods] of Object.entries(modifiersByTarget)) {
+      if (targetType === 'attribute' && systemData.attributes[target]) {
+        // Apply additive modifiers first
+        let totalAdditive = mods.additive.reduce((sum, v) => sum + v, 0);
+        systemData.attributes[target].total += totalAdditive;
+
+        // Track effect modifier separately for display
+        if (!systemData.attributes[target].effectMod) {
+          systemData.attributes[target].effectMod = 0;
+        }
+        systemData.attributes[target].effectMod += totalAdditive;
+
+        // Apply multiplicative modifiers (multiply sequentially)
+        for (const multiplier of mods.multiplicative) {
+          systemData.attributes[target].total *= multiplier;
+        }
+
+        // Round to integer
+        systemData.attributes[target].total = Math.round(systemData.attributes[target].total);
+
+      } else if (targetType === 'movement' && systemData.movement && systemData.movement[target] !== undefined) {
+        // Apply additive modifiers first
+        let totalAdditive = mods.additive.reduce((sum, v) => sum + v, 0);
+        systemData.movement[target] += totalAdditive;
+
+        // Apply multiplicative modifiers (multiply sequentially)
+        for (const multiplier of mods.multiplicative) {
+          systemData.movement[target] *= multiplier;
+        }
+
+        // Round to integer and ensure movement doesn't go below 0
+        systemData.movement[target] = Math.max(0, Math.round(systemData.movement[target]));
       }
     }
   }
 
   /**
    * Get active skill modifiers from persistent effects
-   * @returns {Object} Map of skill name to total modifier
+   * @returns {Object} Map of skill name to modifier object with additive and multiplicative arrays
    */
   _getActiveSkillModifiers() {
     const skillModifiers = {};
@@ -328,11 +361,17 @@ export class MechFoundryActor extends Actor {
 
         const skillName = mod.target.toLowerCase();
         const value = mod.value || 0;
+        const operation = mod.operation || 'add';
 
         if (!skillModifiers[skillName]) {
-          skillModifiers[skillName] = 0;
+          skillModifiers[skillName] = { additive: 0, multiplicative: [] };
         }
-        skillModifiers[skillName] += value;
+
+        if (operation === 'multiply') {
+          skillModifiers[skillName].multiplicative.push(value);
+        } else {
+          skillModifiers[skillName].additive += value;
+        }
       }
     }
 
@@ -421,7 +460,21 @@ export class MechFoundryActor extends Actor {
 
     // Get active effect skill modifiers
     const activeSkillMods = this.system.activeSkillModifiers || {};
-    const effectMod = activeSkillMods[skill.name.toLowerCase()] || 0;
+    const skillModData = activeSkillMods[skill.name.toLowerCase()];
+    let effectMod = 0;
+    if (skillModData) {
+      // Apply additive modifiers
+      effectMod = skillModData.additive || 0;
+      // Apply multiplicative modifiers to skill level (if any)
+      if (skillModData.multiplicative && skillModData.multiplicative.length > 0) {
+        let modifiedSkillLevel = skillLevel;
+        for (const multiplier of skillModData.multiplicative) {
+          modifiedSkillLevel *= multiplier;
+        }
+        // Adjust effectMod to account for the skill level change
+        effectMod += Math.round(modifiedSkillLevel) - skillLevel;
+      }
+    }
 
     // Calculate total modifier
     const totalMod = skillLevel + linkMod + injuryMod + fatigueMod + inputMod + effectMod;

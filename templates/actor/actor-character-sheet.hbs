@@ -999,7 +999,7 @@
             </thead>
             <tbody>
               {{#each activeEffects}}
-              <li class="item effect-row {{#unless this.system.active}}inactive{{/unless}}" data-item-id="{{this._id}}">
+              <tr class="item effect-row {{#unless this.system.active}}inactive{{/unless}}" data-item-id="{{this._id}}">
                 <td class="effect-active">
                   <input type="checkbox" class="effect-toggle" data-item-id="{{this._id}}" {{#if this.system.active}}checked{{/if}} title="Toggle Active"/>
                 </td>
@@ -1025,10 +1025,10 @@
                   {{/if}}
                 </td>
                 <td class="effect-controls">
-                  <a class="item-edit" title="Edit"><i class="fas fa-edit"></i></a>
-                  <a class="item-delete" title="Delete"><i class="fas fa-trash"></i></a>
+                  <a class="item-edit" data-item-id="{{this._id}}" title="Edit"><i class="fas fa-edit"></i></a>
+                  <a class="item-delete" data-item-id="{{this._id}}" title="Delete"><i class="fas fa-trash"></i></a>
                 </td>
-              </li>
+              </tr>
               {{/each}}
             </tbody>
           </table>
@@ -1045,8 +1045,8 @@
             {{#each activeModifiersSummary}}
             <li>
               <span class="modifier-target">{{this.target}}</span>
-              <span class="modifier-value {{#if (lt this.value 0)}}negative{{else}}positive{{/if}}">
-                {{formatMod this.value}}
+              <span class="modifier-value {{#if this.isMultiplicative}}multiplicative{{else if (lt this.value 0)}}negative{{else}}positive{{/if}}">
+                {{#if this.isMultiplicative}}×{{this.value}}{{else}}{{formatMod this.value}}{{/if}}
               </span>
               <span class="modifier-source">({{this.source}})</span>
             </li>

@@ -353,11 +353,13 @@ export class MechFoundryActorSheet extends ActorSheet {
           } else if (mod.targetType === 'movement') {
             targetLabel = mod.target.charAt(0).toUpperCase() + mod.target.slice(1);
           }
+          const isMultiplicative = mod.operation === 'multiply';
           activeModifiersSummary.push({
             target: targetLabel,
             value: mod.value,
             source: effect.name,
-            targetType: mod.targetType
+            targetType: mod.targetType,
+            isMultiplicative: isMultiplicative
           });
         }
       }
