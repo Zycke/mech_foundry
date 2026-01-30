@@ -2171,3 +2171,401 @@
 .mech-foundry.continuous-damage em {
   color: #666;
 }
+
+/* ----------------------------------------- */
+/* Opposed Roll Chat Message                  */
+/* ----------------------------------------- */
+
+.mech-foundry.opposed-roll {
+  padding: 10px;
+  background: var(--mf-bg-light);
+  border-radius: var(--mf-border-radius);
+}
+
+.mech-foundry.opposed-roll .roll-title {
+  font-size: 1.1em;
+  font-weight: bold;
+  color: var(--mf-primary);
+  margin-bottom: 10px;
+  padding-bottom: 5px;
+  border-bottom: 2px solid var(--mf-primary);
+}
+
+.mech-foundry.opposed-roll .combatant {
+  padding: 8px;
+  margin-bottom: 5px;
+  border-radius: var(--mf-border-radius);
+  background: rgba(26, 95, 122, 0.05);
+}
+
+.mech-foundry.opposed-roll .combatant.attacker {
+  border-left: 3px solid var(--mf-danger);
+}
+
+.mech-foundry.opposed-roll .combatant.defender {
+  border-left: 3px solid var(--mf-primary);
+}
+
+.mech-foundry.opposed-roll .combatant-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 5px;
+}
+
+.mech-foundry.opposed-roll .combatant-name {
+  font-weight: bold;
+  font-size: 1.05em;
+}
+
+.mech-foundry.opposed-roll .combatant-role {
+  color: #666;
+  font-style: italic;
+}
+
+.mech-foundry.opposed-roll .combatant-weapon,
+.mech-foundry.opposed-roll .combatant-defense {
+  color: #555;
+  margin-bottom: 5px;
+}
+
+.mech-foundry.opposed-roll .roll-details {
+  background: rgba(0, 0, 0, 0.03);
+  padding: 5px 8px;
+  border-radius: 3px;
+  font-size: 0.9em;
+}
+
+.mech-foundry.opposed-roll .roll-formula {
+  font-family: monospace;
+  color: #333;
+}
+
+.mech-foundry.opposed-roll .roll-tn {
+  color: #666;
+}
+
+.mech-foundry.opposed-roll .roll-mos {
+  font-weight: bold;
+  margin-top: 3px;
+}
+
+.mech-foundry.opposed-roll .roll-mos.success {
+  color: var(--mf-success);
+}
+
+.mech-foundry.opposed-roll .roll-mos.failure {
+  color: var(--mf-danger);
+}
+
+.mech-foundry.opposed-roll .declined-defense {
+  color: var(--mf-danger);
+  font-style: italic;
+  padding: 8px;
+}
+
+.mech-foundry.opposed-roll .versus {
+  text-align: center;
+  font-weight: bold;
+  font-size: 1.2em;
+  color: var(--mf-accent);
+  margin: 10px 0;
+}
+
+.mech-foundry.opposed-roll .resolution {
+  text-align: center;
+  margin: 15px 0;
+  padding: 10px;
+  background: rgba(195, 129, 84, 0.1);
+  border-radius: var(--mf-border-radius);
+}
+
+.mech-foundry.opposed-roll .outcome {
+  font-weight: bold;
+  font-size: 1.05em;
+}
+
+.mech-foundry.opposed-roll .outcome-tie,
+.mech-foundry.opposed-roll .outcome-mutual_miss {
+  color: #666;
+}
+
+.mech-foundry.opposed-roll .outcome-attacker_hits {
+  color: var(--mf-danger);
+}
+
+.mech-foundry.opposed-roll .outcome-counterstrike,
+.mech-foundry.opposed-roll .outcome-defender_choice {
+  color: var(--mf-success);
+}
+
+.mech-foundry.opposed-roll .damage-section {
+  margin-top: 15px;
+  padding: 10px;
+  border-radius: var(--mf-border-radius);
+  background: rgba(196, 69, 54, 0.05);
+  border: 1px solid rgba(196, 69, 54, 0.2);
+}
+
+.mech-foundry.opposed-roll .damage-section.defender-damage {
+  background: rgba(26, 95, 122, 0.05);
+  border-color: rgba(26, 95, 122, 0.2);
+}
+
+.mech-foundry.opposed-roll .damage-header {
+  font-weight: bold;
+  color: var(--mf-dark);
+  margin-bottom: 8px;
+  padding-bottom: 5px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.mech-foundry.opposed-roll .hit-location {
+  margin-bottom: 8px;
+  padding: 5px 8px;
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 3px;
+}
+
+.mech-foundry.opposed-roll .hit-label,
+.mech-foundry.opposed-roll .damage-label,
+.mech-foundry.opposed-roll .armor-label {
+  color: #666;
+  font-size: 0.9em;
+}
+
+.mech-foundry.opposed-roll .hit-value {
+  font-weight: bold;
+}
+
+.mech-foundry.opposed-roll .hit-roll {
+  color: #999;
+  font-size: 0.85em;
+}
+
+.mech-foundry.opposed-roll .damage-details {
+  font-size: 0.9em;
+}
+
+.mech-foundry.opposed-roll .damage-line {
+  display: flex;
+  gap: 5px;
+  margin-bottom: 3px;
+  align-items: baseline;
+}
+
+.mech-foundry.opposed-roll .damage-value {
+  font-weight: bold;
+  color: var(--mf-danger);
+}
+
+.mech-foundry.opposed-roll .damage-line.subduing .damage-value {
+  color: var(--mf-warning);
+}
+
+.mech-foundry.opposed-roll .damage-breakdown {
+  color: #888;
+  font-size: 0.9em;
+}
+
+.mech-foundry.opposed-roll .damage-type {
+  color: #666;
+  font-size: 0.85em;
+}
+
+.mech-foundry.opposed-roll .armor-calc {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed rgba(0, 0, 0, 0.1);
+}
+
+.mech-foundry.opposed-roll .armor-line {
+  display: flex;
+  gap: 5px;
+  margin-bottom: 2px;
+  align-items: baseline;
+}
+
+.mech-foundry.opposed-roll .armor-value {
+  font-weight: bold;
+}
+
+.mech-foundry.opposed-roll .armor-line.final {
+  margin-top: 5px;
+  padding-top: 5px;
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.mech-foundry.opposed-roll .armor-line.final .armor-value {
+  color: var(--mf-danger);
+  font-size: 1.1em;
+}
+
+.mech-foundry.opposed-roll .armor-absorbed {
+  color: var(--mf-success);
+  font-size: 0.85em;
+}
+
+.mech-foundry.opposed-roll .apply-damage {
+  display: block;
+  width: 100%;
+  margin-top: 10px;
+  padding: 8px 15px;
+  background: var(--mf-danger);
+  color: white;
+  border: none;
+  border-radius: var(--mf-border-radius);
+  cursor: pointer;
+  font-weight: bold;
+  transition: background 0.2s ease;
+}
+
+.mech-foundry.opposed-roll .apply-damage:hover:not(.disabled) {
+  background: #a83928;
+}
+
+.mech-foundry.opposed-roll .apply-damage.disabled {
+  background: #999;
+  cursor: not-allowed;
+}
+
+.mech-foundry.opposed-roll .defender-choice-section {
+  margin-top: 15px;
+  padding: 10px;
+  background: rgba(74, 157, 74, 0.1);
+  border: 1px solid rgba(74, 157, 74, 0.3);
+  border-radius: var(--mf-border-radius);
+}
+
+.mech-foundry.opposed-roll .choice-prompt {
+  text-align: center;
+  font-weight: bold;
+  margin-bottom: 10px;
+  color: var(--mf-dark);
+}
+
+.mech-foundry.opposed-roll .choice-buttons {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+.mech-foundry.opposed-roll .defender-choice-btn {
+  padding: 8px 20px;
+  border: none;
+  border-radius: var(--mf-border-radius);
+  cursor: pointer;
+  font-weight: bold;
+  transition: all 0.2s ease;
+}
+
+.mech-foundry.opposed-roll .choose-block {
+  background: var(--mf-primary);
+  color: white;
+}
+
+.mech-foundry.opposed-roll .choose-block:hover:not(.disabled) {
+  background: #145068;
+}
+
+.mech-foundry.opposed-roll .choose-mutual {
+  background: var(--mf-accent);
+  color: white;
+}
+
+.mech-foundry.opposed-roll .choose-mutual:hover:not(.disabled) {
+  background: #a66d45;
+}
+
+.mech-foundry.opposed-roll .defender-choice-btn.disabled {
+  background: #999;
+  cursor: not-allowed;
+}
+
+.mech-foundry.opposed-roll .choice-made {
+  text-align: center;
+  font-style: italic;
+  color: #666;
+}
+
+/* ----------------------------------------- */
+/* Defender Prompt Dialog                     */
+/* ----------------------------------------- */
+
+.mech-foundry.defender-prompt-dialog {
+  padding: 10px;
+}
+
+.mech-foundry.defender-prompt-dialog .attack-warning {
+  background: rgba(196, 69, 54, 0.1);
+  border-left: 3px solid var(--mf-danger);
+  padding: 10px;
+  margin-bottom: 15px;
+  border-radius: var(--mf-border-radius);
+}
+
+.mech-foundry.defender-prompt-dialog .defense-options {
+  margin: 10px 0;
+}
+
+.mech-foundry.defender-prompt-dialog .defense-option {
+  padding: 8px;
+  margin-bottom: 5px;
+  background: rgba(0, 0, 0, 0.03);
+  border-radius: var(--mf-border-radius);
+  transition: background 0.2s ease;
+}
+
+.mech-foundry.defender-prompt-dialog .defense-option:hover {
+  background: rgba(0, 0, 0, 0.07);
+}
+
+.mech-foundry.defender-prompt-dialog .radio-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.mech-foundry.defender-prompt-dialog .option-name {
+  font-weight: bold;
+}
+
+.mech-foundry.defender-prompt-dialog .option-level,
+.mech-foundry.defender-prompt-dialog .option-total {
+  color: var(--mf-success);
+  font-size: 0.9em;
+}
+
+.mech-foundry.defender-prompt-dialog .option-warning {
+  color: var(--mf-danger);
+  font-size: 0.85em;
+  font-style: italic;
+}
+
+/* ----------------------------------------- */
+/* Weapon Attack Dialog Target Section       */
+/* ----------------------------------------- */
+
+.weapon-attack-dialog .target-info {
+  background: rgba(74, 157, 74, 0.1);
+  padding: 8px;
+  border-radius: var(--mf-border-radius);
+  border-left: 3px solid var(--mf-success);
+}
+
+.weapon-attack-dialog .no-target-hint {
+  color: #888;
+  font-size: 0.9em;
+  padding: 5px 0;
+}
+
+.weapon-attack-dialog .opposed-roll-option {
+  margin-top: 5px;
+}
+
+.weapon-attack-dialog .opposed-roll-option label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}

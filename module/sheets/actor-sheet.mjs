@@ -1,3 +1,5 @@
+import { OpposedRollHelper } from '../helpers/opposed-rolls.mjs';
+
 /**
  * Extend the basic ActorSheet with modifications for Mech Foundry
  * Based on A Time of War mechanics
@@ -1373,6 +1375,38 @@ export class MechFoundryActorSheet extends ActorSheet {
     const recoil = weapon.system.recoil || 0;
     const currentAmmo = weapon.system.ammo?.value || 0;
     const maxAmmo = weapon.system.ammo?.max || 0;
+    const isMelee = weapon.system.weaponType === 'melee';
+
+    // Check for selected target
+    const target = OpposedRollHelper.getTarget();
+    const hasTarget = !!target;
+    const targetName = target?.name || '';
+
+    // Build target/opposed roll section
+    let targetHtml = '';
+    if (hasTarget) {
+      targetHtml = `
+        <div class="form-group target-info">
+          <label>${game.i18n.localize('MECHFOUNDRY.TargetSelected')}: <strong>${targetName}</strong></label>
+        </div>
+        ${isMelee ? `
+        <div class="form-group opposed-roll-option">
+          <label>
+            <input type="checkbox" name="opposedRoll" checked/>
+            ${game.i18n.localize('MECHFOUNDRY.OpposedRoll')}
+          </label>
+        </div>
+        ` : ''}
+        <hr/>
+      `;
+    } else {
+      targetHtml = `
+        <div class="form-group no-target-hint">
+          <em>${game.i18n.localize('MECHFOUNDRY.SelectTargetForOpposed')}</em>
+        </div>
+        <hr/>
+      `;
+    }
 
     // Build firing mode options
     let firingModeHtml = '';
@@ -1431,6 +1465,7 @@ export class MechFoundryActorSheet extends ActorSheet {
           <label>Current Ammo: <strong>${currentAmmo}/${maxAmmo}</strong></label>
         </div>
         <hr/>
+        ${targetHtml}
         <div class="form-group">
           <label>Modifier</label>
           <input type="number" name="modifier" value="0"/>
@@ -1449,6 +1484,7 @@ export class MechFoundryActorSheet extends ActorSheet {
           callback: async (html) => {
             const modifier = parseInt(html.find('[name="modifier"]').val()) || 0;
             const firingMode = html.find('[name="firingMode"]').val() || 'single';
+            const useOpposedRoll = html.find('[name="opposedRoll"]').is(':checked');
 
             const options = {
               modifier,
@@ -1460,7 +1496,12 @@ export class MechFoundryActorSheet extends ActorSheet {
               numTargets: parseInt(html.find('[name="numTargets"]').val()) || 1
             };
 
-            await this.actor.rollWeaponAttack(weapon._id, options);
+            // For melee attacks with target and opposed roll checked, use opposed roll flow
+            if (isMelee && hasTarget && useOpposedRoll) {
+              await this.actor.rollOpposedMeleeAttack(weapon._id, target, options);
+            } else {
+              await this.actor.rollWeaponAttack(weapon._id, options);
+            }
           }
         },
         cancel: {

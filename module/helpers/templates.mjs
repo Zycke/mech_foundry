@@ -25,6 +25,10 @@ export const preloadHandlebarsTemplates = async function() {
 
     // Chat partials
     "systems/mech-foundry/templates/chat/skill-roll.hbs",
-    "systems/mech-foundry/templates/chat/weapon-attack.hbs"
+    "systems/mech-foundry/templates/chat/weapon-attack.hbs",
+    "systems/mech-foundry/templates/chat/opposed-roll.hbs",
+
+    // Dialog partials
+    "systems/mech-foundry/templates/dialog/defender-prompt.hbs"
   ]);
 };
