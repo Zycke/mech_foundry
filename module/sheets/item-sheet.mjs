@@ -85,7 +85,11 @@ export class MechFoundryItemSheet extends ItemSheet {
         event.preventDefault();
         event.stopPropagation();
 
-        // Ensure persistentModifiers exists as an array
+        // First, submit the form to save any pending changes to existing modifiers
+        // This prevents losing unsaved edits when adding a new modifier
+        await this.submit({ preventClose: true, preventRender: true });
+
+        // Now get the freshly saved modifiers and add a new one
         const currentModifiers = this.item.system.persistentModifiers;
         const modifiers = Array.isArray(currentModifiers) ? foundry.utils.deepClone(currentModifiers) : [];
 
@@ -104,6 +108,9 @@ export class MechFoundryItemSheet extends ItemSheet {
         event.preventDefault();
         event.stopPropagation();
 
+        // First, submit the form to save any pending changes to other modifiers
+        await this.submit({ preventClose: true, preventRender: true });
+
         const index = parseInt(event.currentTarget.dataset.index);
         const currentModifiers = this.item.system.persistentModifiers;
         const modifiers = Array.isArray(currentModifiers) ? foundry.utils.deepClone(currentModifiers) : [];
@@ -117,6 +124,9 @@ export class MechFoundryItemSheet extends ItemSheet {
       // Target type change - update target field accordingly
       html.on('change', '.modifier-target-type', async (event) => {
         event.stopPropagation();
+
+        // First, submit the form to save any pending changes to other fields
+        await this.submit({ preventClose: true, preventRender: true });
 
         const row = event.currentTarget.closest('.modifier-row');
         const index = parseInt(row.dataset.index);
