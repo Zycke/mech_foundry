@@ -18,6 +18,8 @@ import { MechFoundryItemSheet } from "./sheets/item-sheet.mjs";
 
 // Import helper/utility classes
 import { preloadHandlebarsTemplates } from "./helpers/templates.mjs";
+import { SocketHandler, SOCKET_EVENTS } from "./helpers/socket-handler.mjs";
+import { OpposedRollHelper } from "./helpers/opposed-rolls.mjs";
 
 /* -------------------------------------------- */
 /*  Init Hook                                   */
@@ -64,6 +66,12 @@ Hooks.once('init', function() {
 
 Hooks.once('ready', function() {
   console.log("Mech Foundry | System Ready");
+
+  // Initialize socket handler for cross-player communication
+  SocketHandler.initialize();
+
+  // Make OpposedRollHelper available globally
+  game.mechfoundry.OpposedRollHelper = OpposedRollHelper;
 });
 
 /* -------------------------------------------- */
@@ -439,4 +447,87 @@ Hooks.on("combatRound", async (combat, updateData, updateOptions) => {
       }
     }
   }
+});
+
+/* -------------------------------------------- */
+/*  Chat Message Hooks                          */
+/* -------------------------------------------- */
+
+// Handle Apply Damage buttons and Defender Choice buttons in chat messages
+Hooks.on('renderChatMessage', (message, html, data) => {
+  // Apply Damage button handler
+  html.find('.apply-damage').click(async (event) => {
+    event.preventDefault();
+    const button = event.currentTarget;
+
+    // Get data from button attributes
+    const targetId = button.dataset.targetId;
+    const standardDamage = parseInt(button.dataset.standard) || 0;
+    const fatigueDamage = parseInt(button.dataset.fatigue) || 0;
+    const isSubduing = button.dataset.subduing === 'true';
+    const location = button.dataset.location || null;
+
+    // Get the target actor
+    const target = game.actors.get(targetId);
+    if (!target) {
+      ui.notifications.error("Target actor not found!");
+      return;
+    }
+
+    // Check if user has permission to modify this actor
+    if (!target.isOwner && !game.user.isGM) {
+      ui.notifications.warn("You do not have permission to apply damage to this actor.");
+      return;
+    }
+
+    // Apply the damage
+    if (isSubduing) {
+      // Subduing damage - apply fatigue damage
+      await target.applyDamage(fatigueDamage, 0, 'm', location, true);
+    } else {
+      // Standard damage - apply standard damage (fatigue is added automatically)
+      await target.applyDamage(standardDamage, 0, 'm', location, false);
+    }
+
+    // Disable the button and update text
+    button.disabled = true;
+    button.textContent = game.i18n.localize('MECHFOUNDRY.DamageApplied') || 'Damage Applied';
+    button.classList.add('disabled');
+  });
+
+  // Defender Choice button handlers (Block vs Mutual Damage)
+  html.find('.defender-choice-btn').click(async (event) => {
+    event.preventDefault();
+    const button = event.currentTarget;
+    const rollId = button.dataset.rollId;
+    const choice = button.dataset.choice;
+
+    // Send choice via socket for cross-player communication
+    SocketHandler.emit(SOCKET_EVENTS.DEFENDER_CHOICE, {
+      rollId: rollId,
+      choice: choice,
+      attackerUserId: message.user.id
+    });
+
+    // Also resolve locally if this is a pending choice
+    const pendingChoice = game.mechfoundry.pendingDefenderChoices?.[rollId];
+    if (pendingChoice) {
+      pendingChoice.resolve(choice);
+      delete game.mechfoundry.pendingDefenderChoices[rollId];
+    }
+
+    // Disable all choice buttons
+    html.find('.defender-choice-btn').each((i, btn) => {
+      btn.disabled = true;
+      btn.classList.add('disabled');
+    });
+
+    // Update the choice section to show selection
+    const choiceSection = html.find('.defender-choice-section');
+    if (choice === 'block') {
+      choiceSection.html(`<div class="choice-made">${game.i18n.localize('MECHFOUNDRY.DefenderChoseBlock') || 'Defender chose to block!'}</div>`);
+    } else {
+      choiceSection.html(`<div class="choice-made">${game.i18n.localize('MECHFOUNDRY.DefenderChoseMutual') || 'Defender chose mutual damage!'}</div>`);
+    }
+  });
 });

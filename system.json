@@ -2,7 +2,7 @@
   "id": "mech-foundry",
   "title": "Mech Foundry",
   "description": "A mech-based TTRPG system inspired by A Time of War and the BattleTech universe.",
-  "version": "0.1.30",
+  "version": "0.1.31",
   "compatibility": {
     "minimum": "11",
     "verified": "12"
@@ -28,7 +28,7 @@
   },
   "primaryTokenAttribute": "damage",
   "secondaryTokenAttribute": "fatigue",
-  "socket": false,
+  "socket": true,
   "url": "https://github.com/Zycke/mech_foundry",
   "manifest": "https://raw.githubusercontent.com/Zycke/mech_foundry/main/system.json",
   "download": "https://github.com/Zycke/mech_foundry/archive/refs/heads/main.zip"

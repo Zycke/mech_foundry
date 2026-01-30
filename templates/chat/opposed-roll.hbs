@@ -1,0 +1,214 @@
+<div class="mech-foundry roll-result opposed-roll" data-roll-id="{{rollId}}">
+  <div class="roll-title">{{localize "MECHFOUNDRY.OpposedMeleeAttack"}}</div>
+
+  {{!-- Attacker Section --}}
+  <div class="combatant attacker">
+    <div class="combatant-header">
+      <span class="combatant-name">{{attackerName}}</span>
+      <span class="combatant-role">({{localize "MECHFOUNDRY.Attacker"}})</span>
+    </div>
+    <div class="combatant-weapon">{{attackerWeaponName}}</div>
+    <div class="roll-details">
+      <div class="roll-formula">
+        [{{attackerResult.diceResults.[0]}}]+[{{attackerResult.diceResults.[1]}}] + {{attackerResult.modifier}} = {{attackerResult.total}}
+      </div>
+      <div class="roll-tn">TN: {{attackerResult.targetNumber}}</div>
+      <div class="roll-mos {{#if attackerResult.success}}success{{else}}failure{{/if}}">
+        MoS: {{attackerResult.mos}} [{{#if attackerResult.success}}{{localize "MECHFOUNDRY.Success"}}{{else}}{{localize "MECHFOUNDRY.Failure"}}{{/if}}]
+      </div>
+    </div>
+  </div>
+
+  <div class="versus">VS</div>
+
+  {{!-- Defender Section --}}
+  <div class="combatant defender">
+    <div class="combatant-header">
+      <span class="combatant-name">{{defenderName}}</span>
+      <span class="combatant-role">({{localize "MECHFOUNDRY.Defender"}})</span>
+    </div>
+    {{#if defenderResult.declined}}
+    <div class="declined-defense">
+      <span class="declined-text">{{localize "MECHFOUNDRY.DidNotDefend"}}</span>
+      <span class="declined-mos">(MoS: -3)</span>
+    </div>
+    {{else}}
+    <div class="combatant-defense">{{defenderResult.name}}</div>
+    <div class="roll-details">
+      <div class="roll-formula">
+        [{{defenderResult.diceResults.[0]}}]+[{{defenderResult.diceResults.[1]}}] + {{defenderResult.modifier}} = {{defenderResult.total}}
+      </div>
+      <div class="roll-tn">TN: {{defenderResult.targetNumber}}</div>
+      <div class="roll-mos {{#if defenderResult.success}}success{{else}}failure{{/if}}">
+        MoS: {{defenderResult.mos}} [{{#if defenderResult.success}}{{localize "MECHFOUNDRY.Success"}}{{else}}{{localize "MECHFOUNDRY.Failure"}}{{/if}}]
+      </div>
+    </div>
+    {{/if}}
+  </div>
+
+  {{!-- Resolution Section --}}
+  <div class="resolution">
+    <div class="outcome outcome-{{resolution.outcome}}">{{resolution.description}}</div>
+  </div>
+
+  {{!-- Attacker Damage to Defender --}}
+  {{#if attackerDamage}}
+  <div class="damage-section attacker-damage">
+    <div class="damage-header">{{localize "MECHFOUNDRY.DamageTo"}} {{defenderName}}</div>
+
+    {{#if attackerHitLocation}}
+    <div class="hit-location">
+      <span class="hit-label">{{localize "MECHFOUNDRY.HitLocation"}}:</span>
+      <span class="hit-value">{{attackerHitLocation.displayLocation}}</span>
+      <span class="hit-roll">[{{attackerHitLocation.roll}}{{#if attackerHitLocation.subRoll}}, {{attackerHitLocation.subRoll}}{{/if}}]</span>
+    </div>
+    {{/if}}
+
+    <div class="damage-details">
+      {{#if attackerDamage.isSubduing}}
+      <div class="damage-line subduing">
+        <span class="damage-label">{{localize "MECHFOUNDRY.Fatigue"}}:</span>
+        <span class="damage-value">{{attackerDamage.fatigueDamage}}</span>
+        <span class="damage-breakdown">({{attackerDamage.strDamage}} STR + {{attackerDamage.mosDamage}} MoS)</span>
+      </div>
+      {{else}}
+      <div class="damage-line standard">
+        <span class="damage-label">{{localize "MECHFOUNDRY.Standard"}}:</span>
+        <span class="damage-value">{{attackerDamage.standardDamage}}</span>
+        <span class="damage-breakdown">({{attackerDamage.baseDamage}} base + {{attackerDamage.strDamage}} STR + {{attackerDamage.mosDamage}} MoS)</span>
+      </div>
+      <div class="damage-line fatigue">
+        <span class="damage-label">{{localize "MECHFOUNDRY.Fatigue"}}:</span>
+        <span class="damage-value">{{attackerDamage.fatigueDamage}}</span>
+      </div>
+      {{/if}}
+
+      <div class="damage-line ap">
+        <span class="damage-label">AP:</span>
+        <span class="damage-value">{{attackerDamage.ap}}{{attackerDamage.apFactor}}</span>
+        <span class="damage-type">({{attackerDamageTypeName}})</span>
+      </div>
+
+      {{#if attackerArmorCalc}}
+      <div class="armor-calc">
+        <div class="armor-line">
+          <span class="armor-label">{{localize "MECHFOUNDRY.TargetArmor"}}:</span>
+          <span class="armor-value">{{attackerArmorCalc.armorValue}}</span>
+        </div>
+        <div class="armor-line">
+          <span class="armor-label">{{localize "MECHFOUNDRY.EffectiveArmor"}}:</span>
+          <span class="armor-value">{{attackerArmorCalc.effectiveArmor}}</span>
+          <span class="armor-breakdown">({{attackerArmorCalc.armorValue}} - {{attackerArmorCalc.apValue}} AP)</span>
+        </div>
+        <div class="armor-line final">
+          <span class="armor-label">{{localize "MECHFOUNDRY.FinalDamage"}}:</span>
+          <span class="armor-value">{{attackerArmorCalc.finalDamage}}</span>
+          {{#if attackerArmorCalc.absorbed}}
+          <span class="armor-absorbed">({{attackerArmorCalc.absorbed}} {{localize "MECHFOUNDRY.Absorbed"}})</span>
+          {{/if}}
+        </div>
+      </div>
+      {{/if}}
+    </div>
+
+    {{#if canApplyAttackerDamage}}
+    <button class="apply-damage apply-attacker-damage"
+            data-target-id="{{defenderActorId}}"
+            data-standard="{{attackerArmorCalc.finalDamage}}"
+            data-fatigue="{{attackerDamage.fatigueDamage}}"
+            data-subduing="{{attackerDamage.isSubduing}}"
+            data-location="{{attackerHitLocation.armorLocation}}">
+      {{localize "MECHFOUNDRY.ApplyDamage"}}
+    </button>
+    {{/if}}
+  </div>
+  {{/if}}
+
+  {{!-- Defender Damage to Attacker (Counterstrike or Mutual) --}}
+  {{#if defenderDamage}}
+  <div class="damage-section defender-damage">
+    <div class="damage-header">{{localize "MECHFOUNDRY.DamageTo"}} {{attackerName}}</div>
+
+    {{#if defenderHitLocation}}
+    <div class="hit-location">
+      <span class="hit-label">{{localize "MECHFOUNDRY.HitLocation"}}:</span>
+      <span class="hit-value">{{defenderHitLocation.displayLocation}}</span>
+      <span class="hit-roll">[{{defenderHitLocation.roll}}{{#if defenderHitLocation.subRoll}}, {{defenderHitLocation.subRoll}}{{/if}}]</span>
+    </div>
+    {{/if}}
+
+    <div class="damage-details">
+      {{#if defenderDamage.isSubduing}}
+      <div class="damage-line subduing">
+        <span class="damage-label">{{localize "MECHFOUNDRY.Fatigue"}}:</span>
+        <span class="damage-value">{{defenderDamage.fatigueDamage}}</span>
+        <span class="damage-breakdown">({{defenderDamage.strDamage}} STR + {{defenderDamage.mosDamage}} MoS)</span>
+      </div>
+      {{else}}
+      <div class="damage-line standard">
+        <span class="damage-label">{{localize "MECHFOUNDRY.Standard"}}:</span>
+        <span class="damage-value">{{defenderDamage.standardDamage}}</span>
+        <span class="damage-breakdown">({{defenderDamage.baseDamage}} base + {{defenderDamage.strDamage}} STR + {{defenderDamage.mosDamage}} MoS)</span>
+      </div>
+      <div class="damage-line fatigue">
+        <span class="damage-label">{{localize "MECHFOUNDRY.Fatigue"}}:</span>
+        <span class="damage-value">{{defenderDamage.fatigueDamage}}</span>
+      </div>
+      {{/if}}
+
+      <div class="damage-line ap">
+        <span class="damage-label">AP:</span>
+        <span class="damage-value">{{defenderDamage.ap}}{{defenderDamage.apFactor}}</span>
+        <span class="damage-type">({{defenderDamageTypeName}})</span>
+      </div>
+
+      {{#if defenderArmorCalc}}
+      <div class="armor-calc">
+        <div class="armor-line">
+          <span class="armor-label">{{localize "MECHFOUNDRY.TargetArmor"}}:</span>
+          <span class="armor-value">{{defenderArmorCalc.armorValue}}</span>
+        </div>
+        <div class="armor-line">
+          <span class="armor-label">{{localize "MECHFOUNDRY.EffectiveArmor"}}:</span>
+          <span class="armor-value">{{defenderArmorCalc.effectiveArmor}}</span>
+          <span class="armor-breakdown">({{defenderArmorCalc.armorValue}} - {{defenderArmorCalc.apValue}} AP)</span>
+        </div>
+        <div class="armor-line final">
+          <span class="armor-label">{{localize "MECHFOUNDRY.FinalDamage"}}:</span>
+          <span class="armor-value">{{defenderArmorCalc.finalDamage}}</span>
+          {{#if defenderArmorCalc.absorbed}}
+          <span class="armor-absorbed">({{defenderArmorCalc.absorbed}} {{localize "MECHFOUNDRY.Absorbed"}})</span>
+          {{/if}}
+        </div>
+      </div>
+      {{/if}}
+    </div>
+
+    {{#if canApplyDefenderDamage}}
+    <button class="apply-damage apply-defender-damage"
+            data-target-id="{{attackerActorId}}"
+            data-standard="{{defenderArmorCalc.finalDamage}}"
+            data-fatigue="{{defenderDamage.fatigueDamage}}"
+            data-subduing="{{defenderDamage.isSubduing}}"
+            data-location="{{defenderHitLocation.armorLocation}}">
+      {{localize "MECHFOUNDRY.ApplyDamage"}}
+    </button>
+    {{/if}}
+  </div>
+  {{/if}}
+
+  {{!-- Defender Choice Buttons (when defender has advantage) --}}
+  {{#if showDefenderChoice}}
+  <div class="defender-choice-section">
+    <div class="choice-prompt">{{localize "MECHFOUNDRY.DefenderChoicePrompt"}}</div>
+    <div class="choice-buttons">
+      <button class="defender-choice-btn choose-block" data-roll-id="{{rollId}}" data-choice="block">
+        <i class="fas fa-shield-alt"></i> {{localize "MECHFOUNDRY.Block"}}
+      </button>
+      <button class="defender-choice-btn choose-mutual" data-roll-id="{{rollId}}" data-choice="mutual">
+        <i class="fas fa-exchange-alt"></i> {{localize "MECHFOUNDRY.MutualDamage"}}
+      </button>
+    </div>
+  </div>
+  {{/if}}
+</div>

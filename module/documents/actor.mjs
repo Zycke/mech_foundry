@@ -1,3 +1,6 @@
+import { OpposedRollHelper } from '../helpers/opposed-rolls.mjs';
+import { SocketHandler, SOCKET_EVENTS } from '../helpers/socket-handler.mjs';
+
 /**
  * Extend the base Actor document for Mech Foundry system
  * Based on A Time of War mechanics
@@ -758,6 +761,252 @@ export class MechFoundryActor extends Actor {
     });
 
     return results;
+  }
+
+  /**
+   * Handle an opposed melee attack with a target
+   * @param {string} weaponId The weapon item ID
+   * @param {Token} target The target token
+   * @param {Object} options Attack options
+   */
+  async rollOpposedMeleeAttack(weaponId, target, options = {}) {
+    const weapon = this.items.get(weaponId);
+    if (!weapon || weapon.type !== 'weapon') return;
+
+    const targetActor = target.actor;
+    if (!targetActor) return;
+
+    const weaponData = weapon.system;
+    const rollId = OpposedRollHelper.generateRollId();
+
+    // Make attacker's roll
+    const attackerResult = await this._makeAttackRoll(weapon, options);
+    if (!attackerResult) return;
+
+    // Determine if defender is owned by a different player
+    const defenderOwner = game.users.find(u =>
+      u.active && targetActor.ownership[u.id] === CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER
+    );
+
+    let defenderResult;
+
+    if (defenderOwner && defenderOwner.id !== game.user.id && !game.user.isGM) {
+      // Remote player owns defender - use socket
+      SocketHandler.emit(SOCKET_EVENTS.DEFENDER_PROMPT, {
+        rollId: rollId,
+        attackerUserId: game.user.id,
+        attackerActorId: this.id,
+        attackerName: this.name,
+        targetActorId: targetActor.id,
+        targetTokenId: target.id,
+        weaponName: weapon.name,
+        attackType: 'melee'
+      });
+
+      // Wait for response
+      defenderResult = await SocketHandler.waitForDefenderResponse(rollId);
+    } else {
+      // Local player/GM handles defense
+      defenderResult = await OpposedRollHelper.showDefenderDialog({
+        attackerName: this.name,
+        weaponName: weapon.name,
+        targetActorId: targetActor.id
+      });
+    }
+
+    // Resolve the opposed roll
+    await this._resolveOpposedMelee(attackerResult, defenderResult, weapon, target, targetActor, rollId);
+  }
+
+  /**
+   * Make an attack roll and return the result
+   * @param {Item} weapon The weapon item
+   * @param {Object} options Roll options
+   * @returns {Object} Roll result
+   */
+  async _makeAttackRoll(weapon, options = {}) {
+    const weaponData = weapon.system;
+    const inputMod = options.modifier || 0;
+    const injuryMod = this.system.injuryModifier || 0;
+    const fatigueMod = this.system.fatigueModifier || 0;
+
+    // Find linked skill
+    const skillName = weaponData.skill;
+    let skill = null;
+    let skillLevel = 0;
+    let linkMod = 0;
+
+    if (skillName) {
+      skill = this.items.find(i => i.type === 'skill' && i.name === skillName);
+      if (skill) {
+        const xp = skill.system.xp || 0;
+        const costs = [20, 30, 50, 80, 120, 170, 230, 300, 380, 470, 570];
+        skillLevel = -1;
+        for (let i = 10; i >= 0; i--) {
+          if (xp >= costs[i]) {
+            skillLevel = i;
+            break;
+          }
+        }
+
+        if (skill.system.linkedAttribute1) {
+          const attr1 = this.system.attributes[skill.system.linkedAttribute1];
+          if (attr1) linkMod += attr1.linkMod || 0;
+        }
+        if (skill.system.linkedAttribute2) {
+          const attr2 = this.system.attributes[skill.system.linkedAttribute2];
+          if (attr2) linkMod += attr2.linkMod || 0;
+        }
+      }
+    }
+
+    const skillMod = skillLevel + linkMod;
+    const totalMod = skillMod + inputMod + injuryMod + fatigueMod;
+    const targetNumber = skill?.system.targetNumber || 7;
+
+    const roll = await new Roll(`2d6 + ${totalMod}`).evaluate();
+    const diceResults = roll.dice[0].results.map(r => r.result);
+    const success = roll.total >= targetNumber;
+    const mos = roll.total - targetNumber;
+
+    return {
+      roll,
+      total: roll.total,
+      diceResults,
+      success,
+      mos,
+      targetNumber,
+      modifier: totalMod,
+      skillMod,
+      inputMod,
+      injuryMod,
+      fatigueMod
+    };
+  }
+
+  /**
+   * Resolve an opposed melee roll and create chat message
+   * @param {Object} attackerResult Attacker's roll result
+   * @param {Object} defenderResult Defender's roll result
+   * @param {Item} weapon Attacker's weapon
+   * @param {Token} target Target token
+   * @param {Actor} targetActor Target actor
+   * @param {string} rollId Unique roll ID
+   */
+  async _resolveOpposedMelee(attackerResult, defenderResult, weapon, target, targetActor, rollId) {
+    // Resolve the opposed roll
+    const resolution = OpposedRollHelper.resolveMeleeOpposed(attackerResult, defenderResult);
+
+    // Prepare template data
+    const templateData = {
+      rollId,
+      attackerName: this.name,
+      attackerActorId: this.id,
+      attackerWeaponName: weapon.name,
+      attackerResult,
+      defenderName: targetActor.name,
+      defenderActorId: targetActor.id,
+      defenderResult,
+      resolution
+    };
+
+    // Calculate attacker damage to defender if applicable
+    if (resolution.attackerDealsDefenderDamage) {
+      const attackerDamage = OpposedRollHelper.calculateMeleeDamage(this, weapon, attackerResult.mos);
+      const attackerHitLocation = await OpposedRollHelper.rollHitLocation();
+
+      // Calculate armor reduction
+      const attackerArmorCalc = OpposedRollHelper.calculateDamageAfterArmor(
+        attackerDamage.isSubduing ? attackerDamage.fatigueDamage : attackerDamage.standardDamage,
+        attackerDamage.ap,
+        attackerDamage.damageType,
+        targetActor,
+        attackerHitLocation.armorLocation
+      );
+
+      templateData.attackerDamage = attackerDamage;
+      templateData.attackerHitLocation = attackerHitLocation;
+      templateData.attackerArmorCalc = attackerArmorCalc;
+      templateData.attackerDamageTypeName = OpposedRollHelper.getDamageTypeName(attackerDamage.damageType);
+      templateData.canApplyAttackerDamage = targetActor.isOwner || game.user.isGM;
+    }
+
+    // Calculate defender damage to attacker (counterstrike or mutual damage)
+    if (resolution.defenderDealsAttackerDamage) {
+      const defenderWeapon = OpposedRollHelper.getDefenderWeapon(targetActor);
+      const defenderDamage = OpposedRollHelper.calculateMeleeDamage(targetActor, defenderWeapon, defenderResult.mos);
+      const defenderHitLocation = await OpposedRollHelper.rollHitLocation();
+
+      // Calculate armor reduction against attacker
+      const defenderArmorCalc = OpposedRollHelper.calculateDamageAfterArmor(
+        defenderDamage.isSubduing ? defenderDamage.fatigueDamage : defenderDamage.standardDamage,
+        defenderDamage.ap,
+        defenderDamage.damageType,
+        this,
+        defenderHitLocation.armorLocation
+      );
+
+      templateData.defenderDamage = defenderDamage;
+      templateData.defenderHitLocation = defenderHitLocation;
+      templateData.defenderArmorCalc = defenderArmorCalc;
+      templateData.defenderDamageTypeName = OpposedRollHelper.getDamageTypeName(defenderDamage.damageType);
+      templateData.canApplyDefenderDamage = this.isOwner || game.user.isGM;
+    }
+
+    // Show defender choice if applicable
+    if (resolution.defenderChoice) {
+      templateData.showDefenderChoice = targetActor.isOwner || game.user.isGM;
+
+      // Pre-calculate potential damage for both choices
+      const attackerDamage = OpposedRollHelper.calculateMeleeDamage(this, weapon, attackerResult.mos);
+      const attackerHitLocation = await OpposedRollHelper.rollHitLocation();
+      const attackerArmorCalc = OpposedRollHelper.calculateDamageAfterArmor(
+        attackerDamage.isSubduing ? attackerDamage.fatigueDamage : attackerDamage.standardDamage,
+        attackerDamage.ap,
+        attackerDamage.damageType,
+        targetActor,
+        attackerHitLocation.armorLocation
+      );
+
+      templateData.attackerDamage = attackerDamage;
+      templateData.attackerHitLocation = attackerHitLocation;
+      templateData.attackerArmorCalc = attackerArmorCalc;
+      templateData.attackerDamageTypeName = OpposedRollHelper.getDamageTypeName(attackerDamage.damageType);
+
+      const defenderWeapon = OpposedRollHelper.getDefenderWeapon(targetActor);
+      const defenderDamage = OpposedRollHelper.calculateMeleeDamage(targetActor, defenderWeapon, defenderResult.mos);
+      const defenderHitLocation = await OpposedRollHelper.rollHitLocation();
+      const defenderArmorCalc = OpposedRollHelper.calculateDamageAfterArmor(
+        defenderDamage.isSubduing ? defenderDamage.fatigueDamage : defenderDamage.standardDamage,
+        defenderDamage.ap,
+        defenderDamage.damageType,
+        this,
+        defenderHitLocation.armorLocation
+      );
+
+      templateData.defenderDamage = defenderDamage;
+      templateData.defenderHitLocation = defenderHitLocation;
+      templateData.defenderArmorCalc = defenderArmorCalc;
+      templateData.defenderDamageTypeName = OpposedRollHelper.getDamageTypeName(defenderDamage.damageType);
+    }
+
+    // Create chat message
+    const messageContent = await renderTemplate(
+      "systems/mech-foundry/templates/chat/opposed-roll.hbs",
+      templateData
+    );
+
+    const rolls = [attackerResult.roll];
+    if (defenderResult.roll) rolls.push(defenderResult.roll);
+
+    await ChatMessage.create({
+      speaker: ChatMessage.getSpeaker({ actor: this }),
+      flavor: game.i18n.localize('MECHFOUNDRY.OpposedMeleeAttack'),
+      content: messageContent,
+      rolls: rolls
+    });
+
+    return { resolution, templateData };
   }
 
   /**
