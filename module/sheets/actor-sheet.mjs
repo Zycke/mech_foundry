@@ -1629,6 +1629,30 @@ export class MechFoundryActorSheet extends ActorSheet {
   }
 
   /**
+   * Handle the drop of an Item onto the Actor sheet
+   * @param {DragEvent} event The concluding drag event
+   * @param {Object} data The drop data from the event
+   * @override
+   */
+  async _onDropItem(event, data) {
+    // Check if the user has permission to modify this actor
+    if (!this.actor.isOwner) return false;
+
+    // Retrieve the dropped item
+    const item = await Item.implementation.fromDropData(data);
+    if (!item) return false;
+
+    // If the item is from the same actor, just sort it
+    if (this.actor.uuid === item.parent?.uuid) {
+      return this._onSortItem(event, item.toObject());
+    }
+
+    // Otherwise, create a copy of the item on this actor
+    const itemData = item.toObject();
+    return this._onDropItemCreate(itemData);
+  }
+
+  /**
    * Handle dropping of Item data onto the Actor sheet
    * @param {DragEvent} event The concluding drag event
    * @param {Object} data The dropped data transfer
@@ -1645,6 +1669,9 @@ export class MechFoundryActorSheet extends ActorSheet {
       if (result) toCreate.push(result);
     }
 
+    // Don't create if nothing to create
+    if (toCreate.length === 0) return [];
+
     // Create the owned items as normal
     return this.actor.createEmbeddedDocuments("Item", toCreate);
   }
@@ -1659,15 +1686,23 @@ export class MechFoundryActorSheet extends ActorSheet {
     // Clone the item data to avoid modifying the original
     const item = foundry.utils.deepClone(itemData);
 
+    // Ensure system data exists
+    item.system = item.system || {};
+
     // For activeEffect items dropped from compendiums or other actors, ensure defaults
     if (item.type === 'activeEffect') {
       // Set default values if not present
-      item.system = item.system || {};
       item.system.active = item.system.active ?? true;
       item.system.effectType = item.system.effectType || 'persistent';
       item.system.continuousDamage = item.system.continuousDamage || { standardDamage: 0, fatigueDamage: 0 };
       item.system.persistentModifiers = item.system.persistentModifiers || [];
     }
+
+    // Remove any properties that shouldn't be copied (like _id, ownership, etc.)
+    delete item._id;
+    delete item.ownership;
+    delete item.folder;
+    delete item.sort;
 
     return item;
   }

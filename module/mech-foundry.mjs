@@ -348,7 +348,8 @@ Hooks.on("combatRound", async (combat, updateData, updateOptions) => {
 
   // Process each combatant
   for (const combatant of combat.combatants) {
-    const actor = combatant.actor;
+    // Get the actor - for tokens, this gets the correct token actor
+    let actor = combatant.actor;
     if (!actor) continue;
 
     // Find all active continuous damage effects
@@ -366,8 +367,8 @@ Hooks.on("combatRound", async (combat, updateData, updateOptions) => {
     const effectNames = [];
 
     for (const effect of continuousDamageEffects) {
-      const stdDmg = effect.system.continuousDamage?.standardDamage || 0;
-      const fatDmg = effect.system.continuousDamage?.fatigueDamage || 0;
+      const stdDmg = Number(effect.system.continuousDamage?.standardDamage) || 0;
+      const fatDmg = Number(effect.system.continuousDamage?.fatigueDamage) || 0;
 
       if (stdDmg > 0 || fatDmg > 0) {
         totalStandardDamage += stdDmg;
@@ -376,14 +377,44 @@ Hooks.on("combatRound", async (combat, updateData, updateOptions) => {
       }
     }
 
-    // Apply damage if any using the actor's damage functions
+    // Apply damage if any
     if (totalStandardDamage > 0 || totalFatigueDamage > 0) {
-      // Send chat message first (before applying damage to capture current state)
-      const damageMsg = [];
-      if (totalStandardDamage > 0) damageMsg.push(`${totalStandardDamage} standard damage`);
-      if (totalFatigueDamage > 0) damageMsg.push(`${totalFatigueDamage} fatigue damage`);
+      // Capture current damage values for the chat message
+      const currentStdDmg = actor.system.damage?.value || 0;
+      const currentFatDmg = actor.system.fatigue?.value || 0;
 
-      ChatMessage.create({
+      // Apply damage directly via update to ensure it takes effect
+      const updateData = {};
+
+      if (totalStandardDamage > 0) {
+        const maxDamage = actor.system.damageCapacity || 10;
+        const newDamage = Math.min(currentStdDmg + totalStandardDamage, maxDamage);
+        updateData["system.damage.value"] = newDamage;
+      }
+
+      if (totalFatigueDamage > 0) {
+        const maxFatigue = actor.system.fatigueCapacity || 10;
+        const newFatigue = Math.min(currentFatDmg + totalFatigueDamage, maxFatigue);
+        updateData["system.fatigue.value"] = newFatigue;
+      }
+
+      // Perform the update
+      await actor.update(updateData);
+
+      // Calculate new values for chat message
+      const newStdDmg = actor.system.damage?.value || 0;
+      const newFatDmg = actor.system.fatigue?.value || 0;
+
+      // Send chat message with before/after values
+      const damageMsg = [];
+      if (totalStandardDamage > 0) {
+        damageMsg.push(`${totalStandardDamage} standard damage (${currentStdDmg} → ${newStdDmg})`);
+      }
+      if (totalFatigueDamage > 0) {
+        damageMsg.push(`${totalFatigueDamage} fatigue damage (${currentFatDmg} → ${newFatDmg})`);
+      }
+
+      await ChatMessage.create({
         speaker: ChatMessage.getSpeaker({ actor: actor }),
         content: `<div class="mech-foundry continuous-damage">
           <strong>${actor.name}</strong> takes ${damageMsg.join(' and ')} from continuous effects:
@@ -391,12 +422,20 @@ Hooks.on("combatRound", async (combat, updateData, updateOptions) => {
         </div>`
       });
 
-      // Apply damage using actor methods
-      if (totalStandardDamage > 0) {
-        await actor.applyStandardDamage(totalStandardDamage);
+      // Check for death/unconsciousness after applying damage
+      if (updateData["system.damage.value"] !== undefined) {
+        const maxDamage = actor.system.damageCapacity || 10;
+        if (updateData["system.damage.value"] >= maxDamage) {
+          ui.notifications.error(`${actor.name} has died!`);
+        }
       }
-      if (totalFatigueDamage > 0) {
-        await actor.applyFatigueDamage(totalFatigueDamage);
+
+      if (updateData["system.fatigue.value"] !== undefined) {
+        const maxFatigue = actor.system.fatigueCapacity || 10;
+        if (updateData["system.fatigue.value"] >= maxFatigue) {
+          ui.notifications.warn(`${actor.name} has fallen unconscious!`);
+          await actor.update({ "system.unconscious": true });
+        }
       }
     }
   }
