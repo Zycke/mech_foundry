@@ -710,6 +710,36 @@ export class MechFoundryActor extends Actor {
         }
       }
 
+      // Calculate hit location and armor if we have a target
+      let hitLocation = null;
+      let armorCalc = null;
+      let canApplyDamage = false;
+      let targetActorId = null;
+      let damageTypeName = null;
+
+      const targetActor = options.target?.actor || null;
+      if (targetActor && success && standardDamage > 0) {
+        // Roll hit location
+        hitLocation = await OpposedRollHelper.rollHitLocation();
+
+        // Determine damage type from apFactor
+        const damageTypeMap = { 'M': 'm', 'B': 'b', 'E': 'e', 'X': 'x' };
+        const damageType = damageTypeMap[apFactor] || 'm';
+        damageTypeName = OpposedRollHelper.getDamageTypeName(damageType);
+
+        // Calculate armor reduction
+        armorCalc = OpposedRollHelper.calculateDamageAfterArmor(
+          standardDamage,
+          ap,
+          damageType,
+          targetActor,
+          hitLocation.armorLocation
+        );
+
+        targetActorId = targetActor.id;
+        canApplyDamage = targetActor.isOwner || game.user.isGM;
+      }
+
       results.push({
         roll,
         total: roll.total,
@@ -724,7 +754,13 @@ export class MechFoundryActor extends Actor {
         mosDamage,
         ap,
         apFactor,
-        isSubduing: isSubduing || (isMelee && baseDamage === 0)
+        isSubduing: isSubduing || (isMelee && baseDamage === 0),
+        // Target info
+        hitLocation,
+        armorCalc,
+        canApplyDamage,
+        targetActorId,
+        damageTypeName
       });
     }
 
@@ -734,6 +770,7 @@ export class MechFoundryActor extends Actor {
     }
 
     // Create chat message
+    const targetActor = options.target?.actor || null;
     const messageContent = await renderTemplate(
       "systems/mech-foundry/templates/chat/weapon-attack.hbs",
       {
@@ -743,6 +780,7 @@ export class MechFoundryActor extends Actor {
         ammoUsed: ammoUsed,
         targetNumber: targetNumber,
         results: results,
+        targetName: targetActor?.name || null,
         // Broken down modifiers for display
         skillMod: skillMod,
         inputMod: inputMod,

@@ -15,7 +15,17 @@
 
     {{#if this.success}}
     <div class="damage-section">
-      <div class="damage-header">Damage</div>
+      <div class="damage-header">Damage{{#if ../targetName}} to {{../targetName}}{{/if}}</div>
+
+      {{!-- Hit Location if target exists --}}
+      {{#if this.hitLocation}}
+      <div class="hit-location">
+        <span class="hit-label">Hit Location:</span>
+        <span class="hit-value">{{this.hitLocation.displayLocation}}</span>
+        <span class="hit-roll">[{{this.hitLocation.roll}}{{#if this.hitLocation.subRoll}}, {{this.hitLocation.subRoll}}{{/if}}]</span>
+      </div>
+      {{/if}}
+
       <div class="damage-details">
         {{#if this.isSubduing}}
         <div class="damage-line subduing">
@@ -39,8 +49,45 @@
         <div class="damage-line ap">
           <span class="damage-label">AP:</span>
           <span class="damage-value">{{this.ap}}{{this.apFactor}}</span>
+          {{#if this.damageTypeName}}
+          <span class="damage-type">({{this.damageTypeName}})</span>
+          {{/if}}
         </div>
       </div>
+
+      {{!-- Armor calculation if target exists --}}
+      {{#if this.armorCalc}}
+      <div class="armor-calc">
+        <div class="armor-line">
+          <span class="armor-label">Target Armor:</span>
+          <span class="armor-value">{{this.armorCalc.armorValue}}</span>
+        </div>
+        <div class="armor-line">
+          <span class="armor-label">Effective Armor:</span>
+          <span class="armor-value">{{this.armorCalc.effectiveArmor}}</span>
+          <span class="armor-breakdown">({{this.armorCalc.armorValue}} - {{this.armorCalc.apValue}} AP)</span>
+        </div>
+        <div class="armor-line final">
+          <span class="armor-label">Final Damage:</span>
+          <span class="armor-value">{{this.armorCalc.finalDamage}}</span>
+          {{#if this.armorCalc.absorbed}}
+          <span class="armor-absorbed">({{this.armorCalc.absorbed}} absorbed)</span>
+          {{/if}}
+        </div>
+      </div>
+      {{/if}}
+
+      {{!-- Apply Damage button if target exists and user can apply --}}
+      {{#if this.canApplyDamage}}
+      <button class="apply-damage"
+              data-target-id="{{this.targetActorId}}"
+              data-standard="{{#if this.armorCalc}}{{this.armorCalc.finalDamage}}{{else}}{{this.standardDamage}}{{/if}}"
+              data-fatigue="{{this.fatigueDamage}}"
+              data-subduing="{{this.isSubduing}}"
+              data-location="{{#if this.hitLocation}}{{this.hitLocation.armorLocation}}{{/if}}">
+        Apply Damage
+      </button>
+      {{/if}}
     </div>
     {{/if}}
   </div>
