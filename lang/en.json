@@ -243,9 +243,18 @@
   "MECHFOUNDRY.EffectMeleeDamageBonus": "Melee Damage Bonus",
 
   "MECHFOUNDRY.EffectVision": "Vision",
-  "MECHFOUNDRY.EffectDarkvision": "Dark Vision",
-  "MECHFOUNDRY.EffectLowLightVision": "Low-Light Vision",
-  "MECHFOUNDRY.EffectThermalVision": "Thermal Vision",
+  "MECHFOUNDRY.EffectVisionBasic": "Basic Vision",
+  "MECHFOUNDRY.EffectVisionDarkvision": "Darkvision",
+  "MECHFOUNDRY.EffectVisionMonochromatic": "Monochromatic",
+  "MECHFOUNDRY.EffectVisionTremorsense": "Tremorsense",
+  "MECHFOUNDRY.EffectVisionLightAmplification": "Light Amplification",
+
+  "MECHFOUNDRY.EffectLight": "Light",
+  "MECHFOUNDRY.EffectLightEmission": "Light Emission",
+  "MECHFOUNDRY.BrightLight": "Bright Light",
+  "MECHFOUNDRY.DimLight": "Dim Light",
+  "MECHFOUNDRY.LightColor": "Light Color",
+  "MECHFOUNDRY.Meters": "meters",
 
   "MECHFOUNDRY.EffectAttribute": "Attribute",
   "MECHFOUNDRY.EffectAttributeBonus": "Attribute Bonus",

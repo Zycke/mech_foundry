@@ -26,9 +26,14 @@
               <option value="melee_damage_bonus" {{#if (eq this.effectType "melee_damage_bonus")}}selected{{/if}}>Melee Damage Bonus</option>
             </optgroup>
             <optgroup label="Vision">
-              <option value="darkvision" {{#if (eq this.effectType "darkvision")}}selected{{/if}}>Dark Vision</option>
-              <option value="low_light_vision" {{#if (eq this.effectType "low_light_vision")}}selected{{/if}}>Low-Light Vision</option>
-              <option value="thermal_vision" {{#if (eq this.effectType "thermal_vision")}}selected{{/if}}>Thermal Vision</option>
+              <option value="vision_basic" {{#if (eq this.effectType "vision_basic")}}selected{{/if}}>Basic Vision</option>
+              <option value="vision_darkvision" {{#if (eq this.effectType "vision_darkvision")}}selected{{/if}}>Darkvision</option>
+              <option value="vision_monochromatic" {{#if (eq this.effectType "vision_monochromatic")}}selected{{/if}}>Monochromatic</option>
+              <option value="vision_tremorsense" {{#if (eq this.effectType "vision_tremorsense")}}selected{{/if}}>Tremorsense</option>
+              <option value="vision_lightAmplification" {{#if (eq this.effectType "vision_lightAmplification")}}selected{{/if}}>Light Amplification</option>
+            </optgroup>
+            <optgroup label="Light">
+              <option value="light_emission" {{#if (eq this.effectType "light_emission")}}selected{{/if}}>Light Emission</option>
             </optgroup>
             <optgroup label="Attribute">
               <option value="attribute_bonus" {{#if (eq this.effectType "attribute_bonus")}}selected{{/if}}>Attribute Bonus</option>
@@ -50,18 +55,34 @@
       </div>
 
       <div class="effect-details">
-        {{!-- Value field - shown for most effect types --}}
+        {{!-- Value field - shown for vision modes and most other effect types (not light emission) --}}
+        {{#unless (eq this.effectType "light_emission")}}
         <div class="form-group effect-value-group">
           <label>Value</label>
           <input type="number" name="system.itemEffects.{{@index}}.value" value="{{this.value}}" data-dtype="Number" step="any"/>
-          {{#if (eq this.effectType "darkvision")}}
+          {{#if (or (eq this.effectType "vision_basic") (eq this.effectType "vision_darkvision") (eq this.effectType "vision_monochromatic") (eq this.effectType "vision_tremorsense") (eq this.effectType "vision_lightAmplification"))}}
           <span class="unit">meters</span>
-          {{else if (eq this.effectType "thermal_vision")}}
-          <span class="unit">meters</span>
-          {{else if (eq this.effectType "low_light_vision")}}
-          <span class="unit">multiplier</span>
           {{/if}}
         </div>
+        {{/unless}}
+
+        {{!-- Light Emission fields --}}
+        {{#if (eq this.effectType "light_emission")}}
+        <div class="form-group effect-bright-group">
+          <label>Bright Light</label>
+          <input type="number" name="system.itemEffects.{{@index}}.brightRadius" value="{{this.brightRadius}}" data-dtype="Number" min="0"/>
+          <span class="unit">meters</span>
+        </div>
+        <div class="form-group effect-dim-group">
+          <label>Dim Light</label>
+          <input type="number" name="system.itemEffects.{{@index}}.dimRadius" value="{{this.dimRadius}}" data-dtype="Number" min="0"/>
+          <span class="unit">meters</span>
+        </div>
+        <div class="form-group effect-color-group">
+          <label>Light Color</label>
+          <input type="color" name="system.itemEffects.{{@index}}.lightColor" value="{{#if this.lightColor}}{{this.lightColor}}{{else}}#ffffff{{/if}}"/>
+        </div>
+        {{/if}}
 
         {{!-- Target field for attribute/movement/skill bonuses --}}
         {{#if (eq this.effectType "attribute_bonus")}}

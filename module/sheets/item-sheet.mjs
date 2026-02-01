@@ -329,13 +329,22 @@ export class MechFoundryItemSheet extends ItemSheet {
       const attachedOnlyCheckbox = row.querySelector(`[name="system.itemEffects.${index}.attachedItemOnly"]`);
       const descriptionInput = row.querySelector(`[name="system.itemEffects.${index}.description"]`);
 
+      // Light emission fields
+      const brightRadiusInput = row.querySelector(`[name="system.itemEffects.${index}.brightRadius"]`);
+      const dimRadiusInput = row.querySelector(`[name="system.itemEffects.${index}.dimRadius"]`);
+      const lightColorInput = row.querySelector(`[name="system.itemEffects.${index}.lightColor"]`);
+
       effects.push({
         name: nameInput?.value || '',
         effectType: effectTypeSelect?.value || 'ranged_attack_bonus',
         value: parseFloat(valueInput?.value) || 0,
         target: targetInput?.value || '',
         attachedItemOnly: attachedOnlyCheckbox?.checked || false,
-        description: descriptionInput?.value || ''
+        description: descriptionInput?.value || '',
+        // Light emission fields
+        brightRadius: parseFloat(brightRadiusInput?.value) || 0,
+        dimRadius: parseFloat(dimRadiusInput?.value) || 0,
+        lightColor: lightColorInput?.value || '#ffffff'
       });
     });
 

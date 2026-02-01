@@ -21,9 +21,17 @@ export const EFFECT_CATEGORIES = {
   vision: {
     label: "Vision",
     types: {
-      darkvision: { label: "Dark Vision", hasValue: true, unit: "meters" },
-      low_light_vision: { label: "Low-Light Vision", hasValue: true, unit: "multiplier" },
-      thermal_vision: { label: "Thermal Vision", hasValue: true, unit: "meters" }
+      vision_basic: { label: "Basic Vision", hasValue: true, unit: "meters" },
+      vision_darkvision: { label: "Darkvision", hasValue: true, unit: "meters" },
+      vision_monochromatic: { label: "Monochromatic", hasValue: true, unit: "meters" },
+      vision_tremorsense: { label: "Tremorsense", hasValue: true, unit: "meters" },
+      vision_lightAmplification: { label: "Light Amplification", hasValue: true, unit: "meters" }
+    }
+  },
+  light: {
+    label: "Light",
+    types: {
+      light_emission: { label: "Light Emission", hasValue: false, hasBrightDim: true }
     }
   },
   attribute: {
@@ -222,57 +230,83 @@ export class ItemEffectsHelper {
   }
 
   /**
-   * Get vision effects from equipped items
+   * Get vision and light effects from equipped items
    * @param {Actor} actor The actor to check
-   * @returns {Object} Object with vision properties
+   * @returns {Object} Object with vision and light properties
    */
   static getVisionEffects(actor) {
     const effects = this.getEquippedItemEffects(actor);
+
+    // Vision effects - Foundry vision modes
     const vision = {
-      darkvision: 0,
-      lowLightMultiplier: 1,
-      thermalVision: 0,
+      visionMode: null,       // Foundry vision mode name (basic, darkvision, etc.)
+      visionRange: 0,         // Range in meters/units
       sources: []
     };
 
+    // Light emission effects
+    const light = {
+      brightRadius: 0,
+      dimRadius: 0,
+      lightColor: null,
+      sources: []
+    };
+
+    // Vision mode priority (higher index = higher priority)
+    const visionModePriority = ['basic', 'darkvision', 'monochromatic', 'tremorsense', 'lightAmplification'];
+
     for (const effect of effects) {
       const category = getEffectCategory(effect.effectType);
-      if (category !== 'vision') continue;
 
-      const value = Number(effect.value) || 0;
+      // Handle vision modes
+      if (category === 'vision' && effect.effectType.startsWith('vision_')) {
+        const mode = effect.effectType.replace('vision_', '');
+        const range = Number(effect.value) || 0;
 
-      if (effect.effectType === 'darkvision') {
-        // Take the highest darkvision range
-        if (value > vision.darkvision) {
-          vision.darkvision = value;
+        // Take highest range, prefer more advanced vision modes on tie
+        const currentPriority = visionModePriority.indexOf(vision.visionMode) || -1;
+        const newPriority = visionModePriority.indexOf(mode);
+
+        if (range > vision.visionRange || (range === vision.visionRange && newPriority > currentPriority)) {
+          vision.visionMode = mode;
+          vision.visionRange = range;
         }
+
         vision.sources.push({
-          type: 'darkvision',
-          value: value,
+          type: mode,
+          value: range,
           source: effect.sourceItemName
         });
-      } else if (effect.effectType === 'low_light_vision') {
-        // Multiply low-light multipliers
-        vision.lowLightMultiplier *= value;
-        vision.sources.push({
-          type: 'low_light_vision',
-          value: value,
-          source: effect.sourceItemName
-        });
-      } else if (effect.effectType === 'thermal_vision') {
-        // Take the highest thermal range
-        if (value > vision.thermalVision) {
-          vision.thermalVision = value;
+      }
+
+      // Handle light emission
+      if (category === 'light' && effect.effectType === 'light_emission') {
+        const brightRadius = Number(effect.brightRadius) || 0;
+        const dimRadius = Number(effect.dimRadius) || 0;
+
+        // Take the maximum light radii
+        if (brightRadius > light.brightRadius) {
+          light.brightRadius = brightRadius;
         }
-        vision.sources.push({
-          type: 'thermal_vision',
-          value: value,
+        if (dimRadius > light.dimRadius) {
+          light.dimRadius = dimRadius;
+        }
+        // Use the last defined color
+        if (effect.lightColor) {
+          light.lightColor = effect.lightColor;
+        }
+
+        light.sources.push({
+          type: 'light_emission',
+          brightRadius: brightRadius,
+          dimRadius: dimRadius,
+          lightColor: effect.lightColor,
           source: effect.sourceItemName
         });
       }
     }
 
-    return vision;
+    return { vision, light };
   }
 
   /**
@@ -368,25 +402,31 @@ export class ItemEffectsHelper {
   }
 
   /**
-   * Apply vision effects to a token
+   * Apply vision and light effects to a token
    * This should be called when token vision needs to be updated
    * @param {Token} token The token to update
-   * @param {Object} visionEffects Vision effects from getVisionEffects
+   * @param {Object} visionEffects Vision/light effects from getVisionEffects
    */
   static applyVisionToToken(token, visionEffects) {
     if (!token || !token.document) return;
 
+    const { vision, light } = visionEffects || {};
     const updates = {};
 
-    // Apply darkvision
-    if (visionEffects.darkvision > 0) {
-      // In Foundry v12, this is done through detection modes
-      // We'll set the token's sight range to include darkvision
-      updates['sight.range'] = Math.max(
-        token.document.sight?.range || 0,
-        visionEffects.darkvision
-      );
-      updates['sight.visionMode'] = 'darkvision';
+    // Apply vision mode
+    if (vision?.visionMode && vision.visionRange > 0) {
+      updates['sight.range'] = vision.visionRange;
+      updates['sight.visionMode'] = vision.visionMode;
+      updates['sight.enabled'] = true;
+    }
+
+    // Apply light emission
+    if (light?.brightRadius > 0 || light?.dimRadius > 0) {
+      updates['light.bright'] = light.brightRadius || 0;
+      updates['light.dim'] = light.dimRadius || 0;
+      if (light.lightColor) {
+        updates['light.color'] = light.lightColor;
+      }
     }
 
     // Apply changes if any

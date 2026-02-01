@@ -550,8 +550,15 @@ Hooks.on('renderChatMessage', (message, html, data) => {
 /* -------------------------------------------- */
 
 /**
- * Apply vision effects from equipped items to tokens
- * This integrates with Foundry's vision system
+ * Apply vision and light effects from equipped items to tokens
+ * This integrates with Foundry's vision and lighting system
+ *
+ * Vision Modes (Foundry built-in):
+ * - basic: Standard default vision
+ * - darkvision: Desaturated vision in darkness, colors in lit areas
+ * - monochromatic: No colors regardless of light source
+ * - tremorsense: Radar-sweep visual effect
+ * - lightAmplification: Night-vision goggles effect (green-tinted)
  */
 async function applyVisionEffects(token, actor) {
   if (!token || !actor) return;
@@ -559,26 +566,28 @@ async function applyVisionEffects(token, actor) {
   const visionEffects = actor.system.visionEffects;
   if (!visionEffects) return;
 
+  const { vision, light } = visionEffects;
   const updates = {};
 
-  // Apply darkvision
-  if (visionEffects.darkvision > 0) {
-    // Convert meters to grid units (assuming 1 unit = 1 meter for this system)
-    const darkvisionRange = visionEffects.darkvision;
-
-    // In Foundry v12+, vision is configured through detection modes
-    // We set the basic sight range and enable darkvision mode
-    updates['sight.range'] = Math.max(
-      token.document.sight?.range || 0,
-      darkvisionRange
-    );
-
-    // Set vision mode to darkvision
-    updates['sight.visionMode'] = 'darkvision';
+  // Apply vision mode if present
+  if (vision?.visionMode && vision.visionRange > 0) {
+    updates['sight.range'] = vision.visionRange;
+    updates['sight.visionMode'] = vision.visionMode;
     updates['sight.enabled'] = true;
   }
 
-  // Apply any vision updates
+  // Apply light emission if present
+  if (light?.brightRadius > 0 || light?.dimRadius > 0) {
+    updates['light.bright'] = light.brightRadius || 0;
+    updates['light.dim'] = light.dimRadius || 0;
+    updates['light.angle'] = 360; // Full circle light
+
+    if (light.lightColor) {
+      updates['light.color'] = light.lightColor;
+    }
+  }
+
+  // Apply any updates
   if (Object.keys(updates).length > 0 && token.document) {
     await token.document.update(updates);
   }
