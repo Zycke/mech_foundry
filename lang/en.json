@@ -261,5 +261,20 @@
   "MECHFOUNDRY.EffectMovement": "Movement",
   "MECHFOUNDRY.EffectMovementBonus": "Movement Bonus",
   "MECHFOUNDRY.EffectSkill": "Skill",
-  "MECHFOUNDRY.EffectSkillBonus": "Skill Bonus"
+  "MECHFOUNDRY.EffectSkillBonus": "Skill Bonus",
+
+  "MECHFOUNDRY.EmbeddedActiveEffects": "Embedded Active Effects",
+  "MECHFOUNDRY.EmbeddedActiveEffectsHint": "Active Effects that transfer to the character when this item is equipped. These become full Active Effects on the character that enable/disable with equip status.",
+  "MECHFOUNDRY.AddActiveEffect": "Add Active Effect",
+  "MECHFOUNDRY.Modifiers": "Modifiers",
+  "MECHFOUNDRY.Operation": "Operation",
+  "MECHFOUNDRY.OperationAdd": "Add (+)",
+  "MECHFOUNDRY.OperationMultiply": "Multiply (×)",
+  "MECHFOUNDRY.TransferredEffect": "Transferred from item",
+  "MECHFOUNDRY.CombatRangedAttack": "Ranged Attack",
+  "MECHFOUNDRY.CombatMeleeAttack": "Melee Attack",
+  "MECHFOUNDRY.CombatAllAttack": "All Attacks",
+  "MECHFOUNDRY.CombatRangedDamage": "Ranged Damage",
+  "MECHFOUNDRY.CombatMeleeDamage": "Melee Damage",
+  "MECHFOUNDRY.CombatAllDamage": "All Damage"
 }

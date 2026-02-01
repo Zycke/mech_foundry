@@ -2829,3 +2829,173 @@
 .mech-foundry .effect-color-group input[type="color"]::-webkit-color-swatch {
   border-radius: 2px;
 }
+
+/* ========================================
+   Embedded Active Effects Styles
+   ======================================== */
+
+.mech-foundry .item-active-effects-section {
+  margin-top: 20px;
+  padding-top: 15px;
+  border-top: 2px solid var(--mf-primary);
+}
+
+.mech-foundry .item-active-effects-section h3 {
+  color: var(--mf-primary);
+  margin-bottom: 5px;
+}
+
+.mech-foundry .item-active-effects-section .hint {
+  font-size: 0.85em;
+  color: var(--mf-text-muted);
+  margin-bottom: 15px;
+  font-style: italic;
+}
+
+.mech-foundry .embedded-effects-list {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.mech-foundry .embedded-effect-row {
+  background: var(--mf-bg-light);
+  border: 1px solid var(--mf-border);
+  border-radius: var(--mf-border-radius);
+  padding: 10px;
+}
+
+.mech-foundry .embedded-effect-row .effect-header {
+  display: flex;
+  gap: 10px;
+  align-items: flex-end;
+  margin-bottom: 10px;
+}
+
+.mech-foundry .embedded-effect-row .effect-name-group {
+  flex: 1;
+}
+
+.mech-foundry .embedded-effect-row .effect-active-group {
+  flex: 0 0 auto;
+}
+
+.mech-foundry .embedded-effect-row .effect-actions {
+  flex: 0 0 auto;
+}
+
+.mech-foundry .embedded-effect-row .effect-actions button {
+  background: var(--mf-danger);
+  color: white;
+  border: none;
+  padding: 4px 8px;
+  border-radius: var(--mf-border-radius);
+  cursor: pointer;
+}
+
+.mech-foundry .embedded-effect-row .effect-actions button:hover {
+  background: #a31515;
+}
+
+.mech-foundry .embedded-effect-row .effect-attached-only {
+  margin-bottom: 10px;
+  padding: 5px 0;
+}
+
+.mech-foundry .embedded-effect-row .effect-attached-only label {
+  font-size: 0.9em;
+  color: var(--mf-text-muted);
+}
+
+.mech-foundry .embedded-effect-row .effect-modifiers {
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: var(--mf-border-radius);
+  padding: 10px;
+  margin-bottom: 10px;
+}
+
+.mech-foundry .embedded-effect-row .modifiers-label {
+  font-weight: bold;
+  margin-bottom: 8px;
+  display: block;
+  color: var(--mf-primary);
+}
+
+.mech-foundry .embedded-effect-row .modifiers-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.mech-foundry .embedded-effect-row .modifier-row {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  padding: 8px;
+  background: var(--mf-bg);
+  border-radius: var(--mf-border-radius);
+}
+
+.mech-foundry .embedded-effect-row .modifier-row .form-group {
+  flex: 1;
+  min-width: 100px;
+  margin-bottom: 0;
+}
+
+.mech-foundry .embedded-effect-row .modifier-row .modifier-value-group {
+  flex: 0 0 80px;
+}
+
+.mech-foundry .embedded-effect-row .modifier-row .modifier-actions {
+  flex: 0 0 auto;
+}
+
+.mech-foundry .embedded-effect-row .modifier-row .modifier-actions button {
+  background: transparent;
+  border: none;
+  color: var(--mf-danger);
+  cursor: pointer;
+  padding: 4px;
+}
+
+.mech-foundry .embedded-effect-row .modifier-row .modifier-actions button:hover {
+  color: #a31515;
+}
+
+.mech-foundry .embedded-effect-row .add-embedded-modifier {
+  background: var(--mf-secondary);
+  color: white;
+  border: none;
+  padding: 5px 10px;
+  border-radius: var(--mf-border-radius);
+  cursor: pointer;
+  font-size: 0.85em;
+}
+
+.mech-foundry .embedded-effect-row .add-embedded-modifier:hover {
+  background: var(--mf-secondary-dark);
+}
+
+.mech-foundry .embedded-effect-row .effect-description-group textarea {
+  width: 100%;
+  resize: vertical;
+}
+
+.mech-foundry .item-active-effects-section > .effect-controls {
+  margin-top: 10px;
+}
+
+.mech-foundry .item-active-effects-section > .effect-controls .add-embedded-effect {
+  background: var(--mf-primary);
+  color: white;
+  border: none;
+  padding: 8px 15px;
+  border-radius: var(--mf-border-radius);
+  cursor: pointer;
+}
+
+.mech-foundry .item-active-effects-section > .effect-controls .add-embedded-effect:hover {
+  background: var(--mf-primary-dark);
+}
