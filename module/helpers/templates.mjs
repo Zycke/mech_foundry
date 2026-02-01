@@ -11,6 +11,10 @@ export const preloadHandlebarsTemplates = async function() {
 
     // Item sheets
     "systems/mech-foundry/templates/item/item-skill-sheet.hbs",
+
+    // Item partials
+    "systems/mech-foundry/templates/item/parts/item-effects.hbs",
+    "systems/mech-foundry/templates/item/parts/item-active-effects.hbs",
     "systems/mech-foundry/templates/item/item-trait-sheet.hbs",
     "systems/mech-foundry/templates/item/item-weapon-sheet.hbs",
     "systems/mech-foundry/templates/item/item-armor-sheet.hbs",

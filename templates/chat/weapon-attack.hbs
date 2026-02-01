@@ -5,12 +5,28 @@
   {{#each results}}
   <div class="attack-roll">
     {{#if this.targetIndex}}<div class="target-label">Target {{this.targetIndex}}:</div>{{/if}}
-    <div class="roll-formula">
-      [{{this.diceResults.[0]}}]+[{{this.diceResults.[1]}}]{{#if ../skillMod}} + ({{../skillMod}}){{/if}}{{#if ../inputMod}}{{#if (gte ../inputMod 0)}} + {{../inputMod}}{{else}} - {{abs ../inputMod}}{{/if}}{{/if}}{{#if ../recoilMod}} - {{../recoilMod}}{{/if}}{{#if ../firingModeMod}} - {{../firingModeMod}}{{/if}}{{#if ../injuryMod}}{{#if (gte ../injuryMod 0)}} + {{../injuryMod}}{{else}} - {{abs ../injuryMod}}{{/if}}{{/if}}{{#if ../fatigueMod}}{{#if (gte ../fatigueMod 0)}} + {{../fatigueMod}}{{else}} - {{abs ../fatigueMod}}{{/if}}{{/if}} = {{this.total}}
+
+    {{!-- Special Roll Display --}}
+    {{#if this.specialRoll.isFumble}}
+    <div class="special-roll fumble">{{this.specialRoll.displayText}}</div>
+    {{else if this.specialRoll.isStunningSuccess}}
+    <div class="special-roll {{#if this.specialRoll.isMiraculousFeat}}miraculous-feat{{else}}stunning-success{{/if}}">
+      {{this.specialRoll.displayText}}
+      {{#if this.specialRoll.bonusDice.length}}
+      <span class="bonus-dice">(Bonus dice: {{#each this.specialRoll.bonusDice}}+{{this}}{{#unless @last}}, {{/unless}}{{/each}} = +{{this.specialRoll.bonusTotal}})</span>
+      {{/if}}
     </div>
+    {{/if}}
+
+    <div class="roll-formula">
+      [{{this.diceResults.[0]}}]+[{{this.diceResults.[1]}}]{{#if ../skillMod}} + ({{../skillMod}}){{/if}}{{#if ../inputMod}}{{#if (gte ../inputMod 0)}} + {{../inputMod}}{{else}} - {{abs ../inputMod}}{{/if}}{{/if}}{{#if ../recoilMod}} - {{../recoilMod}}{{/if}}{{#if ../firingModeMod}} - {{../firingModeMod}}{{/if}}{{#if ../injuryMod}}{{#if (gte ../injuryMod 0)}} + {{../injuryMod}}{{else}} - {{abs ../injuryMod}}{{/if}}{{/if}}{{#if ../fatigueMod}}{{#if (gte ../fatigueMod 0)}} + {{../fatigueMod}}{{else}} - {{abs ../fatigueMod}}{{/if}}{{/if}}{{#if this.specialRoll.bonusTotal}} + {{this.specialRoll.bonusTotal}} bonus{{/if}} = {{this.total}}
+    </div>
+    {{#if (ne this.total this.rawTotal)}}
+    <div class="roll-raw">(Base roll: {{this.rawTotal}})</div>
+    {{/if}}
     <div class="roll-tn">TN: {{../targetNumber}}</div>
     <div class="roll-mos {{#if this.success}}success{{else}}failure{{/if}}">
-      MoS: {{this.marginOfSuccess}} [{{#if this.success}}Success{{else}}Failure{{/if}}]
+      MoS: {{this.marginOfSuccess}} [{{#if this.success}}Success{{else}}Failure{{/if}}{{#if this.specialRoll.isFumble}} (Auto){{else if this.specialRoll.isMiraculousFeat}} (Auto){{/if}}]
     </div>
 
     {{#if this.success}}

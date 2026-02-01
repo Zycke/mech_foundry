@@ -11,6 +11,7 @@
 
 // Import document classes
 import { MechFoundryActor } from "./documents/actor.mjs";
+import { MechFoundryItem } from "./documents/item.mjs";
 
 // Import sheet classes
 import { MechFoundryActorSheet } from "./sheets/actor-sheet.mjs";
@@ -20,6 +21,8 @@ import { MechFoundryItemSheet } from "./sheets/item-sheet.mjs";
 import { preloadHandlebarsTemplates } from "./helpers/templates.mjs";
 import { SocketHandler, SOCKET_EVENTS } from "./helpers/socket-handler.mjs";
 import { OpposedRollHelper } from "./helpers/opposed-rolls.mjs";
+import { DiceMechanics } from "./helpers/dice-mechanics.mjs";
+import { ItemEffectsHelper, EFFECT_CATEGORIES, getEffectTypeOptions } from "./helpers/effects-helper.mjs";
 
 /* -------------------------------------------- */
 /*  Init Hook                                   */
@@ -31,11 +34,17 @@ Hooks.once('init', function() {
   // Add custom constants for configuration
   game.mechfoundry = {
     MechFoundryActor,
+    MechFoundryItem,
+    DiceMechanics,
+    ItemEffectsHelper,
+    EFFECT_CATEGORIES,
+    getEffectTypeOptions,
     config: MECHFOUNDRY
   };
 
   // Define custom Document classes
   CONFIG.Actor.documentClass = MechFoundryActor;
+  CONFIG.Item.documentClass = MechFoundryItem;
 
   // Register sheet application classes
   Actors.unregisterSheet("core", ActorSheet);
@@ -537,4 +546,129 @@ Hooks.on('renderChatMessage', (message, html, data) => {
       html.find('.apply-defender-damage').show();
     }
   });
+});
+
+/* -------------------------------------------- */
+/*  Vision Effect Hooks                         */
+/* -------------------------------------------- */
+
+/**
+ * Apply vision and light effects from equipped items to tokens
+ * This integrates with Foundry's vision and lighting system
+ *
+ * Vision Modes (Foundry built-in):
+ * - basic: Standard default vision
+ * - darkvision: Desaturated vision in darkness, colors in lit areas
+ * - monochromatic: No colors regardless of light source
+ * - tremorsense: Radar-sweep visual effect
+ * - lightAmplification: Night-vision goggles effect (green-tinted)
+ */
+async function applyVisionEffects(token, actor) {
+  if (!token || !actor) return;
+
+  const visionEffects = actor.system.visionEffects;
+  if (!visionEffects) return;
+
+  const { vision, light } = visionEffects;
+  const updates = {};
+
+  // Apply vision mode if present
+  if (vision?.visionMode && vision.visionRange > 0) {
+    updates['sight.range'] = vision.visionRange;
+    updates['sight.visionMode'] = vision.visionMode;
+    updates['sight.enabled'] = true;
+  }
+
+  // Apply light emission if present
+  if (light?.brightRadius > 0 || light?.dimRadius > 0) {
+    updates['light.bright'] = light.brightRadius || 0;
+    updates['light.dim'] = light.dimRadius || 0;
+    updates['light.angle'] = 360; // Full circle light
+
+    if (light.lightColor) {
+      updates['light.color'] = light.lightColor;
+    }
+  }
+
+  // Apply any updates
+  if (Object.keys(updates).length > 0 && token.document) {
+    await token.document.update(updates);
+  }
+}
+
+// Update token vision when a token is created
+Hooks.on('createToken', async (tokenDocument, options, userId) => {
+  if (game.user.id !== userId) return;
+
+  const actor = tokenDocument.actor;
+  if (!actor) return;
+
+  // Delay to ensure token is fully created
+  setTimeout(async () => {
+    const token = canvas.tokens?.get(tokenDocument.id);
+    if (token) {
+      await applyVisionEffects(token, actor);
+    }
+  }, 100);
+});
+
+// Update token vision when actor items change (equip/unequip)
+Hooks.on('updateItem', async (item, changes, options, userId) => {
+  if (game.user.id !== userId) return;
+
+  // Check if carryStatus changed (equip/unequip)
+  if (!changes.system?.carryStatus && !changes.system?.equipped) return;
+
+  const actor = item.parent;
+  if (!actor) return;
+
+  // Find all tokens for this actor and update their vision
+  const tokens = actor.getActiveTokens();
+  for (const token of tokens) {
+    await applyVisionEffects(token, actor);
+  }
+
+  // Handle embedded Active Effects transfer on equip/unequip
+  if (MechFoundryItem.EQUIPPABLE_TYPES.includes(item.type)) {
+    const wasEquipped = !item.isEquipped; // Old state (before change)
+    const isNowEquipped = item.isEquipped; // New state (after change)
+
+    // Only process if there's an actual change
+    if (wasEquipped !== isNowEquipped) {
+      await item.onEquipmentStatusChange(isNowEquipped);
+    }
+  }
+});
+
+// Handle item creation - sync embedded effects to actor
+Hooks.on('createItem', async (item, options, userId) => {
+  if (game.user.id !== userId) return;
+  if (!item.parent) return;
+
+  // Sync embedded Active Effects to actor
+  if (MechFoundryItem.EQUIPPABLE_TYPES.includes(item.type) && item.isEquipped) {
+    await item.syncEffectsToActor();
+  }
+});
+
+// Handle item deletion - clean up transferred effects
+Hooks.on('preDeleteItem', async (item, options, userId) => {
+  if (game.user.id !== userId) return;
+  if (!item.parent) return;
+
+  // Clean up transferred Active Effects from actor
+  if (MechFoundryItem.EQUIPPABLE_TYPES.includes(item.type)) {
+    await item.cleanupTransferredEffects();
+  }
+});
+
+// Update token vision when actor is updated (in case effects change)
+Hooks.on('updateActor', async (actor, changes, options, userId) => {
+  if (game.user.id !== userId) return;
+
+  // Find all tokens for this actor and update their vision
+  const tokens = actor.getActiveTokens();
+  for (const token of tokens) {
+    await applyVisionEffects(token, actor);
+  }
 });

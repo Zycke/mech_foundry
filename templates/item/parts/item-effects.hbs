@@ -1,0 +1,145 @@
+{{!-- Item Effects Partial --}}
+{{!-- Include this in item sheets that support effects (weapon, armor, electronics, etc.) --}}
+
+<div class="item-effects-section">
+  <h3>Item Effects</h3>
+  <p class="hint">Effects that apply when this item is equipped. Combat effects can optionally only apply to attacks made with this specific item.</p>
+
+  <div class="effects-list">
+    {{#each system.itemEffects}}
+    <div class="effect-row" data-index="{{@index}}">
+      <div class="effect-header">
+        <div class="form-group effect-name-group">
+          <label>Effect Name</label>
+          <input type="text" name="system.itemEffects.{{@index}}.name" value="{{this.name}}" placeholder="e.g., Scope, Night Vision"/>
+        </div>
+
+        <div class="form-group effect-type-group">
+          <label>Effect Type</label>
+          <select name="system.itemEffects.{{@index}}.effectType" class="effect-type-select">
+            <optgroup label="Combat">
+              <option value="ranged_attack_bonus" {{#if (eq this.effectType "ranged_attack_bonus")}}selected{{/if}}>Ranged Attack Bonus</option>
+              <option value="melee_attack_bonus" {{#if (eq this.effectType "melee_attack_bonus")}}selected{{/if}}>Melee Attack Bonus</option>
+              <option value="all_attack_bonus" {{#if (eq this.effectType "all_attack_bonus")}}selected{{/if}}>All Attack Bonus</option>
+              <option value="damage_bonus" {{#if (eq this.effectType "damage_bonus")}}selected{{/if}}>Damage Bonus</option>
+              <option value="ranged_damage_bonus" {{#if (eq this.effectType "ranged_damage_bonus")}}selected{{/if}}>Ranged Damage Bonus</option>
+              <option value="melee_damage_bonus" {{#if (eq this.effectType "melee_damage_bonus")}}selected{{/if}}>Melee Damage Bonus</option>
+            </optgroup>
+            <optgroup label="Vision">
+              <option value="vision_basic" {{#if (eq this.effectType "vision_basic")}}selected{{/if}}>Basic Vision</option>
+              <option value="vision_darkvision" {{#if (eq this.effectType "vision_darkvision")}}selected{{/if}}>Darkvision</option>
+              <option value="vision_monochromatic" {{#if (eq this.effectType "vision_monochromatic")}}selected{{/if}}>Monochromatic</option>
+              <option value="vision_tremorsense" {{#if (eq this.effectType "vision_tremorsense")}}selected{{/if}}>Tremorsense</option>
+              <option value="vision_lightAmplification" {{#if (eq this.effectType "vision_lightAmplification")}}selected{{/if}}>Light Amplification</option>
+            </optgroup>
+            <optgroup label="Light">
+              <option value="light_emission" {{#if (eq this.effectType "light_emission")}}selected{{/if}}>Light Emission</option>
+            </optgroup>
+            <optgroup label="Attribute">
+              <option value="attribute_bonus" {{#if (eq this.effectType "attribute_bonus")}}selected{{/if}}>Attribute Bonus</option>
+            </optgroup>
+            <optgroup label="Movement">
+              <option value="movement_bonus" {{#if (eq this.effectType "movement_bonus")}}selected{{/if}}>Movement Bonus</option>
+            </optgroup>
+            <optgroup label="Skill">
+              <option value="skill_bonus" {{#if (eq this.effectType "skill_bonus")}}selected{{/if}}>Skill Bonus</option>
+            </optgroup>
+          </select>
+        </div>
+
+        <div class="form-group effect-actions">
+          <button type="button" class="remove-item-effect" data-index="{{@index}}" title="Remove Effect">
+            <i class="fas fa-trash"></i>
+          </button>
+        </div>
+      </div>
+
+      <div class="effect-details">
+        {{!-- Value field - shown for vision modes and most other effect types (not light emission) --}}
+        {{#unless (eq this.effectType "light_emission")}}
+        <div class="form-group effect-value-group">
+          <label>Value</label>
+          <input type="number" name="system.itemEffects.{{@index}}.value" value="{{this.value}}" data-dtype="Number" step="any"/>
+          {{#if (or (eq this.effectType "vision_basic") (eq this.effectType "vision_darkvision") (eq this.effectType "vision_monochromatic") (eq this.effectType "vision_tremorsense") (eq this.effectType "vision_lightAmplification"))}}
+          <span class="unit">meters</span>
+          {{/if}}
+        </div>
+        {{/unless}}
+
+        {{!-- Light Emission fields --}}
+        {{#if (eq this.effectType "light_emission")}}
+        <div class="form-group effect-bright-group">
+          <label>Bright Light</label>
+          <input type="number" name="system.itemEffects.{{@index}}.brightRadius" value="{{this.brightRadius}}" data-dtype="Number" min="0"/>
+          <span class="unit">meters</span>
+        </div>
+        <div class="form-group effect-dim-group">
+          <label>Dim Light</label>
+          <input type="number" name="system.itemEffects.{{@index}}.dimRadius" value="{{this.dimRadius}}" data-dtype="Number" min="0"/>
+          <span class="unit">meters</span>
+        </div>
+        <div class="form-group effect-color-group">
+          <label>Light Color</label>
+          <input type="color" name="system.itemEffects.{{@index}}.lightColor" value="{{#if this.lightColor}}{{this.lightColor}}{{else}}#ffffff{{/if}}"/>
+        </div>
+        {{/if}}
+
+        {{!-- Target field for attribute/movement/skill bonuses --}}
+        {{#if (eq this.effectType "attribute_bonus")}}
+        <div class="form-group effect-target-group">
+          <label>Target Attribute</label>
+          <select name="system.itemEffects.{{@index}}.target">
+            <option value="str" {{#if (eq this.target "str")}}selected{{/if}}>STR</option>
+            <option value="bod" {{#if (eq this.target "bod")}}selected{{/if}}>BOD</option>
+            <option value="rfl" {{#if (eq this.target "rfl")}}selected{{/if}}>RFL</option>
+            <option value="dex" {{#if (eq this.target "dex")}}selected{{/if}}>DEX</option>
+            <option value="int" {{#if (eq this.target "int")}}selected{{/if}}>INT</option>
+            <option value="wil" {{#if (eq this.target "wil")}}selected{{/if}}>WIL</option>
+            <option value="cha" {{#if (eq this.target "cha")}}selected{{/if}}>CHA</option>
+            <option value="edg" {{#if (eq this.target "edg")}}selected{{/if}}>EDG</option>
+          </select>
+        </div>
+        {{else if (eq this.effectType "movement_bonus")}}
+        <div class="form-group effect-target-group">
+          <label>Target Movement</label>
+          <select name="system.itemEffects.{{@index}}.target">
+            <option value="walk" {{#if (eq this.target "walk")}}selected{{/if}}>Walk</option>
+            <option value="run" {{#if (eq this.target "run")}}selected{{/if}}>Run</option>
+            <option value="sprint" {{#if (eq this.target "sprint")}}selected{{/if}}>Sprint</option>
+            <option value="climb" {{#if (eq this.target "climb")}}selected{{/if}}>Climb</option>
+            <option value="crawl" {{#if (eq this.target "crawl")}}selected{{/if}}>Crawl</option>
+            <option value="swim" {{#if (eq this.target "swim")}}selected{{/if}}>Swim</option>
+          </select>
+        </div>
+        {{else if (eq this.effectType "skill_bonus")}}
+        <div class="form-group effect-target-group">
+          <label>Target Skill</label>
+          <input type="text" name="system.itemEffects.{{@index}}.target" value="{{this.target}}" placeholder="Skill Name"/>
+        </div>
+        {{/if}}
+
+        {{!-- Attached Item Only checkbox for combat effects --}}
+        {{#if (or (eq this.effectType "ranged_attack_bonus") (eq this.effectType "melee_attack_bonus") (eq this.effectType "all_attack_bonus") (eq this.effectType "damage_bonus") (eq this.effectType "ranged_damage_bonus") (eq this.effectType "melee_damage_bonus"))}}
+        <div class="form-group effect-attached-only">
+          <label>
+            <input type="checkbox" name="system.itemEffects.{{@index}}.attachedItemOnly" {{#if this.attachedItemOnly}}checked{{/if}}/>
+            Only applies to attacks with this item
+          </label>
+        </div>
+        {{/if}}
+      </div>
+
+      <div class="form-group effect-description-group">
+        <label>Description (optional)</label>
+        <input type="text" name="system.itemEffects.{{@index}}.description" value="{{this.description}}" placeholder="Brief description of the effect"/>
+      </div>
+    </div>
+    {{/each}}
+  </div>
+
+  <div class="effect-controls">
+    <button type="button" class="add-item-effect">
+      <i class="fas fa-plus"></i> Add Effect
+    </button>
+  </div>
+</div>

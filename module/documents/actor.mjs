@@ -1,5 +1,7 @@
 import { OpposedRollHelper } from '../helpers/opposed-rolls.mjs';
 import { SocketHandler, SOCKET_EVENTS } from '../helpers/socket-handler.mjs';
+import { DiceMechanics } from '../helpers/dice-mechanics.mjs';
+import { ItemEffectsHelper } from '../helpers/effects-helper.mjs';
 
 /**
  * Extend the base Actor document for Mech Foundry system
@@ -29,6 +31,9 @@ export class MechFoundryActor extends Actor {
     // Apply active effect modifiers to attributes
     this._applyActiveEffectModifiers(systemData, 'attribute');
 
+    // Apply item effect modifiers to attributes
+    this._applyItemEffectModifiers(systemData, 'attribute');
+
     // Calculate Link Attribute Modifiers for all attributes
     this._calculateLinkModifiers(systemData);
 
@@ -38,6 +43,9 @@ export class MechFoundryActor extends Actor {
     // Apply active effect modifiers to movement
     this._applyActiveEffectModifiers(systemData, 'movement');
 
+    // Apply item effect modifiers to movement
+    this._applyItemEffectModifiers(systemData, 'movement');
+
     // Calculate total XP (available + spent)
     if (systemData.xp) {
       systemData.xp.total = (systemData.xp.value || 0) + (systemData.xp.spent || 0);
@@ -45,6 +53,9 @@ export class MechFoundryActor extends Actor {
 
     // Store active skill modifiers for use in rolls
     systemData.activeSkillModifiers = this._getActiveSkillModifiers();
+
+    // Store vision effects from equipped items
+    systemData.visionEffects = ItemEffectsHelper.getVisionEffects(this);
   }
 
   /**
@@ -347,6 +358,35 @@ export class MechFoundryActor extends Actor {
   }
 
   /**
+   * Apply modifiers from equipped item effects
+   * @param {Object} systemData The actor's system data
+   * @param {string} targetType The type of target to apply modifiers to ('attribute' or 'movement')
+   */
+  _applyItemEffectModifiers(systemData, targetType) {
+    if (targetType === 'attribute') {
+      const attrModifiers = ItemEffectsHelper.getAttributeModifiers(this);
+      for (const [attr, modData] of Object.entries(attrModifiers)) {
+        if (systemData.attributes[attr]) {
+          systemData.attributes[attr].total += modData.additive;
+          // Track item effect modifier separately for display
+          if (!systemData.attributes[attr].itemEffectMod) {
+            systemData.attributes[attr].itemEffectMod = 0;
+          }
+          systemData.attributes[attr].itemEffectMod += modData.additive;
+        }
+      }
+    } else if (targetType === 'movement') {
+      const moveModifiers = ItemEffectsHelper.getMovementModifiers(this);
+      for (const [moveType, modData] of Object.entries(moveModifiers)) {
+        if (systemData.movement && systemData.movement[moveType] !== undefined) {
+          systemData.movement[moveType] += modData.additive;
+          systemData.movement[moveType] = Math.max(0, Math.round(systemData.movement[moveType]));
+        }
+      }
+    }
+  }
+
+  /**
    * Get active skill modifiers from persistent effects
    * @returns {Object} Map of skill name to modifier object with additive and multiplicative arrays
    */
@@ -495,15 +535,21 @@ export class MechFoundryActor extends Actor {
     // Extract raw dice results for display
     const diceResults = roll.dice[0].results.map(r => r.result);
 
-    const success = roll.total >= targetNumber;
-    const marginOfSuccess = roll.total - targetNumber;
+    // Check for special roll mechanics (Fumble, Stunning Success, Miraculous Feat)
+    const specialRoll = await DiceMechanics.evaluateSpecialRoll(diceResults);
+    const successInfo = DiceMechanics.determineSuccess(roll.total, targetNumber, specialRoll);
+
+    const success = successInfo.success;
+    const marginOfSuccess = successInfo.mos;
+    const finalTotal = successInfo.finalTotal;
 
     // Create chat message
     const messageContent = await renderTemplate(
       "systems/mech-foundry/templates/chat/skill-roll.hbs",
       {
         skillName: skill.name,
-        total: roll.total,
+        total: finalTotal,
+        rawTotal: roll.total,
         targetNumber: targetNumber,
         success: success,
         marginOfSuccess: marginOfSuccess,
@@ -512,7 +558,9 @@ export class MechFoundryActor extends Actor {
         skillMod: skillLevel + linkMod,
         inputMod: inputMod,
         injuryMod: injuryMod,
-        fatigueMod: fatigueMod
+        fatigueMod: fatigueMod,
+        // Special roll info
+        specialRoll: specialRoll
       }
     );
 
@@ -524,7 +572,7 @@ export class MechFoundryActor extends Actor {
     };
 
     ChatMessage.create(messageData);
-    return { roll, success, marginOfSuccess };
+    return { roll, success, marginOfSuccess, specialRoll };
   }
 
   /**
@@ -639,8 +687,13 @@ export class MechFoundryActor extends Actor {
     // Combined skill modifier
     const skillMod = skillLevel + linkMod;
 
+    // Get combat modifiers from equipped item effects
+    const combatType = isMelee ? 'melee' : 'ranged';
+    const itemCombatMod = ItemEffectsHelper.getCombatModifier(this, combatType, weaponId);
+    const itemEffectMod = itemCombatMod.totalBonus;
+
     // Calculate total modifier
-    const totalMod = skillMod + inputMod + injuryMod + fatigueMod - recoilMod - firingModeMod;
+    const totalMod = skillMod + inputMod + injuryMod + fatigueMod + itemEffectMod - recoilMod - firingModeMod;
     const targetNumber = skill?.system.targetNumber || 7;
 
     // Get weapon damage values
@@ -649,6 +702,10 @@ export class MechFoundryActor extends Actor {
     const apFactor = weaponData.apFactor || '';
     const isSubduing = weaponData.subduing || weaponData.bdFactor === 'D';
     const str = this.system.attributes.str?.value || 5;
+
+    // Get damage modifiers from equipped item effects
+    const itemDamageMod = ItemEffectsHelper.getDamageModifier(this, combatType, weaponId);
+    const itemDamageBonus = itemDamageMod.totalBonus;
 
     // Calculate extra shots for burst fire damage cap
     const extraShots = (firingMode === 'burst') ? (options.burstShots || 1) - 1 :
@@ -662,8 +719,14 @@ export class MechFoundryActor extends Actor {
       await roll.evaluate();
 
       const diceResults = roll.dice[0].results.map(r => r.result);
-      const success = roll.total >= targetNumber;
-      const marginOfSuccess = roll.total - targetNumber;
+
+      // Check for special roll mechanics (Fumble, Stunning Success, Miraculous Feat)
+      const specialRoll = await DiceMechanics.evaluateSpecialRoll(diceResults);
+      const successInfo = DiceMechanics.determineSuccess(roll.total, targetNumber, specialRoll);
+
+      const success = successInfo.success;
+      const marginOfSuccess = successInfo.mos;
+      const finalTotal = successInfo.finalTotal;
 
       // Calculate damage if attack succeeds
       let standardDamage = 0;
@@ -708,6 +771,15 @@ export class MechFoundryActor extends Actor {
           standardDamage = baseDamage + mosDamage;
           fatigueDamage = 1;
         }
+
+        // Apply item effect damage bonus
+        if (itemDamageBonus > 0) {
+          if (isSubduing || attackType === 'Subduing' || (isMelee && baseDamage === 0)) {
+            fatigueDamage += itemDamageBonus;
+          } else {
+            standardDamage += itemDamageBonus;
+          }
+        }
       }
 
       // Calculate hit location and armor if we have a target
@@ -742,7 +814,8 @@ export class MechFoundryActor extends Actor {
 
       results.push({
         roll,
-        total: roll.total,
+        total: finalTotal,
+        rawTotal: roll.total,
         diceResults,
         success,
         marginOfSuccess,
@@ -760,7 +833,9 @@ export class MechFoundryActor extends Actor {
         armorCalc,
         canApplyDamage,
         targetActorId,
-        damageTypeName
+        damageTypeName,
+        // Special roll info
+        specialRoll
       });
     }
 
@@ -787,7 +862,9 @@ export class MechFoundryActor extends Actor {
         recoilMod: recoilMod,
         firingModeMod: firingModeMod,
         injuryMod: injuryMod,
-        fatigueMod: fatigueMod
+        fatigueMod: fatigueMod,
+        itemEffectMod: itemEffectMod,
+        itemCombatModBreakdown: itemCombatMod.breakdown
       }
     );
 
@@ -899,17 +976,29 @@ export class MechFoundryActor extends Actor {
     }
 
     const skillMod = skillLevel + linkMod;
-    const totalMod = skillMod + inputMod + injuryMod + fatigueMod;
+
+    // Get combat modifiers from equipped item effects (melee for this function)
+    const itemCombatMod = ItemEffectsHelper.getCombatModifier(this, 'melee', weapon.id);
+    const itemEffectMod = itemCombatMod.totalBonus;
+
+    const totalMod = skillMod + inputMod + injuryMod + fatigueMod + itemEffectMod;
     const targetNumber = skill?.system.targetNumber || 7;
 
     const roll = await new Roll(`2d6 + ${totalMod}`).evaluate();
     const diceResults = roll.dice[0].results.map(r => r.result);
-    const success = roll.total >= targetNumber;
-    const mos = roll.total - targetNumber;
+
+    // Check for special roll mechanics (Fumble, Stunning Success, Miraculous Feat)
+    const specialRoll = await DiceMechanics.evaluateSpecialRoll(diceResults);
+    const successInfo = DiceMechanics.determineSuccess(roll.total, targetNumber, specialRoll);
+
+    const success = successInfo.success;
+    const mos = successInfo.mos;
+    const finalTotal = successInfo.finalTotal;
 
     return {
       roll,
-      total: roll.total,
+      total: finalTotal,
+      rawTotal: roll.total,
       diceResults,
       success,
       mos,
@@ -918,7 +1007,10 @@ export class MechFoundryActor extends Actor {
       skillMod,
       inputMod,
       injuryMod,
-      fatigueMod
+      fatigueMod,
+      itemEffectMod,
+      itemCombatModBreakdown: itemCombatMod.breakdown,
+      specialRoll
     };
   }
 
@@ -1087,22 +1179,40 @@ export class MechFoundryActor extends Actor {
     const diceResults = roll.dice[0].results.map(r => r.result);
     const rawDiceTotal = diceResults.reduce((a, b) => a + b, 0);
 
-    const success = roll.total >= targetNumber;
-    const marginOfSuccess = roll.total - targetNumber;
+    // Check for special roll mechanics (Fumble, Stunning Success, Miraculous Feat)
+    const specialRoll = await DiceMechanics.evaluateSpecialRoll(diceResults);
+    const successInfo = DiceMechanics.determineSuccess(roll.total, targetNumber, specialRoll);
+
+    const success = successInfo.success;
+    const marginOfSuccess = successInfo.mos;
+    const finalTotal = successInfo.finalTotal;
+
+    // Build special roll display
+    let specialRollHtml = '';
+    if (specialRoll.isFumble) {
+      specialRollHtml = `<div class="special-roll fumble">${specialRoll.displayText}</div>`;
+    } else if (specialRoll.isStunningSuccess) {
+      const bonusDiceStr = DiceMechanics.formatBonusDice(specialRoll.bonusDice);
+      specialRollHtml = `<div class="special-roll ${specialRoll.isMiraculousFeat ? 'miraculous-feat' : 'stunning-success'}">
+        ${specialRoll.displayText}
+        <span class="bonus-dice">(Bonus: ${bonusDiceStr})</span>
+      </div>`;
+    }
 
     const messageData = {
       speaker: ChatMessage.getSpeaker({ actor: this }),
       flavor: `${checkName} Attribute Check (TN ${targetNumber})`,
       content: `
         <div class="mech-foundry roll-result">
+          ${specialRollHtml}
           <div class="dice-raw">Dice: ${diceResults.join(' + ')} = ${rawDiceTotal}</div>
-          <div class="dice-formula">${rawDiceTotal} ${totalMod >= 0 ? '+' : ''}${totalMod} = ${roll.total}</div>
+          <div class="dice-formula">${rawDiceTotal} ${totalMod >= 0 ? '+' : ''}${totalMod}${specialRoll.bonusTotal ? ` + ${specialRoll.bonusTotal} bonus` : ''} = ${finalTotal}</div>
           <div class="dice-result">
-            <strong>Roll:</strong> ${roll.total}
+            <strong>Roll:</strong> ${finalTotal}
             <span class="target">(Target: ${targetNumber})</span>
           </div>
           <div class="result ${success ? 'success' : 'failure'}">
-            ${success ? 'Success' : 'Failure'}
+            ${success ? 'Success' : 'Failure'}${successInfo.autoResult ? ' (Auto)' : ''}
             <span class="margin">(MoS: ${marginOfSuccess >= 0 ? '+' : ''}${marginOfSuccess})</span>
           </div>
         </div>
@@ -1111,7 +1221,7 @@ export class MechFoundryActor extends Actor {
     };
 
     ChatMessage.create(messageData);
-    return { roll, success, marginOfSuccess };
+    return { roll, success, marginOfSuccess, specialRoll };
   }
 
   /**
@@ -1328,14 +1438,35 @@ export class MechFoundryActor extends Actor {
     let totalMod = wil.linkMod || 0;
     totalMod += this.system.injuryModifier || 0;
     totalMod += this.system.fatigueModifier || 0;
+    const targetNumber = 7;
 
     const roll = new Roll(`2d6 + ${totalMod}`);
     await roll.evaluate();
 
-    const success = roll.total >= 7;
+    // Extract raw dice results for display
+    const diceResults = roll.dice[0].results.map(r => r.result);
+
+    // Check for special roll mechanics (Fumble, Stunning Success, Miraculous Feat)
+    const specialRoll = await DiceMechanics.evaluateSpecialRoll(diceResults);
+    const successInfo = DiceMechanics.determineSuccess(roll.total, targetNumber, specialRoll);
+
+    const success = successInfo.success;
+    const finalTotal = successInfo.finalTotal;
 
     if (!success) {
       await this.update({ "system.unconscious": true });
+    }
+
+    // Build special roll display
+    let specialRollHtml = '';
+    if (specialRoll.isFumble) {
+      specialRollHtml = `<div class="special-roll fumble">${specialRoll.displayText}</div>`;
+    } else if (specialRoll.isStunningSuccess) {
+      const bonusDiceStr = DiceMechanics.formatBonusDice(specialRoll.bonusDice);
+      specialRollHtml = `<div class="special-roll ${specialRoll.isMiraculousFeat ? 'miraculous-feat' : 'stunning-success'}">
+        ${specialRoll.displayText}
+        <span class="bonus-dice">(Bonus: ${bonusDiceStr})</span>
+      </div>`;
     }
 
     ChatMessage.create({
@@ -1343,11 +1474,13 @@ export class MechFoundryActor extends Actor {
       flavor: "Consciousness Check (TN 7)",
       content: `
         <div class="mech-foundry roll-result">
+          ${specialRollHtml}
+          <div class="dice-formula">[${diceResults.join(']+[')}] + ${totalMod}${specialRoll.bonusTotal ? ` + ${specialRoll.bonusTotal} bonus` : ''} = ${finalTotal}</div>
           <div class="dice-result">
-            <strong>Roll:</strong> ${roll.total}
+            <strong>Roll:</strong> ${finalTotal}
           </div>
           <div class="result ${success ? 'success' : 'failure'}">
-            ${success ? 'Remains Conscious!' : 'Falls Unconscious!'}
+            ${success ? 'Remains Conscious!' : 'Falls Unconscious!'}${successInfo.autoResult ? ' (Auto)' : ''}
           </div>
         </div>
       `,

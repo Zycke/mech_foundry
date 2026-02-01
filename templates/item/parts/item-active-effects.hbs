@@ -1,0 +1,143 @@
+{{!-- Embedded Active Effects Section for Items --}}
+<div class="item-active-effects-section">
+  <h3>{{localize "MECHFOUNDRY.EmbeddedActiveEffects"}}</h3>
+  <p class="hint">{{localize "MECHFOUNDRY.EmbeddedActiveEffectsHint"}}</p>
+
+  <div class="embedded-effects-list">
+    {{#each system.embeddedActiveEffects as |effect index|}}
+    <div class="embedded-effect-row" data-effect-id="{{effect.id}}" data-index="{{index}}">
+      <div class="effect-header">
+        <div class="form-group effect-name-group">
+          <label>{{localize "MECHFOUNDRY.EffectName"}}</label>
+          <input type="text" name="system.embeddedActiveEffects.{{index}}.name"
+                 value="{{effect.name}}" placeholder="Effect Name"/>
+        </div>
+
+        <div class="form-group effect-active-group checkbox-group">
+          <label>
+            <input type="checkbox" name="system.embeddedActiveEffects.{{index}}.active"
+                   {{#if effect.active}}checked{{/if}}/>
+            {{localize "MECHFOUNDRY.Active"}}
+          </label>
+        </div>
+
+        <div class="effect-actions">
+          <button type="button" class="remove-embedded-effect" data-index="{{index}}" title="{{localize 'MECHFOUNDRY.RemoveEffect'}}">
+            <i class="fas fa-trash"></i>
+          </button>
+        </div>
+      </div>
+
+      <div class="effect-attached-only">
+        <label>
+          <input type="checkbox" name="system.embeddedActiveEffects.{{index}}.attachedItemOnly"
+                 {{#if effect.attachedItemOnly}}checked{{/if}}/>
+          {{localize "MECHFOUNDRY.AttachedItemOnly"}}
+        </label>
+      </div>
+
+      <div class="effect-modifiers">
+        <label class="modifiers-label">{{localize "MECHFOUNDRY.Modifiers"}}</label>
+
+        <div class="modifiers-list" data-effect-index="{{index}}">
+          {{#each effect.modifiers as |mod modIndex|}}
+          <div class="modifier-row" data-modifier-index="{{modIndex}}">
+            <div class="form-group modifier-type-group">
+              <label>{{localize "MECHFOUNDRY.Target"}}</label>
+              <select name="system.embeddedActiveEffects.{{../index}}.modifiers.{{modIndex}}.targetType"
+                      class="embedded-modifier-target-type">
+                <option value="attribute" {{#if (eq mod.targetType "attribute")}}selected{{/if}}>
+                  {{localize "MECHFOUNDRY.Attribute"}}
+                </option>
+                <option value="movement" {{#if (eq mod.targetType "movement")}}selected{{/if}}>
+                  {{localize "MECHFOUNDRY.Movement"}}
+                </option>
+                <option value="skill" {{#if (eq mod.targetType "skill")}}selected{{/if}}>
+                  {{localize "MECHFOUNDRY.Skill"}}
+                </option>
+                <option value="combat" {{#if (eq mod.targetType "combat")}}selected{{/if}}>
+                  {{localize "MECHFOUNDRY.Combat"}}
+                </option>
+              </select>
+            </div>
+
+            <div class="form-group modifier-target-group">
+              <label>{{localize "MECHFOUNDRY.EffectTarget"}}</label>
+              {{#if (eq mod.targetType "attribute")}}
+              <select name="system.embeddedActiveEffects.{{../index}}.modifiers.{{modIndex}}.target">
+                <option value="str" {{#if (eq mod.target "str")}}selected{{/if}}>STR</option>
+                <option value="bod" {{#if (eq mod.target "bod")}}selected{{/if}}>BOD</option>
+                <option value="rfl" {{#if (eq mod.target "rfl")}}selected{{/if}}>RFL</option>
+                <option value="dex" {{#if (eq mod.target "dex")}}selected{{/if}}>DEX</option>
+                <option value="int" {{#if (eq mod.target "int")}}selected{{/if}}>INT</option>
+                <option value="wil" {{#if (eq mod.target "wil")}}selected{{/if}}>WIL</option>
+                <option value="cha" {{#if (eq mod.target "cha")}}selected{{/if}}>CHA</option>
+                <option value="edg" {{#if (eq mod.target "edg")}}selected{{/if}}>EDG</option>
+              </select>
+              {{else if (eq mod.targetType "movement")}}
+              <select name="system.embeddedActiveEffects.{{../index}}.modifiers.{{modIndex}}.target">
+                <option value="walk" {{#if (eq mod.target "walk")}}selected{{/if}}>Walk</option>
+                <option value="run" {{#if (eq mod.target "run")}}selected{{/if}}>Run</option>
+                <option value="sprint" {{#if (eq mod.target "sprint")}}selected{{/if}}>Sprint</option>
+                <option value="climb" {{#if (eq mod.target "climb")}}selected{{/if}}>Climb</option>
+                <option value="crawl" {{#if (eq mod.target "crawl")}}selected{{/if}}>Crawl</option>
+                <option value="swim" {{#if (eq mod.target "swim")}}selected{{/if}}>Swim</option>
+              </select>
+              {{else if (eq mod.targetType "combat")}}
+              <select name="system.embeddedActiveEffects.{{../index}}.modifiers.{{modIndex}}.target">
+                <option value="ranged_attack" {{#if (eq mod.target "ranged_attack")}}selected{{/if}}>Ranged Attack</option>
+                <option value="melee_attack" {{#if (eq mod.target "melee_attack")}}selected{{/if}}>Melee Attack</option>
+                <option value="all_attack" {{#if (eq mod.target "all_attack")}}selected{{/if}}>All Attacks</option>
+                <option value="ranged_damage" {{#if (eq mod.target "ranged_damage")}}selected{{/if}}>Ranged Damage</option>
+                <option value="melee_damage" {{#if (eq mod.target "melee_damage")}}selected{{/if}}>Melee Damage</option>
+                <option value="all_damage" {{#if (eq mod.target "all_damage")}}selected{{/if}}>All Damage</option>
+              </select>
+              {{else}}
+              <input type="text" name="system.embeddedActiveEffects.{{../index}}.modifiers.{{modIndex}}.target"
+                     value="{{mod.target}}" placeholder="Skill name"/>
+              {{/if}}
+            </div>
+
+            <div class="form-group modifier-operation-group">
+              <label>{{localize "MECHFOUNDRY.Operation"}}</label>
+              <select name="system.embeddedActiveEffects.{{../index}}.modifiers.{{modIndex}}.operation">
+                <option value="add" {{#if (eq mod.operation "add")}}selected{{/if}}>Add (+)</option>
+                <option value="multiply" {{#if (eq mod.operation "multiply")}}selected{{/if}}>Multiply (×)</option>
+              </select>
+            </div>
+
+            <div class="form-group modifier-value-group">
+              <label>{{localize "MECHFOUNDRY.EffectValue"}}</label>
+              <input type="number" name="system.embeddedActiveEffects.{{../index}}.modifiers.{{modIndex}}.value"
+                     value="{{mod.value}}" step="1"/>
+            </div>
+
+            <div class="modifier-actions">
+              <button type="button" class="remove-embedded-modifier" data-effect-index="{{../index}}" data-modifier-index="{{modIndex}}">
+                <i class="fas fa-times"></i>
+              </button>
+            </div>
+          </div>
+          {{/each}}
+        </div>
+
+        <button type="button" class="add-embedded-modifier" data-effect-index="{{index}}">
+          <i class="fas fa-plus"></i> {{localize "MECHFOUNDRY.AddModifier"}}
+        </button>
+      </div>
+
+      <div class="form-group effect-description-group">
+        <label>{{localize "MECHFOUNDRY.EffectDescription"}}</label>
+        <textarea name="system.embeddedActiveEffects.{{index}}.description"
+                  rows="2">{{effect.description}}</textarea>
+      </div>
+    </div>
+    {{/each}}
+  </div>
+
+  <div class="effect-controls">
+    <button type="button" class="add-embedded-effect">
+      <i class="fas fa-plus"></i> {{localize "MECHFOUNDRY.AddActiveEffect"}}
+    </button>
+  </div>
+</div>
