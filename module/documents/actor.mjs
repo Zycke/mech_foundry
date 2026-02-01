@@ -1,6 +1,7 @@
 import { OpposedRollHelper } from '../helpers/opposed-rolls.mjs';
 import { SocketHandler, SOCKET_EVENTS } from '../helpers/socket-handler.mjs';
 import { DiceMechanics } from '../helpers/dice-mechanics.mjs';
+import { ItemEffectsHelper } from '../helpers/effects-helper.mjs';
 
 /**
  * Extend the base Actor document for Mech Foundry system
@@ -30,6 +31,9 @@ export class MechFoundryActor extends Actor {
     // Apply active effect modifiers to attributes
     this._applyActiveEffectModifiers(systemData, 'attribute');
 
+    // Apply item effect modifiers to attributes
+    this._applyItemEffectModifiers(systemData, 'attribute');
+
     // Calculate Link Attribute Modifiers for all attributes
     this._calculateLinkModifiers(systemData);
 
@@ -39,6 +43,9 @@ export class MechFoundryActor extends Actor {
     // Apply active effect modifiers to movement
     this._applyActiveEffectModifiers(systemData, 'movement');
 
+    // Apply item effect modifiers to movement
+    this._applyItemEffectModifiers(systemData, 'movement');
+
     // Calculate total XP (available + spent)
     if (systemData.xp) {
       systemData.xp.total = (systemData.xp.value || 0) + (systemData.xp.spent || 0);
@@ -46,6 +53,9 @@ export class MechFoundryActor extends Actor {
 
     // Store active skill modifiers for use in rolls
     systemData.activeSkillModifiers = this._getActiveSkillModifiers();
+
+    // Store vision effects from equipped items
+    systemData.visionEffects = ItemEffectsHelper.getVisionEffects(this);
   }
 
   /**
@@ -343,6 +353,35 @@ export class MechFoundryActor extends Actor {
 
         // Round to integer and ensure movement doesn't go below 0
         systemData.movement[target] = Math.max(0, Math.round(systemData.movement[target]));
+      }
+    }
+  }
+
+  /**
+   * Apply modifiers from equipped item effects
+   * @param {Object} systemData The actor's system data
+   * @param {string} targetType The type of target to apply modifiers to ('attribute' or 'movement')
+   */
+  _applyItemEffectModifiers(systemData, targetType) {
+    if (targetType === 'attribute') {
+      const attrModifiers = ItemEffectsHelper.getAttributeModifiers(this);
+      for (const [attr, modData] of Object.entries(attrModifiers)) {
+        if (systemData.attributes[attr]) {
+          systemData.attributes[attr].total += modData.additive;
+          // Track item effect modifier separately for display
+          if (!systemData.attributes[attr].itemEffectMod) {
+            systemData.attributes[attr].itemEffectMod = 0;
+          }
+          systemData.attributes[attr].itemEffectMod += modData.additive;
+        }
+      }
+    } else if (targetType === 'movement') {
+      const moveModifiers = ItemEffectsHelper.getMovementModifiers(this);
+      for (const [moveType, modData] of Object.entries(moveModifiers)) {
+        if (systemData.movement && systemData.movement[moveType] !== undefined) {
+          systemData.movement[moveType] += modData.additive;
+          systemData.movement[moveType] = Math.max(0, Math.round(systemData.movement[moveType]));
+        }
       }
     }
   }
@@ -648,8 +687,13 @@ export class MechFoundryActor extends Actor {
     // Combined skill modifier
     const skillMod = skillLevel + linkMod;
 
+    // Get combat modifiers from equipped item effects
+    const combatType = isMelee ? 'melee' : 'ranged';
+    const itemCombatMod = ItemEffectsHelper.getCombatModifier(this, combatType, weaponId);
+    const itemEffectMod = itemCombatMod.totalBonus;
+
     // Calculate total modifier
-    const totalMod = skillMod + inputMod + injuryMod + fatigueMod - recoilMod - firingModeMod;
+    const totalMod = skillMod + inputMod + injuryMod + fatigueMod + itemEffectMod - recoilMod - firingModeMod;
     const targetNumber = skill?.system.targetNumber || 7;
 
     // Get weapon damage values
@@ -658,6 +702,10 @@ export class MechFoundryActor extends Actor {
     const apFactor = weaponData.apFactor || '';
     const isSubduing = weaponData.subduing || weaponData.bdFactor === 'D';
     const str = this.system.attributes.str?.value || 5;
+
+    // Get damage modifiers from equipped item effects
+    const itemDamageMod = ItemEffectsHelper.getDamageModifier(this, combatType, weaponId);
+    const itemDamageBonus = itemDamageMod.totalBonus;
 
     // Calculate extra shots for burst fire damage cap
     const extraShots = (firingMode === 'burst') ? (options.burstShots || 1) - 1 :
@@ -722,6 +770,15 @@ export class MechFoundryActor extends Actor {
           mosDamage = Math.floor(marginOfSuccess * 0.25);
           standardDamage = baseDamage + mosDamage;
           fatigueDamage = 1;
+        }
+
+        // Apply item effect damage bonus
+        if (itemDamageBonus > 0) {
+          if (isSubduing || attackType === 'Subduing' || (isMelee && baseDamage === 0)) {
+            fatigueDamage += itemDamageBonus;
+          } else {
+            standardDamage += itemDamageBonus;
+          }
         }
       }
 
@@ -805,7 +862,9 @@ export class MechFoundryActor extends Actor {
         recoilMod: recoilMod,
         firingModeMod: firingModeMod,
         injuryMod: injuryMod,
-        fatigueMod: fatigueMod
+        fatigueMod: fatigueMod,
+        itemEffectMod: itemEffectMod,
+        itemCombatModBreakdown: itemCombatMod.breakdown
       }
     );
 
@@ -917,7 +976,12 @@ export class MechFoundryActor extends Actor {
     }
 
     const skillMod = skillLevel + linkMod;
-    const totalMod = skillMod + inputMod + injuryMod + fatigueMod;
+
+    // Get combat modifiers from equipped item effects (melee for this function)
+    const itemCombatMod = ItemEffectsHelper.getCombatModifier(this, 'melee', weapon.id);
+    const itemEffectMod = itemCombatMod.totalBonus;
+
+    const totalMod = skillMod + inputMod + injuryMod + fatigueMod + itemEffectMod;
     const targetNumber = skill?.system.targetNumber || 7;
 
     const roll = await new Roll(`2d6 + ${totalMod}`).evaluate();
@@ -944,6 +1008,8 @@ export class MechFoundryActor extends Actor {
       inputMod,
       injuryMod,
       fatigueMod,
+      itemEffectMod,
+      itemCombatModBreakdown: itemCombatMod.breakdown,
       specialRoll
     };
   }

@@ -106,6 +106,9 @@
         "mass": 0,
         "notes": "",
         "carryStatus": "carried"
+      },
+      "has_effects": {
+        "itemEffects": []
       }
     },
     "skill": {
@@ -127,7 +130,7 @@
       "pageRef": ""
     },
     "weapon": {
-      "templates": ["base", "equipment_base"],
+      "templates": ["base", "equipment_base", "has_effects"],
       "weaponType": "smallarms",
       "ap": 0,
       "apFactor": "B",
@@ -152,7 +155,7 @@
       "reloadMass": 0
     },
     "armor": {
-      "templates": ["base", "equipment_base"],
+      "templates": ["base", "equipment_base", "has_effects"],
       "armorType": "",
       "bar": {
         "m": 0,
@@ -204,7 +207,7 @@
       "notes": ""
     },
     "electronics": {
-      "templates": ["base", "equipment_base"],
+      "templates": ["base", "equipment_base", "has_effects"],
       "range": "",
       "powerUse": 0
     },
@@ -213,11 +216,11 @@
       "powerCapacity": 0
     },
     "healthcare": {
-      "templates": ["base", "equipment_base"],
+      "templates": ["base", "equipment_base", "has_effects"],
       "powerUse": 0
     },
     "prosthetics": {
-      "templates": ["base"],
+      "templates": ["base", "has_effects"],
       "equipmentRating": "",
       "cost": 0,
       "affiliation": "",

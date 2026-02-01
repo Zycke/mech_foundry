@@ -21,6 +21,7 @@ import { preloadHandlebarsTemplates } from "./helpers/templates.mjs";
 import { SocketHandler, SOCKET_EVENTS } from "./helpers/socket-handler.mjs";
 import { OpposedRollHelper } from "./helpers/opposed-rolls.mjs";
 import { DiceMechanics } from "./helpers/dice-mechanics.mjs";
+import { ItemEffectsHelper, EFFECT_CATEGORIES, getEffectTypeOptions } from "./helpers/effects-helper.mjs";
 
 /* -------------------------------------------- */
 /*  Init Hook                                   */
@@ -33,6 +34,9 @@ Hooks.once('init', function() {
   game.mechfoundry = {
     MechFoundryActor,
     DiceMechanics,
+    ItemEffectsHelper,
+    EFFECT_CATEGORIES,
+    getEffectTypeOptions,
     config: MECHFOUNDRY
   };
 
@@ -539,4 +543,87 @@ Hooks.on('renderChatMessage', (message, html, data) => {
       html.find('.apply-defender-damage').show();
     }
   });
+});
+
+/* -------------------------------------------- */
+/*  Vision Effect Hooks                         */
+/* -------------------------------------------- */
+
+/**
+ * Apply vision effects from equipped items to tokens
+ * This integrates with Foundry's vision system
+ */
+async function applyVisionEffects(token, actor) {
+  if (!token || !actor) return;
+
+  const visionEffects = actor.system.visionEffects;
+  if (!visionEffects) return;
+
+  const updates = {};
+
+  // Apply darkvision
+  if (visionEffects.darkvision > 0) {
+    // Convert meters to grid units (assuming 1 unit = 1 meter for this system)
+    const darkvisionRange = visionEffects.darkvision;
+
+    // In Foundry v12+, vision is configured through detection modes
+    // We set the basic sight range and enable darkvision mode
+    updates['sight.range'] = Math.max(
+      token.document.sight?.range || 0,
+      darkvisionRange
+    );
+
+    // Set vision mode to darkvision
+    updates['sight.visionMode'] = 'darkvision';
+    updates['sight.enabled'] = true;
+  }
+
+  // Apply any vision updates
+  if (Object.keys(updates).length > 0 && token.document) {
+    await token.document.update(updates);
+  }
+}
+
+// Update token vision when a token is created
+Hooks.on('createToken', async (tokenDocument, options, userId) => {
+  if (game.user.id !== userId) return;
+
+  const actor = tokenDocument.actor;
+  if (!actor) return;
+
+  // Delay to ensure token is fully created
+  setTimeout(async () => {
+    const token = canvas.tokens?.get(tokenDocument.id);
+    if (token) {
+      await applyVisionEffects(token, actor);
+    }
+  }, 100);
+});
+
+// Update token vision when actor items change (equip/unequip)
+Hooks.on('updateItem', async (item, changes, options, userId) => {
+  if (game.user.id !== userId) return;
+
+  // Check if carryStatus changed (equip/unequip)
+  if (!changes.system?.carryStatus && !changes.system?.equipped) return;
+
+  const actor = item.parent;
+  if (!actor) return;
+
+  // Find all tokens for this actor and update their vision
+  const tokens = actor.getActiveTokens();
+  for (const token of tokens) {
+    await applyVisionEffects(token, actor);
+  }
+});
+
+// Update token vision when actor is updated (in case effects change)
+Hooks.on('updateActor', async (actor, changes, options, userId) => {
+  if (game.user.id !== userId) return;
+
+  // Find all tokens for this actor and update their vision
+  const tokens = actor.getActiveTokens();
+  for (const token of tokens) {
+    await applyVisionEffects(token, actor);
+  }
 });

@@ -221,5 +221,36 @@
   "MECHFOUNDRY.MiraculousFeat": "MIRACULOUS FEAT!",
   "MECHFOUNDRY.MiraculousFeatDesc": "Three or more consecutive bonus 6s - automatic success!",
   "MECHFOUNDRY.BonusDice": "Bonus dice",
-  "MECHFOUNDRY.Auto": "Auto"
+  "MECHFOUNDRY.Auto": "Auto",
+
+  "MECHFOUNDRY.ItemEffects": "Item Effects",
+  "MECHFOUNDRY.ItemEffectsHint": "Effects that apply when this item is equipped",
+  "MECHFOUNDRY.EffectName": "Effect Name",
+  "MECHFOUNDRY.EffectType": "Effect Type",
+  "MECHFOUNDRY.EffectValue": "Value",
+  "MECHFOUNDRY.EffectTarget": "Target",
+  "MECHFOUNDRY.EffectDescription": "Description",
+  "MECHFOUNDRY.AddEffect": "Add Effect",
+  "MECHFOUNDRY.RemoveEffect": "Remove Effect",
+  "MECHFOUNDRY.AttachedItemOnly": "Only applies to attacks with this item",
+
+  "MECHFOUNDRY.EffectCombat": "Combat",
+  "MECHFOUNDRY.EffectRangedAttackBonus": "Ranged Attack Bonus",
+  "MECHFOUNDRY.EffectMeleeAttackBonus": "Melee Attack Bonus",
+  "MECHFOUNDRY.EffectAllAttackBonus": "All Attack Bonus",
+  "MECHFOUNDRY.EffectDamageBonus": "Damage Bonus",
+  "MECHFOUNDRY.EffectRangedDamageBonus": "Ranged Damage Bonus",
+  "MECHFOUNDRY.EffectMeleeDamageBonus": "Melee Damage Bonus",
+
+  "MECHFOUNDRY.EffectVision": "Vision",
+  "MECHFOUNDRY.EffectDarkvision": "Dark Vision",
+  "MECHFOUNDRY.EffectLowLightVision": "Low-Light Vision",
+  "MECHFOUNDRY.EffectThermalVision": "Thermal Vision",
+
+  "MECHFOUNDRY.EffectAttribute": "Attribute",
+  "MECHFOUNDRY.EffectAttributeBonus": "Attribute Bonus",
+  "MECHFOUNDRY.EffectMovement": "Movement",
+  "MECHFOUNDRY.EffectMovementBonus": "Movement Bonus",
+  "MECHFOUNDRY.EffectSkill": "Skill",
+  "MECHFOUNDRY.EffectSkillBonus": "Skill Bonus"
 }

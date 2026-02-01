@@ -2654,3 +2654,143 @@
   color: #888;
   font-style: italic;
 }
+
+/* ----------------------------------------- */
+/* Item Effects Styles                        */
+/* ----------------------------------------- */
+
+.mech-foundry .item-effects-section {
+  padding: 8px;
+}
+
+.mech-foundry .item-effects-section h3 {
+  margin: 0 0 8px 0;
+  padding: 4px 8px;
+  background: var(--mf-primary);
+  color: var(--mf-light);
+  font-size: 0.95em;
+  font-weight: bold;
+  border-radius: var(--mf-border-radius);
+}
+
+.mech-foundry .item-effects-section .hint {
+  font-size: 0.85em;
+  color: #666;
+  margin-bottom: 12px;
+  font-style: italic;
+}
+
+.mech-foundry .effects-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.mech-foundry .effect-row {
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid var(--mf-border);
+  border-radius: var(--mf-border-radius);
+  padding: 10px;
+}
+
+.mech-foundry .effect-row:hover {
+  background: rgba(255, 255, 255, 1);
+  border-color: var(--mf-primary);
+}
+
+.mech-foundry .effect-header {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+  margin-bottom: 8px;
+}
+
+.mech-foundry .effect-name-group {
+  flex: 2;
+}
+
+.mech-foundry .effect-type-group {
+  flex: 2;
+}
+
+.mech-foundry .effect-actions {
+  flex: 0 0 auto;
+}
+
+.mech-foundry .effect-actions button {
+  background: var(--mf-danger);
+  color: white;
+  border: none;
+  padding: 4px 8px;
+  border-radius: var(--mf-border-radius);
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.mech-foundry .effect-actions button:hover {
+  background: #a03025;
+}
+
+.mech-foundry .effect-details {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.mech-foundry .effect-value-group {
+  flex: 0 0 100px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.mech-foundry .effect-value-group .unit {
+  font-size: 0.85em;
+  color: #666;
+  white-space: nowrap;
+}
+
+.mech-foundry .effect-target-group {
+  flex: 1;
+  min-width: 150px;
+}
+
+.mech-foundry .effect-attached-only {
+  flex: 0 0 auto;
+}
+
+.mech-foundry .effect-attached-only label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.9em;
+  cursor: pointer;
+}
+
+.mech-foundry .effect-description-group {
+  flex: 1 1 100%;
+}
+
+.mech-foundry .effect-controls {
+  margin-top: 12px;
+}
+
+.mech-foundry .effect-controls button {
+  background: var(--mf-primary);
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: var(--mf-border-radius);
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.mech-foundry .effect-controls button:hover {
+  background: var(--mf-dark);
+}
+
+.mech-foundry .effect-controls button i {
+  margin-right: 4px;
+}
