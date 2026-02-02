@@ -1970,7 +1970,8 @@
   color: white;
 }
 
-.mech-foundry .effect-controls {
+.mech-foundry .effect-row .effect-controls,
+.mech-foundry td.effect-controls {
   display: flex;
   gap: 5px;
 }
@@ -2731,7 +2732,7 @@
   background: #a03025;
 }
 
-.mech-foundry .effect-details {
+.mech-foundry .item-effects-section .effect-details {
   display: flex;
   gap: 8px;
   align-items: flex-end;
