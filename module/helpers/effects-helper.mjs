@@ -150,12 +150,8 @@ export class ItemEffectsHelper {
    * @returns {boolean} True if equipped
    */
   static _isItemEquipped(item) {
-    // For armor, check the equipped flag or carryStatus
-    if (item.type === 'armor') {
-      return item.system.equipped === true || item.system.carryStatus === 'equipped';
-    }
-
-    // For weapons and other equipment, check carryStatus
+    // Check carryStatus for all equippable item types
+    // carryStatus takes precedence over the legacy 'equipped' flag
     return item.system.carryStatus === 'equipped';
   }
 
