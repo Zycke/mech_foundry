@@ -627,39 +627,6 @@ Hooks.on('updateItem', async (item, changes, options, userId) => {
   for (const token of tokens) {
     await applyVisionEffects(token, actor);
   }
-
-  // Handle embedded Active Effects transfer on equip/unequip
-  if (MechFoundryItem.EQUIPPABLE_TYPES.includes(item.type)) {
-    const wasEquipped = !item.isEquipped; // Old state (before change)
-    const isNowEquipped = item.isEquipped; // New state (after change)
-
-    // Only process if there's an actual change
-    if (wasEquipped !== isNowEquipped) {
-      await item.onEquipmentStatusChange(isNowEquipped);
-    }
-  }
-});
-
-// Handle item creation - sync embedded effects to actor
-Hooks.on('createItem', async (item, options, userId) => {
-  if (game.user.id !== userId) return;
-  if (!item.parent) return;
-
-  // Sync embedded Active Effects to actor
-  if (MechFoundryItem.EQUIPPABLE_TYPES.includes(item.type) && item.isEquipped) {
-    await item.syncEffectsToActor();
-  }
-});
-
-// Handle item deletion - clean up transferred effects
-Hooks.on('preDeleteItem', async (item, options, userId) => {
-  if (game.user.id !== userId) return;
-  if (!item.parent) return;
-
-  // Clean up transferred Active Effects from actor
-  if (MechFoundryItem.EQUIPPABLE_TYPES.includes(item.type)) {
-    await item.cleanupTransferredEffects();
-  }
 });
 
 // Update token vision when actor is updated (in case effects change)

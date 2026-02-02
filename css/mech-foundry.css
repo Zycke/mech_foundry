@@ -2831,171 +2831,154 @@
 }
 
 /* ========================================
-   Embedded Active Effects Styles
+   Conditions Tab - Effects Categories
    ======================================== */
 
-.mech-foundry .item-active-effects-section {
+.mech-foundry .effects-category {
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid var(--mf-border);
+}
+
+.mech-foundry .effects-category:last-child {
+  border-bottom: none;
+}
+
+.mech-foundry .effects-category .section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.mech-foundry .effects-category .section-title {
+  margin: 0;
+  color: var(--mf-primary);
+}
+
+.mech-foundry .item-effects-table,
+.mech-foundry .persistent-effects-table,
+.mech-foundry .continuous-damage-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.mech-foundry .effects-table th,
+.mech-foundry .effects-table td {
+  padding: 6px 8px;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.mech-foundry .effects-table .effect-status {
+  width: 50px;
+  text-align: center;
+}
+
+.mech-foundry .effects-table .effect-active {
+  width: 50px;
+  text-align: center;
+}
+
+.mech-foundry .effects-table .effect-controls {
+  width: 60px;
+  text-align: right;
+}
+
+/* Status indicators for item effects */
+.mech-foundry .status-indicator {
+  font-size: 1.1em;
+}
+
+.mech-foundry .status-indicator.active {
+  color: var(--mf-success);
+}
+
+.mech-foundry .status-indicator.inactive {
+  color: var(--mf-text-muted);
+}
+
+.mech-foundry .status-indicator.always-active {
+  color: var(--mf-primary);
+}
+
+.mech-foundry .effect-row.inactive {
+  opacity: 0.6;
+}
+
+.mech-foundry .no-effects {
+  color: var(--mf-text-muted);
+  font-style: italic;
+  padding: 10px;
+  text-align: center;
+}
+
+/* ========================================
+   Combat Tab - Equipment Effects Section
+   ======================================== */
+
+.mech-foundry .equipment-effects-section {
   margin-top: 20px;
   padding-top: 15px;
-  border-top: 2px solid var(--mf-primary);
+  border-top: 1px solid var(--mf-border);
 }
 
-.mech-foundry .item-active-effects-section h3 {
-  color: var(--mf-primary);
-  margin-bottom: 5px;
+.mech-foundry .equipment-effects-section .items-header {
+  margin-bottom: 10px;
 }
 
-.mech-foundry .item-active-effects-section .hint {
-  font-size: 0.85em;
-  color: var(--mf-text-muted);
-  margin-bottom: 15px;
-  font-style: italic;
-}
-
-.mech-foundry .embedded-effects-list {
+.mech-foundry .toggleable-effects-list {
   display: flex;
   flex-direction: column;
-  gap: 15px;
+  gap: 5px;
 }
 
-.mech-foundry .embedded-effect-row {
+.mech-foundry .toggleable-effect-row {
+  padding: 8px 10px;
   background: var(--mf-bg-light);
   border: 1px solid var(--mf-border);
   border-radius: var(--mf-border-radius);
-  padding: 10px;
+  transition: opacity 0.2s;
 }
 
-.mech-foundry .embedded-effect-row .effect-header {
+.mech-foundry .toggleable-effect-row.inactive {
+  opacity: 0.6;
+}
+
+.mech-foundry .toggleable-effect-row .effect-toggle-label {
   display: flex;
-  gap: 10px;
-  align-items: flex-end;
-  margin-bottom: 10px;
-}
-
-.mech-foundry .embedded-effect-row .effect-name-group {
-  flex: 1;
-}
-
-.mech-foundry .embedded-effect-row .effect-active-group {
-  flex: 0 0 auto;
-}
-
-.mech-foundry .embedded-effect-row .effect-actions {
-  flex: 0 0 auto;
-}
-
-.mech-foundry .embedded-effect-row .effect-actions button {
-  background: var(--mf-danger);
-  color: white;
-  border: none;
-  padding: 4px 8px;
-  border-radius: var(--mf-border-radius);
+  align-items: center;
+  gap: 8px;
   cursor: pointer;
 }
 
-.mech-foundry .embedded-effect-row .effect-actions button:hover {
-  background: #a31515;
+.mech-foundry .toggleable-effect-row .effect-name {
+  font-weight: 500;
 }
 
-.mech-foundry .embedded-effect-row .effect-attached-only {
-  margin-bottom: 10px;
-  padding: 5px 0;
-}
-
-.mech-foundry .embedded-effect-row .effect-attached-only label {
-  font-size: 0.9em;
+.mech-foundry .toggleable-effect-row .effect-source {
   color: var(--mf-text-muted);
+  font-size: 0.9em;
 }
 
-.mech-foundry .embedded-effect-row .effect-modifiers {
-  background: rgba(0, 0, 0, 0.05);
-  border-radius: var(--mf-border-radius);
-  padding: 10px;
-  margin-bottom: 10px;
-}
+/* ========================================
+   Item Sheet - Toggleable Effect Settings
+   ======================================== */
 
-.mech-foundry .embedded-effect-row .modifiers-label {
-  font-weight: bold;
-  margin-bottom: 8px;
-  display: block;
-  color: var(--mf-primary);
-}
-
-.mech-foundry .embedded-effect-row .modifiers-list {
+.mech-foundry .effect-toggle-settings {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-bottom: 10px;
-}
-
-.mech-foundry .embedded-effect-row .modifier-row {
-  display: flex;
-  gap: 8px;
-  align-items: flex-end;
-  flex-wrap: wrap;
+  gap: 20px;
+  margin-top: 10px;
   padding: 8px;
-  background: var(--mf-bg);
+  background: rgba(0, 0, 0, 0.03);
   border-radius: var(--mf-border-radius);
 }
 
-.mech-foundry .embedded-effect-row .modifier-row .form-group {
-  flex: 1;
-  min-width: 100px;
+.mech-foundry .effect-toggle-settings .checkbox-group {
   margin-bottom: 0;
 }
 
-.mech-foundry .embedded-effect-row .modifier-row .modifier-value-group {
-  flex: 0 0 80px;
-}
-
-.mech-foundry .embedded-effect-row .modifier-row .modifier-actions {
-  flex: 0 0 auto;
-}
-
-.mech-foundry .embedded-effect-row .modifier-row .modifier-actions button {
-  background: transparent;
-  border: none;
-  color: var(--mf-danger);
-  cursor: pointer;
-  padding: 4px;
-}
-
-.mech-foundry .embedded-effect-row .modifier-row .modifier-actions button:hover {
-  color: #a31515;
-}
-
-.mech-foundry .embedded-effect-row .add-embedded-modifier {
-  background: var(--mf-secondary);
-  color: white;
-  border: none;
-  padding: 5px 10px;
-  border-radius: var(--mf-border-radius);
-  cursor: pointer;
-  font-size: 0.85em;
-}
-
-.mech-foundry .embedded-effect-row .add-embedded-modifier:hover {
-  background: var(--mf-secondary-dark);
-}
-
-.mech-foundry .embedded-effect-row .effect-description-group textarea {
-  width: 100%;
-  resize: vertical;
-}
-
-.mech-foundry .item-active-effects-section > .effect-controls {
-  margin-top: 10px;
-}
-
-.mech-foundry .item-active-effects-section > .effect-controls .add-embedded-effect {
-  background: var(--mf-primary);
-  color: white;
-  border: none;
-  padding: 8px 15px;
-  border-radius: var(--mf-border-radius);
-  cursor: pointer;
-}
-
-.mech-foundry .item-active-effects-section > .effect-controls .add-embedded-effect:hover {
-  background: var(--mf-primary-dark);
+.mech-foundry .effect-toggle-settings label {
+  font-size: 0.9em;
+  color: var(--mf-text-muted);
 }

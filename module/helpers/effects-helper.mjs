@@ -90,9 +90,10 @@ export class ItemEffectsHelper {
   /**
    * Get all effects from equipped items on an actor
    * @param {Actor} actor The actor to check
+   * @param {boolean} includeInactive If true, include inactive toggleable effects
    * @returns {Array} Array of effect objects with source item info
    */
-  static getEquippedItemEffects(actor) {
+  static getEquippedItemEffects(actor, includeInactive = false) {
     const effects = [];
 
     // Get all items that can have effects and are equipped
@@ -110,16 +111,35 @@ export class ItemEffectsHelper {
       for (const effect of itemEffects) {
         if (!effect.effectType) continue;
 
+        // Check if effect is toggleable and active
+        const isToggleable = effect.toggleable === true;
+        const isActive = effect.active !== false; // Default to active if not set
+
+        // Skip inactive toggleable effects unless includeInactive is true
+        if (!includeInactive && isToggleable && !isActive) continue;
+
         effects.push({
           ...effect,
           sourceItemId: item.id,
           sourceItemName: item.name,
-          sourceItemType: item.type
+          sourceItemType: item.type,
+          isToggleable: isToggleable,
+          isActive: isActive
         });
       }
     }
 
     return effects;
+  }
+
+  /**
+   * Get all effects from equipped items, including inactive toggleable effects
+   * Useful for UI display where all effects should be shown
+   * @param {Actor} actor The actor to check
+   * @returns {Array} Array of effect objects with source item info
+   */
+  static getAllEquippedItemEffects(actor) {
+    return this.getEquippedItemEffects(actor, true);
   }
 
   /**

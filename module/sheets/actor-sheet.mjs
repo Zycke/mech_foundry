@@ -1,4 +1,5 @@
 import { OpposedRollHelper } from '../helpers/opposed-rolls.mjs';
+import { ItemEffectsHelper } from '../helpers/effects-helper.mjs';
 
 /**
  * Extend the basic ActorSheet with modifications for Mech Foundry
@@ -350,11 +351,28 @@ export class MechFoundryActorSheet extends ActorSheet {
       .filter(a => a.system.equipped || a.system.carryStatus === 'equipped')
       .reduce((max, a) => Math.max(max, a.system.bar?.m || 0), 0);
 
-    // Add active effects
+    // Add active effects - split into categories
     context.activeEffects = activeEffects;
+
+    // Separate activeEffects into persistent and continuous damage
+    context.persistentEffects = activeEffects.filter(e =>
+      e.system.effectType !== 'continuous_damage'
+    );
+    context.continuousDamageEffects = activeEffects.filter(e =>
+      e.system.effectType === 'continuous_damage'
+    );
+
+    // Get item-based effects from equipped items (including inactive toggleable ones)
+    context.itemBasedEffects = ItemEffectsHelper.getAllEquippedItemEffects(this.actor);
+
+    // Get toggleable effects for Combat tab
+    context.toggleableEffects = context.itemBasedEffects.filter(e => e.isToggleable);
+    context.hasToggleableEffects = context.toggleableEffects.length > 0;
 
     // Calculate active modifiers summary for display
     const activeModifiersSummary = [];
+
+    // Add modifiers from persistent Active Effects
     for (const effect of activeEffects) {
       if (effect.system.active && effect.system.effectType === 'persistent') {
         // Ensure persistentModifiers is an array (may be {} from old data)
@@ -374,11 +392,44 @@ export class MechFoundryActorSheet extends ActorSheet {
             value: mod.value,
             source: effect.name,
             targetType: mod.targetType,
-            isMultiplicative: isMultiplicative
+            isMultiplicative: isMultiplicative,
+            effectSource: 'activeEffect'
           });
         }
       }
     }
+
+    // Add modifiers from active item-based effects
+    const activeItemEffects = ItemEffectsHelper.getEquippedItemEffects(this.actor);
+    for (const effect of activeItemEffects) {
+      let targetLabel = effect.effectType;
+      let value = effect.value || 0;
+
+      // Format combat effect labels
+      if (effect.effectType.includes('attack_bonus')) {
+        targetLabel = effect.effectType.replace('_', ' ').replace('attack bonus', 'Attack');
+      } else if (effect.effectType.includes('damage_bonus')) {
+        targetLabel = effect.effectType.replace('_', ' ').replace('damage bonus', 'Damage');
+      } else if (effect.effectType === 'attribute_bonus') {
+        targetLabel = (effect.target || '').toUpperCase();
+      } else if (effect.effectType === 'movement_bonus') {
+        targetLabel = (effect.target || '').charAt(0).toUpperCase() + (effect.target || '').slice(1);
+      } else if (effect.effectType === 'skill_bonus') {
+        targetLabel = effect.target || 'Skill';
+      } else if (effect.effectType.startsWith('vision_')) {
+        targetLabel = 'Vision: ' + effect.effectType.replace('vision_', '');
+        value = effect.value + 'm';
+      }
+
+      activeModifiersSummary.push({
+        target: targetLabel,
+        value: value,
+        source: effect.name || effect.sourceItemName,
+        effectSource: 'itemEffect',
+        isToggleable: effect.isToggleable
+      });
+    }
+
     context.activeModifiersSummary = activeModifiersSummary;
     context.hasActiveModifiers = activeModifiersSummary.length > 0;
   }
@@ -581,6 +632,9 @@ export class MechFoundryActorSheet extends ActorSheet {
 
     // Active Effect toggle
     html.on('change', '.effect-toggle', this._onEffectToggle.bind(this));
+
+    // Item Effect toggle (for toggleable effects from equipped items)
+    html.on('change', '.item-effect-toggle', this._onItemEffectToggle.bind(this));
 
     // Drag events for macros
     if (this.actor.isOwner) {
@@ -1789,6 +1843,25 @@ export class MechFoundryActorSheet extends ActorSheet {
     if (!item) return;
 
     await item.update({ "system.active": checkbox.checked });
+  }
+
+  /**
+   * Handle toggling an item effect's active state
+   * @param {Event} event The change event
+   */
+  async _onItemEffectToggle(event) {
+    event.preventDefault();
+    const checkbox = event.currentTarget;
+    const itemId = checkbox.dataset.itemId;
+    const effectIndex = parseInt(checkbox.dataset.effectIndex);
+    const item = this.actor.items.get(itemId);
+    if (!item) return;
+
+    const itemEffects = [...(item.system.itemEffects || [])];
+    if (effectIndex >= 0 && effectIndex < itemEffects.length) {
+      itemEffects[effectIndex].active = checkbox.checked;
+      await item.update({ 'system.itemEffects': itemEffects });
+    }
   }
 
   /**
