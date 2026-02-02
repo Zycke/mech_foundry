@@ -129,6 +129,23 @@
         {{/if}}
       </div>
 
+      <div class="effect-toggle-settings">
+        <div class="form-group checkbox-group">
+          <label>
+            <input type="checkbox" name="system.itemEffects.{{@index}}.toggleable" {{#if this.toggleable}}checked{{/if}}/>
+            Toggleable (can be turned on/off from Combat tab)
+          </label>
+        </div>
+        {{#if this.toggleable}}
+        <div class="form-group checkbox-group">
+          <label>
+            <input type="checkbox" name="system.itemEffects.{{@index}}.active" {{#if this.active}}checked{{/if}}/>
+            Currently Active
+          </label>
+        </div>
+        {{/if}}
+      </div>
+
       <div class="form-group effect-description-group">
         <label>Description (optional)</label>
         <input type="text" name="system.itemEffects.{{@index}}.description" value="{{this.description}}" placeholder="Brief description of the effect"/>

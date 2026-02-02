@@ -464,7 +464,6 @@
           <div class="armor-section">
             <div class="items-header">
               <h3 class="section-title">Personal Armor (Equipped)</h3>
-              <a class="item-create" data-type="armor"><i class="fas fa-plus"></i></a>
             </div>
 
             {{!-- Total Armor Display --}}
@@ -549,7 +548,6 @@
           <div class="weapons-section">
             <div class="items-header">
               <h3 class="section-title">Weapons (Equipped)</h3>
-              <a class="item-create" data-type="weapon"><i class="fas fa-plus"></i></a>
             </div>
             {{#if equippedWeapons.length}}
             <table class="weapons-table equipped-weapons-table">
@@ -591,6 +589,29 @@
             <p class="no-equipped-items">No weapons equipped. Equip weapons from the Inventory tab.</p>
             {{/if}}
           </div>
+
+          {{!-- Equipment Effects Section --}}
+          {{#if hasToggleableEffects}}
+          <div class="equipment-effects-section">
+            <div class="items-header">
+              <h3 class="section-title">Equipment Effects</h3>
+            </div>
+            <div class="toggleable-effects-list">
+              {{#each toggleableEffects}}
+              <div class="toggleable-effect-row {{#unless this.isActive}}inactive{{/unless}}">
+                <label class="effect-toggle-label">
+                  <input type="checkbox" class="item-effect-toggle"
+                         data-item-id="{{this.sourceItemId}}"
+                         data-effect-index="{{@index}}"
+                         {{#if this.isActive}}checked{{/if}}/>
+                  <span class="effect-name">{{this.name}}</span>
+                  <span class="effect-source">({{this.sourceItemName}})</span>
+                </label>
+              </div>
+              {{/each}}
+            </div>
+          </div>
+          {{/if}}
         </div>
       </div>
     </div>
@@ -977,26 +998,78 @@
 
     {{!-- Conditions Tab --}}
     <div class="tab conditions" data-group="primary" data-tab="conditions">
-      <div class="conditions-section">
+      {{!-- Item-based Effects Section --}}
+      <div class="effects-category item-effects-category">
         <div class="section-header">
-          <h3 class="section-title">Active Effects</h3>
+          <h3 class="section-title">Item-based Effects</h3>
+        </div>
+        <div class="effects-list">
+          {{#if itemBasedEffects.length}}
+          <table class="effects-table item-effects-table">
+            <thead>
+              <tr>
+                <th class="effect-status">Status</th>
+                <th class="effect-name">Effect</th>
+                <th class="effect-source">Source</th>
+                <th class="effect-details">Details</th>
+              </tr>
+            </thead>
+            <tbody>
+              {{#each itemBasedEffects}}
+              <tr class="effect-row {{#unless this.isActive}}inactive{{/unless}}">
+                <td class="effect-status">
+                  {{#if this.isToggleable}}
+                    {{#if this.isActive}}
+                    <span class="status-indicator active" title="Active (Toggleable)"><i class="fas fa-toggle-on"></i></span>
+                    {{else}}
+                    <span class="status-indicator inactive" title="Inactive (Toggleable)"><i class="fas fa-toggle-off"></i></span>
+                    {{/if}}
+                  {{else}}
+                  <span class="status-indicator always-active" title="Always Active"><i class="fas fa-check-circle"></i></span>
+                  {{/if}}
+                </td>
+                <td class="effect-name">{{this.name}}</td>
+                <td class="effect-source">{{this.sourceItemName}}</td>
+                <td class="effect-details">
+                  {{#if (eq this.effectType "attribute_bonus")}}
+                  {{this.target}} {{formatMod this.value}}
+                  {{else if (eq this.effectType "movement_bonus")}}
+                  {{this.target}} {{formatMod this.value}}
+                  {{else if (eq this.effectType "skill_bonus")}}
+                  {{this.target}} {{formatMod this.value}}
+                  {{else if this.effectType}}
+                  {{this.effectType}}: {{this.value}}
+                  {{/if}}
+                </td>
+              </tr>
+              {{/each}}
+            </tbody>
+          </table>
+          {{else}}
+          <p class="no-effects">No item-based effects. Equip items with effects to see them here.</p>
+          {{/if}}
+        </div>
+      </div>
+
+      {{!-- Persistent Effects Section --}}
+      <div class="effects-category persistent-effects-category">
+        <div class="section-header">
+          <h3 class="section-title">Persistent Effects</h3>
           <a class="item-create" data-type="activeEffect" title="Add Effect"><i class="fas fa-plus"></i> Add Effect</a>
         </div>
-
-        <div class="active-effects-list">
-          {{#if activeEffects.length}}
-          <table class="effects-table">
+        <div class="effects-list">
+          {{#if persistentEffects.length}}
+          <table class="effects-table persistent-effects-table">
             <thead>
               <tr>
                 <th class="effect-active">Active</th>
                 <th class="effect-name">Name</th>
-                <th class="effect-type">Type</th>
-                <th class="effect-details">Details</th>
+                <th class="effect-details">Modifiers</th>
                 <th class="effect-controls">Controls</th>
               </tr>
             </thead>
             <tbody>
-              {{#each activeEffects}}
+              {{#each persistentEffects}}
               <tr class="item effect-row {{#unless this.system.active}}inactive{{/unless}}" data-item-id="{{this._id}}">
                 <td class="effect-active">
                   <input type="checkbox" class="effect-toggle" data-item-id="{{this._id}}" {{#if this.system.active}}checked{{/if}} title="Toggle Active"/>
@@ -1005,24 +1078,8 @@
                   <img class="effect-img" src="{{this.img}}" width="24" height="24"/>
                   <span>{{this.name}}</span>
                 </td>
-                <td class="effect-type">
-                  {{#if (eq this.system.effectType "continuous_damage")}}
-                  <span class="tag damage-tag">Continuous Damage</span>
-                  {{else}}
-                  <span class="tag persistent-tag">Persistent</span>
-                  {{/if}}
-                </td>
                 <td class="effect-details">
-                  {{#if (eq this.system.effectType "continuous_damage")}}
-                  <span class="damage-info">
-                    {{#if this.system.continuousDamage}}
-                      {{#if this.system.continuousDamage.standardDamage}}Std: {{this.system.continuousDamage.standardDamage}}{{/if}}
-                      {{#if this.system.continuousDamage.fatigueDamage}}Fat: {{this.system.continuousDamage.fatigueDamage}}{{/if}}
-                    {{/if}}
-                  </span>
-                  {{else}}
                   <span class="modifier-count">{{#if this.system.persistentModifiers}}{{this.system.persistentModifiers.length}}{{else}}0{{/if}} modifier(s)</span>
-                  {{/if}}
                 </td>
                 <td class="effect-controls">
                   <a class="item-edit" data-item-id="{{this._id}}" title="Edit"><i class="fas fa-edit"></i></a>
@@ -1033,28 +1090,76 @@
             </tbody>
           </table>
           {{else}}
-          <p class="no-effects">No active effects. Click "Add Effect" or drag an Active Effect item here.</p>
+          <p class="no-effects">No persistent effects.</p>
           {{/if}}
         </div>
-
-        {{!-- Summary of Active Modifiers --}}
-        {{#if hasActiveModifiers}}
-        <div class="active-modifiers-summary">
-          <h4>Current Active Modifiers</h4>
-          <ul class="modifier-summary-list">
-            {{#each activeModifiersSummary}}
-            <li>
-              <span class="modifier-target">{{this.target}}</span>
-              <span class="modifier-value {{#if this.isMultiplicative}}multiplicative{{else if (lt this.value 0)}}negative{{else}}positive{{/if}}">
-                {{#if this.isMultiplicative}}×{{this.value}}{{else}}{{formatMod this.value}}{{/if}}
-              </span>
-              <span class="modifier-source">({{this.source}})</span>
-            </li>
-            {{/each}}
-          </ul>
-        </div>
-        {{/if}}
       </div>
+
+      {{!-- Continuous Damage Effects Section --}}
+      <div class="effects-category continuous-damage-category">
+        <div class="section-header">
+          <h3 class="section-title">Continuous Damage Effects</h3>
+        </div>
+        <div class="effects-list">
+          {{#if continuousDamageEffects.length}}
+          <table class="effects-table continuous-damage-table">
+            <thead>
+              <tr>
+                <th class="effect-active">Active</th>
+                <th class="effect-name">Name</th>
+                <th class="effect-details">Damage/Round</th>
+                <th class="effect-controls">Controls</th>
+              </tr>
+            </thead>
+            <tbody>
+              {{#each continuousDamageEffects}}
+              <tr class="item effect-row {{#unless this.system.active}}inactive{{/unless}}" data-item-id="{{this._id}}">
+                <td class="effect-active">
+                  <input type="checkbox" class="effect-toggle" data-item-id="{{this._id}}" {{#if this.system.active}}checked{{/if}} title="Toggle Active"/>
+                </td>
+                <td class="effect-name">
+                  <img class="effect-img" src="{{this.img}}" width="24" height="24"/>
+                  <span>{{this.name}}</span>
+                </td>
+                <td class="effect-details">
+                  <span class="damage-info">
+                    {{#if this.system.continuousDamage}}
+                      {{#if this.system.continuousDamage.standardDamage}}Std: {{this.system.continuousDamage.standardDamage}}{{/if}}
+                      {{#if this.system.continuousDamage.fatigueDamage}} Fat: {{this.system.continuousDamage.fatigueDamage}}{{/if}}
+                    {{/if}}
+                  </span>
+                </td>
+                <td class="effect-controls">
+                  <a class="item-edit" data-item-id="{{this._id}}" title="Edit"><i class="fas fa-edit"></i></a>
+                  <a class="item-delete" data-item-id="{{this._id}}" title="Delete"><i class="fas fa-trash"></i></a>
+                </td>
+              </tr>
+              {{/each}}
+            </tbody>
+          </table>
+          {{else}}
+          <p class="no-effects">No continuous damage effects.</p>
+          {{/if}}
+        </div>
+      </div>
+
+      {{!-- Summary of Active Modifiers --}}
+      {{#if hasActiveModifiers}}
+      <div class="active-modifiers-summary">
+        <h4>Current Active Modifiers</h4>
+        <ul class="modifier-summary-list">
+          {{#each activeModifiersSummary}}
+          <li class="{{#if this.isToggleable}}toggleable{{/if}}">
+            <span class="modifier-target">{{this.target}}</span>
+            <span class="modifier-value {{#if this.isMultiplicative}}multiplicative{{else if (lt this.value 0)}}negative{{else}}positive{{/if}}">
+              {{#if this.isMultiplicative}}×{{this.value}}{{else}}{{formatMod this.value}}{{/if}}
+            </span>
+            <span class="modifier-source">({{this.source}})</span>
+          </li>
+          {{/each}}
+        </ul>
+      </div>
+      {{/if}}
     </div>
 
     {{!-- Biography Tab --}}

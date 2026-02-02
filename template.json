@@ -108,8 +108,7 @@
         "carryStatus": "carried"
       },
       "has_effects": {
-        "itemEffects": [],
-        "embeddedActiveEffects": []
+        "itemEffects": []
       }
     },
     "skill": {
