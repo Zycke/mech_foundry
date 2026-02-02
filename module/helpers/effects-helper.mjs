@@ -108,7 +108,8 @@ export class ItemEffectsHelper {
 
       // Get effects from this item
       const itemEffects = item.system.itemEffects || [];
-      for (const effect of itemEffects) {
+      for (let effectIndex = 0; effectIndex < itemEffects.length; effectIndex++) {
+        const effect = itemEffects[effectIndex];
         if (!effect.effectType) continue;
 
         // Check if effect is toggleable and active
@@ -123,6 +124,7 @@ export class ItemEffectsHelper {
           sourceItemId: item.id,
           sourceItemName: item.name,
           sourceItemType: item.type,
+          effectIndex: effectIndex,
           isToggleable: isToggleable,
           isActive: isActive
         });
