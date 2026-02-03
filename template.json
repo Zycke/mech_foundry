@@ -14,6 +14,8 @@
         "stun": false,
         "unconscious": false,
         "cover": "none",
+        "bleeding": false,
+        "prone": false,
         "biography": ""
       },
       "attributes": {

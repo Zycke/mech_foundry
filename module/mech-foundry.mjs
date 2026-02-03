@@ -358,7 +358,7 @@ Hooks.on("combatStart", (combat) => {
   });
 });
 
-// Apply continuous damage effects at end of round (when "Next Round" is pressed)
+// Apply bleeding and continuous damage effects at end of round (when "Next Round" is pressed)
 Hooks.on("combatRound", async (combat, updateData, updateOptions) => {
   // Only run for the GM to prevent duplicate processing
   if (!game.user.isGM) return;
@@ -368,6 +368,27 @@ Hooks.on("combatRound", async (combat, updateData, updateOptions) => {
     // Get the actor - for tokens, this gets the correct token actor
     let actor = combatant.actor;
     if (!actor) continue;
+
+    // Apply bleeding damage (1 standard damage per round)
+    if (actor.system.bleeding) {
+      const currentDmg = actor.system.damage?.value || 0;
+      const maxDamage = actor.system.damageCapacity || 10;
+      const newDamage = Math.min(currentDmg + 1, maxDamage);
+
+      await actor.update({ "system.damage.value": newDamage });
+
+      await ChatMessage.create({
+        speaker: ChatMessage.getSpeaker({ actor: actor }),
+        content: `<div class="mech-foundry bleeding-damage">
+          <i class="fas fa-tint"></i> <strong>${actor.name}</strong> takes 1 standard damage from <strong>Bleeding</strong> (${currentDmg} → ${newDamage})
+        </div>`
+      });
+
+      // Check for death after bleeding damage
+      if (newDamage >= maxDamage) {
+        ui.notifications.error(`${actor.name} has died!`);
+      }
+    }
 
     // Find all active continuous damage effects
     const continuousDamageEffects = actor.items.filter(i =>
