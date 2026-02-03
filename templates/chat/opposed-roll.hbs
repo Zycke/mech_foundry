@@ -128,6 +128,21 @@
           <span class="armor-value">{{attackerArmorCalc.effectiveArmor}}</span>
           <span class="armor-breakdown">({{attackerArmorCalc.armorValue}} - {{attackerArmorCalc.apValue}} AP)</span>
         </div>
+        <div class="armor-line">
+          <span class="armor-label">Damage After Armor:</span>
+          <span class="armor-value">{{attackerArmorCalc.damageAfterArmor}}</span>
+        </div>
+        <div class="armor-line">
+          <span class="armor-label">Location Modifier:</span>
+          <span class="armor-value">{{attackerArmorCalc.locationMultiplierDisplay}}</span>
+          <span class="armor-breakdown">({{attackerHitLocation.displayLocation}})</span>
+        </div>
+        {{#if attackerArmorCalc.woundDamage}}
+        <div class="armor-line wound-damage">
+          <span class="armor-label">Wound Effect Damage:</span>
+          <span class="armor-value">+{{attackerArmorCalc.woundDamage}}</span>
+        </div>
+        {{/if}}
         <div class="armor-line final">
           <span class="armor-label">Final Damage:</span>
           <span class="armor-value">{{attackerArmorCalc.finalDamage}}</span>
@@ -135,6 +150,36 @@
           <span class="armor-absorbed">({{attackerArmorCalc.absorbed}} absorbed)</span>
           {{/if}}
         </div>
+      </div>
+      {{/if}}
+
+      {{!-- Attacker Wound Effect --}}
+      {{#if attackerWoundEffect}}
+      <div class="wound-effect">
+        <div class="wound-header">
+          <span class="wound-label">WOUND EFFECT</span>
+          <span class="wound-roll">[{{attackerWoundEffect.roll}}]</span>
+          {{#if attackerIsDoubles}}<span class="doubles-indicator">(Doubles!)</span>{{/if}}
+        </div>
+        <div class="wound-name">{{attackerWoundEffect.name}}</div>
+        <div class="wound-description">{{attackerWoundEffect.description}}</div>
+        {{#if attackerWoundEffect.additionalFatigue}}
+        <div class="wound-damage-line">
+          <span class="wound-damage-label">Additional Fatigue:</span>
+          <span class="wound-damage-value">+{{attackerWoundEffect.additionalFatigue}}</span>
+          <span class="wound-roll-result">[1d6 = {{attackerWoundEffect.additionalRoll}}]</span>
+        </div>
+        {{/if}}
+        {{#if attackerWoundEffect.additionalStandard}}
+        <div class="wound-damage-line">
+          <span class="wound-damage-label">Additional Standard:</span>
+          <span class="wound-damage-value">+{{attackerWoundEffect.additionalStandard}}</span>
+          <span class="wound-roll-result">[1d6 = {{attackerWoundEffect.additionalRoll}}]</span>
+        </div>
+        {{/if}}
+        {{#if attackerWoundEffect.note}}
+        <div class="wound-note">{{attackerWoundEffect.note}}</div>
+        {{/if}}
       </div>
       {{/if}}
     </div>
@@ -211,6 +256,21 @@
           <span class="armor-value">{{defenderArmorCalc.effectiveArmor}}</span>
           <span class="armor-breakdown">({{defenderArmorCalc.armorValue}} - {{defenderArmorCalc.apValue}} AP)</span>
         </div>
+        <div class="armor-line">
+          <span class="armor-label">Damage After Armor:</span>
+          <span class="armor-value">{{defenderArmorCalc.damageAfterArmor}}</span>
+        </div>
+        <div class="armor-line">
+          <span class="armor-label">Location Modifier:</span>
+          <span class="armor-value">{{defenderArmorCalc.locationMultiplierDisplay}}</span>
+          <span class="armor-breakdown">({{defenderHitLocation.displayLocation}})</span>
+        </div>
+        {{#if defenderArmorCalc.woundDamage}}
+        <div class="armor-line wound-damage">
+          <span class="armor-label">Wound Effect Damage:</span>
+          <span class="armor-value">+{{defenderArmorCalc.woundDamage}}</span>
+        </div>
+        {{/if}}
         <div class="armor-line final">
           <span class="armor-label">Final Damage:</span>
           <span class="armor-value">{{defenderArmorCalc.finalDamage}}</span>
@@ -218,6 +278,36 @@
           <span class="armor-absorbed">({{defenderArmorCalc.absorbed}} absorbed)</span>
           {{/if}}
         </div>
+      </div>
+      {{/if}}
+
+      {{!-- Defender Wound Effect --}}
+      {{#if defenderWoundEffect}}
+      <div class="wound-effect">
+        <div class="wound-header">
+          <span class="wound-label">WOUND EFFECT</span>
+          <span class="wound-roll">[{{defenderWoundEffect.roll}}]</span>
+          {{#if defenderIsDoubles}}<span class="doubles-indicator">(Doubles!)</span>{{/if}}
+        </div>
+        <div class="wound-name">{{defenderWoundEffect.name}}</div>
+        <div class="wound-description">{{defenderWoundEffect.description}}</div>
+        {{#if defenderWoundEffect.additionalFatigue}}
+        <div class="wound-damage-line">
+          <span class="wound-damage-label">Additional Fatigue:</span>
+          <span class="wound-damage-value">+{{defenderWoundEffect.additionalFatigue}}</span>
+          <span class="wound-roll-result">[1d6 = {{defenderWoundEffect.additionalRoll}}]</span>
+        </div>
+        {{/if}}
+        {{#if defenderWoundEffect.additionalStandard}}
+        <div class="wound-damage-line">
+          <span class="wound-damage-label">Additional Standard:</span>
+          <span class="wound-damage-value">+{{defenderWoundEffect.additionalStandard}}</span>
+          <span class="wound-roll-result">[1d6 = {{defenderWoundEffect.additionalRoll}}]</span>
+        </div>
+        {{/if}}
+        {{#if defenderWoundEffect.note}}
+        <div class="wound-note">{{defenderWoundEffect.note}}</div>
+        {{/if}}
       </div>
       {{/if}}
     </div>

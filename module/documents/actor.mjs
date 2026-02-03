@@ -595,6 +595,7 @@ export class MechFoundryActor extends Actor {
     // Track modifiers separately for display
     let recoilMod = 0;
     let firingModeMod = 0;
+    let splashMod = 0;
     const inputMod = options.modifier || 0;
     const injuryMod = this.system.injuryModifier || 0;
     const fatigueMod = this.system.fatigueModifier || 0;
@@ -618,6 +619,8 @@ export class MechFoundryActor extends Actor {
       attackType = 'Area Effect';
     } else if (weaponData.bdFactor === 'S') {
       attackType = 'Splash Fire';
+      // Splash weapons get +2 to ranged attack rolls
+      splashMod = 2;
     } else if (weaponData.bdFactor === 'D' || weaponData.subduing) {
       attackType = 'Subduing';
     }
@@ -693,7 +696,7 @@ export class MechFoundryActor extends Actor {
     const itemEffectMod = itemCombatMod.totalBonus;
 
     // Calculate total modifier
-    const totalMod = skillMod + inputMod + injuryMod + fatigueMod + itemEffectMod - recoilMod - firingModeMod;
+    const totalMod = skillMod + inputMod + injuryMod + fatigueMod + itemEffectMod + splashMod - recoilMod - firingModeMod;
     const targetNumber = skill?.system.targetNumber || 7;
 
     // Get weapon damage values
@@ -788,6 +791,7 @@ export class MechFoundryActor extends Actor {
       let canApplyDamage = false;
       let targetActorId = null;
       let damageTypeName = null;
+      let woundEffect = null;
 
       const targetActor = options.target?.actor || null;
       if (targetActor && success && standardDamage > 0) {
@@ -799,17 +803,31 @@ export class MechFoundryActor extends Actor {
         const damageType = damageTypeMap[apFactor] || 'm';
         damageTypeName = OpposedRollHelper.getDamageTypeName(damageType);
 
-        // Calculate armor reduction
-        armorCalc = OpposedRollHelper.calculateDamageAfterArmor(
+        // Calculate armor reduction with location damage multiplier
+        armorCalc = OpposedRollHelper.calculateDamageWithLocation(
           standardDamage,
           ap,
           damageType,
           targetActor,
-          hitLocation.armorLocation
+          hitLocation.armorLocation,
+          hitLocation.location
         );
 
         targetActorId = targetActor.id;
         canApplyDamage = targetActor.isOwner || game.user.isGM;
+
+        // Check for wound effects: doubles on successful attack AND damage dealt
+        if (OpposedRollHelper.isDoubles(diceResults) && armorCalc.finalDamage > 0) {
+          woundEffect = await OpposedRollHelper.rollWoundEffect();
+          // Add wound effect damage to totals
+          if (woundEffect.additionalFatigue > 0) {
+            fatigueDamage += woundEffect.additionalFatigue;
+          }
+          if (woundEffect.additionalStandard > 0) {
+            armorCalc.finalDamage += woundEffect.additionalStandard;
+            armorCalc.woundDamage = woundEffect.additionalStandard;
+          }
+        }
       }
 
       results.push({
@@ -835,7 +853,10 @@ export class MechFoundryActor extends Actor {
         targetActorId,
         damageTypeName,
         // Special roll info
-        specialRoll
+        specialRoll,
+        // Wound effect info (doubles on successful attack with damage)
+        woundEffect,
+        isDoubles: OpposedRollHelper.isDoubles(diceResults)
       });
     }
 
@@ -864,7 +885,8 @@ export class MechFoundryActor extends Actor {
         injuryMod: injuryMod,
         fatigueMod: fatigueMod,
         itemEffectMod: itemEffectMod,
-        itemCombatModBreakdown: itemCombatMod.breakdown
+        itemCombatModBreakdown: itemCombatMod.breakdown,
+        splashMod: splashMod
       }
     );
 
@@ -1045,19 +1067,36 @@ export class MechFoundryActor extends Actor {
       const attackerDamage = OpposedRollHelper.calculateMeleeDamage(this, weapon, attackerResult.mos);
       const attackerHitLocation = await OpposedRollHelper.rollHitLocation();
 
-      // Calculate armor reduction
-      const attackerArmorCalc = OpposedRollHelper.calculateDamageAfterArmor(
+      // Calculate armor reduction with location damage modifier
+      const attackerArmorCalc = OpposedRollHelper.calculateDamageWithLocation(
         attackerDamage.isSubduing ? attackerDamage.fatigueDamage : attackerDamage.standardDamage,
         attackerDamage.ap,
         attackerDamage.damageType,
         targetActor,
-        attackerHitLocation.armorLocation
+        attackerHitLocation.armorLocation,
+        attackerHitLocation.location
       );
+
+      // Check for wound effects: doubles on successful attack AND damage dealt
+      let attackerWoundEffect = null;
+      if (OpposedRollHelper.isDoubles(attackerResult.diceResults) && attackerArmorCalc.finalDamage > 0) {
+        attackerWoundEffect = await OpposedRollHelper.rollWoundEffect();
+        // Add wound effect damage to totals
+        if (attackerWoundEffect.additionalFatigue > 0) {
+          attackerDamage.fatigueDamage += attackerWoundEffect.additionalFatigue;
+        }
+        if (attackerWoundEffect.additionalStandard > 0) {
+          attackerArmorCalc.finalDamage += attackerWoundEffect.additionalStandard;
+          attackerArmorCalc.woundDamage = attackerWoundEffect.additionalStandard;
+        }
+      }
 
       templateData.attackerDamage = attackerDamage;
       templateData.attackerHitLocation = attackerHitLocation;
       templateData.attackerArmorCalc = attackerArmorCalc;
       templateData.attackerDamageTypeName = OpposedRollHelper.getDamageTypeName(attackerDamage.damageType);
+      templateData.attackerWoundEffect = attackerWoundEffect;
+      templateData.attackerIsDoubles = OpposedRollHelper.isDoubles(attackerResult.diceResults);
       templateData.canApplyAttackerDamage = targetActor.isOwner || game.user.isGM;
     }
 
@@ -1067,19 +1106,36 @@ export class MechFoundryActor extends Actor {
       const defenderDamage = OpposedRollHelper.calculateMeleeDamage(targetActor, defenderWeapon, defenderResult.mos);
       const defenderHitLocation = await OpposedRollHelper.rollHitLocation();
 
-      // Calculate armor reduction against attacker
-      const defenderArmorCalc = OpposedRollHelper.calculateDamageAfterArmor(
+      // Calculate armor reduction with location damage modifier against attacker
+      const defenderArmorCalc = OpposedRollHelper.calculateDamageWithLocation(
         defenderDamage.isSubduing ? defenderDamage.fatigueDamage : defenderDamage.standardDamage,
         defenderDamage.ap,
         defenderDamage.damageType,
         this,
-        defenderHitLocation.armorLocation
+        defenderHitLocation.armorLocation,
+        defenderHitLocation.location
       );
+
+      // Check for wound effects: doubles on successful defense roll AND damage dealt
+      let defenderWoundEffect = null;
+      if (defenderResult.diceResults && OpposedRollHelper.isDoubles(defenderResult.diceResults) && defenderArmorCalc.finalDamage > 0) {
+        defenderWoundEffect = await OpposedRollHelper.rollWoundEffect();
+        // Add wound effect damage to totals
+        if (defenderWoundEffect.additionalFatigue > 0) {
+          defenderDamage.fatigueDamage += defenderWoundEffect.additionalFatigue;
+        }
+        if (defenderWoundEffect.additionalStandard > 0) {
+          defenderArmorCalc.finalDamage += defenderWoundEffect.additionalStandard;
+          defenderArmorCalc.woundDamage = defenderWoundEffect.additionalStandard;
+        }
+      }
 
       templateData.defenderDamage = defenderDamage;
       templateData.defenderHitLocation = defenderHitLocation;
       templateData.defenderArmorCalc = defenderArmorCalc;
       templateData.defenderDamageTypeName = OpposedRollHelper.getDamageTypeName(defenderDamage.damageType);
+      templateData.defenderWoundEffect = defenderWoundEffect;
+      templateData.defenderIsDoubles = defenderResult.diceResults ? OpposedRollHelper.isDoubles(defenderResult.diceResults) : false;
       templateData.canApplyDefenderDamage = this.isOwner || game.user.isGM;
     }
 
@@ -1090,34 +1146,66 @@ export class MechFoundryActor extends Actor {
       // Pre-calculate potential damage for both choices
       const attackerDamage = OpposedRollHelper.calculateMeleeDamage(this, weapon, attackerResult.mos);
       const attackerHitLocation = await OpposedRollHelper.rollHitLocation();
-      const attackerArmorCalc = OpposedRollHelper.calculateDamageAfterArmor(
+      const attackerArmorCalc = OpposedRollHelper.calculateDamageWithLocation(
         attackerDamage.isSubduing ? attackerDamage.fatigueDamage : attackerDamage.standardDamage,
         attackerDamage.ap,
         attackerDamage.damageType,
         targetActor,
-        attackerHitLocation.armorLocation
+        attackerHitLocation.armorLocation,
+        attackerHitLocation.location
       );
+
+      // Check for wound effects for attacker's potential damage
+      let attackerWoundEffect = null;
+      if (OpposedRollHelper.isDoubles(attackerResult.diceResults) && attackerArmorCalc.finalDamage > 0) {
+        attackerWoundEffect = await OpposedRollHelper.rollWoundEffect();
+        if (attackerWoundEffect.additionalFatigue > 0) {
+          attackerDamage.fatigueDamage += attackerWoundEffect.additionalFatigue;
+        }
+        if (attackerWoundEffect.additionalStandard > 0) {
+          attackerArmorCalc.finalDamage += attackerWoundEffect.additionalStandard;
+          attackerArmorCalc.woundDamage = attackerWoundEffect.additionalStandard;
+        }
+      }
 
       templateData.attackerDamage = attackerDamage;
       templateData.attackerHitLocation = attackerHitLocation;
       templateData.attackerArmorCalc = attackerArmorCalc;
       templateData.attackerDamageTypeName = OpposedRollHelper.getDamageTypeName(attackerDamage.damageType);
+      templateData.attackerWoundEffect = attackerWoundEffect;
+      templateData.attackerIsDoubles = OpposedRollHelper.isDoubles(attackerResult.diceResults);
 
       const defenderWeapon = OpposedRollHelper.getDefenderWeapon(targetActor);
       const defenderDamage = OpposedRollHelper.calculateMeleeDamage(targetActor, defenderWeapon, defenderResult.mos);
       const defenderHitLocation = await OpposedRollHelper.rollHitLocation();
-      const defenderArmorCalc = OpposedRollHelper.calculateDamageAfterArmor(
+      const defenderArmorCalc = OpposedRollHelper.calculateDamageWithLocation(
         defenderDamage.isSubduing ? defenderDamage.fatigueDamage : defenderDamage.standardDamage,
         defenderDamage.ap,
         defenderDamage.damageType,
         this,
-        defenderHitLocation.armorLocation
+        defenderHitLocation.armorLocation,
+        defenderHitLocation.location
       );
+
+      // Check for wound effects for defender's potential counterstrike damage
+      let defenderWoundEffect = null;
+      if (defenderResult.diceResults && OpposedRollHelper.isDoubles(defenderResult.diceResults) && defenderArmorCalc.finalDamage > 0) {
+        defenderWoundEffect = await OpposedRollHelper.rollWoundEffect();
+        if (defenderWoundEffect.additionalFatigue > 0) {
+          defenderDamage.fatigueDamage += defenderWoundEffect.additionalFatigue;
+        }
+        if (defenderWoundEffect.additionalStandard > 0) {
+          defenderArmorCalc.finalDamage += defenderWoundEffect.additionalStandard;
+          defenderArmorCalc.woundDamage = defenderWoundEffect.additionalStandard;
+        }
+      }
 
       templateData.defenderDamage = defenderDamage;
       templateData.defenderHitLocation = defenderHitLocation;
       templateData.defenderArmorCalc = defenderArmorCalc;
       templateData.defenderDamageTypeName = OpposedRollHelper.getDamageTypeName(defenderDamage.damageType);
+      templateData.defenderWoundEffect = defenderWoundEffect;
+      templateData.defenderIsDoubles = defenderResult.diceResults ? OpposedRollHelper.isDoubles(defenderResult.diceResults) : false;
     }
 
     // Create chat message
