@@ -402,6 +402,18 @@
               </label>
             </div>
 
+            {{!-- Cover Status --}}
+            <div class="cover-section">
+              <label>Cover</label>
+              <select name="system.cover" class="cover-select">
+                <option value="none" {{#if (eq system.cover "none")}}selected{{/if}}>None</option>
+                <option value="light" {{#if (eq system.cover "light")}}selected{{/if}}>Light (-1)</option>
+                <option value="moderate" {{#if (eq system.cover "moderate")}}selected{{/if}}>Moderate (-2)</option>
+                <option value="heavy" {{#if (eq system.cover "heavy")}}selected{{/if}}>Heavy (-3)</option>
+                <option value="full" {{#if (eq system.cover "full")}}selected{{/if}}>Full (-4)</option>
+              </select>
+            </div>
+
             {{!-- Condition Modifiers --}}
             <div class="condition-modifiers">
               {{#if (lt system.injuryModifier 0)}}

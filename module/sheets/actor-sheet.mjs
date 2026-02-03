@@ -1527,6 +1527,11 @@ export class MechFoundryActorSheet extends ActorSheet {
     const hasTarget = !!target;
     const targetName = target?.name || '';
 
+    // Get target's cover status for display
+    const targetActor = target?.actor || null;
+    const targetCover = targetActor?.system?.cover || 'none';
+    const coverLabels = { none: 'None', light: 'Light (-1)', moderate: 'Moderate (-2)', heavy: 'Heavy (-3)', full: 'Full (-4)' };
+
     // Build target/opposed roll section
     let targetHtml = '';
     if (hasTarget) {
@@ -1540,6 +1545,11 @@ export class MechFoundryActorSheet extends ActorSheet {
             <input type="checkbox" name="opposedRoll" checked/>
             Opposed Roll
           </label>
+        </div>
+        ` : ''}
+        ${!isMelee && targetCover !== 'none' ? `
+        <div class="form-group cover-info">
+          <label>Target Cover: <strong>${coverLabels[targetCover]}</strong></label>
         </div>
         ` : ''}
         <hr/>
@@ -1598,6 +1608,51 @@ export class MechFoundryActorSheet extends ActorSheet {
       `;
     }
 
+    // Build ranged-only options (cover, friendly fire)
+    let rangedOptionsHtml = '';
+    if (!isMelee) {
+      rangedOptionsHtml = `
+        ${hasTarget ? `
+        <div class="form-group">
+          <label>
+            <input type="checkbox" name="ignoreCover"/>
+            Ignore Cover
+          </label>
+        </div>
+        ` : ''}
+        <div class="form-group">
+          <label>
+            <input type="checkbox" name="friendlyInLoF"/>
+            Friendly in Line of Fire (-1)
+          </label>
+        </div>
+      `;
+    }
+
+    // Build aimed shot section (available for both melee and ranged)
+    const aimedShotHtml = `
+      <div class="form-group">
+        <label>
+          <input type="checkbox" name="aimedShot" class="aimed-shot-toggle"/>
+          Aimed Shot
+        </label>
+      </div>
+      <div class="aimed-shot-options" style="display: none;">
+        <div class="form-group">
+          <label>Target Body Part</label>
+          <select name="aimedLocation">
+            <option value="chest">Chest (-2)</option>
+            <option value="arm">Arm (-3)</option>
+            <option value="leg">Leg (-3)</option>
+            <option value="abdomen">Abdomen (-3)</option>
+            <option value="head">Head (-5)</option>
+            <option value="hand">Hand (-5)</option>
+            <option value="foot">Foot (-5)</option>
+          </select>
+        </div>
+      </div>
+    `;
+
     const dialogContent = `
       <form class="weapon-attack-dialog">
         <div class="form-group">
@@ -1615,6 +1670,8 @@ export class MechFoundryActorSheet extends ActorSheet {
           <label>Modifier</label>
           <input type="number" name="modifier" value="0"/>
         </div>
+        ${rangedOptionsHtml}
+        ${aimedShotHtml}
         ${firingModeHtml}
       </form>
     `;
@@ -1631,6 +1688,11 @@ export class MechFoundryActorSheet extends ActorSheet {
             const firingMode = html.find('[name="firingMode"]').val() || 'single';
             const useOpposedRoll = html.find('[name="opposedRoll"]').is(':checked');
 
+            const ignoreCover = html.find('[name="ignoreCover"]').is(':checked');
+            const friendlyInLoF = html.find('[name="friendlyInLoF"]').is(':checked');
+            const aimedShot = html.find('[name="aimedShot"]').is(':checked');
+            const aimedLocation = aimedShot ? html.find('[name="aimedLocation"]').val() : null;
+
             const options = {
               modifier,
               firingMode,
@@ -1639,7 +1701,11 @@ export class MechFoundryActorSheet extends ActorSheet {
               suppressionArea: parseInt(html.find('[name="suppressionArea"]').val()) || 1,
               roundsPerSqm: parseInt(html.find('[name="roundsPerSqm"]').val()) || 1,
               numTargets: parseInt(html.find('[name="numTargets"]').val()) || 1,
-              target: hasTarget ? target : null
+              target: hasTarget ? target : null,
+              ignoreCover,
+              friendlyInLoF,
+              aimedShot,
+              aimedLocation
             };
 
             // For melee attacks with target and opposed roll checked, use opposed roll flow
@@ -1664,6 +1730,12 @@ export class MechFoundryActorSheet extends ActorSheet {
           if (mode === 'burst') html.find('.burst-options').show();
           else if (mode === 'controlled') html.find('.controlled-options').show();
           else if (mode === 'suppression') html.find('.suppression-options').show();
+        });
+
+        // Toggle aimed shot body part dropdown
+        html.find('.aimed-shot-toggle').on('change', (e) => {
+          const checked = e.currentTarget.checked;
+          html.find('.aimed-shot-options').toggle(checked);
         });
       }
     }).render(true);

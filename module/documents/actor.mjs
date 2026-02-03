@@ -596,9 +596,18 @@ export class MechFoundryActor extends Actor {
     let recoilMod = 0;
     let firingModeMod = 0;
     let splashMod = 0;
+    let coverMod = 0;
+    let friendlyInLoFMod = 0;
+    let aimedShotMod = 0;
     const inputMod = options.modifier || 0;
     const injuryMod = this.system.injuryModifier || 0;
     const fatigueMod = this.system.fatigueModifier || 0;
+
+    // Aimed shot options
+    const aimedShot = options.aimedShot || false;
+    const aimedLocation = options.aimedLocation || null;
+    const ignoreCover = options.ignoreCover || false;
+    const friendlyInLoF = options.friendlyInLoF || false;
 
     // Determine attack type
     let attackType = 'Standard Ranged';
@@ -695,8 +704,29 @@ export class MechFoundryActor extends Actor {
     const itemCombatMod = ItemEffectsHelper.getCombatModifier(this, combatType, weaponId);
     const itemEffectMod = itemCombatMod.totalBonus;
 
+    // Apply cover modifier for ranged attacks against a target
+    if (!isMelee && options.target?.actor && !ignoreCover) {
+      const targetCover = options.target.actor.system?.cover || 'none';
+      const coverModifiers = { none: 0, light: -1, moderate: -2, heavy: -3, full: -4 };
+      coverMod = coverModifiers[targetCover] || 0;
+    }
+
+    // Apply friendly in line of fire penalty (ranged only)
+    if (!isMelee && friendlyInLoF) {
+      friendlyInLoFMod = -1;
+    }
+
+    // Apply aimed shot penalty
+    if (aimedShot && aimedLocation) {
+      const aimedModifiers = {
+        chest: -2, arm: -3, leg: -3, abdomen: -3,
+        head: -5, hand: -5, foot: -5
+      };
+      aimedShotMod = aimedModifiers[aimedLocation] || 0;
+    }
+
     // Calculate total modifier
-    const totalMod = skillMod + inputMod + injuryMod + fatigueMod + itemEffectMod + splashMod - recoilMod - firingModeMod;
+    const totalMod = skillMod + inputMod + injuryMod + fatigueMod + itemEffectMod + splashMod + coverMod + friendlyInLoFMod + aimedShotMod - recoilMod - firingModeMod;
     const targetNumber = skill?.system.targetNumber || 7;
 
     // Get weapon damage values
@@ -795,8 +825,12 @@ export class MechFoundryActor extends Actor {
 
       const targetActor = options.target?.actor || null;
       if (targetActor && success && standardDamage > 0) {
-        // Roll hit location
-        hitLocation = await OpposedRollHelper.rollHitLocation();
+        // Use aimed shot location or roll hit location
+        if (aimedShot && aimedLocation) {
+          hitLocation = OpposedRollHelper.getAimedHitLocation(aimedLocation);
+        } else {
+          hitLocation = await OpposedRollHelper.rollHitLocation();
+        }
 
         // Determine damage type from apFactor
         const damageTypeMap = { 'M': 'm', 'B': 'b', 'E': 'e', 'X': 'x' };
@@ -867,6 +901,17 @@ export class MechFoundryActor extends Actor {
 
     // Create chat message
     const targetActor = options.target?.actor || null;
+
+    // Prepare aimed shot display info
+    const aimedLocationLabels = {
+      chest: 'Chest', arm: 'Arm', leg: 'Leg', abdomen: 'Abdomen',
+      head: 'Head', hand: 'Hand', foot: 'Foot'
+    };
+
+    // Prepare cover display info
+    const coverLabels = { none: 'None', light: 'Light', moderate: 'Moderate', heavy: 'Heavy', full: 'Full' };
+    const targetCoverStatus = (!isMelee && targetActor && !ignoreCover) ? (targetActor.system?.cover || 'none') : 'none';
+
     const messageContent = await renderTemplate(
       "systems/mech-foundry/templates/chat/weapon-attack.hbs",
       {
@@ -886,7 +931,16 @@ export class MechFoundryActor extends Actor {
         fatigueMod: fatigueMod,
         itemEffectMod: itemEffectMod,
         itemCombatModBreakdown: itemCombatMod.breakdown,
-        splashMod: splashMod
+        splashMod: splashMod,
+        // New combat option modifiers
+        coverMod: coverMod,
+        coverLabel: coverMod !== 0 ? coverLabels[targetCoverStatus] : null,
+        ignoreCover: ignoreCover && targetActor?.system?.cover && targetActor.system.cover !== 'none',
+        friendlyInLoF: friendlyInLoF,
+        friendlyInLoFMod: friendlyInLoFMod,
+        aimedShot: aimedShot,
+        aimedShotMod: aimedShotMod,
+        aimedLocationLabel: aimedShot ? aimedLocationLabels[aimedLocation] : null
       }
     );
 

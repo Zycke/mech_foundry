@@ -2,6 +2,30 @@
   <div class="roll-title">{{weaponName}} Attack</div>
   <div class="attack-type">Attack Type: {{attackType}}</div>
 
+  {{!-- Combat Option Indicators --}}
+  <div class="combat-options-info">
+    {{#if coverLabel}}
+    <div class="combat-option cover-indicator">
+      <i class="fas fa-shield-alt"></i> Target in {{coverLabel}} Cover ({{coverMod}})
+    </div>
+    {{/if}}
+    {{#if ignoreCover}}
+    <div class="combat-option ignore-cover-indicator">
+      <i class="fas fa-eye"></i> Cover Ignored
+    </div>
+    {{/if}}
+    {{#if friendlyInLoF}}
+    <div class="combat-option friendly-lof-indicator">
+      <i class="fas fa-exclamation-triangle"></i> Friendly in Line of Fire ({{friendlyInLoFMod}})
+    </div>
+    {{/if}}
+    {{#if aimedShot}}
+    <div class="combat-option aimed-shot-indicator">
+      <i class="fas fa-crosshairs"></i> Aimed Shot: {{aimedLocationLabel}} ({{aimedShotMod}})
+    </div>
+    {{/if}}
+  </div>
+
   {{#each results}}
   <div class="attack-roll">
     {{#if this.targetIndex}}<div class="target-label">Target {{this.targetIndex}}:</div>{{/if}}
@@ -19,7 +43,7 @@
     {{/if}}
 
     <div class="roll-formula">
-      [{{this.diceResults.[0]}}]+[{{this.diceResults.[1]}}]{{#if ../skillMod}} + ({{../skillMod}}){{/if}}{{#if ../inputMod}}{{#if (gte ../inputMod 0)}} + {{../inputMod}}{{else}} - {{abs ../inputMod}}{{/if}}{{/if}}{{#if ../splashMod}} + {{../splashMod}} splash{{/if}}{{#if ../recoilMod}} - {{../recoilMod}}{{/if}}{{#if ../firingModeMod}} - {{../firingModeMod}}{{/if}}{{#if ../injuryMod}}{{#if (gte ../injuryMod 0)}} + {{../injuryMod}}{{else}} - {{abs ../injuryMod}}{{/if}}{{/if}}{{#if ../fatigueMod}}{{#if (gte ../fatigueMod 0)}} + {{../fatigueMod}}{{else}} - {{abs ../fatigueMod}}{{/if}}{{/if}}{{#if this.specialRoll.bonusTotal}} + {{this.specialRoll.bonusTotal}} bonus{{/if}} = {{this.total}}
+      [{{this.diceResults.[0]}}]+[{{this.diceResults.[1]}}]{{#if ../skillMod}} + ({{../skillMod}}){{/if}}{{#if ../inputMod}}{{#if (gte ../inputMod 0)}} + {{../inputMod}}{{else}} - {{abs ../inputMod}}{{/if}}{{/if}}{{#if ../splashMod}} + {{../splashMod}} splash{{/if}}{{#if ../coverMod}} {{../coverMod}} cover{{/if}}{{#if ../friendlyInLoFMod}} {{../friendlyInLoFMod}} FLoF{{/if}}{{#if ../aimedShotMod}} {{../aimedShotMod}} aimed{{/if}}{{#if ../recoilMod}} - {{../recoilMod}}{{/if}}{{#if ../firingModeMod}} - {{../firingModeMod}}{{/if}}{{#if ../injuryMod}}{{#if (gte ../injuryMod 0)}} + {{../injuryMod}}{{else}} - {{abs ../injuryMod}}{{/if}}{{/if}}{{#if ../fatigueMod}}{{#if (gte ../fatigueMod 0)}} + {{../fatigueMod}}{{else}} - {{abs ../fatigueMod}}{{/if}}{{/if}}{{#if this.specialRoll.bonusTotal}} + {{this.specialRoll.bonusTotal}} bonus{{/if}} = {{this.total}}
     </div>
     {{#if (ne this.total this.rawTotal)}}
     <div class="roll-raw">(Base roll: {{this.rawTotal}})</div>
