@@ -19,7 +19,7 @@
     {{/if}}
 
     <div class="roll-formula">
-      [{{this.diceResults.[0]}}]+[{{this.diceResults.[1]}}]{{#if ../skillMod}} + ({{../skillMod}}){{/if}}{{#if ../inputMod}}{{#if (gte ../inputMod 0)}} + {{../inputMod}}{{else}} - {{abs ../inputMod}}{{/if}}{{/if}}{{#if ../recoilMod}} - {{../recoilMod}}{{/if}}{{#if ../firingModeMod}} - {{../firingModeMod}}{{/if}}{{#if ../injuryMod}}{{#if (gte ../injuryMod 0)}} + {{../injuryMod}}{{else}} - {{abs ../injuryMod}}{{/if}}{{/if}}{{#if ../fatigueMod}}{{#if (gte ../fatigueMod 0)}} + {{../fatigueMod}}{{else}} - {{abs ../fatigueMod}}{{/if}}{{/if}}{{#if this.specialRoll.bonusTotal}} + {{this.specialRoll.bonusTotal}} bonus{{/if}} = {{this.total}}
+      [{{this.diceResults.[0]}}]+[{{this.diceResults.[1]}}]{{#if ../skillMod}} + ({{../skillMod}}){{/if}}{{#if ../inputMod}}{{#if (gte ../inputMod 0)}} + {{../inputMod}}{{else}} - {{abs ../inputMod}}{{/if}}{{/if}}{{#if ../splashMod}} + {{../splashMod}} splash{{/if}}{{#if ../recoilMod}} - {{../recoilMod}}{{/if}}{{#if ../firingModeMod}} - {{../firingModeMod}}{{/if}}{{#if ../injuryMod}}{{#if (gte ../injuryMod 0)}} + {{../injuryMod}}{{else}} - {{abs ../injuryMod}}{{/if}}{{/if}}{{#if ../fatigueMod}}{{#if (gte ../fatigueMod 0)}} + {{../fatigueMod}}{{else}} - {{abs ../fatigueMod}}{{/if}}{{/if}}{{#if this.specialRoll.bonusTotal}} + {{this.specialRoll.bonusTotal}} bonus{{/if}} = {{this.total}}
     </div>
     {{#if (ne this.total this.rawTotal)}}
     <div class="roll-raw">(Base roll: {{this.rawTotal}})</div>
@@ -83,6 +83,21 @@
           <span class="armor-value">{{this.armorCalc.effectiveArmor}}</span>
           <span class="armor-breakdown">({{this.armorCalc.armorValue}} - {{this.armorCalc.apValue}} AP)</span>
         </div>
+        <div class="armor-line">
+          <span class="armor-label">Damage After Armor:</span>
+          <span class="armor-value">{{this.armorCalc.damageAfterArmor}}</span>
+        </div>
+        <div class="armor-line">
+          <span class="armor-label">Location Modifier:</span>
+          <span class="armor-value">{{this.armorCalc.locationMultiplierDisplay}}</span>
+          <span class="armor-breakdown">({{this.hitLocation.displayLocation}})</span>
+        </div>
+        {{#if this.armorCalc.woundDamage}}
+        <div class="armor-line wound-damage">
+          <span class="armor-label">Wound Effect Damage:</span>
+          <span class="armor-value">+{{this.armorCalc.woundDamage}}</span>
+        </div>
+        {{/if}}
         <div class="armor-line final">
           <span class="armor-label">Final Damage:</span>
           <span class="armor-value">{{this.armorCalc.finalDamage}}</span>
@@ -90,6 +105,36 @@
           <span class="armor-absorbed">({{this.armorCalc.absorbed}} absorbed)</span>
           {{/if}}
         </div>
+      </div>
+      {{/if}}
+
+      {{!-- Wound Effect (doubles on successful attack with damage) --}}
+      {{#if this.woundEffect}}
+      <div class="wound-effect">
+        <div class="wound-header">
+          <span class="wound-label">WOUND EFFECT</span>
+          <span class="wound-roll">[{{this.woundEffect.roll}}]</span>
+          {{#if this.isDoubles}}<span class="doubles-indicator">(Doubles!)</span>{{/if}}
+        </div>
+        <div class="wound-name">{{this.woundEffect.name}}</div>
+        <div class="wound-description">{{this.woundEffect.description}}</div>
+        {{#if this.woundEffect.additionalFatigue}}
+        <div class="wound-damage-line">
+          <span class="wound-damage-label">Additional Fatigue:</span>
+          <span class="wound-damage-value">+{{this.woundEffect.additionalFatigue}}</span>
+          <span class="wound-roll-result">[1d6 = {{this.woundEffect.additionalRoll}}]</span>
+        </div>
+        {{/if}}
+        {{#if this.woundEffect.additionalStandard}}
+        <div class="wound-damage-line">
+          <span class="wound-damage-label">Additional Standard:</span>
+          <span class="wound-damage-value">+{{this.woundEffect.additionalStandard}}</span>
+          <span class="wound-roll-result">[1d6 = {{this.woundEffect.additionalRoll}}]</span>
+        </div>
+        {{/if}}
+        {{#if this.woundEffect.note}}
+        <div class="wound-note">{{this.woundEffect.note}}</div>
+        {{/if}}
       </div>
       {{/if}}
 
