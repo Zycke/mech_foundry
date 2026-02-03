@@ -13,6 +13,7 @@
         },
         "stun": false,
         "unconscious": false,
+        "cover": "none",
         "biography": ""
       },
       "attributes": {

@@ -242,6 +242,32 @@ export class OpposedRollHelper {
   }
 
   /**
+   * Create a hit location result from an aimed shot selection
+   * @param {string} aimedLocation The aimed body part
+   * @returns {Object} Hit location result matching rollHitLocation format
+   */
+  static getAimedHitLocation(aimedLocation) {
+    const locationMap = {
+      head: { location: 'head', displayLocation: 'Head (Aimed)', armorLocation: 'head' },
+      chest: { location: 'chest', displayLocation: 'Chest (Aimed)', armorLocation: 'torso' },
+      abdomen: { location: 'abdomen', displayLocation: 'Abdomen (Aimed)', armorLocation: 'torso' },
+      arm: { location: 'rightArm', displayLocation: 'Arm (Aimed)', armorLocation: 'arms' },
+      leg: { location: 'legs', displayLocation: 'Legs (Aimed)', armorLocation: 'legs' },
+      hand: { location: 'rightHand', displayLocation: 'Hand (Aimed)', armorLocation: 'arms' },
+      foot: { location: 'rightFoot', displayLocation: 'Foot (Aimed)', armorLocation: 'legs' }
+    };
+
+    const mapped = locationMap[aimedLocation] || locationMap.chest;
+    return {
+      roll: '—',
+      subRoll: null,
+      location: mapped.location,
+      displayLocation: mapped.displayLocation,
+      armorLocation: mapped.armorLocation
+    };
+  }
+
+  /**
    * Get BAR value for a specific damage type and location
    * @param {Actor} actor The target actor
    * @param {string} damageType 'm', 'b', 'e', or 'x'

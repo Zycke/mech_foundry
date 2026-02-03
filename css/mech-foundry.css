@@ -3093,3 +3093,83 @@
 .mech-foundry.opposed-roll .armor-line.wound-damage .armor-value {
   color: #C44536;
 }
+
+
+/* ========================================
+   Cover Section Styles
+   ======================================== */
+
+.mech-foundry .cover-section {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0;
+  padding: 6px 8px;
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: var(--mf-border-radius);
+}
+
+.mech-foundry .cover-section label {
+  font-weight: 600;
+  font-size: 0.9em;
+  min-width: 45px;
+}
+
+.mech-foundry .cover-select {
+  flex: 1;
+  padding: 4px 8px;
+  border: 1px solid var(--mf-border);
+  border-radius: var(--mf-border-radius);
+  background: var(--mf-bg-light);
+  font-size: 0.9em;
+}
+
+/* ========================================
+   Combat Options Chat Card Indicators
+   ======================================== */
+
+.mech-foundry.roll-result .combat-options-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 6px 0;
+}
+
+.mech-foundry.roll-result .combat-option {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  border-radius: var(--mf-border-radius);
+  font-size: 0.85em;
+  font-weight: 500;
+}
+
+.mech-foundry.roll-result .combat-option i {
+  width: 14px;
+  text-align: center;
+}
+
+.mech-foundry.roll-result .cover-indicator {
+  background: rgba(26, 95, 122, 0.15);
+  color: var(--mf-primary);
+  border: 1px solid rgba(26, 95, 122, 0.3);
+}
+
+.mech-foundry.roll-result .ignore-cover-indicator {
+  background: rgba(74, 157, 74, 0.15);
+  color: var(--mf-success);
+  border: 1px solid rgba(74, 157, 74, 0.3);
+}
+
+.mech-foundry.roll-result .friendly-lof-indicator {
+  background: rgba(212, 160, 23, 0.15);
+  color: #B08A00;
+  border: 1px solid rgba(212, 160, 23, 0.3);
+}
+
+.mech-foundry.roll-result .aimed-shot-indicator {
+  background: rgba(196, 69, 54, 0.15);
+  color: var(--mf-danger);
+  border: 1px solid rgba(196, 69, 54, 0.3);
+}
