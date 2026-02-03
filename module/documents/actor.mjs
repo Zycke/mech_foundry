@@ -599,6 +599,7 @@ export class MechFoundryActor extends Actor {
     let coverMod = 0;
     let friendlyInLoFMod = 0;
     let aimedShotMod = 0;
+    let proneMod = 0;
     const inputMod = options.modifier || 0;
     const injuryMod = this.system.injuryModifier || 0;
     const fatigueMod = this.system.fatigueModifier || 0;
@@ -711,6 +712,11 @@ export class MechFoundryActor extends Actor {
       coverMod = coverModifiers[targetCover] || 0;
     }
 
+    // Apply prone target modifier
+    if (options.target?.actor?.system?.prone) {
+      proneMod = isMelee ? 2 : -1;
+    }
+
     // Apply friendly in line of fire penalty (ranged only)
     if (!isMelee && friendlyInLoF) {
       friendlyInLoFMod = -1;
@@ -726,7 +732,7 @@ export class MechFoundryActor extends Actor {
     }
 
     // Calculate total modifier
-    const totalMod = skillMod + inputMod + injuryMod + fatigueMod + itemEffectMod + splashMod + coverMod + friendlyInLoFMod + aimedShotMod - recoilMod - firingModeMod;
+    const totalMod = skillMod + inputMod + injuryMod + fatigueMod + itemEffectMod + splashMod + coverMod + proneMod + friendlyInLoFMod + aimedShotMod - recoilMod - firingModeMod;
     const targetNumber = skill?.system.targetNumber || 7;
 
     // Get weapon damage values
@@ -940,7 +946,9 @@ export class MechFoundryActor extends Actor {
         friendlyInLoFMod: friendlyInLoFMod,
         aimedShot: aimedShot,
         aimedShotMod: aimedShotMod,
-        aimedLocationLabel: aimedShot ? aimedLocationLabels[aimedLocation] : null
+        aimedLocationLabel: aimedShot ? aimedLocationLabels[aimedLocation] : null,
+        proneMod: proneMod,
+        targetProne: options.target?.actor?.system?.prone || false
       }
     );
 
@@ -1434,10 +1442,67 @@ export class MechFoundryActor extends Actor {
         "system.fatigue.value": newFatigue,
         "system.stun": true
       });
+
+      // Check for bleeding: if standard damage >= ceil(BOD/2) and not already bleeding
+      await this._checkBleedingFromDamage(finalDamage);
     }
 
     // Check for unconsciousness or death
     await this._checkCondition();
+  }
+
+  /**
+   * Check if heavy standard damage should trigger a BOD check for bleeding
+   * If damage >= ceil(BOD/2) and not already bleeding, roll BOD check
+   * @param {number} damageDealt The amount of standard damage dealt
+   */
+  async _checkBleedingFromDamage(damageDealt) {
+    // Skip if already bleeding
+    if (this.system.bleeding) return;
+
+    const bod = this.system.attributes.bod?.value || 5;
+    const threshold = Math.ceil(bod / 2);
+
+    if (damageDealt < threshold) return;
+
+    // Perform BOD attribute check (single attribute, TN 12)
+    const bodTotal = this.system.attributes.bod?.total || bod;
+    const injuryMod = this.system.injuryModifier || 0;
+    const fatigueMod = this.system.fatigueModifier || 0;
+    const totalMod = bodTotal + injuryMod + fatigueMod;
+
+    const roll = await new Roll(`2d6 + ${totalMod}`).evaluate();
+    const diceResults = roll.dice[0].results.map(r => r.result);
+    const targetNumber = 12;
+    const success = roll.total >= targetNumber;
+    const mos = roll.total - targetNumber;
+
+    // Check for auto-fail on snake eyes
+    const isFumble = diceResults[0] === 1 && diceResults[1] === 1;
+    const finalSuccess = isFumble ? false : success;
+
+    // Create chat message for the BOD check
+    const resultText = finalSuccess ? 'Success' : 'Failure - Bleeding!';
+    const resultClass = finalSuccess ? 'success' : 'failure';
+
+    await ChatMessage.create({
+      speaker: ChatMessage.getSpeaker({ actor: this }),
+      content: `<div class="mech-foundry roll-result bod-bleeding-check">
+        <div class="roll-title">BOD Check - Heavy Damage</div>
+        <div class="check-reason">${this.name} took ${damageDealt} standard damage (threshold: ${threshold})</div>
+        <div class="roll-formula">[${diceResults[0]}]+[${diceResults[1]}] + ${totalMod} = ${roll.total}</div>
+        <div class="roll-tn">TN: ${targetNumber}</div>
+        <div class="roll-mos ${resultClass}">MoS: ${mos} [${resultText}]</div>
+        ${!finalSuccess ? '<div class="bleeding-result"><i class="fas fa-tint"></i> <strong>Bleeding status applied!</strong></div>' : ''}
+        ${isFumble ? '<div class="special-roll fumble">FUMBLE! (Auto-fail)</div>' : ''}
+      </div>`,
+      rolls: [roll]
+    });
+
+    // If failed, apply bleeding
+    if (!finalSuccess) {
+      await this.update({ "system.bleeding": true });
+    }
   }
 
   /**

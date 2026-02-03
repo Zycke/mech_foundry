@@ -3173,3 +3173,110 @@
   color: var(--mf-danger);
   border: 1px solid rgba(196, 69, 54, 0.3);
 }
+
+
+/* ========================================
+   Status Panel Styles
+   ======================================== */
+
+.mech-foundry .status-panel {
+  margin-bottom: 8px;
+}
+
+.mech-foundry .status-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mech-foundry .status-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mech-foundry .status-field label {
+  font-weight: 600;
+  font-size: 0.9em;
+  min-width: 45px;
+}
+
+.mech-foundry .status-field .cover-select {
+  flex: 1;
+}
+
+.mech-foundry .status-toggles {
+  display: flex;
+  gap: 10px;
+}
+
+.mech-foundry .status-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border: 1px solid var(--mf-border);
+  border-radius: var(--mf-border-radius);
+  cursor: pointer;
+  font-size: 0.9em;
+  font-weight: 500;
+  background: var(--mf-bg-light);
+  transition: all 0.2s;
+  flex: 1;
+  justify-content: center;
+}
+
+.mech-foundry .status-toggle input[type="checkbox"] {
+  display: none;
+}
+
+.mech-foundry .status-toggle:hover {
+  border-color: var(--mf-primary);
+}
+
+.mech-foundry .status-toggle.active {
+  border-color: var(--mf-danger);
+  background: rgba(196, 69, 54, 0.15);
+  color: var(--mf-danger);
+}
+
+.mech-foundry .status-toggle i {
+  width: 14px;
+  text-align: center;
+}
+
+/* Prone chat card indicator */
+.mech-foundry.roll-result .prone-indicator {
+  background: rgba(87, 131, 123, 0.15);
+  color: var(--mf-secondary);
+  border: 1px solid rgba(87, 131, 123, 0.3);
+}
+
+/* Bleeding damage chat message */
+.mech-foundry.bleeding-damage {
+  padding: 6px 10px;
+  color: var(--mf-danger);
+  font-size: 0.95em;
+}
+
+.mech-foundry.bleeding-damage i {
+  color: var(--mf-danger);
+  margin-right: 4px;
+}
+
+/* BOD bleeding check chat card */
+.mech-foundry.bod-bleeding-check .check-reason {
+  font-size: 0.85em;
+  color: #666;
+  font-style: italic;
+  margin-bottom: 4px;
+}
+
+.mech-foundry.bod-bleeding-check .bleeding-result {
+  margin-top: 6px;
+  padding: 4px 8px;
+  background: rgba(196, 69, 54, 0.15);
+  border-left: 3px solid var(--mf-danger);
+  color: var(--mf-danger);
+  font-size: 0.95em;
+}
