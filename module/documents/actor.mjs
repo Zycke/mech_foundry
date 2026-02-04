@@ -600,6 +600,10 @@ export class MechFoundryActor extends Actor {
     let friendlyInLoFMod = 0;
     let aimedShotMod = 0;
     let proneMod = 0;
+    let sizeMod = 0;
+    let rangeMod = 0;
+    let rangeCategory = null;
+    let measuredDistance = null;
     const inputMod = options.modifier || 0;
     const injuryMod = this.system.injuryModifier || 0;
     const fatigueMod = this.system.fatigueModifier || 0;
@@ -731,8 +735,28 @@ export class MechFoundryActor extends Actor {
       aimedShotMod = aimedModifiers[aimedLocation] || 0;
     }
 
+    // Apply target size modifier
+    if (options.target?.actor) {
+      const targetSize = options.target.actor.system?.personalData?.size || 'medium';
+      const sizeModifiers = {
+        monstrous: 5, veryLarge: 3, large: 1, medium: 0,
+        small: -1, verySmall: -2, extremelySmall: -3, tiny: -4
+      };
+      sizeMod = sizeModifiers[targetSize] ?? 0;
+    }
+
+    // Apply range modifier for ranged attacks
+    if (!isMelee && options.target) {
+      const rangeResult = this._calculateRangeModifier(weaponData, options.target);
+      if (rangeResult) {
+        rangeMod = rangeResult.modifier;
+        rangeCategory = rangeResult.category;
+        measuredDistance = rangeResult.distance;
+      }
+    }
+
     // Calculate total modifier
-    const totalMod = skillMod + inputMod + injuryMod + fatigueMod + itemEffectMod + splashMod + coverMod + proneMod + friendlyInLoFMod + aimedShotMod - recoilMod - firingModeMod;
+    const totalMod = skillMod + inputMod + injuryMod + fatigueMod + itemEffectMod + splashMod + coverMod + proneMod + friendlyInLoFMod + aimedShotMod + sizeMod + rangeMod - recoilMod - firingModeMod;
     const targetNumber = skill?.system.targetNumber || 7;
 
     // Get weapon damage values
@@ -918,6 +942,14 @@ export class MechFoundryActor extends Actor {
     const coverLabels = { none: 'None', light: 'Light', moderate: 'Moderate', heavy: 'Heavy', full: 'Full' };
     const targetCoverStatus = (!isMelee && targetActor && !ignoreCover) ? (targetActor.system?.cover || 'none') : 'none';
 
+    // Prepare size display info (only show if not medium)
+    const sizeLabels = {
+      monstrous: 'Monstrous', veryLarge: 'Very Large', large: 'Large', medium: 'Medium',
+      small: 'Small', verySmall: 'Very Small', extremelySmall: 'Extremely Small', tiny: 'Tiny'
+    };
+    const targetSizeKey = targetActor?.system?.personalData?.size || 'medium';
+    const targetSizeLabel = sizeMod !== 0 ? sizeLabels[targetSizeKey] : null;
+
     const messageContent = await renderTemplate(
       "systems/mech-foundry/templates/chat/weapon-attack.hbs",
       {
@@ -948,7 +980,14 @@ export class MechFoundryActor extends Actor {
         aimedShotMod: aimedShotMod,
         aimedLocationLabel: aimedShot ? aimedLocationLabels[aimedLocation] : null,
         proneMod: proneMod,
-        targetProne: options.target?.actor?.system?.prone || false
+        targetProne: options.target?.actor?.system?.prone || false,
+        // Size modifier
+        sizeMod: sizeMod,
+        targetSizeLabel: targetSizeLabel,
+        // Range modifier
+        rangeMod: rangeMod,
+        rangeCategory: rangeCategory,
+        measuredDistance: measuredDistance
       }
     );
 
@@ -1503,6 +1542,74 @@ export class MechFoundryActor extends Actor {
     if (!finalSuccess) {
       await this.update({ "system.bleeding": true });
     }
+  }
+
+  /**
+   * Calculate range modifier for a ranged attack
+   * Measures distance between attacker and target tokens, compares to weapon range brackets
+   * @param {Object} weaponData The weapon's system data
+   * @param {Token} targetToken The target token
+   * @returns {Object|null} Range info {modifier, category, distance} or null if unmeasurable
+   */
+  _calculateRangeModifier(weaponData, targetToken) {
+    // Need canvas and tokens to measure distance
+    if (!canvas?.ready || !canvas?.scene) return null;
+
+    // Find attacker token on canvas
+    const attackerTokens = this.getActiveTokens(true);
+    const attackerToken = attackerTokens[0];
+    if (!attackerToken || !targetToken) return null;
+
+    // Measure distance using Foundry's grid system
+    let distance;
+    try {
+      const ray = new Ray(attackerToken.center, targetToken.center);
+      const segments = [{ ray }];
+      distance = canvas.grid.measureDistances(segments, { gridSpaces: false })[0];
+    } catch (e) {
+      return null;
+    }
+
+    if (distance == null || isNaN(distance)) return null;
+
+    // Round distance up to nearest whole number
+    distance = Math.ceil(distance);
+
+    // Get weapon range brackets (values are in meters)
+    const ranges = weaponData.range || {};
+    const pb = Number(ranges.pointBlank) || 0;
+    const short = Number(ranges.short) || 0;
+    const medium = Number(ranges.medium) || 0;
+    const long = Number(ranges.long) || 0;
+    const extreme = Number(ranges.extreme) || 0;
+
+    // If no ranges defined, cannot determine modifier
+    if (pb === 0 && short === 0 && medium === 0 && long === 0 && extreme === 0) return null;
+
+    // Determine range category (compare rounded-up distance to range brackets)
+    let category, modifier;
+    if (pb > 0 && distance <= pb) {
+      category = 'Point Blank';
+      modifier = 1;
+    } else if (short > 0 && distance <= short) {
+      category = 'Short';
+      modifier = 0;
+    } else if (medium > 0 && distance <= medium) {
+      category = 'Medium';
+      modifier = -2;
+    } else if (long > 0 && distance <= long) {
+      category = 'Long';
+      modifier = -4;
+    } else if (extreme > 0 && distance <= extreme) {
+      category = 'Extreme';
+      modifier = -6;
+    } else {
+      // Beyond extreme range
+      category = 'Out of Range';
+      modifier = -6;
+    }
+
+    return { modifier, category, distance };
   }
 
   /**

@@ -29,6 +29,16 @@
       <i class="fas fa-level-down-alt"></i> Target is Prone ({{#if (gte proneMod 0)}}+{{/if}}{{proneMod}})
     </div>
     {{/if}}
+    {{#if targetSizeLabel}}
+    <div class="combat-option size-indicator">
+      <i class="fas fa-expand-arrows-alt"></i> Target Size: {{targetSizeLabel}} ({{#if (gte sizeMod 0)}}+{{/if}}{{sizeMod}})
+    </div>
+    {{/if}}
+    {{#if rangeCategory}}
+    <div class="combat-option range-indicator">
+      <i class="fas fa-ruler"></i> Range: {{rangeCategory}} ({{measuredDistance}}m{{#if rangeMod}}, {{#if (gte rangeMod 0)}}+{{/if}}{{rangeMod}}{{/if}})
+    </div>
+    {{/if}}
   </div>
 
   {{#each results}}
@@ -48,7 +58,7 @@
     {{/if}}
 
     <div class="roll-formula">
-      [{{this.diceResults.[0]}}]+[{{this.diceResults.[1]}}]{{#if ../skillMod}} + ({{../skillMod}}){{/if}}{{#if ../inputMod}}{{#if (gte ../inputMod 0)}} + {{../inputMod}}{{else}} - {{abs ../inputMod}}{{/if}}{{/if}}{{#if ../splashMod}} + {{../splashMod}} splash{{/if}}{{#if ../coverMod}} {{../coverMod}} cover{{/if}}{{#if ../proneMod}}{{#if (gte ../proneMod 0)}} + {{../proneMod}}{{else}} {{../proneMod}}{{/if}} prone{{/if}}{{#if ../friendlyInLoFMod}} {{../friendlyInLoFMod}} FLoF{{/if}}{{#if ../aimedShotMod}} {{../aimedShotMod}} aimed{{/if}}{{#if ../recoilMod}} - {{../recoilMod}}{{/if}}{{#if ../firingModeMod}} - {{../firingModeMod}}{{/if}}{{#if ../injuryMod}}{{#if (gte ../injuryMod 0)}} + {{../injuryMod}}{{else}} - {{abs ../injuryMod}}{{/if}}{{/if}}{{#if ../fatigueMod}}{{#if (gte ../fatigueMod 0)}} + {{../fatigueMod}}{{else}} - {{abs ../fatigueMod}}{{/if}}{{/if}}{{#if this.specialRoll.bonusTotal}} + {{this.specialRoll.bonusTotal}} bonus{{/if}} = {{this.total}}
+      [{{this.diceResults.[0]}}]+[{{this.diceResults.[1]}}]{{#if ../skillMod}} + ({{../skillMod}}){{/if}}{{#if ../inputMod}}{{#if (gte ../inputMod 0)}} + {{../inputMod}}{{else}} - {{abs ../inputMod}}{{/if}}{{/if}}{{#if ../splashMod}} + {{../splashMod}} splash{{/if}}{{#if ../coverMod}} {{../coverMod}} cover{{/if}}{{#if ../proneMod}}{{#if (gte ../proneMod 0)}} + {{../proneMod}}{{else}} {{../proneMod}}{{/if}} prone{{/if}}{{#if ../sizeMod}}{{#if (gte ../sizeMod 0)}} + {{../sizeMod}}{{else}} {{../sizeMod}}{{/if}} size{{/if}}{{#if ../rangeMod}} {{../rangeMod}} range{{/if}}{{#if ../friendlyInLoFMod}} {{../friendlyInLoFMod}} FLoF{{/if}}{{#if ../aimedShotMod}} {{../aimedShotMod}} aimed{{/if}}{{#if ../recoilMod}} - {{../recoilMod}}{{/if}}{{#if ../firingModeMod}} - {{../firingModeMod}}{{/if}}{{#if ../injuryMod}}{{#if (gte ../injuryMod 0)}} + {{../injuryMod}}{{else}} - {{abs ../injuryMod}}{{/if}}{{/if}}{{#if ../fatigueMod}}{{#if (gte ../fatigueMod 0)}} + {{../fatigueMod}}{{else}} - {{abs ../fatigueMod}}{{/if}}{{/if}}{{#if this.specialRoll.bonusTotal}} + {{this.specialRoll.bonusTotal}} bonus{{/if}} = {{this.total}}
     </div>
     {{#if (ne this.total this.rawTotal)}}
     <div class="roll-raw">(Base roll: {{this.rawTotal}})</div>

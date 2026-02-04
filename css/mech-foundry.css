@@ -3280,3 +3280,18 @@
   color: var(--mf-danger);
   font-size: 0.95em;
 }
+
+
+/* Size indicator */
+.mech-foundry.roll-result .size-indicator {
+  background: rgba(139, 90, 43, 0.15);
+  color: #8B5A2B;
+  border: 1px solid rgba(139, 90, 43, 0.3);
+}
+
+/* Range indicator */
+.mech-foundry.roll-result .range-indicator {
+  background: rgba(75, 0, 130, 0.1);
+  color: #4B0082;
+  border: 1px solid rgba(75, 0, 130, 0.25);
+}
