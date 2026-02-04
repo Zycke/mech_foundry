@@ -37,6 +37,19 @@
             <input type="text" name="system.personalData.eyes" value="{{system.personalData.eyes}}"/>
           </div>
           <div class="field">
+            <label>Size</label>
+            <select name="system.personalData.size">
+              <option value="monstrous" {{#if (eq system.personalData.size "monstrous")}}selected{{/if}}>Monstrous</option>
+              <option value="veryLarge" {{#if (eq system.personalData.size "veryLarge")}}selected{{/if}}>Very Large</option>
+              <option value="large" {{#if (eq system.personalData.size "large")}}selected{{/if}}>Large</option>
+              <option value="medium" {{#if (eq system.personalData.size "medium")}}selected{{/if}}>Medium</option>
+              <option value="small" {{#if (eq system.personalData.size "small")}}selected{{/if}}>Small</option>
+              <option value="verySmall" {{#if (eq system.personalData.size "verySmall")}}selected{{/if}}>Very Small</option>
+              <option value="extremelySmall" {{#if (eq system.personalData.size "extremelySmall")}}selected{{/if}}>Extremely Small</option>
+              <option value="tiny" {{#if (eq system.personalData.size "tiny")}}selected{{/if}}>Tiny</option>
+            </select>
+          </div>
+          <div class="field">
             <label>Extra</label>
             <input type="text" name="system.personalData.extra" value="{{system.personalData.extra}}"/>
           </div>
