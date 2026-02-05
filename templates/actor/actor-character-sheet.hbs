@@ -608,7 +608,13 @@
                     <a class="weapon-attack-roll" title="Click to attack">{{this.name}}</a>
                   </td>
                   <td class="weapon-skill">{{this.system.skill}}</td>
-                  <td class="weapon-apbd">{{this.system.ap}}{{this.system.apFactor}}/{{this.system.bd}}{{this.system.bdFactor}}</td>
+                  <td class="weapon-apbd {{#if this.hasModifiedStats}}modified-stats{{/if}}">
+                    {{#if this.hasModifiedStats}}
+                      <span title="Modified by ammo (base: {{this.system.ap}}{{this.system.apFactor}}/{{this.system.bd}}{{this.system.bdFactor}})">{{this.effectiveAp}}{{this.effectiveApFactor}}/{{this.effectiveBd}}{{this.effectiveBdFactor}}</span>
+                    {{else}}
+                      {{this.system.ap}}{{this.system.apFactor}}/{{this.system.bd}}{{this.system.bdFactor}}
+                    {{/if}}
+                  </td>
                   <td class="weapon-range">
                     {{#if (eq this.system.weaponType "melee")}}Melee{{else}}{{this.system.range.short}}/{{this.system.range.medium}}/{{this.system.range.long}}{{/if}}
                   </td>
@@ -809,8 +815,13 @@
           </thead>
           <tbody>
             {{#each inventory.ammo}}
-            <tr class="item {{#unless this.isFull}}partial-ammo{{/unless}}" data-item-id="{{this._id}}">
-              <td class="item-name">{{this.name}}</td>
+            <tr class="item {{#unless this.isFull}}partial-ammo{{/unless}} {{#if this.loadedInWeaponName}}loaded-ammo{{/if}}" data-item-id="{{this._id}}">
+              <td class="item-name">
+                {{this.name}}
+                {{#if this.loadedInWeaponName}}
+                  <span class="loaded-indicator">(Loaded in {{this.loadedInWeaponName}})</span>
+                {{/if}}
+              </td>
               <td class="ammo-type-cell">
                 {{#if (eq this.system.ammoCategory "ballistics")}}Ballistics{{/if}}
                 {{#if (eq this.system.ammoCategory "energy")}}Energy{{/if}}
@@ -826,9 +837,13 @@
               </td>
               <td class="item-mass">{{this.system.mass}}</td>
               <td class="item-controls">
+                {{#unless this.loadedInWeaponName}}
                 <a class="ammo-load-into-weapon" data-item-id="{{this._id}}" title="Load into weapon"><i class="fas fa-arrow-up"></i></a>
+                {{/unless}}
                 <a class="item-edit" title="Edit"><i class="fas fa-edit"></i></a>
+                {{#unless this.loadedInWeaponName}}
                 <a class="item-delete" title="Delete"><i class="fas fa-trash"></i></a>
+                {{/unless}}
               </td>
             </tr>
             {{/each}}

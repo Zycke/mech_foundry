@@ -285,7 +285,8 @@
       "damageType": "",
       "specialEffects": [],
       "quickCharge": false,
-      "notes": ""
+      "notes": "",
+      "loadedInWeapon": null
     }
   }
 }

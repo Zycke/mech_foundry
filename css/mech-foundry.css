@@ -3750,3 +3750,26 @@
   color: #4B0082;
   border: 1px solid rgba(75, 0, 130, 0.25);
 }
+
+/* Modified weapon stats (ammo changes) */
+.mech-foundry .weapon-apbd.modified-stats {
+  color: var(--mf-warning);
+  font-weight: bold;
+}
+
+.mech-foundry .weapon-apbd.modified-stats span {
+  cursor: help;
+  text-decoration: underline dotted;
+}
+
+/* Loaded ammo indicator in inventory */
+.mech-foundry .loaded-ammo {
+  background: rgba(87, 131, 123, 0.1);
+}
+
+.mech-foundry .loaded-indicator {
+  display: block;
+  font-size: 0.85em;
+  color: var(--mf-secondary);
+  font-style: italic;
+}

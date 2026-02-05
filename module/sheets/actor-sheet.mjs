@@ -258,6 +258,19 @@ export class MechFoundryActorSheet extends ActorSheet {
             if (i.isEnergyWeapon && i.system.pps > 0) {
               i.shotsRemaining = Math.floor(loadedAmmoItem.system.quantity.value / i.system.pps);
             }
+            // Calculate effective stats (modified by ammo)
+            const effectiveStats = this.actor.getWeaponEffectiveStats(i._id);
+            if (effectiveStats) {
+              i.effectiveAp = effectiveStats.ap;
+              i.effectiveApFactor = effectiveStats.apFactor;
+              i.effectiveBd = effectiveStats.bd;
+              i.effectiveBdFactor = effectiveStats.bdFactor;
+              // Check if stats are modified from base
+              i.hasModifiedStats = (effectiveStats.ap !== i.system.ap ||
+                                   effectiveStats.apFactor !== i.system.apFactor ||
+                                   effectiveStats.bd !== i.system.bd ||
+                                   effectiveStats.bdFactor !== i.system.bdFactor);
+            }
           } else if (i.system.loadedAmmoName) {
             // Fallback: use stored ammo info when item doesn't exist
             i.loadedAmmoData = {
@@ -337,6 +350,13 @@ export class MechFoundryActorSheet extends ActorSheet {
       else if (i.type === 'ammo') {
         // Add isFull flag for stacking display
         i.isFull = i.system.quantity.value === i.system.quantity.max;
+        // Add loaded weapon info if applicable
+        if (i.system.loadedInWeapon) {
+          const loadedWeapon = this.actor.items.get(i.system.loadedInWeapon);
+          if (loadedWeapon) {
+            i.loadedInWeaponName = loadedWeapon.name;
+          }
+        }
         inventory.ammo.push(i);
         // Ammo adds to weight
         totalWeight += parseFloat(i.system.mass) || 0;

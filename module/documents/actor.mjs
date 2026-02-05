@@ -992,8 +992,13 @@ export class MechFoundryActor extends Actor {
       const newPP = loadedAmmo.system.quantity.value - ammoNeeded;
       await loadedAmmo.update({ 'system.quantity.value': Math.max(0, newPP) });
     } else if (weaponData.ammo?.max > 0) {
-      // Ballistics/Ordnance: decrement weapon magazine
-      await weapon.update({ "system.ammo.value": Math.max(0, currentAmmo - ammoUsed) });
+      // Ballistics/Ordnance: decrement weapon magazine and sync ammo item
+      const newAmmoValue = Math.max(0, currentAmmo - ammoUsed);
+      await weapon.update({ "system.ammo.value": newAmmoValue });
+      // Also update the ammo item to stay in sync
+      if (loadedAmmo) {
+        await loadedAmmo.update({ 'system.quantity.value': newAmmoValue });
+      }
     }
 
     // Create chat message
@@ -1982,6 +1987,8 @@ export class MechFoundryActor extends Actor {
           'system.loadedAmmoName': ammo.name,
           'system.loadedAmmoCategory': 'energy'
         });
+        // Mark the ammo as loaded in this weapon
+        await ammo.update({ 'system.loadedInWeapon': weaponId });
         ui.notifications.info(
           `Attached ${ammo.name} to ${weapon.name} (${available} PP available).`
         );
@@ -1991,6 +1998,7 @@ export class MechFoundryActor extends Actor {
       case 'ordnance':
         // Load rounds into weapon's magazine
         const toLoad = Math.min(magazineCapacity, available);
+        const remaining = available - toLoad;
 
         await weapon.update({
           'system.loadedAmmo': ammoId,
@@ -1999,13 +2007,27 @@ export class MechFoundryActor extends Actor {
           'system.ammo.value': toLoad
         });
 
-        // Decrement source ammo stack - keep at 0 if fully loaded, don't delete
-        const remaining = Math.max(0, available - toLoad);
-        await ammo.update({ 'system.quantity.value': remaining });
+        // Update ammo item to show loaded amount and link to weapon
+        await ammo.update({
+          'system.quantity.value': toLoad,
+          'system.loadedInWeapon': weaponId
+        });
 
-        ui.notifications.info(
-          `Loaded ${toLoad} ${ammo.name} into ${weapon.name}.`
-        );
+        // If there were remaining rounds, create a new partial stack in inventory
+        if (remaining > 0) {
+          const partialData = ammo.toObject();
+          partialData.system.quantity.value = remaining;
+          partialData.system.loadedInWeapon = null;
+          delete partialData._id;
+          await this.createEmbeddedDocuments('Item', [partialData]);
+          ui.notifications.info(
+            `Loaded ${toLoad} ${ammo.name} into ${weapon.name}. ${remaining} rounds remain in inventory.`
+          );
+        } else {
+          ui.notifications.info(
+            `Loaded ${toLoad} ${ammo.name} into ${weapon.name}.`
+          );
+        }
         break;
     }
 
@@ -2013,10 +2035,8 @@ export class MechFoundryActor extends Actor {
   }
 
   /**
-   * Unload ammo from a weapon, returning it to inventory appropriately.
-   * - Ballistics: Creates partial ammo item if rounds remain, discards if empty
-   * - Energy: Pack stays in inventory (just detaches reference)
-   * - Ordnance: Creates partial ammo item if rounds remain
+   * Unload ammo from a weapon, returning it to inventory.
+   * The ammo item already exists in inventory (marked as loaded), just clear the references.
    * @param {string} weaponId The weapon item ID
    */
   async unloadAmmoFromWeapon(weaponId) {
@@ -2046,8 +2066,8 @@ export class MechFoundryActor extends Actor {
 
     switch (ammoCategory) {
       case 'energy':
-        // Power pack remains in inventory with current PP (rechargeable)
-        // Just detach the reference - the item already exists in inventory
+        // Power pack remains in inventory with current PP
+        await loadedAmmo.update({ 'system.loadedInWeapon': null });
         ui.notifications.info(
           `Detached ${loadedAmmo.name} (${loadedAmmo.system.quantity.value}/${loadedAmmo.system.quantity.max} PP remaining).`
         );
@@ -2055,20 +2075,15 @@ export class MechFoundryActor extends Actor {
 
       case 'ballistics':
       case 'ordnance':
+        // The ammo item already has the current quantity (synced during firing)
+        // Just clear the loaded reference
+        await loadedAmmo.update({ 'system.loadedInWeapon': null });
+
         if (remainingRounds > 0) {
-          // Create new inventory item with remaining ammo
-          const partialAmmoData = loadedAmmo.toObject();
-          partialAmmoData.system.quantity.value = remainingRounds;
-          delete partialAmmoData._id;
-
-          await this.createEmbeddedDocuments('Item', [partialAmmoData]);
-
-          const unitLabel = ammoCategory === 'ordnance' ? 'rounds' : 'rounds';
           ui.notifications.info(
-            `Returned ${remainingRounds} ${unitLabel} of ${loadedAmmo.name} to inventory.`
+            `Unloaded ${loadedAmmo.name} (${remainingRounds} rounds remaining).`
           );
         } else {
-          // Empty - ballistics magazine discarded, ordnance tube empty
           ui.notifications.info(`${weapon.name} unloaded (empty).`);
         }
         break;
