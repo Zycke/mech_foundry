@@ -592,6 +592,12 @@ export class MechFoundryActor extends Actor {
       return AOEHelper.initiateAOEAttack(this, weapon, options);
     }
 
+    // Suppression fire: delegate to template placement if targets not yet detected
+    const firingModeCheck = options.firingMode || 'single';
+    if (firingModeCheck === 'suppression' && !options.suppressionTargets) {
+      return AOEHelper.initiateSuppressionFire(this, weapon, options);
+    }
+
     const hasBurstFire = weaponData.bdFactor === 'B';
     const recoil = weaponData.recoil || 0;
     const burstRating = weaponData.burstRating || 0;
@@ -663,7 +669,9 @@ export class MechFoundryActor extends Actor {
       firingModeMod = 1;  // Fixed -1 modifier (stored positive, applied negative)
     } else if (firingMode === 'suppression' && hasBurstFire) {
       ammoUsed = burstRating * 2;
-      numAttacks = options.numTargets || 1;
+      // Use detected targets from template, or fall back to manual count
+      const suppressionTargets = options.suppressionTargets || [];
+      numAttacks = suppressionTargets.length > 0 ? suppressionTargets.length : (options.numTargets || 1);
       const area = options.suppressionArea || 1;
       const roundsPerSqm = options.roundsPerSqm || 1;
       recoilMod = recoil;
@@ -862,7 +870,12 @@ export class MechFoundryActor extends Actor {
       let damageTypeName = null;
       let woundEffect = null;
 
-      const targetToken = options.target || null;
+      // For suppression fire with template targets, use the detected token for this roll
+      const suppressionTargets = options.suppressionTargets || [];
+      let targetToken = options.target || null;
+      if (firingMode === 'suppression' && suppressionTargets.length > 0 && i < suppressionTargets.length) {
+        targetToken = suppressionTargets[i].token;
+      }
       const targetActor = targetToken?.actor || null;
       if (targetActor && success && standardDamage > 0) {
         // Use aimed shot location or roll hit location
@@ -914,6 +927,7 @@ export class MechFoundryActor extends Actor {
         success,
         marginOfSuccess,
         targetIndex: numAttacks > 1 ? i + 1 : null,
+        targetName: (firingMode === 'suppression' && targetActor) ? targetActor.name : null,
         // Damage info
         standardDamage,
         fatigueDamage,

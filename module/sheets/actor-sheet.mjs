@@ -1600,16 +1600,15 @@ export class MechFoundryActorSheet extends ActorSheet {
         </div>
         <div class="suppression-options" style="display: none;">
           <div class="form-group">
-            <label>Area (m\u00b2)</label>
+            <label>Zone Length (m)</label>
             <input type="number" name="suppressionArea" value="1" min="1"/>
           </div>
           <div class="form-group">
             <label>Rounds per m\u00b2 (1-5)</label>
             <input type="number" name="roundsPerSqm" value="1" min="1" max="5"/>
           </div>
-          <div class="form-group">
-            <label>Number of Targets</label>
-            <input type="number" name="numTargets" value="1" min="1"/>
+          <div class="form-group suppression-hint">
+            <em><i class="fas fa-ruler"></i> Place a 1m-wide suppression zone on the map. Targets detected automatically.</em>
           </div>
         </div>
       `;
@@ -1788,6 +1787,20 @@ export class MechFoundryActorSheet extends ActorSheet {
         </div>
         <hr/>
         <div class="form-group">
+          <label>
+            <input type="checkbox" name="indirectFire" class="indirect-fire-toggle"/>
+            Indirect Fire <span class="indirect-penalty">(-4)</span>
+          </label>
+        </div>
+        <div class="spotter-option" style="display: none;">
+          <div class="form-group">
+            <label>
+              <input type="checkbox" name="spotter"/>
+              Spotter (reduces penalty to -2)
+            </label>
+          </div>
+        </div>
+        <div class="form-group">
           <label>Additional Modifier</label>
           <input type="number" name="modifier" value="0"/>
         </div>
@@ -1806,7 +1819,9 @@ export class MechFoundryActorSheet extends ActorSheet {
           label: "Attack (Place Template)",
           callback: async (html) => {
             const modifier = parseInt(html.find('[name="modifier"]').val()) || 0;
-            await this.actor.rollWeaponAttack(weapon._id, { modifier });
+            const indirectFire = html.find('[name="indirectFire"]').is(':checked');
+            const spotter = html.find('[name="spotter"]').is(':checked');
+            await this.actor.rollWeaponAttack(weapon._id, { modifier, indirectFire, spotter });
           }
         },
         cancel: {
@@ -1814,7 +1829,21 @@ export class MechFoundryActorSheet extends ActorSheet {
           label: "Cancel"
         }
       },
-      default: "attack"
+      default: "attack",
+      render: (html) => {
+        html.find('.indirect-fire-toggle').on('change', (e) => {
+          const checked = e.currentTarget.checked;
+          html.find('.spotter-option').toggle(checked);
+          html.find('.indirect-penalty').text(checked ? '(-4)' : '');
+          if (!checked) {
+            html.find('[name="spotter"]').prop('checked', false);
+          }
+        });
+        html.find('[name="spotter"]').on('change', (e) => {
+          const spotterChecked = e.currentTarget.checked;
+          html.find('.indirect-penalty').text(spotterChecked ? '(-2)' : '(-4)');
+        });
+      }
     }).render(true);
   }
 

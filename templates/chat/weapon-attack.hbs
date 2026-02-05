@@ -43,7 +43,7 @@
 
   {{#each results}}
   <div class="attack-roll">
-    {{#if this.targetIndex}}<div class="target-label">Target {{this.targetIndex}}:</div>{{/if}}
+    {{#if this.targetIndex}}<div class="target-label">Target {{this.targetIndex}}{{#if this.targetName}}: {{this.targetName}}{{/if}}</div>{{/if}}
 
     {{!-- Special Roll Display --}}
     {{#if this.specialRoll.isFumble}}

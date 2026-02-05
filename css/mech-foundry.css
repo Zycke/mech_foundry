@@ -1889,6 +1889,36 @@
   border: 1px dashed rgba(74, 157, 74, 0.4);
 }
 
+.aoe-attack-dialog .spotter-option {
+  margin-left: 20px;
+}
+
+.aoe-attack-dialog .indirect-penalty {
+  color: var(--mf-danger);
+  font-weight: bold;
+}
+
+/* Indirect Fire chat indicator */
+.mech-foundry.aoe-attack .indirect-fire-indicator {
+  padding: 4px 8px;
+  background: rgba(136, 68, 0, 0.1);
+  border-left: 3px solid #884400;
+  border-radius: var(--mf-border-radius);
+  font-size: 0.9em;
+  margin-bottom: 6px;
+}
+
+/* Suppression fire hint in dialog */
+.weapon-attack-dialog .suppression-hint {
+  text-align: center;
+  color: #666;
+  font-size: 0.9em;
+  padding: 6px;
+  background: rgba(255, 170, 0, 0.1);
+  border-radius: 4px;
+  border: 1px dashed rgba(255, 170, 0, 0.4);
+}
+
 /* ----------------------------------------- */
 /* Item Sheets                                */
 /* ----------------------------------------- */

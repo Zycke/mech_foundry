@@ -1,6 +1,17 @@
 <div class="mech-foundry roll-result aoe-attack">
   <div class="roll-title"><i class="fas fa-bomb"></i> {{weaponName}} Area Effect Attack</div>
   <div class="attack-type">Attack Type: {{attackType}}</div>
+
+  {{!-- Combat Option Indicators --}}
+  {{#if indirectFire}}
+  <div class="combat-options-info">
+    <div class="combat-option indirect-fire-indicator">
+      <i class="fas fa-mountain"></i> Indirect Fire ({{indirectMod}})
+      {{#if spotter}} — <i class="fas fa-binoculars"></i> Spotter Active{{/if}}
+    </div>
+  </div>
+  {{/if}}
+
   <div class="aoe-blast-info">
     <span class="blast-radius-label">Blast Radius:</span>
     <span class="blast-radius-value">{{blastRadius}}m</span>
@@ -22,7 +33,7 @@
     {{/if}}
 
     <div class="roll-formula">
-      [{{roll.diceResults.[0]}}]+[{{roll.diceResults.[1]}}]{{#if skillMod}} + ({{skillMod}}){{/if}}{{#if aoeMod}} + {{aoeMod}} AOE{{/if}}{{#if inputMod}}{{#if (gte inputMod 0)}} + {{inputMod}}{{else}} - {{abs inputMod}}{{/if}}{{/if}}{{#if injuryMod}}{{#if (gte injuryMod 0)}} + {{injuryMod}}{{else}} - {{abs injuryMod}}{{/if}}{{/if}}{{#if fatigueMod}}{{#if (gte fatigueMod 0)}} + {{fatigueMod}}{{else}} - {{abs fatigueMod}}{{/if}}{{/if}}{{#if roll.specialRoll.bonusTotal}} + {{roll.specialRoll.bonusTotal}} bonus{{/if}} = {{roll.total}}
+      [{{roll.diceResults.[0]}}]+[{{roll.diceResults.[1]}}]{{#if skillMod}} + ({{skillMod}}){{/if}}{{#if aoeMod}} + {{aoeMod}} AOE{{/if}}{{#if indirectMod}} {{indirectMod}} indirect{{/if}}{{#if inputMod}}{{#if (gte inputMod 0)}} + {{inputMod}}{{else}} - {{abs inputMod}}{{/if}}{{/if}}{{#if injuryMod}}{{#if (gte injuryMod 0)}} + {{injuryMod}}{{else}} - {{abs injuryMod}}{{/if}}{{/if}}{{#if fatigueMod}}{{#if (gte fatigueMod 0)}} + {{fatigueMod}}{{else}} - {{abs fatigueMod}}{{/if}}{{/if}}{{#if roll.specialRoll.bonusTotal}} + {{roll.specialRoll.bonusTotal}} bonus{{/if}} = {{roll.total}}
     </div>
     {{#if (ne roll.total roll.rawTotal)}}
     <div class="roll-raw">(Base roll: {{roll.rawTotal}})</div>

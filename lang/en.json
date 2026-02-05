@@ -299,5 +299,13 @@
   "MECHFOUNDRY.NoTargetsInBlast": "No targets within blast radius",
   "MECHFOUNDRY.MoSAlwaysZero": "MoS Always 0",
   "MECHFOUNDRY.AOEPlacementHint": "Click to place the blast center. Right-click or Escape to cancel.",
-  "MECHFOUNDRY.AOECancelled": "AOE attack cancelled."
+  "MECHFOUNDRY.AOECancelled": "AOE attack cancelled.",
+
+  "MECHFOUNDRY.IndirectFire": "Indirect Fire",
+  "MECHFOUNDRY.Spotter": "Spotter",
+  "MECHFOUNDRY.SpotterActive": "Spotter Active",
+  "MECHFOUNDRY.SuppressionFire": "Suppression Fire",
+  "MECHFOUNDRY.SuppressionZone": "Suppression Zone",
+  "MECHFOUNDRY.SuppressionPlacementHint": "Click to set the suppression zone origin. Right-click or Escape to cancel.",
+  "MECHFOUNDRY.SuppressionCancelled": "Suppression fire cancelled."
 }
