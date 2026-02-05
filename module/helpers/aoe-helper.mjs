@@ -87,6 +87,12 @@ export class AOEHelper {
    */
   static async _enterPlacementMode(template, blastRadius) {
     return new Promise((resolve) => {
+      // Disable token layer interactivity so clicks pass through to stage
+      const tokensLayer = canvas.tokens;
+      const originalInteractive = tokensLayer.interactiveChildren;
+      tokensLayer.interactiveChildren = false;
+      tokensLayer.releaseAll();
+
       // Add the template to the template layer for preview rendering
       template.draw();
       template.layer.preview.addChild(template);
@@ -102,6 +108,9 @@ export class AOEHelper {
 
       // Handle left click to place
       const clickHandler = (event) => {
+        // Only respond to left clicks
+        if (event.button !== 0) return;
+
         const pos = event.getLocalPosition(canvas.app.stage);
         const snapped = canvas.grid.getSnappedPoint(pos, { mode: CONST.GRID_SNAPPING_MODES.CENTER });
 
@@ -119,6 +128,9 @@ export class AOEHelper {
       };
 
       const cleanup = () => {
+        // Re-enable token layer interactivity
+        tokensLayer.interactiveChildren = originalInteractive;
+
         canvas.stage.off("pointermove", moveHandler);
         canvas.stage.off("pointerdown", clickHandler);
         document.removeEventListener("keydown", cancelHandler);
@@ -535,6 +547,12 @@ export class AOEHelper {
       let originSet = false;
       let origin = null;
 
+      // Disable token layer interactivity so clicks pass through to stage
+      const tokensLayer = canvas.tokens;
+      const originalInteractive = tokensLayer.interactiveChildren;
+      tokensLayer.interactiveChildren = false;
+      tokensLayer.releaseAll();
+
       template.draw();
       template.layer.preview.addChild(template);
 
@@ -588,6 +606,9 @@ export class AOEHelper {
       };
 
       const cleanup = () => {
+        // Re-enable token layer interactivity
+        tokensLayer.interactiveChildren = originalInteractive;
+
         canvas.stage.off("pointermove", moveHandler);
         canvas.stage.off("pointerdown", clickHandler);
         document.removeEventListener("keydown", cancelHandler);
