@@ -2,6 +2,7 @@ import { OpposedRollHelper } from '../helpers/opposed-rolls.mjs';
 import { SocketHandler, SOCKET_EVENTS } from '../helpers/socket-handler.mjs';
 import { DiceMechanics } from '../helpers/dice-mechanics.mjs';
 import { ItemEffectsHelper } from '../helpers/effects-helper.mjs';
+import { AOEHelper } from '../helpers/aoe-helper.mjs';
 
 /**
  * Extend the base Actor document for Mech Foundry system
@@ -585,6 +586,12 @@ export class MechFoundryActor extends Actor {
     if (!weapon || weapon.type !== 'weapon') return;
 
     const weaponData = weapon.system;
+
+    // AOE weapons use the dedicated AOE attack flow
+    if (weaponData.bdFactor === 'A') {
+      return AOEHelper.initiateAOEAttack(this, weapon, options);
+    }
+
     const hasBurstFire = weaponData.bdFactor === 'B';
     const recoil = weaponData.recoil || 0;
     const burstRating = weaponData.burstRating || 0;
