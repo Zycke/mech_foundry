@@ -376,13 +376,13 @@
     {{!-- Combat Tab --}}
     <div class="tab combat" data-group="primary" data-tab="combat">
       <div class="combat-layout">
-        {{!-- Left Column: Condition Monitor --}}
+        {{!-- Left Column: Stance & Medical --}}
         <div class="combat-column condition-column">
-          {{!-- Status Panel --}}
-          <div class="combat-data-section status-panel">
-            <h3 class="section-title">Status</h3>
-            <div class="status-grid">
-              <div class="status-field">
+          {{!-- Stance Panel --}}
+          <div class="combat-data-section stance-panel">
+            <h3 class="section-title">Stance</h3>
+            <div class="stance-grid">
+              <div class="stance-field">
                 <label>Cover</label>
                 <select name="system.cover" class="cover-select">
                   <option value="none" {{#if (eq system.cover "none")}}selected{{/if}}>None</option>
@@ -392,12 +392,8 @@
                   <option value="full" {{#if (eq system.cover "full")}}selected{{/if}}>Full (-4)</option>
                 </select>
               </div>
-              <div class="status-toggles">
-                <label class="status-toggle {{#if system.bleeding}}active{{/if}}">
-                  <input type="checkbox" name="system.bleeding" {{#if system.bleeding}}checked{{/if}}/>
-                  <i class="fas fa-tint"></i> Bleeding
-                </label>
-                <label class="status-toggle {{#if system.prone}}active{{/if}}">
+              <div class="stance-toggles">
+                <label class="stance-toggle {{#if system.prone}}active{{/if}}">
                   <input type="checkbox" name="system.prone" {{#if system.prone}}checked{{/if}}/>
                   <i class="fas fa-level-down-alt"></i> Prone
                 </label>
@@ -405,64 +401,117 @@
             </div>
           </div>
 
-          <div class="combat-data-section">
-            <h3 class="section-title">Condition Monitor</h3>
+          {{!-- Medical Panel --}}
+          <div class="combat-data-section medical-panel">
+            <h3 class="section-title">Medical</h3>
 
-            {{!-- Standard Damage Track --}}
-            <div class="condition-track damage-track">
-              <label>Standard Damage</label>
-              <div class="condition-boxes">
-                {{#times system.damageCapacity}}
-                <span class="condition-box {{#if (lt this @root.system.damage.value)}}filled{{/if}}" data-index="{{this}}" data-type="damage"></span>
-                {{/times}}
+            {{!-- Status Sub-panel --}}
+            <div class="medical-subpanel status-subpanel">
+              <h4 class="subsection-title">Status</h4>
+
+              {{!-- Wounds List --}}
+              <div class="wounds-section">
+                <label>Wounds</label>
+                {{#if system.wounds.length}}
+                <div class="wounds-list">
+                  {{#each system.wounds}}
+                  <div class="wound-item" data-wound-index="{{@index}}">
+                    <span class="wound-damage">{{this.damage}} damage</span>
+                    <span class="wound-source">{{this.source}}</span>
+                    <a class="heal-wound" data-wound-index="{{@index}}" title="Heal this wound"><i class="fas fa-band-aid"></i></a>
+                  </div>
+                  {{/each}}
+                </div>
+                {{else}}
+                <span class="no-wounds">No wounds</span>
+                {{/if}}
               </div>
-              <input type="number" class="condition-input" name="system.damage.value" value="{{system.damage.value}}" min="0" max="{{system.damageCapacity}}" data-dtype="Number" data-max="{{system.damageCapacity}}"/>
-            </div>
 
-            {{!-- Fatigue Track --}}
-            <div class="condition-track fatigue-track">
-              <label>Fatigue Damage</label>
-              <div class="condition-boxes">
-                {{#times system.fatigueCapacity}}
-                <span class="condition-box {{#if (lt this @root.system.fatigue.value)}}filled{{/if}}" data-index="{{this}}" data-type="fatigue"></span>
-                {{/times}}
+              {{!-- Standard Damage Track --}}
+              <div class="condition-track damage-track">
+                <label>Standard Damage</label>
+                <div class="condition-boxes">
+                  {{#times system.damageCapacity}}
+                  <span class="condition-box {{#if (lt this @root.system.damage.value)}}filled{{/if}}" data-index="{{this}}" data-type="damage"></span>
+                  {{/times}}
+                </div>
+                <input type="number" class="condition-input" name="system.damage.value" value="{{system.damage.value}}" min="0" max="{{system.damageCapacity}}" data-dtype="Number" data-max="{{system.damageCapacity}}"/>
               </div>
-              <input type="number" class="condition-input" name="system.fatigue.value" value="{{system.fatigue.value}}" min="0" max="{{system.fatigueCapacity}}" data-dtype="Number" data-max="{{system.fatigueCapacity}}"/>
+
+              {{!-- Fatigue Track --}}
+              <div class="condition-track fatigue-track">
+                <label>Fatigue Damage</label>
+                <div class="condition-boxes">
+                  {{#times system.fatigueCapacity}}
+                  <span class="condition-box {{#if (lt this @root.system.fatigue.value)}}filled{{/if}}" data-index="{{this}}" data-type="fatigue"></span>
+                  {{/times}}
+                </div>
+                <input type="number" class="condition-input" name="system.fatigue.value" value="{{system.fatigue.value}}" min="0" max="{{system.fatigueCapacity}}" data-dtype="Number" data-max="{{system.fatigueCapacity}}"/>
+              </div>
+
+              {{!-- Condition Modifiers --}}
+              <div class="condition-modifiers">
+                {{#if (lt system.injuryModifier 0)}}
+                <span class="modifier injury">Injury: {{system.injuryModifier}}</span>
+                {{/if}}
+                {{#if (lt system.fatigueModifier 0)}}
+                <span class="modifier fatigue">Fatigue: {{system.fatigueModifier}}</span>
+                {{/if}}
+              </div>
+
+              {{!-- Status Toggles --}}
+              <div class="medical-status-row">
+                <label class="status-toggle {{#if system.bleeding}}active{{/if}}">
+                  <input type="checkbox" name="system.bleeding" {{#if system.bleeding}}checked{{/if}}/>
+                  <i class="fas fa-tint"></i> Bleeding
+                </label>
+                <label class="status-toggle {{#if system.stun}}active{{/if}}">
+                  <input type="checkbox" name="system.stun" {{#if system.stun}}checked{{/if}}/>
+                  <i class="fas fa-dizzy"></i> Stunned
+                </label>
+                <label class="status-toggle {{#if system.unconscious}}active{{/if}}">
+                  <input type="checkbox" name="system.unconscious" {{#if system.unconscious}}checked{{/if}}/>
+                  <i class="fas fa-bed"></i> Unconscious
+                </label>
+              </div>
+              <div class="medical-status-row">
+                <label class="status-toggle critical {{#if system.criticallyInjured}}active{{/if}}">
+                  <input type="checkbox" name="system.criticallyInjured" {{#if system.criticallyInjured}}checked{{/if}}/>
+                  <i class="fas fa-heartbeat"></i> Critically Injured
+                </label>
+                <label class="status-toggle stabilized {{#if system.stabilized}}active{{/if}}">
+                  <input type="checkbox" name="system.stabilized" {{#if system.stabilized}}checked{{/if}}/>
+                  <i class="fas fa-plus-circle"></i> Stabilized
+                </label>
+                <label class="status-toggle dying {{#if system.dying}}active{{/if}}">
+                  <input type="checkbox" name="system.dying" {{#if system.dying}}checked{{/if}}/>
+                  <i class="fas fa-skull"></i> Dying
+                </label>
+              </div>
             </div>
 
-            {{!-- Status Checkboxes --}}
-            <div class="status-row">
-              <label class="status-checkbox">
-                <input type="checkbox" name="system.stun" {{#if system.stun}}checked{{/if}}/>
-                Stun
-              </label>
-              <label class="status-checkbox">
-                <input type="checkbox" name="system.unconscious" {{#if system.unconscious}}checked{{/if}}/>
-                Unconscious
-              </label>
-            </div>
-
-            {{!-- Condition Modifiers --}}
-            <div class="condition-modifiers">
-              {{#if (lt system.injuryModifier 0)}}
-              <span class="modifier injury">Injury: {{system.injuryModifier}}</span>
-              {{/if}}
-              {{#if (lt system.fatigueModifier 0)}}
-              <span class="modifier fatigue">Fatigue: {{system.fatigueModifier}}</span>
-              {{/if}}
-            </div>
-
-            {{!-- Action Buttons --}}
-            <div class="condition-actions">
-              <button type="button" class="recover-fatigue" title="Recover Fatigue (Complex Action)">
-                <i class="fas fa-heart"></i> Recover Fatigue
-              </button>
-              <button type="button" class="clear-stun" title="Clear Stun (Simple Action)">
-                <i class="fas fa-bolt"></i> Clear Stun
-              </button>
-              <button type="button" class="consciousness-check" title="Consciousness Check (TN 7)">
-                <i class="fas fa-brain"></i> Consciousness
-              </button>
+            {{!-- Medicine Sub-panel --}}
+            <div class="medical-subpanel medicine-subpanel">
+              <h4 class="subsection-title">Medicine</h4>
+              <div class="medicine-actions">
+                <button type="button" class="render-aid" title="Render Aid (First Aid or Stabilize)">
+                  <i class="fas fa-first-aid"></i> Render Aid
+                </button>
+                <button type="button" class="surgery" title="Surgery (heal a wound)">
+                  <i class="fas fa-syringe"></i> Surgery
+                </button>
+              </div>
+              <div class="condition-actions">
+                <button type="button" class="recover-fatigue" title="Recover Fatigue (Complex Action)">
+                  <i class="fas fa-heart"></i> Recover Fatigue
+                </button>
+                <button type="button" class="clear-stun" title="Clear Stun (Simple Action)">
+                  <i class="fas fa-bolt"></i> Clear Stun
+                </button>
+                <button type="button" class="consciousness-check" title="Consciousness Check (TN 7)">
+                  <i class="fas fa-brain"></i> Consciousness
+                </button>
+              </div>
             </div>
           </div>
 
@@ -935,7 +984,9 @@
             <tr>
               <th class="status-col"></th>
               <th>Name</th>
-              <th>Power</th>
+              <th>MedTech</th>
+              <th>Surgery</th>
+              <th>Charges</th>
               <th>Mass</th>
               <th></th>
             </tr>
@@ -949,7 +1000,9 @@
                 </a>
               </td>
               <td class="item-name">{{this.name}}</td>
-              <td class="item-power">{{this.system.powerUse}}</td>
+              <td class="item-medtech">{{#if this.system.medTechBonus}}+{{this.system.medTechBonus}}{{else}}-{{/if}}</td>
+              <td class="item-surgery">{{#if this.system.surgeryBonus}}+{{this.system.surgeryBonus}}{{else}}-{{/if}}</td>
+              <td class="item-charges">{{#if this.system.charges.max}}{{this.system.charges.value}}/{{this.system.charges.max}}{{else}}-{{/if}}</td>
               <td class="item-mass">{{this.system.mass}}</td>
               <td class="item-controls">
                 <a class="item-edit" title="Edit"><i class="fas fa-edit"></i></a>

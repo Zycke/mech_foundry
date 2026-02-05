@@ -16,6 +16,11 @@
         "cover": "none",
         "bleeding": false,
         "prone": false,
+        "criticallyInjured": false,
+        "stabilized": false,
+        "dying": false,
+        "wounds": [],
+        "firstAidUsedThisCombat": false,
         "biography": ""
       },
       "attributes": {
@@ -226,7 +231,13 @@
     },
     "healthcare": {
       "templates": ["base", "equipment_base", "has_effects"],
-      "powerUse": 0
+      "powerUse": 0,
+      "charges": {
+        "value": 0,
+        "max": 0
+      },
+      "medTechBonus": 0,
+      "surgeryBonus": 0
     },
     "prosthetics": {
       "templates": ["base", "has_effects"],

@@ -358,6 +358,22 @@ Hooks.on("combatStart", (combat) => {
   });
 });
 
+// Reset firstAidUsedThisCombat when combat ends
+Hooks.on("deleteCombat", async (combat) => {
+  // Only run for the GM to prevent duplicate processing
+  if (!game.user.isGM) return;
+
+  // Reset first aid flag for all actors that were in combat
+  for (const combatant of combat.combatants) {
+    let actor = combatant.actor;
+    if (!actor) continue;
+
+    if (actor.system.firstAidUsedThisCombat) {
+      await actor.update({ "system.firstAidUsedThisCombat": false });
+    }
+  }
+});
+
 // Apply bleeding and continuous damage effects at end of round (when "Next Round" is pressed)
 Hooks.on("combatRound", async (combat, updateData, updateOptions) => {
   // Only run for the GM to prevent duplicate processing
