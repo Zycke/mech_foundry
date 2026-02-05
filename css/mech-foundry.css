@@ -1637,6 +1637,247 @@
 }
 
 /* ----------------------------------------- */
+/* AOE Attack Chat Card                       */
+/* ----------------------------------------- */
+
+.mech-foundry.aoe-attack .aoe-blast-info {
+  font-size: 0.9em;
+  padding: 6px 10px;
+  margin-bottom: 8px;
+  background: rgba(255, 68, 0, 0.1);
+  border-radius: var(--mf-border-radius);
+  border-left: 3px solid #ff4400;
+}
+
+.mech-foundry.aoe-attack .blast-radius-label {
+  font-weight: bold;
+}
+
+.mech-foundry.aoe-attack .blast-radius-value {
+  font-weight: bold;
+  font-size: 1.1em;
+  color: #ff4400;
+}
+
+.mech-foundry.aoe-attack .blast-stats {
+  font-size: 0.85em;
+  color: var(--mf-secondary);
+  margin-left: 5px;
+}
+
+.mech-foundry.aoe-attack .scatter-section {
+  margin: 8px 0;
+  padding: 8px;
+  background: rgba(255, 136, 0, 0.1);
+  border-radius: var(--mf-border-radius);
+  border-left: 3px solid #ff8800;
+}
+
+.mech-foundry.aoe-attack .scatter-header {
+  font-weight: bold;
+  color: #ff8800;
+  margin-bottom: 4px;
+}
+
+.mech-foundry.aoe-attack .scatter-details {
+  font-size: 0.9em;
+}
+
+.mech-foundry.aoe-attack .direct-hit-section {
+  margin: 8px 0;
+  padding: 8px;
+  background: rgba(74, 157, 74, 0.1);
+  border-radius: var(--mf-border-radius);
+  border-left: 3px solid var(--mf-success);
+}
+
+.mech-foundry.aoe-attack .direct-hit-header {
+  font-weight: bold;
+  color: var(--mf-success);
+  margin-bottom: 4px;
+}
+
+.mech-foundry.aoe-attack .direct-hit-details {
+  font-size: 0.85em;
+  color: var(--mf-secondary);
+}
+
+.mech-foundry.aoe-attack .aoe-targets-header {
+  font-weight: bold;
+  font-size: 1em;
+  text-transform: uppercase;
+  color: var(--mf-dark);
+  margin-bottom: 8px;
+  padding-bottom: 4px;
+  border-bottom: 2px solid var(--mf-danger);
+}
+
+.mech-foundry.aoe-attack .aoe-target-result {
+  margin-bottom: 10px;
+  padding: 8px;
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: var(--mf-border-radius);
+  border-left: 3px solid var(--mf-danger);
+}
+
+.mech-foundry.aoe-attack .aoe-target-result:last-child {
+  margin-bottom: 0;
+}
+
+.mech-foundry.aoe-attack .aoe-target-name {
+  margin-bottom: 6px;
+}
+
+.mech-foundry.aoe-attack .aoe-target-distance {
+  font-size: 0.85em;
+  color: var(--mf-secondary);
+  font-style: italic;
+}
+
+.mech-foundry.aoe-attack .aoe-target-damage .damage-details,
+.mech-foundry.aoe-attack .aoe-target-damage .armor-calc {
+  font-size: 0.9em;
+}
+
+.mech-foundry.aoe-attack .aoe-target-damage .damage-line {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 2px;
+}
+
+.mech-foundry.aoe-attack .aoe-target-damage .damage-label {
+  font-weight: bold;
+  min-width: 60px;
+}
+
+.mech-foundry.aoe-attack .aoe-target-damage .damage-value {
+  font-weight: bold;
+  font-size: 1.1em;
+  color: var(--mf-danger);
+}
+
+.mech-foundry.aoe-attack .aoe-target-damage .damage-line.fatigue .damage-value {
+  color: var(--mf-warning);
+}
+
+.mech-foundry.aoe-attack .aoe-target-damage .damage-line.ap .damage-value {
+  color: var(--mf-primary);
+}
+
+.mech-foundry.aoe-attack .aoe-target-damage .damage-breakdown {
+  font-size: 0.85em;
+  color: var(--mf-secondary);
+  font-style: italic;
+}
+
+.mech-foundry.aoe-attack .aoe-target-damage .hit-location {
+  margin-bottom: 4px;
+}
+
+.mech-foundry.aoe-attack .aoe-target-damage .hit-label {
+  font-weight: bold;
+}
+
+.mech-foundry.aoe-attack .aoe-target-damage .hit-roll {
+  font-family: monospace;
+  font-size: 0.85em;
+  color: var(--mf-secondary);
+}
+
+.mech-foundry.aoe-attack .aoe-target-damage .armor-calc {
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px dashed var(--mf-border);
+}
+
+.mech-foundry.aoe-attack .aoe-target-damage .armor-line {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 2px;
+}
+
+.mech-foundry.aoe-attack .aoe-target-damage .armor-label {
+  font-weight: bold;
+  min-width: 100px;
+}
+
+.mech-foundry.aoe-attack .aoe-target-damage .armor-line.final .armor-value {
+  font-size: 1.1em;
+  color: var(--mf-danger);
+}
+
+.mech-foundry.aoe-attack .aoe-target-damage .armor-absorbed {
+  font-size: 0.85em;
+  color: var(--mf-secondary);
+}
+
+.mech-foundry.aoe-attack .aoe-apply-damage {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+  padding: 6px 12px;
+  background: var(--mf-danger);
+  color: white;
+  border: none;
+  border-radius: var(--mf-border-radius);
+  cursor: pointer;
+  font-size: 0.85em;
+  font-weight: bold;
+}
+
+.mech-foundry.aoe-attack .aoe-apply-damage:hover:not(.disabled) {
+  background: #a83928;
+}
+
+.mech-foundry.aoe-attack .aoe-apply-damage.disabled {
+  background: #999;
+  cursor: not-allowed;
+}
+
+.mech-foundry.aoe-attack .aoe-no-targets {
+  text-align: center;
+  padding: 15px;
+  color: #666;
+  font-style: italic;
+}
+
+/* AOE Attack Dialog Styles */
+.aoe-attack-dialog .aoe-info {
+  background: rgba(255, 68, 0, 0.1);
+  padding: 8px;
+  border-radius: 4px;
+  border-left: 3px solid #ff4400;
+}
+
+.aoe-attack-dialog .aoe-info label {
+  font-weight: bold;
+  color: #ff4400;
+}
+
+.aoe-attack-dialog .aoe-stats {
+  font-size: 0.9em;
+  padding: 8px;
+  background: rgba(0, 0, 0, 0.03);
+  border-radius: 4px;
+}
+
+.aoe-attack-dialog .aoe-stats div {
+  margin-bottom: 3px;
+}
+
+.aoe-attack-dialog .aoe-hint {
+  text-align: center;
+  color: #666;
+  font-size: 0.9em;
+  padding: 8px;
+  background: rgba(74, 157, 74, 0.1);
+  border-radius: 4px;
+  border: 1px dashed rgba(74, 157, 74, 0.4);
+}
+
+/* ----------------------------------------- */
 /* Item Sheets                                */
 /* ----------------------------------------- */
 

@@ -280,5 +280,24 @@
   "MECHFOUNDRY.CombatAllAttack": "All Attacks",
   "MECHFOUNDRY.CombatRangedDamage": "Ranged Damage",
   "MECHFOUNDRY.CombatMeleeDamage": "Melee Damage",
-  "MECHFOUNDRY.CombatAllDamage": "All Damage"
+  "MECHFOUNDRY.CombatAllDamage": "All Damage",
+
+  "MECHFOUNDRY.AOEAttack": "Area Effect Attack",
+  "MECHFOUNDRY.AreaEffect": "Area Effect",
+  "MECHFOUNDRY.BlastRadius": "Blast Radius",
+  "MECHFOUNDRY.AOEBonus": "AOE Bonus",
+  "MECHFOUNDRY.PlaceBlastTemplate": "Place Blast Template",
+  "MECHFOUNDRY.DirectHit": "Direct Hit",
+  "MECHFOUNDRY.BlastScattered": "Blast Scattered",
+  "MECHFOUNDRY.ScatterDirection": "Scatter Direction",
+  "MECHFOUNDRY.ScatterDistance": "Scatter Distance",
+  "MECHFOUNDRY.DistanceFromCenter": "Distance from Center",
+  "MECHFOUNDRY.EffectiveBD": "Effective BD",
+  "MECHFOUNDRY.EffectiveAP": "Effective AP",
+  "MECHFOUNDRY.DamageFalloff": "Damage Falloff",
+  "MECHFOUNDRY.TargetsInBlastRadius": "Targets in Blast Radius",
+  "MECHFOUNDRY.NoTargetsInBlast": "No targets within blast radius",
+  "MECHFOUNDRY.MoSAlwaysZero": "MoS Always 0",
+  "MECHFOUNDRY.AOEPlacementHint": "Click to place the blast center. Right-click or Escape to cancel.",
+  "MECHFOUNDRY.AOECancelled": "AOE attack cancelled."
 }

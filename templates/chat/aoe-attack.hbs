@@ -1,0 +1,136 @@
+<div class="mech-foundry roll-result aoe-attack">
+  <div class="roll-title"><i class="fas fa-bomb"></i> {{weaponName}} Area Effect Attack</div>
+  <div class="attack-type">Attack Type: {{attackType}}</div>
+  <div class="aoe-blast-info">
+    <span class="blast-radius-label">Blast Radius:</span>
+    <span class="blast-radius-value">{{blastRadius}}m</span>
+    <span class="blast-stats">(BD: {{baseBD}} | AP: {{baseAP}}{{apFactor}})</span>
+  </div>
+
+  {{!-- Attack Roll --}}
+  <div class="attack-roll">
+    {{!-- Special Roll Display --}}
+    {{#if roll.specialRoll.isFumble}}
+    <div class="special-roll fumble">{{roll.specialRoll.displayText}}</div>
+    {{else if roll.specialRoll.isStunningSuccess}}
+    <div class="special-roll {{#if roll.specialRoll.isMiraculousFeat}}miraculous-feat{{else}}stunning-success{{/if}}">
+      {{roll.specialRoll.displayText}}
+      {{#if roll.specialRoll.bonusDice.length}}
+      <span class="bonus-dice">(Bonus dice: {{#each roll.specialRoll.bonusDice}}+{{this}}{{#unless @last}}, {{/unless}}{{/each}} = +{{roll.specialRoll.bonusTotal}})</span>
+      {{/if}}
+    </div>
+    {{/if}}
+
+    <div class="roll-formula">
+      [{{roll.diceResults.[0]}}]+[{{roll.diceResults.[1]}}]{{#if skillMod}} + ({{skillMod}}){{/if}}{{#if aoeMod}} + {{aoeMod}} AOE{{/if}}{{#if inputMod}}{{#if (gte inputMod 0)}} + {{inputMod}}{{else}} - {{abs inputMod}}{{/if}}{{/if}}{{#if injuryMod}}{{#if (gte injuryMod 0)}} + {{injuryMod}}{{else}} - {{abs injuryMod}}{{/if}}{{/if}}{{#if fatigueMod}}{{#if (gte fatigueMod 0)}} + {{fatigueMod}}{{else}} - {{abs fatigueMod}}{{/if}}{{/if}}{{#if roll.specialRoll.bonusTotal}} + {{roll.specialRoll.bonusTotal}} bonus{{/if}} = {{roll.total}}
+    </div>
+    {{#if (ne roll.total roll.rawTotal)}}
+    <div class="roll-raw">(Base roll: {{roll.rawTotal}})</div>
+    {{/if}}
+    <div class="roll-tn">TN: {{targetNumber}}</div>
+    <div class="roll-mos {{#if roll.success}}success{{else}}failure{{/if}}">
+      MoS: {{roll.marginOfSuccess}} [{{#if roll.success}}Hit - Direct Impact{{else}}Miss - Blast Scatters{{/if}}{{#if roll.specialRoll.isFumble}} (Auto){{else if roll.specialRoll.isMiraculousFeat}} (Auto){{/if}}]
+    </div>
+  </div>
+
+  {{!-- Scatter Info --}}
+  {{#if didScatter}}
+  <div class="scatter-section">
+    <div class="scatter-header"><i class="fas fa-random"></i> Blast Scattered!</div>
+    <div class="scatter-details">
+      Direction: <strong>{{scatterInfo.label}}</strong> (d12: {{scatterInfo.directionRoll}})
+      <br/>
+      Distance: <strong>{{scatterInfo.distance}}m</strong> from aim point
+    </div>
+  </div>
+  {{else}}
+  <div class="direct-hit-section">
+    <div class="direct-hit-header"><i class="fas fa-crosshairs"></i> Direct Hit!</div>
+    <div class="direct-hit-details">Blast centered on target point. MoS treated as 0 for damage.</div>
+  </div>
+  {{/if}}
+
+  {{!-- Per-Target Damage --}}
+  {{#if hasTargets}}
+  <div class="aoe-targets-section">
+    <div class="aoe-targets-header">Targets in Blast Radius</div>
+    {{#each targets}}
+    <div class="aoe-target-result">
+      <div class="aoe-target-name">
+        <strong>{{this.tokenName}}</strong>
+        <span class="aoe-target-distance">({{this.distance}}m from center)</span>
+      </div>
+
+      <div class="aoe-target-damage">
+        {{!-- Hit Location --}}
+        {{#if this.hitLocation}}
+        <div class="hit-location">
+          <span class="hit-label">Hit Location:</span>
+          <span class="hit-value">{{this.hitLocation.displayLocation}}</span>
+          <span class="hit-roll">[{{this.hitLocation.roll}}{{#if this.hitLocation.subRoll}}, {{this.hitLocation.subRoll}}{{/if}}]</span>
+        </div>
+        {{/if}}
+
+        <div class="damage-details">
+          <div class="damage-line standard">
+            <span class="damage-label">Damage:</span>
+            <span class="damage-value">{{this.standardDamage}}</span>
+            <span class="damage-breakdown">({{../baseBD}} base - {{this.meterDistance}} falloff)</span>
+          </div>
+          <div class="damage-line fatigue">
+            <span class="damage-label">Fatigue:</span>
+            <span class="damage-value">{{this.fatigueDamage}}</span>
+          </div>
+          <div class="damage-line ap">
+            <span class="damage-label">AP:</span>
+            <span class="damage-value">{{this.effectiveAP}}{{../apFactor}}</span>
+            <span class="damage-breakdown">({{../baseAP}} base - {{this.meterDistance}} falloff)</span>
+            {{#if this.damageTypeName}}
+            <span class="damage-type">({{this.damageTypeName}})</span>
+            {{/if}}
+          </div>
+        </div>
+
+        {{!-- Armor calculation --}}
+        {{#if this.armorCalc}}
+        <div class="armor-calc">
+          <div class="armor-line">
+            <span class="armor-label">Target Armor:</span>
+            <span class="armor-value">{{this.armorCalc.armorValue}}</span>
+          </div>
+          <div class="armor-line">
+            <span class="armor-label">Effective Armor:</span>
+            <span class="armor-value">{{this.armorCalc.effectiveArmor}}</span>
+            <span class="armor-breakdown">({{this.armorCalc.armorValue}} - {{this.armorCalc.apValue}} AP)</span>
+          </div>
+          <div class="armor-line final">
+            <span class="armor-label">Final Damage:</span>
+            <span class="armor-value">{{this.armorCalc.finalDamage}}</span>
+            {{#if this.armorCalc.absorbed}}
+            <span class="armor-absorbed">({{this.armorCalc.absorbed}} absorbed)</span>
+            {{/if}}
+          </div>
+        </div>
+        {{/if}}
+
+        {{!-- Apply Damage button --}}
+        {{#if this.canApplyDamage}}
+        <button class="apply-damage aoe-apply-damage"
+                data-target-id="{{this.actorId}}"
+                data-standard="{{#if this.armorCalc}}{{this.armorCalc.finalDamage}}{{else}}{{this.standardDamage}}{{/if}}"
+                data-fatigue="{{this.fatigueDamage}}"
+                data-subduing="false"
+                data-location="{{#if this.hitLocation}}{{this.hitLocation.armorLocation}}{{/if}}">
+          Apply Damage to {{this.tokenName}}
+        </button>
+        {{/if}}
+      </div>
+    </div>
+    {{/each}}
+  </div>
+  {{else}}
+  <div class="aoe-no-targets">
+    <em>No targets within blast radius.</em>
+  </div>
+  {{/if}}
+</div>

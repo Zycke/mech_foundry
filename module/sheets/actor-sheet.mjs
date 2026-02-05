@@ -1515,6 +1515,13 @@ export class MechFoundryActorSheet extends ActorSheet {
     const weapon = this.actor.items.get(li.data("itemId"));
     if (!weapon) return;
 
+    const isAOE = weapon.system.bdFactor === 'A';
+
+    // AOE weapons get their own dialog flow
+    if (isAOE) {
+      return this._onAOEWeaponAttack(weapon);
+    }
+
     const hasBurstFire = weapon.system.bdFactor === 'B';
     const burstRating = weapon.system.burstRating || 0;
     const recoil = weapon.system.recoil || 0;
@@ -1738,6 +1745,73 @@ export class MechFoundryActorSheet extends ActorSheet {
           html.find('.aimed-shot-options').toggle(checked);
         });
       }
+    }).render(true);
+  }
+
+  /**
+   * Handle AOE weapon attack dialog
+   * Shows blast info and modifier, then triggers template placement flow
+   * @param {Item} weapon The AOE weapon
+   * @private
+   */
+  async _onAOEWeaponAttack(weapon) {
+    const currentAmmo = weapon.system.ammo?.value || 0;
+    const maxAmmo = weapon.system.ammo?.max || 0;
+    const bd = weapon.system.bd || 0;
+    const ap = weapon.system.ap || 0;
+    const apFactor = weapon.system.apFactor || '';
+
+    const dialogContent = `
+      <form class="weapon-attack-dialog aoe-attack-dialog">
+        <div class="form-group">
+          <label>Weapon: <strong>${weapon.name}</strong></label>
+        </div>
+        <div class="form-group">
+          <label>Linked Skill: <strong>${weapon.system.skill || 'None'}</strong></label>
+        </div>
+        <div class="form-group">
+          <label>Current Ammo: <strong>${currentAmmo}/${maxAmmo}</strong></label>
+        </div>
+        <hr/>
+        <div class="form-group aoe-info">
+          <label><i class="fas fa-bomb"></i> Area Effect Weapon</label>
+        </div>
+        <div class="form-group aoe-stats">
+          <div>Blast Radius: <strong>${bd}m</strong> (based on BD)</div>
+          <div>Base Damage: <strong>${bd}</strong> | AP: <strong>${ap}${apFactor}</strong></div>
+          <div>AOE Bonus: <strong>+2</strong> to hit</div>
+          <div>MoS: <strong>Always 0</strong> (damage = BD at center)</div>
+          <div>Falloff: <strong>-1 BD/-1 AP per meter</strong> from center</div>
+        </div>
+        <hr/>
+        <div class="form-group">
+          <label>Additional Modifier</label>
+          <input type="number" name="modifier" value="0"/>
+        </div>
+        <div class="form-group aoe-hint">
+          <em><i class="fas fa-bullseye"></i> After clicking Attack, place the blast template on the map.</em>
+        </div>
+      </form>
+    `;
+
+    new Dialog({
+      title: `Area Effect Attack: ${weapon.name}`,
+      content: dialogContent,
+      buttons: {
+        attack: {
+          icon: '<i class="fas fa-bomb"></i>',
+          label: "Attack (Place Template)",
+          callback: async (html) => {
+            const modifier = parseInt(html.find('[name="modifier"]').val()) || 0;
+            await this.actor.rollWeaponAttack(weapon._id, { modifier });
+          }
+        },
+        cancel: {
+          icon: '<i class="fas fa-times"></i>',
+          label: "Cancel"
+        }
+      },
+      default: "attack"
     }).render(true);
   }
 
