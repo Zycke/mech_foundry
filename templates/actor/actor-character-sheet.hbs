@@ -613,12 +613,23 @@
                     {{#if (eq this.system.weaponType "melee")}}Melee{{else}}{{this.system.range.short}}/{{this.system.range.medium}}/{{this.system.range.long}}{{/if}}
                   </td>
                   <td class="weapon-ammo">
-                    {{#if this.system.ammo.max}}
-                      {{this.system.ammo.value}}/{{this.system.ammo.max}}
-                      {{#if (ne this.system.weaponType "melee")}}<a class="weapon-reload" data-item-id="{{this._id}}" title="Reload"><i class="fas fa-redo"></i></a>{{/if}}
+                    {{#if this.loadedAmmoData}}
+                      {{#if this.isEnergyWeapon}}
+                        <span class="ammo-count">{{this.loadedAmmoData.system.quantity.value}}/{{this.loadedAmmoData.system.quantity.max}} PP</span>
+                      {{else}}
+                        <span class="ammo-count">{{this.system.ammo.value}}/{{this.system.ammo.max}}</span>
+                      {{/if}}
+                      <span class="ammo-type-label" title="{{this.loadedAmmoData.name}}">{{this.loadedAmmoData.name}}</span>
+                    {{else if this.system.ammo.max}}
+                      <span class="no-ammo-warning">NO AMMO</span>
+                    {{else if this.system.pps}}
+                      <span class="no-ammo-warning">NO PACK</span>
                     {{else}}—{{/if}}
                   </td>
                   <td class="item-controls">
+                    {{#if (or this.system.ammo.max this.system.pps)}}
+                    <a class="weapon-reload" data-item-id="{{this._id}}" title="{{localize "MECHFOUNDRY.Reload"}}"><i class="fas fa-redo"></i></a>
+                    {{/if}}
                     <a class="item-edit" title="Edit"><i class="fas fa-edit"></i></a>
                   </td>
                 </tr>
@@ -760,16 +771,10 @@
                     <span class="ammo-count">{{this.system.ammo.value}}/{{this.system.ammo.max}}</span>
                   {{/if}}
                   <span class="ammo-type" title="{{this.loadedAmmoData.name}}">({{this.loadedAmmoData.name}})</span>
-                  <div class="ammo-controls">
-                    <a class="weapon-reload" data-item-id="{{this._id}}" title="Reload"><i class="fas fa-redo"></i></a>
-                    <a class="weapon-unload" data-item-id="{{this._id}}" title="Unload"><i class="fas fa-eject"></i></a>
-                  </div>
                 {{else if this.system.ammo.max}}
                   <span class="no-ammo-warning">NO AMMO</span>
-                  <a class="weapon-load-ammo" data-item-id="{{this._id}}" title="Load Ammo"><i class="fas fa-arrow-up"></i></a>
                 {{else if this.system.pps}}
                   <span class="no-ammo-warning">NO PACK</span>
-                  <a class="weapon-load-ammo" data-item-id="{{this._id}}" title="Attach Power Pack"><i class="fas fa-arrow-up"></i></a>
                 {{else}}—{{/if}}
               </td>
               <td class="item-mass">{{this.system.mass}}</td>

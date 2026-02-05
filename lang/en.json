@@ -371,5 +371,12 @@
   "MECHFOUNDRY.EffectTracer": "Tracer",
   "MECHFOUNDRY.EffectGuided": "Guided",
   "MECHFOUNDRY.EffectIllumination": "Illumination",
-  "MECHFOUNDRY.EffectFlash": "Flash"
+  "MECHFOUNDRY.EffectFlash": "Flash",
+  "MECHFOUNDRY.Current": "Current",
+  "MECHFOUNDRY.Max": "Max",
+  "MECHFOUNDRY.NoOverride": "-- No Override --",
+  "MECHFOUNDRY.None": "-- None --",
+  "MECHFOUNDRY.Select": "-- Select --",
+  "MECHFOUNDRY.Details": "Details",
+  "MECHFOUNDRY.Description": "Description"
 }

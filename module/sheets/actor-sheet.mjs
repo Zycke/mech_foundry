@@ -1878,32 +1878,82 @@ export class MechFoundryActorSheet extends ActorSheet {
     event.stopPropagation();
 
     // Get item ID from the element's data attribute or parent
-    let itemId = event.currentTarget.dataset.itemId;
-    if (!itemId) {
+    let weaponId = event.currentTarget.dataset.itemId;
+    if (!weaponId) {
       const li = $(event.currentTarget).parents(".item");
-      itemId = li.data("itemId");
+      weaponId = li.data("itemId");
     }
 
-    const weapon = this.actor.items.get(itemId);
+    const weapon = this.actor.items.get(weaponId);
     if (!weapon) return;
 
-    // Use the new ammo system if weapon has loaded ammo
-    if (weapon.system.loadedAmmo) {
-      await this.actor.reloadWeapon(itemId);
+    // Get compatible ammo items
+    const compatibleAmmo = this.actor.getCompatibleAmmo(weaponId);
+
+    // Check if weapon already has ammo loaded
+    const loadedAmmo = weapon.system.loadedAmmo ? this.actor.items.get(weapon.system.loadedAmmo) : null;
+
+    if (compatibleAmmo.length === 0 && !loadedAmmo) {
+      ui.notifications.warn(`No compatible ammunition available for ${weapon.name}.`);
       return;
     }
 
-    // Legacy behavior: just set to max
-    const maxAmmo = weapon.system.ammo?.max || 0;
-    const currentAmmo = weapon.system.ammo?.value || 0;
+    // Build selection dialog
+    const ammoOptions = compatibleAmmo.map(ammo => {
+      const qty = ammo.system.ammoCategory === 'energy'
+        ? `${ammo.system.quantity.value}/${ammo.system.quantity.max} PP`
+        : `${ammo.system.quantity.value}/${ammo.system.quantity.max}`;
+      const isLoaded = loadedAmmo && ammo.id === loadedAmmo.id;
+      return `<option value="${ammo.id}" ${isLoaded ? 'selected' : ''}>${ammo.name} (${qty})${isLoaded ? ' - LOADED' : ''}</option>`;
+    }).join('');
 
-    if (currentAmmo >= maxAmmo) {
-      ui.notifications.info(`${weapon.name} is already fully loaded.`);
-      return;
+    // Add option to reload from currently loaded ammo if it's not in compatible list (partial ammo case)
+    let currentLoadedOption = '';
+    if (loadedAmmo && !compatibleAmmo.find(a => a.id === loadedAmmo.id)) {
+      const qty = loadedAmmo.system.ammoCategory === 'energy'
+        ? `${loadedAmmo.system.quantity.value}/${loadedAmmo.system.quantity.max} PP`
+        : `${loadedAmmo.system.quantity.value}/${loadedAmmo.system.quantity.max}`;
+      currentLoadedOption = `<option value="${loadedAmmo.id}" selected>${loadedAmmo.name} (${qty}) - LOADED</option>`;
     }
 
-    await weapon.update({ "system.ammo.value": maxAmmo });
-    ui.notifications.info(`${weapon.name} reloaded to ${maxAmmo} rounds.`);
+    const content = `
+      <form>
+        <div class="form-group">
+          <label>${game.i18n.localize('MECHFOUNDRY.LoadAmmo')}</label>
+          <select name="ammoId">
+            ${currentLoadedOption}
+            ${ammoOptions}
+          </select>
+        </div>
+      </form>
+    `;
+
+    new Dialog({
+      title: `${game.i18n.localize('MECHFOUNDRY.Reload')}: ${weapon.name}`,
+      content: content,
+      buttons: {
+        load: {
+          icon: '<i class="fas fa-redo"></i>',
+          label: game.i18n.localize('MECHFOUNDRY.Reload'),
+          callback: async (html) => {
+            const selectedAmmoId = html.find('[name="ammoId"]').val();
+
+            // If same ammo is selected and already loaded, just reload
+            if (loadedAmmo && selectedAmmoId === loadedAmmo.id) {
+              await this.actor.reloadWeapon(weaponId, selectedAmmoId);
+            } else {
+              // Different ammo selected - load new ammo (will auto-unload current)
+              await this.actor.loadAmmoIntoWeapon(weaponId, selectedAmmoId);
+            }
+          }
+        },
+        cancel: {
+          icon: '<i class="fas fa-times"></i>',
+          label: game.i18n.localize('Cancel')
+        }
+      },
+      default: "load"
+    }).render(true);
   }
 
   /**
