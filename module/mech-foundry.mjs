@@ -642,12 +642,12 @@ Hooks.on('createToken', async (tokenDocument, options, userId) => {
   }, 100);
 });
 
-// Update token vision when actor items change (equip/unequip)
+// Update token vision when actor items change (equip/unequip or effect toggle)
 Hooks.on('updateItem', async (item, changes, options, userId) => {
   if (game.user.id !== userId) return;
 
-  // Check if carryStatus changed (equip/unequip)
-  if (!changes.system?.carryStatus && !changes.system?.equipped) return;
+  // Check if carryStatus changed (equip/unequip) or itemEffects changed (toggle)
+  if (!changes.system?.carryStatus && !changes.system?.equipped && !changes.system?.itemEffects) return;
 
   const actor = item.parent;
   if (!actor) return;
