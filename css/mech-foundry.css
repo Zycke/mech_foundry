@@ -306,6 +306,55 @@
   border-color: darkorange;
 }
 
+/* Locked condition boxes (from wounds) */
+.mech-foundry .condition-box.locked {
+  background: #444;
+  border-color: #222;
+  cursor: not-allowed;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mech-foundry .condition-box.locked i {
+  font-size: 10px;
+  color: #888;
+}
+
+.mech-foundry .condition-box.locked:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+/* Locked count label */
+.mech-foundry .condition-track label .locked-count {
+  font-weight: normal;
+  font-size: 0.85em;
+  color: #888;
+}
+
+/* Death/Coma warnings */
+.mech-foundry .death-warning,
+.mech-foundry .coma-warning {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 0.8em;
+  font-weight: bold;
+}
+
+.mech-foundry .death-warning {
+  background: var(--mf-danger);
+  color: white;
+}
+
+.mech-foundry .coma-warning {
+  background: #555;
+  color: white;
+}
+
 .mech-foundry .condition-track input[type="number"] {
   width: 50px;
   text-align: center;
@@ -3770,22 +3819,63 @@
   font-style: italic;
 }
 
+/* Individual wound type styles */
 .mech-foundry .wound-item.wound-dazed {
   background: rgba(213, 163, 52, 0.15);
   border-color: rgba(213, 163, 52, 0.4);
 }
-
 .mech-foundry .wound-item.wound-dazed .wound-type {
   color: var(--mf-warning);
 }
 
-.mech-foundry .wound-item.wound-blinded {
-  background: rgba(100, 100, 100, 0.15);
-  border-color: rgba(100, 100, 100, 0.4);
+.mech-foundry .wound-item.wound-concussion {
+  background: rgba(128, 90, 200, 0.15);
+  border-color: rgba(128, 90, 200, 0.4);
+}
+.mech-foundry .wound-item.wound-concussion .wound-type {
+  color: #8050c8;
 }
 
-.mech-foundry .wound-item.wound-blinded .wound-type {
-  color: #555;
+.mech-foundry .wound-item.wound-hemorrhage {
+  background: rgba(196, 69, 54, 0.2);
+  border-color: rgba(196, 69, 54, 0.5);
+}
+.mech-foundry .wound-item.wound-hemorrhage .wound-type {
+  color: var(--mf-danger);
+}
+
+.mech-foundry .wound-item.wound-traumaticImpact {
+  background: rgba(100, 80, 60, 0.15);
+  border-color: rgba(100, 80, 60, 0.4);
+}
+.mech-foundry .wound-item.wound-traumaticImpact .wound-type {
+  color: #64503c;
+}
+
+.mech-foundry .wound-item.wound-nerveDamage {
+  background: rgba(60, 140, 200, 0.15);
+  border-color: rgba(60, 140, 200, 0.4);
+}
+.mech-foundry .wound-item.wound-nerveDamage .wound-type {
+  color: #3c8cc8;
+}
+
+.mech-foundry .wound-item.wound-severeStrain {
+  background: rgba(87, 131, 123, 0.15);
+  border-color: rgba(87, 131, 123, 0.4);
+}
+.mech-foundry .wound-item.wound-severeStrain .wound-type {
+  color: var(--mf-secondary);
+}
+
+.mech-foundry .wound-item.wound-severelyWounded {
+  background: rgba(60, 0, 0, 0.25);
+  border-color: rgba(139, 0, 0, 0.6);
+  border-width: 2px;
+}
+.mech-foundry .wound-item.wound-severelyWounded .wound-type {
+  color: #8b0000;
+  font-weight: bold;
 }
 
 .mech-foundry .heal-wound {

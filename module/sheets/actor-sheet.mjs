@@ -995,17 +995,22 @@ export class MechFoundryActorSheet extends ActorSheet {
     const selfModifier = isSelfTarget ? -2 : 0;
     const selfModifierText = isSelfTarget ? ' (Self: -2)' : '';
 
+    // Calculate wound penalty for stabilization (-1 per wound)
+    const targetWounds = targetActor.system.wounds || [];
+    const woundPenalty = -targetWounds.length;
+    const woundPenaltyText = woundPenalty < 0 ? ` (Wounds: ${woundPenalty})` : '';
+
     const content = `
       <form>
         <div class="form-group">
           <label>Target</label>
-          <span><strong>${targetActor.name}</strong>${isSelfTarget ? ' (Self)' : ''}</span>
+          <span><strong>${targetActor.name}</strong>${isSelfTarget ? ' (Self)' : ''}${targetWounds.length > 0 ? ` - ${targetWounds.length} wound(s)` : ''}</span>
         </div>
         <div class="form-group">
           <label>Action Type</label>
           <select name="actionType">
             <option value="firstAid" ${firstAidUsed ? 'disabled' : ''}>First Aid${firstAidUsed ? ' (Used this combat)' : ''}</option>
-            <option value="stabilize">Stabilize</option>
+            <option value="stabilize">Stabilize${woundPenalty < 0 ? ` (${woundPenalty} wound penalty)` : ''}</option>
           </select>
         </div>
         <div class="form-group">
@@ -1019,13 +1024,14 @@ export class MechFoundryActorSheet extends ActorSheet {
         <p class="hint">
           <strong>MedTech:</strong> ${medtechLevel}+${attr1Value}${selfModifierText} = ${medtechLevel + attr1Value + selfModifier}<br>
           <strong>First Aid:</strong> Heal MoS/2 damage (once per combat per patient)<br>
-          <strong>Stabilize:</strong> Stops bleeding, required before surgery
+          <strong>Stabilize:</strong> Stops bleeding, required before surgery${woundPenalty < 0 ? `<br><span style="color: #c44536;"><strong>Stabilize Penalty:</strong> ${woundPenalty} (${targetWounds.length} wounds)</span>` : ''}
         </p>
       </form>
     `;
 
     const targetActorRef = targetActor;
     const selfMod = selfModifier;
+    const woundMod = woundPenalty;
 
     new Dialog({
       title: `Render Aid - ${targetActor.name}`,
@@ -1048,8 +1054,11 @@ export class MechFoundryActorSheet extends ActorSheet {
               }
             }
 
-            // Roll MedTech check (includes self-modifier if applicable)
-            const totalSkill = medtechLevel + attr1Value + bonus + selfMod;
+            // Calculate wound penalty (only applies to stabilization)
+            const stabilizePenalty = actionType === 'stabilize' ? woundMod : 0;
+
+            // Roll MedTech check (includes self-modifier and wound penalty if applicable)
+            const totalSkill = medtechLevel + attr1Value + bonus + selfMod + stabilizePenalty;
             const roll = new Roll('2d6');
             await roll.evaluate();
             const result = roll.total + totalSkill;
@@ -1089,13 +1098,15 @@ export class MechFoundryActorSheet extends ActorSheet {
             }
 
             // Create chat message
-            const selfText = selfMod ? ' (Self -2)' : '';
+            const selfText = selfMod ? ' Self -2' : '';
+            const stabilizeText = stabilizePenalty ? ` Wounds ${stabilizePenalty}` : '';
+            const modifiersText = (selfText || stabilizeText) ? ` (${[selfText, stabilizeText].filter(Boolean).join(',')})` : '';
             const messageContent = `
               <div class="mech-foundry roll-result">
                 <h3>Render Aid: ${actionType === 'firstAid' ? 'First Aid' : 'Stabilize'}</h3>
                 <div class="roll-details">
                   <span class="roll-target-name">Patient: ${targetActorRef.name}</span>
-                  <span class="roll-formula">2d6 + ${totalSkill} (MedTech${bonus ? ` +${bonus} item` : ''}${selfText})</span>
+                  <span class="roll-formula">2d6 + ${totalSkill} (MedTech${bonus ? ` +${bonus} item` : ''}${modifiersText})</span>
                   <span class="roll-result">${roll.total} + ${totalSkill} = <strong>${result}</strong></span>
                   <span class="roll-target">TN: ${targetNumber}</span>
                   <span class="roll-mos ${success ? 'success' : 'failure'}">MoS: ${mos} - ${success ? 'SUCCESS' : 'FAILURE'}</span>
@@ -1188,10 +1199,12 @@ export class MechFoundryActorSheet extends ActorSheet {
     // Wound type names
     const woundNames = {
       dazed: 'Dazed',
-      deafened: 'Deafened',
-      blinded: 'Blinded',
-      internalDamage: 'Internal Damage',
-      shatteredLimb: 'Shattered Limb'
+      concussion: 'Concussion',
+      hemorrhage: 'Hemorrhage',
+      traumaticImpact: 'Traumatic Impact',
+      nerveDamage: 'Nerve Damage',
+      severeStrain: 'Severe Strain',
+      severelyWounded: 'Severely Wounded'
     };
 
     // Build wound selection
@@ -1326,10 +1339,12 @@ export class MechFoundryActorSheet extends ActorSheet {
     // Wound type names
     const woundNames = {
       dazed: 'Dazed',
-      deafened: 'Deafened',
-      blinded: 'Blinded',
-      internalDamage: 'Internal Damage',
-      shatteredLimb: 'Shattered Limb'
+      concussion: 'Concussion',
+      hemorrhage: 'Hemorrhage',
+      traumaticImpact: 'Traumatic Impact',
+      nerveDamage: 'Nerve Damage',
+      severeStrain: 'Severe Strain',
+      severelyWounded: 'Severely Wounded'
     };
 
     const woundTypeName = woundNames[wound.type] || wound.type;

@@ -697,51 +697,56 @@ export class OpposedRollHelper {
       1: {
         name: 'Dazed',
         type: 'dazed',
-        description: 'Character suffers 1D6 additional Fatigue damage points',
+        description: 'Character suffers 1D6 additional Fatigue damage',
         automated: true,
         fatigueRoll: true,
-        isWound: true
+        isWound: true,
+        capacityPenalty: 1
       },
       2: {
-        name: 'Deafened',
-        type: 'deafened',
-        description: 'Character suffers critical damage to ear equal to Level 3 Poor Hearing (see p. 122)',
-        automated: false,
-        note: 'Surgery Skill required to stabilize/repair; apply -2 modifier to all Surgery Checks',
-        isWound: true
+        name: 'Concussion',
+        type: 'concussion',
+        description: 'Character suffers -2 to INT and WIL attribute modifiers',
+        automated: true,
+        isWound: true,
+        attributePenalties: { int: -2, wil: -2 },
+        capacityPenalty: 1
       },
       3: {
-        name: 'Blinded',
-        type: 'blinded',
-        description: 'Character suffers critical damage to eye equal to Level 3 Poor Vision (see p. 122)',
-        automated: false,
-        note: 'Surgery Skill required to stabilize/repair; apply -2 modifier to all Surgery Checks',
-        isWound: true
+        name: 'Hemorrhage',
+        type: 'hemorrhage',
+        description: 'Character begins bleeding uncontrollably',
+        automated: true,
+        causesBleeding: true,
+        isWound: true,
+        capacityPenalty: 1
       },
       4: {
-        name: 'Internal Damage',
-        type: 'internalDamage',
-        description: 'Character suffers 1D6 additional Standard damage points (check for bleeding)',
+        name: 'Traumatic Impact',
+        type: 'traumaticImpact',
+        description: 'Character suffers 1D6 additional Standard damage',
         automated: true,
         standardRoll: true,
-        note: 'Check for bleeding',
-        isWound: true
+        isWound: true,
+        capacityPenalty: 1
       },
       5: {
-        name: 'Knockdown',
-        type: 'knockdown',
-        description: 'Character must make a RFL Attribute Check to avoid falling, applying Injury modifiers',
-        automated: false,
-        note: 'RFL Attribute Check required to avoid falling',
-        isWound: false
+        name: 'Nerve Damage',
+        type: 'nerveDamage',
+        description: 'Character suffers -2 to DEX and RFL attribute modifiers',
+        automated: true,
+        isWound: true,
+        attributePenalties: { dex: -2, rfl: -2 },
+        capacityPenalty: 1
       },
       6: {
-        name: 'Shattered Limb',
-        type: 'shatteredLimb',
-        description: 'Character cannot use the affected limb (check for bleeding)',
-        automated: false,
-        note: 'Check for bleeding; affected limb cannot be used',
-        isWound: true
+        name: 'Severe Strain',
+        type: 'severeStrain',
+        description: 'Character suffers -50% to all movement rates',
+        automated: true,
+        isWound: true,
+        movementPenalty: 0.5,
+        capacityPenalty: 1
       }
     };
 

@@ -108,15 +108,48 @@ export class MechFoundryActor extends Actor {
     const rfl = systemData.attributes.rfl?.total || 5;
     const wil = systemData.attributes.wil?.total || 5;
 
-    // Damage Capacity = BOD x 2
-    systemData.damageCapacity = bod * 2;
+    // Calculate wound effects FIRST before other derived stats
+    const woundEffects = this._calculateWoundEffects(systemData);
+    systemData.woundEffects = woundEffects;
+
+    // Apply wound attribute modifiers to linkMod
+    if (woundEffects.attributeModifiers) {
+      for (const [attr, penalty] of Object.entries(woundEffects.attributeModifiers)) {
+        if (systemData.attributes[attr]) {
+          systemData.attributes[attr].woundMod = penalty;
+          systemData.attributes[attr].linkMod += penalty;
+        }
+      }
+    }
+
+    // Base Damage Capacity = BOD x 2
+    const baseDamageCapacity = bod * 2;
+    // Base Fatigue Capacity = WIL x 2
+    const baseFatigueCapacity = wil * 2;
+
+    // Apply wound capacity penalties
+    systemData.lockedDamage = woundEffects.lockedDamage;
+    systemData.lockedFatigue = woundEffects.lockedFatigue;
+    systemData.damageCapacity = Math.max(0, baseDamageCapacity - woundEffects.lockedDamage);
+    systemData.fatigueCapacity = Math.max(0, baseFatigueCapacity - woundEffects.lockedFatigue);
+    systemData.baseDamageCapacity = baseDamageCapacity;
+    systemData.baseFatigueCapacity = baseFatigueCapacity;
+
     // Set damage.max for token bar compatibility
     if (systemData.damage) systemData.damage.max = systemData.damageCapacity;
-
-    // Fatigue Capacity = WIL x 2
-    systemData.fatigueCapacity = wil * 2;
     // Set fatigue.max for token bar compatibility
     if (systemData.fatigue) systemData.fatigue.max = systemData.fatigueCapacity;
+
+    // Check for death (effective max standard damage <= 0)
+    if (systemData.damageCapacity <= 0) {
+      systemData.dead = true;
+    }
+
+    // Check for coma (effective max fatigue <= 0)
+    if (systemData.fatigueCapacity <= 0) {
+      systemData.coma = true;
+      systemData.unconscious = true;
+    }
 
     // Calculate carried weight for encumbrance
     const carriedWeight = this._calculateCarriedWeight();
@@ -182,8 +215,19 @@ export class MechFoundryActor extends Actor {
       systemData.movement.swim = baseSwim;
     }
 
-    // Calculate Injury Modifier (-1 per 25% of damage capacity)
-    const damagePercent = (systemData.damage?.value || 0) / systemData.damageCapacity;
+    // Apply wound movement penalty (Severe Strain: -50%)
+    if (woundEffects.movementMultiplier < 1) {
+      systemData.movement.walk = Math.floor(systemData.movement.walk * woundEffects.movementMultiplier);
+      systemData.movement.run = Math.floor(systemData.movement.run * woundEffects.movementMultiplier);
+      systemData.movement.sprint = Math.floor(systemData.movement.sprint * woundEffects.movementMultiplier);
+      systemData.movement.climb = Math.floor(systemData.movement.climb * woundEffects.movementMultiplier);
+      systemData.movement.crawl = Math.max(1, Math.floor(systemData.movement.crawl * woundEffects.movementMultiplier));
+      systemData.movement.swim = Math.floor(systemData.movement.swim * woundEffects.movementMultiplier);
+    }
+
+    // Calculate Injury Modifier (-1 per 25% of damage capacity) - use effective capacity
+    const effectiveCapacity = systemData.damageCapacity > 0 ? systemData.damageCapacity : 1;
+    const damagePercent = (systemData.damage?.value || 0) / effectiveCapacity;
     systemData.injuryModifier = -Math.floor(damagePercent * 4);
     if (systemData.injuryModifier > 0) systemData.injuryModifier = 0;
 
@@ -191,12 +235,12 @@ export class MechFoundryActor extends Actor {
     const fatigueDiff = (systemData.fatigue?.value || 0) - wil;
     systemData.fatigueModifier = fatigueDiff > 0 ? -fatigueDiff : 0;
 
-    // Calculate Critical Injury threshold (>75% of damage capacity)
+    // Calculate Critical Injury threshold (>75% of effective damage capacity)
     const criticalThreshold = Math.ceil(systemData.damageCapacity * 0.75);
     systemData.criticalThreshold = criticalThreshold;
 
-    // Auto-set dying if damage exceeds capacity (can only be removed by stabilization)
-    if ((systemData.damage?.value || 0) > systemData.damageCapacity) {
+    // Auto-set dying if damage exceeds effective capacity (can only be removed by stabilization)
+    if (systemData.damageCapacity > 0 && (systemData.damage?.value || 0) > systemData.damageCapacity) {
       systemData.dying = true;
     }
 
@@ -205,6 +249,58 @@ export class MechFoundryActor extends Actor {
       systemData.attributes.edg.current =
         systemData.attributes.edg.total - (systemData.attributes.edg.burned || 0);
     }
+  }
+
+  /**
+   * Calculate wound effects from all active wounds
+   * @param {Object} systemData
+   * @returns {Object} Wound effects summary
+   */
+  _calculateWoundEffects(systemData) {
+    const wounds = systemData.wounds || [];
+    const effects = {
+      lockedDamage: 0,
+      lockedFatigue: 0,
+      attributeModifiers: {},
+      movementMultiplier: 1,
+      woundCount: wounds.length
+    };
+
+    // Wound type definitions
+    const woundTypes = {
+      dazed: { capacityPenalty: 1 },
+      concussion: { capacityPenalty: 1, attributePenalties: { int: -2, wil: -2 } },
+      hemorrhage: { capacityPenalty: 1 },
+      traumaticImpact: { capacityPenalty: 1 },
+      nerveDamage: { capacityPenalty: 1, attributePenalties: { dex: -2, rfl: -2 } },
+      severeStrain: { capacityPenalty: 1, movementPenalty: 0.5 },
+      severelyWounded: { capacityPenalty: 3 }
+    };
+
+    for (const wound of wounds) {
+      const woundDef = woundTypes[wound.type];
+      if (!woundDef) continue;
+
+      // Apply capacity penalties
+      effects.lockedDamage += woundDef.capacityPenalty || 0;
+      effects.lockedFatigue += woundDef.capacityPenalty || 0;
+
+      // Apply attribute penalties (don't stack - just use highest penalty per attribute)
+      if (woundDef.attributePenalties) {
+        for (const [attr, penalty] of Object.entries(woundDef.attributePenalties)) {
+          if (!effects.attributeModifiers[attr] || penalty < effects.attributeModifiers[attr]) {
+            effects.attributeModifiers[attr] = penalty;
+          }
+        }
+      }
+
+      // Apply movement penalty (multiplicative)
+      if (woundDef.movementPenalty) {
+        effects.movementMultiplier *= woundDef.movementPenalty;
+      }
+    }
+
+    return effects;
   }
 
   /**
@@ -2271,35 +2367,74 @@ export class MechFoundryActor extends Actor {
    * @param {string} source Description of what caused the wound
    */
   async inflictWound(woundType, location = null, source = 'Critical Hit') {
-    const validTypes = ['dazed', 'deafened', 'blinded', 'internalDamage', 'shatteredLimb'];
+    const validTypes = ['dazed', 'concussion', 'hemorrhage', 'traumaticImpact', 'nerveDamage', 'severeStrain', 'severelyWounded'];
     if (!validTypes.includes(woundType)) {
       console.warn(`Invalid wound type: ${woundType}`);
       return;
     }
 
     const wounds = [...(this.system.wounds || [])];
+
+    // Check if character already has this wound type (except severelyWounded which can stack)
+    const hasDuplicate = woundType !== 'severelyWounded' &&
+      wounds.some(w => w.type === woundType);
+
+    let actualWoundType = woundType;
+    if (hasDuplicate) {
+      // Convert to Severely Wounded instead of duplicating
+      actualWoundType = 'severelyWounded';
+      ui.notifications.warn(`${this.name} already has ${this._getWoundName(woundType)}! Inflicting Severely Wounded instead.`);
+    }
+
     wounds.push({
-      type: woundType,
+      type: actualWoundType,
       location: location,
       source: source,
       timestamp: Date.now()
     });
 
-    await this.update({ "system.wounds": wounds });
+    // Apply immediate effects based on wound type
+    const updates = { "system.wounds": wounds };
 
-    // Display wound names nicely
-    const woundNames = {
-      dazed: 'Dazed',
-      deafened: 'Deafened',
-      blinded: 'Blinded',
-      internalDamage: 'Internal Damage',
-      shatteredLimb: 'Shattered Limb'
-    };
+    // Hemorrhage causes automatic bleeding
+    if (actualWoundType === 'hemorrhage') {
+      updates["system.bleeding"] = true;
+    }
+
+    await this.update(updates);
 
     const locationText = location ? ` (${location})` : '';
-    ui.notifications.warn(`${this.name} suffers ${woundNames[woundType]}${locationText}!`);
+    ui.notifications.warn(`${this.name} suffers ${this._getWoundName(actualWoundType)}${locationText}!`);
 
-    return woundType;
+    // Check for death/coma after wound is applied (will be calculated in derived stats)
+    // Force a re-render to trigger the checks
+    this.prepareData();
+
+    if (this.system.dead) {
+      ui.notifications.error(`${this.name} has died from their wounds!`);
+    } else if (this.system.coma) {
+      ui.notifications.error(`${this.name} has fallen into a coma from their wounds!`);
+    }
+
+    return actualWoundType;
+  }
+
+  /**
+   * Get display name for wound type
+   * @param {string} woundType
+   * @returns {string}
+   */
+  _getWoundName(woundType) {
+    const woundNames = {
+      dazed: 'Dazed',
+      concussion: 'Concussion',
+      hemorrhage: 'Hemorrhage',
+      traumaticImpact: 'Traumatic Impact',
+      nerveDamage: 'Nerve Damage',
+      severeStrain: 'Severe Strain',
+      severelyWounded: 'Severely Wounded'
+    };
+    return woundNames[woundType] || woundType;
   }
 
   /**
@@ -2314,17 +2449,20 @@ export class MechFoundryActor extends Actor {
     }
 
     const removedWound = wounds.splice(woundIndex, 1)[0];
-    await this.update({ "system.wounds": wounds });
 
-    const woundNames = {
-      dazed: 'Dazed',
-      deafened: 'Deafened',
-      blinded: 'Blinded',
-      internalDamage: 'Internal Damage',
-      shatteredLimb: 'Shattered Limb'
-    };
+    // If hemorrhage is removed, check if bleeding should stop
+    const updates = { "system.wounds": wounds };
+    if (removedWound.type === 'hemorrhage') {
+      // Only stop bleeding if no other hemorrhage wounds exist
+      const hasOtherHemorrhage = wounds.some(w => w.type === 'hemorrhage');
+      if (!hasOtherHemorrhage) {
+        updates["system.bleeding"] = false;
+      }
+    }
 
-    ui.notifications.info(`${this.name}'s ${woundNames[removedWound.type] || removedWound.type} wound has been healed.`);
+    await this.update(updates);
+
+    ui.notifications.info(`${this.name}'s ${this._getWoundName(removedWound.type)} wound has been healed.`);
     return removedWound;
   }
 }
