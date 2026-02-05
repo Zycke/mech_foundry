@@ -187,6 +187,8 @@
     {{#if canApplyAttackerDamage}}
     <button class="apply-damage apply-attacker-damage"
             data-target-id="{{defenderActorId}}"
+            data-token-id="{{defenderTokenId}}"
+            data-scene-id="{{sceneId}}"
             data-standard="{{attackerArmorCalc.finalDamage}}"
             data-fatigue="{{attackerDamage.fatigueDamage}}"
             data-subduing="{{attackerDamage.isSubduing}}"
@@ -315,6 +317,8 @@
     {{#if canApplyDefenderDamage}}
     <button class="apply-damage apply-defender-damage"
             data-target-id="{{attackerActorId}}"
+            data-token-id="{{attackerTokenId}}"
+            data-scene-id="{{sceneId}}"
             data-standard="{{defenderArmorCalc.finalDamage}}"
             data-fatigue="{{defenderDamage.fatigueDamage}}"
             data-subduing="{{defenderDamage.isSubduing}}"

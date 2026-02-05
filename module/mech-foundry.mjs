@@ -492,13 +492,22 @@ Hooks.on('renderChatMessage', (message, html, data) => {
 
     // Get data from button attributes
     const targetId = button.dataset.targetId;
+    const tokenId = button.dataset.tokenId || null;
+    const sceneId = button.dataset.sceneId || null;
     const standardDamage = parseInt(button.dataset.standard) || 0;
     const fatigueDamage = parseInt(button.dataset.fatigue) || 0;
     const isSubduing = button.dataset.subduing === 'true';
     const location = button.dataset.location || null;
 
-    // Get the target actor
-    const target = game.actors.get(targetId);
+    // Get the target actor - prefer token actor for unlinked token support
+    let target = null;
+    if (tokenId && sceneId) {
+      const scene = game.scenes.get(sceneId);
+      const tokenDoc = scene?.tokens.get(tokenId);
+      if (tokenDoc) target = tokenDoc.actor;
+    }
+    // Fall back to base actor if no token reference
+    if (!target) target = game.actors.get(targetId);
     if (!target) {
       ui.notifications.error("Target actor not found!");
       return;

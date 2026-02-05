@@ -857,10 +857,13 @@ export class MechFoundryActor extends Actor {
       let armorCalc = null;
       let canApplyDamage = false;
       let targetActorId = null;
+      let targetTokenId = null;
+      let targetSceneId = null;
       let damageTypeName = null;
       let woundEffect = null;
 
-      const targetActor = options.target?.actor || null;
+      const targetToken = options.target || null;
+      const targetActor = targetToken?.actor || null;
       if (targetActor && success && standardDamage > 0) {
         // Use aimed shot location or roll hit location
         if (aimedShot && aimedLocation) {
@@ -885,6 +888,8 @@ export class MechFoundryActor extends Actor {
         );
 
         targetActorId = targetActor.id;
+        targetTokenId = targetToken?.document?.id || targetToken?.id || null;
+        targetSceneId = canvas.scene?.id || null;
         canApplyDamage = targetActor.isOwner || game.user.isGM;
 
         // Check for wound effects: doubles on successful attack AND damage dealt
@@ -922,6 +927,8 @@ export class MechFoundryActor extends Actor {
         armorCalc,
         canApplyDamage,
         targetActorId,
+        targetTokenId,
+        targetSceneId,
         damageTypeName,
         // Special roll info
         specialRoll,
@@ -1157,15 +1164,24 @@ export class MechFoundryActor extends Actor {
     // Resolve the opposed roll
     const resolution = OpposedRollHelper.resolveMeleeOpposed(attackerResult, defenderResult);
 
+    // Get token IDs for unlinked token support
+    const defenderTokenId = target?.document?.id || target?.id || null;
+    const attackerToken = canvas.tokens?.placeables.find(t => t.actor?.id === this.id);
+    const attackerTokenId = attackerToken?.document?.id || attackerToken?.id || null;
+    const sceneId = canvas.scene?.id || null;
+
     // Prepare template data
     const templateData = {
       rollId,
       attackerName: this.name,
       attackerActorId: this.id,
+      attackerTokenId,
       attackerWeaponName: weapon.name,
       attackerResult,
       defenderName: targetActor.name,
       defenderActorId: targetActor.id,
+      defenderTokenId,
+      sceneId,
       defenderResult,
       resolution
     };

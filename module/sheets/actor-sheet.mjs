@@ -1773,15 +1773,18 @@ export class MechFoundryActorSheet extends ActorSheet {
           <label>Current Ammo: <strong>${currentAmmo}/${maxAmmo}</strong></label>
         </div>
         <hr/>
-        <div class="form-group aoe-info">
+        <div class="aoe-info">
           <label><i class="fas fa-bomb"></i> Area Effect Weapon</label>
         </div>
-        <div class="form-group aoe-stats">
-          <div>Blast Radius: <strong>${bd}m</strong> (based on BD)</div>
-          <div>Base Damage: <strong>${bd}</strong> | AP: <strong>${ap}${apFactor}</strong></div>
-          <div>AOE Bonus: <strong>+2</strong> to hit</div>
-          <div>MoS: <strong>Always 0</strong> (damage = BD at center)</div>
-          <div>Falloff: <strong>-1 BD/-1 AP per meter</strong> from center</div>
+        <div class="aoe-stats">
+          <table>
+            <tr><td>Blast Radius</td><td><strong>${bd}m</strong></td></tr>
+            <tr><td>Base Damage</td><td><strong>${bd}</strong></td></tr>
+            <tr><td>AP</td><td><strong>${ap}${apFactor}</strong></td></tr>
+            <tr><td>AOE Bonus</td><td><strong>+2</strong> to hit</td></tr>
+            <tr><td>MoS</td><td><strong>Always 0</strong></td></tr>
+            <tr><td>Falloff</td><td><strong>-1 BD / -1 AP</strong> per meter</td></tr>
+          </table>
         </div>
         <hr/>
         <div class="form-group">
