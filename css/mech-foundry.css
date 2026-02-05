@@ -1863,8 +1863,20 @@
   border-radius: 4px;
 }
 
-.aoe-attack-dialog .aoe-stats div {
-  margin-bottom: 3px;
+.aoe-attack-dialog .aoe-stats table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.aoe-attack-dialog .aoe-stats td {
+  padding: 2px 6px;
+}
+
+.aoe-attack-dialog .aoe-stats td:first-child {
+  font-weight: bold;
+  white-space: nowrap;
+  width: 90px;
+  color: var(--mf-secondary);
 }
 
 .aoe-attack-dialog .aoe-hint {

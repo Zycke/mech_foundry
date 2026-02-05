@@ -117,6 +117,8 @@
         {{#if this.canApplyDamage}}
         <button class="apply-damage aoe-apply-damage"
                 data-target-id="{{this.actorId}}"
+                data-token-id="{{this.tokenDocId}}"
+                data-scene-id="{{../sceneId}}"
                 data-standard="{{#if this.armorCalc}}{{this.armorCalc.finalDamage}}{{else}}{{this.standardDamage}}{{/if}}"
                 data-fatigue="{{this.fatigueDamage}}"
                 data-subduing="false"

@@ -58,7 +58,14 @@ export class SocketHandler {
    * @param {object} data - The prompt data
    */
   static async _handleDefenderPrompt(data) {
-    const targetActor = game.actors.get(data.targetActorId);
+    // Resolve target actor - prefer token actor for unlinked token support
+    let targetActor = null;
+    if (data.targetTokenId) {
+      const scene = game.scenes.current;
+      const tokenDoc = scene?.tokens.get(data.targetTokenId);
+      if (tokenDoc) targetActor = tokenDoc.actor;
+    }
+    if (!targetActor) targetActor = game.actors.get(data.targetActorId);
 
     // Only process if this client owns the target actor
     if (!targetActor?.isOwner) return;

@@ -267,6 +267,7 @@ export class AOEHelper {
       targetResults.push({
         tokenName: token.name,
         tokenId: token.id,
+        tokenDocId: token.document?.id || token.id,
         actorId: targetActor.id,
         distance: Math.round(distance * 10) / 10, // 1 decimal
         meterDistance,
@@ -325,6 +326,7 @@ export class AOEHelper {
         // Target results
         targets: targetResults,
         hasTargets: targetResults.length > 0,
+        sceneId: canvas.scene?.id || null,
         // Template info for cleanup
         templateId: finalTemplate?.id || null
       }

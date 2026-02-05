@@ -181,6 +181,8 @@
       {{#if this.canApplyDamage}}
       <button class="apply-damage"
               data-target-id="{{this.targetActorId}}"
+              data-token-id="{{this.targetTokenId}}"
+              data-scene-id="{{this.targetSceneId}}"
               data-standard="{{#if this.armorCalc}}{{this.armorCalc.finalDamage}}{{else}}{{this.standardDamage}}{{/if}}"
               data-fatigue="{{this.fatigueDamage}}"
               data-subduing="{{this.isSubduing}}"
