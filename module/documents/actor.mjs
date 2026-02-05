@@ -1570,15 +1570,6 @@ export class MechFoundryActor extends Actor {
       // Standard damage also causes 1 Fatigue
       const newFatigue = (this.system.fatigue.value || 0) + 1;
 
-      // Create wound entry
-      const wounds = [...(this.system.wounds || [])];
-      const woundSource = location ? `Attack (${location})` : 'Attack';
-      wounds.push({
-        damage: finalDamage,
-        source: woundSource,
-        timestamp: Date.now()
-      });
-
       // Check if this damage causes critical injury (>75% capacity)
       const criticalThreshold = Math.ceil(this.system.damageCapacity * 0.75);
       const wasCriticallyInjured = this.system.criticallyInjured || false;
@@ -1591,7 +1582,6 @@ export class MechFoundryActor extends Actor {
         "system.damage.value": newDamage,
         "system.fatigue.value": newFatigue,
         "system.stun": true,
-        "system.wounds": wounds,
         "system.criticallyInjured": isCriticallyInjured,
         "system.dying": isDying
       });
@@ -2271,5 +2261,70 @@ export class MechFoundryActor extends Actor {
     // Energy weapons: no stat modification, just power consumption
 
     return base;
+  }
+
+  /**
+   * Inflict a wound (critical hit effect) on this actor
+   * Wound types: dazed, deafened, blinded, internalDamage, shatteredLimb
+   * @param {string} woundType The type of wound
+   * @param {string} location The hit location (head, torso, arm, leg)
+   * @param {string} source Description of what caused the wound
+   */
+  async inflictWound(woundType, location = null, source = 'Critical Hit') {
+    const validTypes = ['dazed', 'deafened', 'blinded', 'internalDamage', 'shatteredLimb'];
+    if (!validTypes.includes(woundType)) {
+      console.warn(`Invalid wound type: ${woundType}`);
+      return;
+    }
+
+    const wounds = [...(this.system.wounds || [])];
+    wounds.push({
+      type: woundType,
+      location: location,
+      source: source,
+      timestamp: Date.now()
+    });
+
+    await this.update({ "system.wounds": wounds });
+
+    // Display wound names nicely
+    const woundNames = {
+      dazed: 'Dazed',
+      deafened: 'Deafened',
+      blinded: 'Blinded',
+      internalDamage: 'Internal Damage',
+      shatteredLimb: 'Shattered Limb'
+    };
+
+    const locationText = location ? ` (${location})` : '';
+    ui.notifications.warn(`${this.name} suffers ${woundNames[woundType]}${locationText}!`);
+
+    return woundType;
+  }
+
+  /**
+   * Remove a wound from this actor
+   * @param {number} woundIndex The index of the wound to remove
+   */
+  async healWound(woundIndex) {
+    const wounds = [...(this.system.wounds || [])];
+    if (woundIndex < 0 || woundIndex >= wounds.length) {
+      console.warn(`Invalid wound index: ${woundIndex}`);
+      return;
+    }
+
+    const removedWound = wounds.splice(woundIndex, 1)[0];
+    await this.update({ "system.wounds": wounds });
+
+    const woundNames = {
+      dazed: 'Dazed',
+      deafened: 'Deafened',
+      blinded: 'Blinded',
+      internalDamage: 'Internal Damage',
+      shatteredLimb: 'Shattered Limb'
+    };
+
+    ui.notifications.info(`${this.name}'s ${woundNames[removedWound.type] || removedWound.type} wound has been healed.`);
+    return removedWound;
   }
 }

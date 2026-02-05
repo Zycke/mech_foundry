@@ -941,13 +941,36 @@ export class MechFoundryActorSheet extends ActorSheet {
 
   /**
    * Open Render Aid dialog for First Aid or Stabilize
+   * Targets: Self (with -2 modifier) or targeted creature
    * @param {Event} event
    * @private
    */
   async _onRenderAid(event) {
     event.preventDefault();
 
-    // Get medtech skill for this actor
+    // Get target - can be self or targeted token
+    const targets = Array.from(game.user.targets);
+    let targetActor = null;
+    let isSelfTarget = false;
+
+    if (targets.length === 0) {
+      // No target selected - default to self
+      targetActor = this.actor;
+      isSelfTarget = true;
+    } else if (targets.length === 1) {
+      targetActor = targets[0].actor;
+      isSelfTarget = targetActor.id === this.actor.id;
+    } else {
+      ui.notifications.warn("Please target exactly one creature for Render Aid.");
+      return;
+    }
+
+    if (!targetActor) {
+      ui.notifications.warn("No valid target for Render Aid.");
+      return;
+    }
+
+    // Get medtech skill for this actor (the one performing the aid)
     const medtechSkill = this.actor.items.find(i => i.type === 'skill' && i.name.toLowerCase().includes('medtech'));
     const medtechLevel = medtechSkill?.system?.level || 0;
     const linkedAttr1 = medtechSkill?.system?.linkedAttribute1 || 'int';
@@ -967,11 +990,17 @@ export class MechFoundryActorSheet extends ActorSheet {
       healthcareOptions += `<option value="${item.id}">${item.name}${bonus}${charges}</option>`;
     }
 
-    // Check if first aid already used this combat
-    const firstAidUsed = this.actor.system.firstAidUsedThisCombat || false;
+    // Check if first aid already used on this patient this combat
+    const firstAidUsed = targetActor.system.firstAidUsedThisCombat || false;
+    const selfModifier = isSelfTarget ? -2 : 0;
+    const selfModifierText = isSelfTarget ? ' (Self: -2)' : '';
 
     const content = `
       <form>
+        <div class="form-group">
+          <label>Target</label>
+          <span><strong>${targetActor.name}</strong>${isSelfTarget ? ' (Self)' : ''}</span>
+        </div>
         <div class="form-group">
           <label>Action Type</label>
           <select name="actionType">
@@ -988,15 +1017,18 @@ export class MechFoundryActorSheet extends ActorSheet {
           <input type="number" name="targetNumber" value="7"/>
         </div>
         <p class="hint">
-          <strong>MedTech:</strong> ${medtechLevel}+${attr1Value} = ${medtechLevel + attr1Value}<br>
+          <strong>MedTech:</strong> ${medtechLevel}+${attr1Value}${selfModifierText} = ${medtechLevel + attr1Value + selfModifier}<br>
           <strong>First Aid:</strong> Heal MoS/2 damage (once per combat per patient)<br>
           <strong>Stabilize:</strong> Stops bleeding, required before surgery
         </p>
       </form>
     `;
 
+    const targetActorRef = targetActor;
+    const selfMod = selfModifier;
+
     new Dialog({
-      title: "Render Aid",
+      title: `Render Aid - ${targetActor.name}`,
       content: content,
       buttons: {
         roll: {
@@ -1016,8 +1048,8 @@ export class MechFoundryActorSheet extends ActorSheet {
               }
             }
 
-            // Roll MedTech check
-            const totalSkill = medtechLevel + attr1Value + bonus;
+            // Roll MedTech check (includes self-modifier if applicable)
+            const totalSkill = medtechLevel + attr1Value + bonus + selfMod;
             const roll = new Roll('2d6');
             await roll.evaluate();
             const result = roll.total + totalSkill;
@@ -1033,35 +1065,37 @@ export class MechFoundryActorSheet extends ActorSheet {
             if (actionType === 'firstAid') {
               if (success) {
                 const healAmount = Math.max(1, Math.floor(mos / 2));
-                const currentDamage = this.actor.system.damage.value;
+                const currentDamage = targetActorRef.system.damage.value;
                 const newDamage = Math.max(0, currentDamage - healAmount);
-                await this.actor.update({
+                await targetActorRef.update({
                   'system.damage.value': newDamage,
                   'system.firstAidUsedThisCombat': true
                 });
-                actionResult = `<br><strong>Healed ${healAmount} damage!</strong> (${currentDamage} → ${newDamage})`;
+                actionResult = `<br><strong>Healed ${healAmount} damage on ${targetActorRef.name}!</strong> (${currentDamage} → ${newDamage})`;
               } else {
-                await this.actor.update({'system.firstAidUsedThisCombat': true});
+                await targetActorRef.update({'system.firstAidUsedThisCombat': true});
                 actionResult = '<br>First Aid failed. No healing.';
               }
             } else if (actionType === 'stabilize') {
               if (success) {
-                await this.actor.update({
+                await targetActorRef.update({
                   'system.bleeding': false,
                   'system.stabilized': true
                 });
-                actionResult = '<br><strong>Patient stabilized!</strong> Bleeding stopped.';
+                actionResult = `<br><strong>${targetActorRef.name} stabilized!</strong> Bleeding stopped.`;
               } else {
                 actionResult = '<br>Stabilization failed. Patient still bleeding.';
               }
             }
 
             // Create chat message
+            const selfText = selfMod ? ' (Self -2)' : '';
             const messageContent = `
               <div class="mech-foundry roll-result">
                 <h3>Render Aid: ${actionType === 'firstAid' ? 'First Aid' : 'Stabilize'}</h3>
                 <div class="roll-details">
-                  <span class="roll-formula">2d6 + ${totalSkill} (MedTech${bonus ? ` +${bonus} item` : ''})</span>
+                  <span class="roll-target-name">Patient: ${targetActorRef.name}</span>
+                  <span class="roll-formula">2d6 + ${totalSkill} (MedTech${bonus ? ` +${bonus} item` : ''}${selfText})</span>
                   <span class="roll-result">${roll.total} + ${totalSkill} = <strong>${result}</strong></span>
                   <span class="roll-target">TN: ${targetNumber}</span>
                   <span class="roll-mos ${success ? 'success' : 'failure'}">MoS: ${mos} - ${success ? 'SUCCESS' : 'FAILURE'}</span>
@@ -1087,25 +1121,51 @@ export class MechFoundryActorSheet extends ActorSheet {
 
   /**
    * Open Surgery dialog for healing wounds
+   * Targets: Targeted creature only (cannot perform surgery on self)
    * @param {Event} event
    * @private
    */
   async _onSurgery(event) {
     event.preventDefault();
 
-    const wounds = this.actor.system.wounds || [];
+    // Get target - must be a targeted token, cannot be self
+    const targets = Array.from(game.user.targets);
+
+    if (targets.length === 0) {
+      ui.notifications.warn("Please target a creature for Surgery. You cannot perform surgery on yourself.");
+      return;
+    }
+
+    if (targets.length > 1) {
+      ui.notifications.warn("Please target exactly one creature for Surgery.");
+      return;
+    }
+
+    const targetActor = targets[0].actor;
+
+    if (!targetActor) {
+      ui.notifications.warn("No valid target for Surgery.");
+      return;
+    }
+
+    if (targetActor.id === this.actor.id) {
+      ui.notifications.warn("You cannot perform surgery on yourself.");
+      return;
+    }
+
+    const wounds = targetActor.system.wounds || [];
 
     if (wounds.length === 0) {
-      ui.notifications.warn("No wounds to treat with surgery.");
+      ui.notifications.warn(`${targetActor.name} has no wounds to treat with surgery.`);
       return;
     }
 
-    if (!this.actor.system.stabilized && this.actor.system.bleeding) {
-      ui.notifications.warn("Patient must be stabilized before surgery can be performed.");
+    if (!targetActor.system.stabilized && targetActor.system.bleeding) {
+      ui.notifications.warn(`${targetActor.name} must be stabilized before surgery can be performed.`);
       return;
     }
 
-    // Get surgery skill for this actor
+    // Get surgery skill for this actor (the one performing surgery)
     const surgerySkill = this.actor.items.find(i => i.type === 'skill' && i.name.toLowerCase().includes('surgery'));
     const surgeryLevel = surgerySkill?.system?.level || 0;
     const linkedAttr1 = surgerySkill?.system?.linkedAttribute1 || 'int';
@@ -1125,14 +1185,29 @@ export class MechFoundryActorSheet extends ActorSheet {
       healthcareOptions += `<option value="${item.id}">${item.name}${bonus}${charges}</option>`;
     }
 
+    // Wound type names
+    const woundNames = {
+      dazed: 'Dazed',
+      deafened: 'Deafened',
+      blinded: 'Blinded',
+      internalDamage: 'Internal Damage',
+      shatteredLimb: 'Shattered Limb'
+    };
+
     // Build wound selection
     let woundOptions = '';
     wounds.forEach((wound, index) => {
-      woundOptions += `<option value="${index}">${wound.damage} damage - ${wound.source || 'Unknown'}</option>`;
+      const woundTypeName = woundNames[wound.type] || wound.type;
+      const locationText = wound.location ? ` (${wound.location})` : '';
+      woundOptions += `<option value="${index}">${woundTypeName}${locationText}</option>`;
     });
 
     const content = `
       <form>
+        <div class="form-group">
+          <label>Patient</label>
+          <span><strong>${targetActor.name}</strong></span>
+        </div>
         <div class="form-group">
           <label>Wound to Treat</label>
           <select name="woundIndex">${woundOptions}</select>
@@ -1147,13 +1222,16 @@ export class MechFoundryActorSheet extends ActorSheet {
         </div>
         <p class="hint">
           <strong>Surgery:</strong> ${surgeryLevel}+${attr1Value} = ${surgeryLevel + attr1Value}<br>
-          Success completely heals the selected wound.
+          Success removes the selected wound effect.
         </p>
       </form>
     `;
 
+    const targetActorRef = targetActor;
+    const woundsRef = wounds;
+
     new Dialog({
-      title: "Surgery",
+      title: `Surgery - ${targetActor.name}`,
       content: content,
       buttons: {
         roll: {
@@ -1187,23 +1265,13 @@ export class MechFoundryActorSheet extends ActorSheet {
             }
 
             let actionResult = '';
-            const wound = wounds[woundIndex];
+            const wound = woundsRef[woundIndex];
+            const woundTypeName = woundNames[wound.type] || wound.type;
 
             if (success) {
-              // Remove the wound from the array
-              const newWounds = [...wounds];
-              newWounds.splice(woundIndex, 1);
-
-              // Reduce damage by wound amount
-              const currentDamage = this.actor.system.damage.value;
-              const newDamage = Math.max(0, currentDamage - wound.damage);
-
-              await this.actor.update({
-                'system.wounds': newWounds,
-                'system.damage.value': newDamage
-              });
-
-              actionResult = `<br><strong>Wound healed!</strong> Removed ${wound.damage} damage.`;
+              // Remove the wound using the actor method
+              await targetActorRef.healWound(woundIndex);
+              actionResult = `<br><strong>Surgery successful!</strong> ${woundTypeName} wound removed from ${targetActorRef.name}.`;
             } else {
               actionResult = '<br>Surgery failed. Wound remains.';
             }
@@ -1213,6 +1281,7 @@ export class MechFoundryActorSheet extends ActorSheet {
               <div class="mech-foundry roll-result">
                 <h3>Surgery</h3>
                 <div class="roll-details">
+                  <span class="roll-target-name">Patient: ${targetActorRef.name}</span>
                   <span class="roll-formula">2d6 + ${totalSkill} (Surgery${bonus ? ` +${bonus} item` : ''})</span>
                   <span class="roll-result">${roll.total} + ${totalSkill} = <strong>${result}</strong></span>
                   <span class="roll-target">TN: ${targetNumber}</span>
@@ -1238,7 +1307,7 @@ export class MechFoundryActorSheet extends ActorSheet {
   }
 
   /**
-   * Handle heal wound button click
+   * Handle heal wound button click (manual GM/owner removal)
    * @param {Event} event
    * @private
    */
@@ -1254,31 +1323,32 @@ export class MechFoundryActorSheet extends ActorSheet {
 
     const wound = wounds[woundIndex];
 
+    // Wound type names
+    const woundNames = {
+      dazed: 'Dazed',
+      deafened: 'Deafened',
+      blinded: 'Blinded',
+      internalDamage: 'Internal Damage',
+      shatteredLimb: 'Shattered Limb'
+    };
+
+    const woundTypeName = woundNames[wound.type] || wound.type;
+    const locationText = wound.location ? ` (${wound.location})` : '';
+
     // Confirm dialog
     const confirmed = await Dialog.confirm({
       title: "Heal Wound",
-      content: `<p>Are you sure you want to heal this wound (${wound.damage} damage from ${wound.source || 'Unknown'})?</p>
-                <p>This will remove the wound and reduce damage by ${wound.damage}.</p>`,
+      content: `<p>Are you sure you want to heal this wound?</p>
+                <p><strong>${woundTypeName}${locationText}</strong></p>
+                <p>This will remove the wound effect.</p>`,
       yes: () => true,
       no: () => false
     });
 
     if (!confirmed) return;
 
-    // Remove the wound
-    const newWounds = [...wounds];
-    newWounds.splice(woundIndex, 1);
-
-    // Reduce damage
-    const currentDamage = this.actor.system.damage.value;
-    const newDamage = Math.max(0, currentDamage - wound.damage);
-
-    await this.actor.update({
-      'system.wounds': newWounds,
-      'system.damage.value': newDamage
-    });
-
-    ui.notifications.info(`Healed wound: ${wound.damage} damage from ${wound.source || 'Unknown'}`);
+    // Remove the wound using the actor method
+    await this.actor.healWound(woundIndex);
   }
 
   /**

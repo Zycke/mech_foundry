@@ -409,16 +409,22 @@
             <div class="medical-subpanel status-subpanel">
               <h4 class="subsection-title">Status</h4>
 
-              {{!-- Wounds List --}}
+              {{!-- Wounds List (Critical Hit Effects) --}}
               <div class="wounds-section">
                 <label>Wounds</label>
                 {{#if system.wounds.length}}
                 <div class="wounds-list">
                   {{#each system.wounds}}
-                  <div class="wound-item" data-wound-index="{{@index}}">
-                    <span class="wound-damage">{{this.damage}} damage</span>
-                    <span class="wound-source">{{this.source}}</span>
-                    <a class="heal-wound" data-wound-index="{{@index}}" title="Heal this wound"><i class="fas fa-band-aid"></i></a>
+                  <div class="wound-item wound-{{this.type}}" data-wound-index="{{@index}}">
+                    <span class="wound-type">
+                      {{#if (eq this.type "dazed")}}<i class="fas fa-dizzy"></i> Dazed{{/if}}
+                      {{#if (eq this.type "deafened")}}<i class="fas fa-deaf"></i> Deafened{{/if}}
+                      {{#if (eq this.type "blinded")}}<i class="fas fa-eye-slash"></i> Blinded{{/if}}
+                      {{#if (eq this.type "internalDamage")}}<i class="fas fa-heartbeat"></i> Internal Damage{{/if}}
+                      {{#if (eq this.type "shatteredLimb")}}<i class="fas fa-bone"></i> Shattered Limb{{/if}}
+                    </span>
+                    {{#if this.location}}<span class="wound-location">({{this.location}})</span>{{/if}}
+                    <a class="heal-wound" data-wound-index="{{@index}}" title="Heal this wound (Surgery)"><i class="fas fa-syringe"></i></a>
                   </div>
                   {{/each}}
                 </div>

@@ -696,40 +696,52 @@ export class OpposedRollHelper {
     const effects = {
       1: {
         name: 'Dazed',
+        type: 'dazed',
         description: 'Character suffers 1D6 additional Fatigue damage points',
         automated: true,
-        fatigueRoll: true
+        fatigueRoll: true,
+        isWound: true
       },
       2: {
         name: 'Deafened',
+        type: 'deafened',
         description: 'Character suffers critical damage to ear equal to Level 3 Poor Hearing (see p. 122)',
         automated: false,
-        note: 'Surgery Skill required to stabilize/repair; apply -2 modifier to all Surgery Checks'
+        note: 'Surgery Skill required to stabilize/repair; apply -2 modifier to all Surgery Checks',
+        isWound: true
       },
       3: {
         name: 'Blinded',
+        type: 'blinded',
         description: 'Character suffers critical damage to eye equal to Level 3 Poor Vision (see p. 122)',
         automated: false,
-        note: 'Surgery Skill required to stabilize/repair; apply -2 modifier to all Surgery Checks'
+        note: 'Surgery Skill required to stabilize/repair; apply -2 modifier to all Surgery Checks',
+        isWound: true
       },
       4: {
         name: 'Internal Damage',
+        type: 'internalDamage',
         description: 'Character suffers 1D6 additional Standard damage points (check for bleeding)',
         automated: true,
         standardRoll: true,
-        note: 'Check for bleeding'
+        note: 'Check for bleeding',
+        isWound: true
       },
       5: {
         name: 'Knockdown',
+        type: 'knockdown',
         description: 'Character must make a RFL Attribute Check to avoid falling, applying Injury modifiers',
         automated: false,
-        note: 'RFL Attribute Check required to avoid falling'
+        note: 'RFL Attribute Check required to avoid falling',
+        isWound: false
       },
       6: {
         name: 'Shattered Limb',
+        type: 'shatteredLimb',
         description: 'Character cannot use the affected limb (check for bleeding)',
         automated: false,
-        note: 'Check for bleeding; affected limb cannot be used'
+        note: 'Check for bleeding; affected limb cannot be used',
+        isWound: true
       }
     };
 

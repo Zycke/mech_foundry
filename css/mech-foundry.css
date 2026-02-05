@@ -3755,20 +3755,43 @@
   font-size: 0.85em;
 }
 
-.mech-foundry .wound-damage {
+.mech-foundry .wound-type {
   font-weight: 600;
   color: var(--mf-danger);
 }
 
-.mech-foundry .wound-source {
+.mech-foundry .wound-type i {
+  margin-right: 4px;
+}
+
+.mech-foundry .wound-location {
   flex: 1;
   color: #666;
   font-style: italic;
 }
 
+.mech-foundry .wound-item.wound-dazed {
+  background: rgba(213, 163, 52, 0.15);
+  border-color: rgba(213, 163, 52, 0.4);
+}
+
+.mech-foundry .wound-item.wound-dazed .wound-type {
+  color: var(--mf-warning);
+}
+
+.mech-foundry .wound-item.wound-blinded {
+  background: rgba(100, 100, 100, 0.15);
+  border-color: rgba(100, 100, 100, 0.4);
+}
+
+.mech-foundry .wound-item.wound-blinded .wound-type {
+  color: #555;
+}
+
 .mech-foundry .heal-wound {
-  color: var(--mf-success);
+  color: var(--mf-secondary);
   cursor: pointer;
+  margin-left: auto;
 }
 
 .mech-foundry .heal-wound:hover {
