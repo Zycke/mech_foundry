@@ -191,6 +191,15 @@ export class MechFoundryActor extends Actor {
     const fatigueDiff = (systemData.fatigue?.value || 0) - wil;
     systemData.fatigueModifier = fatigueDiff > 0 ? -fatigueDiff : 0;
 
+    // Calculate Critical Injury threshold (>75% of damage capacity)
+    const criticalThreshold = Math.ceil(systemData.damageCapacity * 0.75);
+    systemData.criticalThreshold = criticalThreshold;
+
+    // Auto-set dying if damage exceeds capacity (can only be removed by stabilization)
+    if ((systemData.damage?.value || 0) > systemData.damageCapacity) {
+      systemData.dying = true;
+    }
+
     // Current Edge (total - burned)
     if (systemData.attributes.edg) {
       systemData.attributes.edg.current =
@@ -1560,11 +1569,42 @@ export class MechFoundryActor extends Actor {
       const newDamage = (this.system.damage.value || 0) + finalDamage;
       // Standard damage also causes 1 Fatigue
       const newFatigue = (this.system.fatigue.value || 0) + 1;
+
+      // Create wound entry
+      const wounds = [...(this.system.wounds || [])];
+      const woundSource = location ? `Attack (${location})` : 'Attack';
+      wounds.push({
+        damage: finalDamage,
+        source: woundSource,
+        timestamp: Date.now()
+      });
+
+      // Check if this damage causes critical injury (>75% capacity)
+      const criticalThreshold = Math.ceil(this.system.damageCapacity * 0.75);
+      const wasCriticallyInjured = this.system.criticallyInjured || false;
+      const isCriticallyInjured = newDamage >= criticalThreshold;
+
+      // Check if dying (damage exceeds capacity)
+      const isDying = newDamage > this.system.damageCapacity;
+
       await this.update({
         "system.damage.value": newDamage,
         "system.fatigue.value": newFatigue,
-        "system.stun": true
+        "system.stun": true,
+        "system.wounds": wounds,
+        "system.criticallyInjured": isCriticallyInjured,
+        "system.dying": isDying
       });
+
+      // If just became critically injured, trigger consciousness check
+      if (isCriticallyInjured && !wasCriticallyInjured) {
+        ui.notifications.warn(`${this.name} is critically injured! Consciousness check required.`);
+      }
+
+      // If dying, notify
+      if (isDying) {
+        ui.notifications.error(`${this.name} is dying! Stabilization required immediately.`);
+      }
 
       // Check for bleeding: if standard damage >= ceil(BOD/2) and not already bleeding
       await this._checkBleedingFromDamage(finalDamage);

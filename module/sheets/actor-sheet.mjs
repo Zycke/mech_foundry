@@ -691,6 +691,11 @@ export class MechFoundryActorSheet extends ActorSheet {
     // Item Effect toggle (for toggleable effects from equipped items)
     html.on('change', '.item-effect-toggle', this._onItemEffectToggle.bind(this));
 
+    // Medical actions
+    html.on('click', '.render-aid', this._onRenderAid.bind(this));
+    html.on('click', '.surgery', this._onSurgery.bind(this));
+    html.on('click', '.heal-wound', this._onHealWound.bind(this));
+
     // Drag events for macros
     if (this.actor.isOwner) {
       let handler = (ev) => this._onDragStart(ev);
@@ -932,6 +937,348 @@ export class MechFoundryActorSheet extends ActorSheet {
   async _onConsciousnessCheck(event) {
     event.preventDefault();
     return this.actor.rollConsciousness();
+  }
+
+  /**
+   * Open Render Aid dialog for First Aid or Stabilize
+   * @param {Event} event
+   * @private
+   */
+  async _onRenderAid(event) {
+    event.preventDefault();
+
+    // Get medtech skill for this actor
+    const medtechSkill = this.actor.items.find(i => i.type === 'skill' && i.name.toLowerCase().includes('medtech'));
+    const medtechLevel = medtechSkill?.system?.level || 0;
+    const linkedAttr1 = medtechSkill?.system?.linkedAttribute1 || 'int';
+    const attr1Value = this.actor.system.attributes[linkedAttr1]?.total || 0;
+
+    // Get healthcare items for bonuses
+    const healthcareItems = this.actor.items.filter(i =>
+      i.type === 'healthcare' &&
+      i.system.carryStatus === 'carried' &&
+      (i.system.charges.max === 0 || i.system.charges.value > 0)
+    );
+
+    let healthcareOptions = '<option value="">None</option>';
+    for (const item of healthcareItems) {
+      const charges = item.system.charges.max > 0 ? ` (${item.system.charges.value}/${item.system.charges.max})` : '';
+      const bonus = item.system.medTechBonus ? ` [+${item.system.medTechBonus}]` : '';
+      healthcareOptions += `<option value="${item.id}">${item.name}${bonus}${charges}</option>`;
+    }
+
+    // Check if first aid already used this combat
+    const firstAidUsed = this.actor.system.firstAidUsedThisCombat || false;
+
+    const content = `
+      <form>
+        <div class="form-group">
+          <label>Action Type</label>
+          <select name="actionType">
+            <option value="firstAid" ${firstAidUsed ? 'disabled' : ''}>First Aid${firstAidUsed ? ' (Used this combat)' : ''}</option>
+            <option value="stabilize">Stabilize</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Healthcare Item</label>
+          <select name="healthcareItem">${healthcareOptions}</select>
+        </div>
+        <div class="form-group">
+          <label>Target Number</label>
+          <input type="number" name="targetNumber" value="7"/>
+        </div>
+        <p class="hint">
+          <strong>MedTech:</strong> ${medtechLevel}+${attr1Value} = ${medtechLevel + attr1Value}<br>
+          <strong>First Aid:</strong> Heal MoS/2 damage (once per combat per patient)<br>
+          <strong>Stabilize:</strong> Stops bleeding, required before surgery
+        </p>
+      </form>
+    `;
+
+    new Dialog({
+      title: "Render Aid",
+      content: content,
+      buttons: {
+        roll: {
+          label: "Roll MedTech",
+          callback: async (html) => {
+            const actionType = html.find('[name="actionType"]').val();
+            const healthcareItemId = html.find('[name="healthcareItem"]').val();
+            const targetNumber = parseInt(html.find('[name="targetNumber"]').val()) || 7;
+
+            // Get healthcare item bonus if selected
+            let bonus = 0;
+            let healthcareItem = null;
+            if (healthcareItemId) {
+              healthcareItem = this.actor.items.get(healthcareItemId);
+              if (healthcareItem) {
+                bonus = healthcareItem.system.medTechBonus || 0;
+              }
+            }
+
+            // Roll MedTech check
+            const totalSkill = medtechLevel + attr1Value + bonus;
+            const roll = new Roll('2d6');
+            await roll.evaluate();
+            const result = roll.total + totalSkill;
+            const mos = result - targetNumber;
+            const success = mos >= 0;
+
+            // Consume healthcare charge if applicable
+            if (healthcareItem && healthcareItem.system.charges.max > 0) {
+              await healthcareItem.update({'system.charges.value': Math.max(0, healthcareItem.system.charges.value - 1)});
+            }
+
+            let actionResult = '';
+            if (actionType === 'firstAid') {
+              if (success) {
+                const healAmount = Math.max(1, Math.floor(mos / 2));
+                const currentDamage = this.actor.system.damage.value;
+                const newDamage = Math.max(0, currentDamage - healAmount);
+                await this.actor.update({
+                  'system.damage.value': newDamage,
+                  'system.firstAidUsedThisCombat': true
+                });
+                actionResult = `<br><strong>Healed ${healAmount} damage!</strong> (${currentDamage} → ${newDamage})`;
+              } else {
+                await this.actor.update({'system.firstAidUsedThisCombat': true});
+                actionResult = '<br>First Aid failed. No healing.';
+              }
+            } else if (actionType === 'stabilize') {
+              if (success) {
+                await this.actor.update({
+                  'system.bleeding': false,
+                  'system.stabilized': true
+                });
+                actionResult = '<br><strong>Patient stabilized!</strong> Bleeding stopped.';
+              } else {
+                actionResult = '<br>Stabilization failed. Patient still bleeding.';
+              }
+            }
+
+            // Create chat message
+            const messageContent = `
+              <div class="mech-foundry roll-result">
+                <h3>Render Aid: ${actionType === 'firstAid' ? 'First Aid' : 'Stabilize'}</h3>
+                <div class="roll-details">
+                  <span class="roll-formula">2d6 + ${totalSkill} (MedTech${bonus ? ` +${bonus} item` : ''})</span>
+                  <span class="roll-result">${roll.total} + ${totalSkill} = <strong>${result}</strong></span>
+                  <span class="roll-target">TN: ${targetNumber}</span>
+                  <span class="roll-mos ${success ? 'success' : 'failure'}">MoS: ${mos} - ${success ? 'SUCCESS' : 'FAILURE'}</span>
+                  ${actionResult}
+                </div>
+              </div>
+            `;
+
+            ChatMessage.create({
+              speaker: ChatMessage.getSpeaker({ actor: this.actor }),
+              content: messageContent,
+              rolls: [roll]
+            });
+          }
+        },
+        cancel: {
+          label: "Cancel"
+        }
+      },
+      default: "roll"
+    }).render(true);
+  }
+
+  /**
+   * Open Surgery dialog for healing wounds
+   * @param {Event} event
+   * @private
+   */
+  async _onSurgery(event) {
+    event.preventDefault();
+
+    const wounds = this.actor.system.wounds || [];
+
+    if (wounds.length === 0) {
+      ui.notifications.warn("No wounds to treat with surgery.");
+      return;
+    }
+
+    if (!this.actor.system.stabilized && this.actor.system.bleeding) {
+      ui.notifications.warn("Patient must be stabilized before surgery can be performed.");
+      return;
+    }
+
+    // Get surgery skill for this actor
+    const surgerySkill = this.actor.items.find(i => i.type === 'skill' && i.name.toLowerCase().includes('surgery'));
+    const surgeryLevel = surgerySkill?.system?.level || 0;
+    const linkedAttr1 = surgerySkill?.system?.linkedAttribute1 || 'int';
+    const attr1Value = this.actor.system.attributes[linkedAttr1]?.total || 0;
+
+    // Get healthcare items for surgery bonuses
+    const healthcareItems = this.actor.items.filter(i =>
+      i.type === 'healthcare' &&
+      i.system.carryStatus === 'carried' &&
+      (i.system.charges.max === 0 || i.system.charges.value > 0)
+    );
+
+    let healthcareOptions = '<option value="">None</option>';
+    for (const item of healthcareItems) {
+      const charges = item.system.charges.max > 0 ? ` (${item.system.charges.value}/${item.system.charges.max})` : '';
+      const bonus = item.system.surgeryBonus ? ` [+${item.system.surgeryBonus}]` : '';
+      healthcareOptions += `<option value="${item.id}">${item.name}${bonus}${charges}</option>`;
+    }
+
+    // Build wound selection
+    let woundOptions = '';
+    wounds.forEach((wound, index) => {
+      woundOptions += `<option value="${index}">${wound.damage} damage - ${wound.source || 'Unknown'}</option>`;
+    });
+
+    const content = `
+      <form>
+        <div class="form-group">
+          <label>Wound to Treat</label>
+          <select name="woundIndex">${woundOptions}</select>
+        </div>
+        <div class="form-group">
+          <label>Healthcare Item</label>
+          <select name="healthcareItem">${healthcareOptions}</select>
+        </div>
+        <div class="form-group">
+          <label>Target Number</label>
+          <input type="number" name="targetNumber" value="7"/>
+        </div>
+        <p class="hint">
+          <strong>Surgery:</strong> ${surgeryLevel}+${attr1Value} = ${surgeryLevel + attr1Value}<br>
+          Success completely heals the selected wound.
+        </p>
+      </form>
+    `;
+
+    new Dialog({
+      title: "Surgery",
+      content: content,
+      buttons: {
+        roll: {
+          label: "Roll Surgery",
+          callback: async (html) => {
+            const woundIndex = parseInt(html.find('[name="woundIndex"]').val());
+            const healthcareItemId = html.find('[name="healthcareItem"]').val();
+            const targetNumber = parseInt(html.find('[name="targetNumber"]').val()) || 7;
+
+            // Get healthcare item bonus if selected
+            let bonus = 0;
+            let healthcareItem = null;
+            if (healthcareItemId) {
+              healthcareItem = this.actor.items.get(healthcareItemId);
+              if (healthcareItem) {
+                bonus = healthcareItem.system.surgeryBonus || 0;
+              }
+            }
+
+            // Roll Surgery check
+            const totalSkill = surgeryLevel + attr1Value + bonus;
+            const roll = new Roll('2d6');
+            await roll.evaluate();
+            const result = roll.total + totalSkill;
+            const mos = result - targetNumber;
+            const success = mos >= 0;
+
+            // Consume healthcare charge if applicable
+            if (healthcareItem && healthcareItem.system.charges.max > 0) {
+              await healthcareItem.update({'system.charges.value': Math.max(0, healthcareItem.system.charges.value - 1)});
+            }
+
+            let actionResult = '';
+            const wound = wounds[woundIndex];
+
+            if (success) {
+              // Remove the wound from the array
+              const newWounds = [...wounds];
+              newWounds.splice(woundIndex, 1);
+
+              // Reduce damage by wound amount
+              const currentDamage = this.actor.system.damage.value;
+              const newDamage = Math.max(0, currentDamage - wound.damage);
+
+              await this.actor.update({
+                'system.wounds': newWounds,
+                'system.damage.value': newDamage
+              });
+
+              actionResult = `<br><strong>Wound healed!</strong> Removed ${wound.damage} damage.`;
+            } else {
+              actionResult = '<br>Surgery failed. Wound remains.';
+            }
+
+            // Create chat message
+            const messageContent = `
+              <div class="mech-foundry roll-result">
+                <h3>Surgery</h3>
+                <div class="roll-details">
+                  <span class="roll-formula">2d6 + ${totalSkill} (Surgery${bonus ? ` +${bonus} item` : ''})</span>
+                  <span class="roll-result">${roll.total} + ${totalSkill} = <strong>${result}</strong></span>
+                  <span class="roll-target">TN: ${targetNumber}</span>
+                  <span class="roll-mos ${success ? 'success' : 'failure'}">MoS: ${mos} - ${success ? 'SUCCESS' : 'FAILURE'}</span>
+                  ${actionResult}
+                </div>
+              </div>
+            `;
+
+            ChatMessage.create({
+              speaker: ChatMessage.getSpeaker({ actor: this.actor }),
+              content: messageContent,
+              rolls: [roll]
+            });
+          }
+        },
+        cancel: {
+          label: "Cancel"
+        }
+      },
+      default: "roll"
+    }).render(true);
+  }
+
+  /**
+   * Handle heal wound button click
+   * @param {Event} event
+   * @private
+   */
+  async _onHealWound(event) {
+    event.preventDefault();
+    const woundIndex = parseInt(event.currentTarget.dataset.woundIndex);
+    const wounds = this.actor.system.wounds || [];
+
+    if (woundIndex < 0 || woundIndex >= wounds.length) {
+      ui.notifications.error("Invalid wound index.");
+      return;
+    }
+
+    const wound = wounds[woundIndex];
+
+    // Confirm dialog
+    const confirmed = await Dialog.confirm({
+      title: "Heal Wound",
+      content: `<p>Are you sure you want to heal this wound (${wound.damage} damage from ${wound.source || 'Unknown'})?</p>
+                <p>This will remove the wound and reduce damage by ${wound.damage}.</p>`,
+      yes: () => true,
+      no: () => false
+    });
+
+    if (!confirmed) return;
+
+    // Remove the wound
+    const newWounds = [...wounds];
+    newWounds.splice(woundIndex, 1);
+
+    // Reduce damage
+    const currentDamage = this.actor.system.damage.value;
+    const newDamage = Math.max(0, currentDamage - wound.damage);
+
+    await this.actor.update({
+      'system.wounds': newWounds,
+      'system.damage.value': newDamage
+    });
+
+    ui.notifications.info(`Healed wound: ${wound.damage} damage from ${wound.source || 'Unknown'}`);
   }
 
   /**

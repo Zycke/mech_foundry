@@ -3631,9 +3631,216 @@
 
 
 /* ========================================
-   Status Panel Styles
+   Stance Panel Styles
    ======================================== */
 
+.mech-foundry .stance-panel {
+  margin-bottom: 8px;
+}
+
+.mech-foundry .stance-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mech-foundry .stance-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mech-foundry .stance-field label {
+  font-weight: 600;
+  font-size: 0.9em;
+  min-width: 45px;
+}
+
+.mech-foundry .stance-field .cover-select {
+  flex: 1;
+}
+
+.mech-foundry .stance-toggles {
+  display: flex;
+  gap: 10px;
+}
+
+.mech-foundry .stance-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border: 1px solid var(--mf-border);
+  border-radius: var(--mf-border-radius);
+  cursor: pointer;
+  font-size: 0.9em;
+  font-weight: 500;
+  background: var(--mf-bg-light);
+  transition: all 0.2s;
+  flex: 1;
+  justify-content: center;
+}
+
+.mech-foundry .stance-toggle input[type="checkbox"] {
+  display: none;
+}
+
+.mech-foundry .stance-toggle:hover {
+  border-color: var(--mf-primary);
+}
+
+.mech-foundry .stance-toggle.active {
+  border-color: var(--mf-secondary);
+  background: rgba(87, 131, 123, 0.15);
+  color: var(--mf-secondary);
+}
+
+.mech-foundry .stance-toggle i {
+  width: 14px;
+  text-align: center;
+}
+
+/* ========================================
+   Medical Panel Styles
+   ======================================== */
+
+.mech-foundry .medical-panel {
+  margin-bottom: 8px;
+}
+
+.mech-foundry .medical-subpanel {
+  margin-bottom: 12px;
+  padding: 8px;
+  background: rgba(0, 0, 0, 0.03);
+  border-radius: var(--mf-border-radius);
+}
+
+.mech-foundry .subsection-title {
+  font-size: 0.85em;
+  font-weight: 600;
+  color: var(--mf-secondary);
+  margin: 0 0 8px 0;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--mf-border);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Wounds Section */
+.mech-foundry .wounds-section {
+  margin-bottom: 10px;
+}
+
+.mech-foundry .wounds-section > label {
+  font-weight: 600;
+  font-size: 0.85em;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.mech-foundry .wounds-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.mech-foundry .wound-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  background: rgba(196, 69, 54, 0.1);
+  border: 1px solid rgba(196, 69, 54, 0.3);
+  border-radius: var(--mf-border-radius);
+  font-size: 0.85em;
+}
+
+.mech-foundry .wound-damage {
+  font-weight: 600;
+  color: var(--mf-danger);
+}
+
+.mech-foundry .wound-source {
+  flex: 1;
+  color: #666;
+  font-style: italic;
+}
+
+.mech-foundry .heal-wound {
+  color: var(--mf-success);
+  cursor: pointer;
+}
+
+.mech-foundry .heal-wound:hover {
+  color: var(--mf-primary);
+}
+
+.mech-foundry .no-wounds {
+  font-size: 0.85em;
+  color: #666;
+  font-style: italic;
+}
+
+/* Medical Status Row */
+.mech-foundry .medical-status-row {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.mech-foundry .medical-status-row .status-toggle {
+  flex: 1;
+  font-size: 0.8em;
+  padding: 3px 6px;
+}
+
+.mech-foundry .status-toggle.critical.active {
+  border-color: var(--mf-warning);
+  background: rgba(213, 163, 52, 0.15);
+  color: var(--mf-warning);
+}
+
+.mech-foundry .status-toggle.stabilized.active {
+  border-color: var(--mf-success);
+  background: rgba(72, 128, 72, 0.15);
+  color: var(--mf-success);
+}
+
+.mech-foundry .status-toggle.dying.active {
+  border-color: var(--mf-danger);
+  background: rgba(196, 69, 54, 0.25);
+  color: var(--mf-danger);
+  font-weight: 700;
+}
+
+/* Medicine Sub-panel */
+.mech-foundry .medicine-actions {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.mech-foundry .medicine-actions button {
+  flex: 1;
+  padding: 6px 10px;
+  font-size: 0.85em;
+  background: var(--mf-secondary);
+  border: none;
+  border-radius: var(--mf-border-radius);
+  color: white;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.mech-foundry .medicine-actions button:hover {
+  background: var(--mf-primary);
+}
+
+.mech-foundry .medicine-actions button i {
+  margin-right: 4px;
+}
+
+/* Legacy Status Panel Styles (for backwards compatibility) */
 .mech-foundry .status-panel {
   margin-bottom: 8px;
 }
