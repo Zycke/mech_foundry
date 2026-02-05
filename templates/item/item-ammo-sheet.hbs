@@ -9,8 +9,8 @@
   </header>
 
   <nav class="sheet-tabs tabs" data-group="primary">
-    <a class="item" data-tab="details">{{localize "MECHFOUNDRY.Details"}}</a>
-    <a class="item" data-tab="description">{{localize "MECHFOUNDRY.Description"}}</a>
+    <a class="item" data-tab="details">Details</a>
+    <a class="item" data-tab="description">Description</a>
   </nav>
 
   <section class="sheet-body">
@@ -18,61 +18,61 @@
       {{!-- Ammo Category Selection --}}
       <div class="form-row">
         <div class="form-group">
-          <label>{{localize "MECHFOUNDRY.AmmoCategory"}}</label>
+          <label>Ammo Category</label>
           <select name="system.ammoCategory" class="ammo-category-select">
-            <option value="ballistics" {{#if (eq system.ammoCategory "ballistics")}}selected{{/if}}>{{localize "MECHFOUNDRY.AmmoCategoryBallistics"}}</option>
-            <option value="energy" {{#if (eq system.ammoCategory "energy")}}selected{{/if}}>{{localize "MECHFOUNDRY.AmmoCategoryEnergy"}}</option>
-            <option value="ordnance" {{#if (eq system.ammoCategory "ordnance")}}selected{{/if}}>{{localize "MECHFOUNDRY.AmmoCategoryOrdnance"}}</option>
+            <option value="ballistics" {{#if (eq system.ammoCategory "ballistics")}}selected{{/if}}>Ballistics</option>
+            <option value="energy" {{#if (eq system.ammoCategory "energy")}}selected{{/if}}>Energy</option>
+            <option value="ordnance" {{#if (eq system.ammoCategory "ordnance")}}selected{{/if}}>Ordnance</option>
           </select>
         </div>
         <div class="form-group">
-          <label>{{localize "MECHFOUNDRY.AmmoType"}}</label>
+          <label>Ammo Type</label>
           <input type="text" name="system.ammoType" value="{{system.ammoType}}" placeholder="e.g., Slug-Thrower, Power Pack"/>
         </div>
       </div>
 
       {{!-- Quantity --}}
-      <h3>{{localize "MECHFOUNDRY.Quantity"}}</h3>
+      <h3>Quantity</h3>
       <div class="form-row">
         <div class="form-group">
-          <label>{{localize "MECHFOUNDRY.Current"}}</label>
+          <label>Current</label>
           <input type="number" name="system.quantity.value" value="{{system.quantity.value}}" data-dtype="Number" min="0"/>
         </div>
         <div class="form-group">
-          <label>{{localize "MECHFOUNDRY.Max"}}</label>
+          <label>Max</label>
           <input type="number" name="system.quantity.max" value="{{system.quantity.max}}" data-dtype="Number" min="1"/>
         </div>
       </div>
 
       {{!-- Cost & Mass --}}
-      <h3>{{localize "MECHFOUNDRY.Cost"}} & {{localize "MECHFOUNDRY.Mass"}}</h3>
+      <h3>Cost & Mass</h3>
       <div class="form-row">
         <div class="form-group">
-          <label>{{localize "MECHFOUNDRY.Cost"}} (C-bills)</label>
+          <label>Cost (C-bills)</label>
           <input type="number" name="system.cost" value="{{system.cost}}" data-dtype="Number" min="0"/>
         </div>
         <div class="form-group">
-          <label>{{localize "MECHFOUNDRY.Mass"}} (kg)</label>
+          <label>Mass (kg)</label>
           <input type="number" name="system.mass" value="{{system.mass}}" data-dtype="Number" min="0" step="0.01"/>
         </div>
         <div class="form-group">
-          <label>{{localize "MECHFOUNDRY.CostMultiplier"}}</label>
+          <label>Cost Multiplier</label>
           <input type="number" name="system.costMultiplier" value="{{system.costMultiplier}}" data-dtype="Number" min="0" step="0.1"/>
         </div>
       </div>
 
       {{!-- Ballistics-specific fields --}}
       <div class="ammo-ballistics-section {{#unless (eq system.ammoCategory "ballistics")}}hidden{{/unless}}">
-        <h3>{{localize "MECHFOUNDRY.BallisticAmmo"}} Modifiers</h3>
+        <h3>Ballistic Ammunition Modifiers</h3>
         <div class="form-row">
           <div class="form-group">
-            <label>{{localize "MECHFOUNDRY.APModifier"}}</label>
+            <label>AP Modifier</label>
             <input type="number" name="system.apModifier" value="{{system.apModifier}}" data-dtype="Number"/>
           </div>
           <div class="form-group">
-            <label>{{localize "MECHFOUNDRY.APFactorOverride"}}</label>
+            <label>AP Factor Override</label>
             <select name="system.apFactorOverride">
-              <option value="" {{#unless system.apFactorOverride}}selected{{/unless}}>{{localize "MECHFOUNDRY.NoOverride"}}</option>
+              <option value="" {{#unless system.apFactorOverride}}selected{{/unless}}>-- No Override --</option>
               <option value="B" {{#if (eq system.apFactorOverride "B")}}selected{{/if}}>B - Ballistic</option>
               <option value="E" {{#if (eq system.apFactorOverride "E")}}selected{{/if}}>E - Energy</option>
               <option value="M" {{#if (eq system.apFactorOverride "M")}}selected{{/if}}>M - Melee</option>
@@ -83,13 +83,13 @@
         </div>
         <div class="form-row">
           <div class="form-group">
-            <label>{{localize "MECHFOUNDRY.BDModifier"}}</label>
+            <label>BD Modifier</label>
             <input type="number" name="system.bdModifier" value="{{system.bdModifier}}" data-dtype="Number"/>
           </div>
           <div class="form-group">
-            <label>{{localize "MECHFOUNDRY.BDFactorOverride"}}</label>
+            <label>BD Factor Override</label>
             <select name="system.bdFactorOverride">
-              <option value="" {{#unless system.bdFactorOverride}}selected{{/unless}}>{{localize "MECHFOUNDRY.NoOverride"}}</option>
+              <option value="" {{#unless system.bdFactorOverride}}selected{{/unless}}>-- No Override --</option>
               <option value="A" {{#if (eq system.bdFactorOverride "A")}}selected{{/if}}>A - Area-Effect</option>
               <option value="B" {{#if (eq system.bdFactorOverride "B")}}selected{{/if}}>B - Burst-Fire</option>
               <option value="C" {{#if (eq system.bdFactorOverride "C")}}selected{{/if}}>C - Continuous</option>
@@ -100,7 +100,7 @@
         </div>
         <div class="form-row">
           <div class="form-group">
-            <label>{{localize "MECHFOUNDRY.RangeModifier"}}</label>
+            <label>Range Modifier</label>
             <input type="number" name="system.rangeModifier" value="{{system.rangeModifier}}" data-dtype="Number" min="0" step="0.1" placeholder="1.0 = normal, 0.5 = half"/>
           </div>
         </div>
@@ -108,12 +108,12 @@
 
       {{!-- Energy-specific fields --}}
       <div class="ammo-energy-section {{#unless (eq system.ammoCategory "energy")}}hidden{{/unless}}">
-        <h3>{{localize "MECHFOUNDRY.PowerPacks"}}</h3>
+        <h3>Power Packs</h3>
         <div class="form-row">
           <div class="form-group checkbox-group">
             <label>
               <input type="checkbox" name="system.quickCharge" {{#if system.quickCharge}}checked{{/if}}/>
-              {{localize "MECHFOUNDRY.QuickCharge"}}
+              Quick Charge
             </label>
           </div>
         </div>
@@ -122,16 +122,16 @@
 
       {{!-- Ordnance-specific fields --}}
       <div class="ammo-ordnance-section {{#unless (eq system.ammoCategory "ordnance")}}hidden{{/unless}}">
-        <h3>{{localize "MECHFOUNDRY.Ordnance"}} Stats</h3>
+        <h3>Ordnance Stats</h3>
         <div class="form-row">
           <div class="form-group">
-            <label>{{localize "MECHFOUNDRY.OrdnanceAP"}}</label>
+            <label>Ordnance AP</label>
             <input type="number" name="system.ap" value="{{system.ap}}" data-dtype="Number"/>
           </div>
           <div class="form-group">
-            <label>{{localize "MECHFOUNDRY.DamageTypeOrdnance"}}</label>
+            <label>Damage Type</label>
             <select name="system.damageType">
-              <option value="" {{#unless system.damageType}}selected{{/unless}}>{{localize "MECHFOUNDRY.Select"}}</option>
+              <option value="" {{#unless system.damageType}}selected{{/unless}}>-- Select --</option>
               <option value="B" {{#if (eq system.damageType "B")}}selected{{/if}}>B - Ballistic</option>
               <option value="E" {{#if (eq system.damageType "E")}}selected{{/if}}>E - Energy</option>
               <option value="X" {{#if (eq system.damageType "X")}}selected{{/if}}>X - Explosive</option>
@@ -141,13 +141,13 @@
         </div>
         <div class="form-row">
           <div class="form-group">
-            <label>{{localize "MECHFOUNDRY.OrdnanceBD"}}</label>
+            <label>Ordnance BD</label>
             <input type="number" name="system.bd" value="{{system.bd}}" data-dtype="Number"/>
           </div>
           <div class="form-group">
-            <label>{{localize "MECHFOUNDRY.BDFactorOverride"}}</label>
+            <label>BD Factor Override</label>
             <select name="system.bdFactorOverride">
-              <option value="" {{#unless system.bdFactorOverride}}selected{{/unless}}>{{localize "MECHFOUNDRY.None"}}</option>
+              <option value="" {{#unless system.bdFactorOverride}}selected{{/unless}}>-- None --</option>
               <option value="A" {{#if (eq system.bdFactorOverride "A")}}selected{{/if}}>A - Area-Effect</option>
               <option value="C" {{#if (eq system.bdFactorOverride "C")}}selected{{/if}}>C - Continuous</option>
               <option value="S" {{#if (eq system.bdFactorOverride "S")}}selected{{/if}}>S - Splash</option>
@@ -157,9 +157,9 @@
       </div>
 
       {{!-- Weapon Compatibility Tags --}}
-      <h3>{{localize "MECHFOUNDRY.WeaponCompatibility"}}</h3>
+      <h3>Weapon Compatibility</h3>
       <div class="form-group full-width">
-        <label>{{localize "MECHFOUNDRY.CompatibilityTags"}}</label>
+        <label>Compatibility Tags</label>
         <div class="compatibility-tags">
           {{#each system.weaponCompatibility}}
           <div class="tag-item" data-index="{{@index}}">
@@ -167,13 +167,13 @@
             <a class="remove-tag" data-index="{{@index}}" title="Remove"><i class="fas fa-times"></i></a>
           </div>
           {{/each}}
-          <a class="add-tag" title="{{localize "MECHFOUNDRY.AddTag"}}"><i class="fas fa-plus"></i> {{localize "MECHFOUNDRY.AddTag"}}</a>
+          <a class="add-tag" title="Add Tag"><i class="fas fa-plus"></i> Add Tag</a>
         </div>
         <p class="hint">Tags like: slug-thrower, rifle, shotgun, energy, laser, grenade-launcher, mortar, gauss, gyrojet</p>
       </div>
 
       {{!-- Special Effects --}}
-      <h3>{{localize "MECHFOUNDRY.SpecialEffects"}}</h3>
+      <h3>Special Effects</h3>
       <div class="form-group full-width">
         <div class="special-effects-list">
           {{#each specialEffectOptions}}
@@ -190,7 +190,7 @@
 
       {{!-- Notes --}}
       <div class="form-group full-width">
-        <label>{{localize "MECHFOUNDRY.Notes"}}</label>
+        <label>Notes</label>
         <input type="text" name="system.notes" value="{{system.notes}}"/>
       </div>
     </div>

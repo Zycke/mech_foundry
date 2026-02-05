@@ -249,11 +249,25 @@ export class MechFoundryActorSheet extends ActorSheet {
       }
       else if (i.type === 'weapon') {
         // Add loaded ammo data for display
-        if (i.system.loadedAmmo) {
-          const loadedAmmoItem = this.actor.items.get(i.system.loadedAmmo);
+        if (i.system.loadedAmmo || i.system.loadedAmmoName) {
+          const loadedAmmoItem = i.system.loadedAmmo ? this.actor.items.get(i.system.loadedAmmo) : null;
           if (loadedAmmoItem) {
             i.loadedAmmoData = loadedAmmoItem.toObject(false);
             i.isEnergyWeapon = loadedAmmoItem.system.ammoCategory === 'energy';
+            // Calculate shots remaining for energy weapons
+            if (i.isEnergyWeapon && i.system.pps > 0) {
+              i.shotsRemaining = Math.floor(loadedAmmoItem.system.quantity.value / i.system.pps);
+            }
+          } else if (i.system.loadedAmmoName) {
+            // Fallback: use stored ammo info when item doesn't exist
+            i.loadedAmmoData = {
+              name: i.system.loadedAmmoName,
+              system: {
+                ammoCategory: i.system.loadedAmmoCategory,
+                quantity: { value: i.system.ammo?.value || 0, max: i.system.ammo?.max || 0 }
+              }
+            };
+            i.isEnergyWeapon = i.system.loadedAmmoCategory === 'energy';
           }
         }
         weapons.push(i);
@@ -1919,7 +1933,7 @@ export class MechFoundryActorSheet extends ActorSheet {
     const content = `
       <form>
         <div class="form-group">
-          <label>${game.i18n.localize('MECHFOUNDRY.LoadAmmo')}</label>
+          <label>Select Ammunition</label>
           <select name="ammoId">
             ${currentLoadedOption}
             ${ammoOptions}
@@ -1929,12 +1943,12 @@ export class MechFoundryActorSheet extends ActorSheet {
     `;
 
     new Dialog({
-      title: `${game.i18n.localize('MECHFOUNDRY.Reload')}: ${weapon.name}`,
+      title: `Load/Swap Ammo: ${weapon.name}`,
       content: content,
       buttons: {
         load: {
           icon: '<i class="fas fa-redo"></i>',
-          label: game.i18n.localize('MECHFOUNDRY.Reload'),
+          label: "Load",
           callback: async (html) => {
             const selectedAmmoId = html.find('[name="ammoId"]').val();
 
@@ -1949,7 +1963,7 @@ export class MechFoundryActorSheet extends ActorSheet {
         },
         cancel: {
           icon: '<i class="fas fa-times"></i>',
-          label: game.i18n.localize('Cancel')
+          label: "Cancel"
         }
       },
       default: "load"

@@ -158,6 +158,8 @@
       "reloadCost": 0,
       "reloadMass": 0,
       "loadedAmmo": null,
+      "loadedAmmoName": "",
+      "loadedAmmoCategory": "",
       "pps": 0,
       "ammoCompatibility": []
     },

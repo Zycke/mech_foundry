@@ -615,7 +615,8 @@
                   <td class="weapon-ammo">
                     {{#if this.loadedAmmoData}}
                       {{#if this.isEnergyWeapon}}
-                        <span class="ammo-count">{{this.loadedAmmoData.system.quantity.value}}/{{this.loadedAmmoData.system.quantity.max}} PP</span>
+                        <span class="ammo-count">{{this.shotsRemaining}} shots</span>
+                        <span class="ammo-power">({{this.loadedAmmoData.system.quantity.value}} PP)</span>
                       {{else}}
                         <span class="ammo-count">{{this.system.ammo.value}}/{{this.system.ammo.max}}</span>
                       {{/if}}
@@ -627,8 +628,11 @@
                     {{else}}—{{/if}}
                   </td>
                   <td class="item-controls">
+                    {{#if this.loadedAmmoData}}
+                    <a class="weapon-unload" data-item-id="{{this._id}}" title="Unload"><i class="fas fa-eject"></i></a>
+                    {{/if}}
                     {{#if (or this.system.ammo.max this.system.pps)}}
-                    <a class="weapon-reload" data-item-id="{{this._id}}" title="{{localize "MECHFOUNDRY.Reload"}}"><i class="fas fa-redo"></i></a>
+                    <a class="weapon-reload" data-item-id="{{this._id}}" title="Load/Swap Ammo"><i class="fas fa-redo"></i></a>
                     {{/if}}
                     <a class="item-edit" title="Edit"><i class="fas fa-edit"></i></a>
                   </td>
@@ -766,7 +770,7 @@
               <td class="weapon-ammo">
                 {{#if this.loadedAmmoData}}
                   {{#if this.isEnergyWeapon}}
-                    <span class="ammo-count">{{this.loadedAmmoData.system.quantity.value}}/{{this.loadedAmmoData.system.quantity.max}} PP</span>
+                    <span class="ammo-count">{{this.shotsRemaining}} shots ({{this.loadedAmmoData.system.quantity.value}} PP)</span>
                   {{else}}
                     <span class="ammo-count">{{this.system.ammo.value}}/{{this.system.ammo.max}}</span>
                   {{/if}}
@@ -792,7 +796,7 @@
       {{!-- Ammunition Category --}}
       {{#if inventory.ammo.length}}
       <div class="inventory-category ammo-category">
-        <h3 class="section-title">{{localize "MECHFOUNDRY.Ammunition"}}</h3>
+        <h3 class="section-title">Ammunition</h3>
         <table class="inventory-table centered-data">
           <thead>
             <tr>
@@ -808,9 +812,9 @@
             <tr class="item {{#unless this.isFull}}partial-ammo{{/unless}}" data-item-id="{{this._id}}">
               <td class="item-name">{{this.name}}</td>
               <td class="ammo-type-cell">
-                {{#if (eq this.system.ammoCategory "ballistics")}}{{localize "MECHFOUNDRY.AmmoCategoryBallistics"}}{{/if}}
-                {{#if (eq this.system.ammoCategory "energy")}}{{localize "MECHFOUNDRY.AmmoCategoryEnergy"}}{{/if}}
-                {{#if (eq this.system.ammoCategory "ordnance")}}{{localize "MECHFOUNDRY.AmmoCategoryOrdnance"}}{{/if}}
+                {{#if (eq this.system.ammoCategory "ballistics")}}Ballistics{{/if}}
+                {{#if (eq this.system.ammoCategory "energy")}}Energy{{/if}}
+                {{#if (eq this.system.ammoCategory "ordnance")}}Ordnance{{/if}}
               </td>
               <td class="ammo-quantity">
                 {{#if (eq this.system.ammoCategory "energy")}}

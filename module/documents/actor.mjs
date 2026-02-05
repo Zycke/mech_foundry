@@ -1977,7 +1977,11 @@ export class MechFoundryActor extends Actor {
     switch (ammoCategory) {
       case 'energy':
         // Link power pack to weapon (pack tracks its own PP)
-        await weapon.update({ 'system.loadedAmmo': ammoId });
+        await weapon.update({
+          'system.loadedAmmo': ammoId,
+          'system.loadedAmmoName': ammo.name,
+          'system.loadedAmmoCategory': 'energy'
+        });
         ui.notifications.info(
           `Attached ${ammo.name} to ${weapon.name} (${available} PP available).`
         );
@@ -1990,17 +1994,14 @@ export class MechFoundryActor extends Actor {
 
         await weapon.update({
           'system.loadedAmmo': ammoId,
+          'system.loadedAmmoName': ammo.name,
+          'system.loadedAmmoCategory': ammoCategory,
           'system.ammo.value': toLoad
         });
 
-        // Decrement source ammo stack
-        const remaining = available - toLoad;
-        if (remaining <= 0) {
-          // Delete the empty ammo item
-          await ammo.delete();
-        } else {
-          await ammo.update({ 'system.quantity.value': remaining });
-        }
+        // Decrement source ammo stack - keep at 0 if fully loaded, don't delete
+        const remaining = Math.max(0, available - toLoad);
+        await ammo.update({ 'system.quantity.value': remaining });
 
         ui.notifications.info(
           `Loaded ${toLoad} ${ammo.name} into ${weapon.name}.`
@@ -2031,7 +2032,12 @@ export class MechFoundryActor extends Actor {
     const loadedAmmo = this.items.get(loadedAmmoId);
     if (!loadedAmmo) {
       // Orphaned reference, just clear it
-      await weapon.update({ 'system.loadedAmmo': null, 'system.ammo.value': 0 });
+      await weapon.update({
+        'system.loadedAmmo': null,
+        'system.loadedAmmoName': '',
+        'system.loadedAmmoCategory': '',
+        'system.ammo.value': 0
+      });
       return;
     }
 
@@ -2071,6 +2077,8 @@ export class MechFoundryActor extends Actor {
     // Clear weapon's ammo reference
     await weapon.update({
       'system.loadedAmmo': null,
+      'system.loadedAmmoName': '',
+      'system.loadedAmmoCategory': '',
       'system.ammo.value': 0
     });
   }
