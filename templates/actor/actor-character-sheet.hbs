@@ -37,6 +37,19 @@
             <input type="text" name="system.personalData.eyes" value="{{system.personalData.eyes}}"/>
           </div>
           <div class="field">
+            <label>Size</label>
+            <select name="system.personalData.size">
+              <option value="monstrous" {{#if (eq system.personalData.size "monstrous")}}selected{{/if}}>Monstrous</option>
+              <option value="veryLarge" {{#if (eq system.personalData.size "veryLarge")}}selected{{/if}}>Very Large</option>
+              <option value="large" {{#if (eq system.personalData.size "large")}}selected{{/if}}>Large</option>
+              <option value="medium" {{#if (eq system.personalData.size "medium")}}selected{{/if}}>Medium</option>
+              <option value="small" {{#if (eq system.personalData.size "small")}}selected{{/if}}>Small</option>
+              <option value="verySmall" {{#if (eq system.personalData.size "verySmall")}}selected{{/if}}>Very Small</option>
+              <option value="extremelySmall" {{#if (eq system.personalData.size "extremelySmall")}}selected{{/if}}>Extremely Small</option>
+              <option value="tiny" {{#if (eq system.personalData.size "tiny")}}selected{{/if}}>Tiny</option>
+            </select>
+          </div>
+          <div class="field">
             <label>Extra</label>
             <input type="text" name="system.personalData.extra" value="{{system.personalData.extra}}"/>
           </div>
@@ -365,6 +378,33 @@
       <div class="combat-layout">
         {{!-- Left Column: Condition Monitor --}}
         <div class="combat-column condition-column">
+          {{!-- Status Panel --}}
+          <div class="combat-data-section status-panel">
+            <h3 class="section-title">Status</h3>
+            <div class="status-grid">
+              <div class="status-field">
+                <label>Cover</label>
+                <select name="system.cover" class="cover-select">
+                  <option value="none" {{#if (eq system.cover "none")}}selected{{/if}}>None</option>
+                  <option value="light" {{#if (eq system.cover "light")}}selected{{/if}}>Light (-1)</option>
+                  <option value="moderate" {{#if (eq system.cover "moderate")}}selected{{/if}}>Moderate (-2)</option>
+                  <option value="heavy" {{#if (eq system.cover "heavy")}}selected{{/if}}>Heavy (-3)</option>
+                  <option value="full" {{#if (eq system.cover "full")}}selected{{/if}}>Full (-4)</option>
+                </select>
+              </div>
+              <div class="status-toggles">
+                <label class="status-toggle {{#if system.bleeding}}active{{/if}}">
+                  <input type="checkbox" name="system.bleeding" {{#if system.bleeding}}checked{{/if}}/>
+                  <i class="fas fa-tint"></i> Bleeding
+                </label>
+                <label class="status-toggle {{#if system.prone}}active{{/if}}">
+                  <input type="checkbox" name="system.prone" {{#if system.prone}}checked{{/if}}/>
+                  <i class="fas fa-level-down-alt"></i> Prone
+                </label>
+              </div>
+            </div>
+          </div>
+
           <div class="combat-data-section">
             <h3 class="section-title">Condition Monitor</h3>
 

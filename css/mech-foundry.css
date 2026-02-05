@@ -3224,3 +3224,315 @@
   font-size: 0.9em;
   color: var(--mf-text-muted);
 }
+
+
+/* ========================================
+   Wound Effects Styles
+   ======================================== */
+
+.mech-foundry.roll-result .wound-effect,
+.mech-foundry.opposed-roll .wound-effect {
+  margin-top: 10px;
+  padding: 8px;
+  background: linear-gradient(135deg, #8B0000, #A52A2A);
+  border: 2px solid #FF4500;
+  border-radius: var(--mf-border-radius);
+  color: white;
+}
+
+.mech-foundry .wound-effect .wound-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.mech-foundry .wound-effect .wound-label {
+  font-weight: bold;
+  font-size: 0.95em;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #FFD700;
+}
+
+.mech-foundry .wound-effect .wound-roll {
+  font-family: monospace;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+
+.mech-foundry .wound-effect .doubles-indicator {
+  font-style: italic;
+  color: #FFD700;
+  font-size: 0.9em;
+}
+
+.mech-foundry .wound-effect .wound-name {
+  font-weight: bold;
+  font-size: 1.1em;
+  margin-bottom: 4px;
+  color: #FFF;
+}
+
+.mech-foundry .wound-effect .wound-description {
+  font-size: 0.9em;
+  margin-bottom: 6px;
+  font-style: italic;
+  color: #FFE4B5;
+}
+
+.mech-foundry .wound-effect .wound-damage-line {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.2);
+  padding: 4px 8px;
+  border-radius: 3px;
+  margin-bottom: 4px;
+}
+
+.mech-foundry .wound-effect .wound-damage-label {
+  font-weight: 500;
+}
+
+.mech-foundry .wound-effect .wound-damage-value {
+  font-weight: bold;
+  color: #FF6347;
+}
+
+.mech-foundry .wound-effect .wound-roll-result {
+  font-family: monospace;
+  font-size: 0.85em;
+  color: #DDD;
+}
+
+.mech-foundry .wound-effect .wound-note {
+  margin-top: 6px;
+  padding: 4px 8px;
+  background: rgba(255, 215, 0, 0.2);
+  border-left: 3px solid #FFD700;
+  font-size: 0.85em;
+  color: #FFF;
+}
+
+/* Location modifier styling */
+.mech-foundry.roll-result .armor-line .armor-breakdown,
+.mech-foundry.opposed-roll .armor-line .armor-breakdown {
+  font-size: 0.85em;
+  color: #666;
+  font-style: italic;
+}
+
+.mech-foundry.roll-result .armor-line.wound-damage,
+.mech-foundry.opposed-roll .armor-line.wound-damage {
+  color: #8B0000;
+  font-weight: 500;
+}
+
+.mech-foundry.roll-result .armor-line.wound-damage .armor-value,
+.mech-foundry.opposed-roll .armor-line.wound-damage .armor-value {
+  color: #C44536;
+}
+
+
+/* ========================================
+   Cover Section Styles
+   ======================================== */
+
+.mech-foundry .cover-section {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0;
+  padding: 6px 8px;
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: var(--mf-border-radius);
+}
+
+.mech-foundry .cover-section label {
+  font-weight: 600;
+  font-size: 0.9em;
+  min-width: 45px;
+}
+
+.mech-foundry .cover-select {
+  flex: 1;
+  padding: 4px 8px;
+  border: 1px solid var(--mf-border);
+  border-radius: var(--mf-border-radius);
+  background: var(--mf-bg-light);
+  font-size: 0.9em;
+}
+
+/* ========================================
+   Combat Options Chat Card Indicators
+   ======================================== */
+
+.mech-foundry.roll-result .combat-options-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 6px 0;
+}
+
+.mech-foundry.roll-result .combat-option {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  border-radius: var(--mf-border-radius);
+  font-size: 0.85em;
+  font-weight: 500;
+}
+
+.mech-foundry.roll-result .combat-option i {
+  width: 14px;
+  text-align: center;
+}
+
+.mech-foundry.roll-result .cover-indicator {
+  background: rgba(26, 95, 122, 0.15);
+  color: var(--mf-primary);
+  border: 1px solid rgba(26, 95, 122, 0.3);
+}
+
+.mech-foundry.roll-result .ignore-cover-indicator {
+  background: rgba(74, 157, 74, 0.15);
+  color: var(--mf-success);
+  border: 1px solid rgba(74, 157, 74, 0.3);
+}
+
+.mech-foundry.roll-result .friendly-lof-indicator {
+  background: rgba(212, 160, 23, 0.15);
+  color: #B08A00;
+  border: 1px solid rgba(212, 160, 23, 0.3);
+}
+
+.mech-foundry.roll-result .aimed-shot-indicator {
+  background: rgba(196, 69, 54, 0.15);
+  color: var(--mf-danger);
+  border: 1px solid rgba(196, 69, 54, 0.3);
+}
+
+
+/* ========================================
+   Status Panel Styles
+   ======================================== */
+
+.mech-foundry .status-panel {
+  margin-bottom: 8px;
+}
+
+.mech-foundry .status-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mech-foundry .status-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mech-foundry .status-field label {
+  font-weight: 600;
+  font-size: 0.9em;
+  min-width: 45px;
+}
+
+.mech-foundry .status-field .cover-select {
+  flex: 1;
+}
+
+.mech-foundry .status-toggles {
+  display: flex;
+  gap: 10px;
+}
+
+.mech-foundry .status-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border: 1px solid var(--mf-border);
+  border-radius: var(--mf-border-radius);
+  cursor: pointer;
+  font-size: 0.9em;
+  font-weight: 500;
+  background: var(--mf-bg-light);
+  transition: all 0.2s;
+  flex: 1;
+  justify-content: center;
+}
+
+.mech-foundry .status-toggle input[type="checkbox"] {
+  display: none;
+}
+
+.mech-foundry .status-toggle:hover {
+  border-color: var(--mf-primary);
+}
+
+.mech-foundry .status-toggle.active {
+  border-color: var(--mf-danger);
+  background: rgba(196, 69, 54, 0.15);
+  color: var(--mf-danger);
+}
+
+.mech-foundry .status-toggle i {
+  width: 14px;
+  text-align: center;
+}
+
+/* Prone chat card indicator */
+.mech-foundry.roll-result .prone-indicator {
+  background: rgba(87, 131, 123, 0.15);
+  color: var(--mf-secondary);
+  border: 1px solid rgba(87, 131, 123, 0.3);
+}
+
+/* Bleeding damage chat message */
+.mech-foundry.bleeding-damage {
+  padding: 6px 10px;
+  color: var(--mf-danger);
+  font-size: 0.95em;
+}
+
+.mech-foundry.bleeding-damage i {
+  color: var(--mf-danger);
+  margin-right: 4px;
+}
+
+/* BOD bleeding check chat card */
+.mech-foundry.bod-bleeding-check .check-reason {
+  font-size: 0.85em;
+  color: #666;
+  font-style: italic;
+  margin-bottom: 4px;
+}
+
+.mech-foundry.bod-bleeding-check .bleeding-result {
+  margin-top: 6px;
+  padding: 4px 8px;
+  background: rgba(196, 69, 54, 0.15);
+  border-left: 3px solid var(--mf-danger);
+  color: var(--mf-danger);
+  font-size: 0.95em;
+}
+
+
+/* Size indicator */
+.mech-foundry.roll-result .size-indicator {
+  background: rgba(139, 90, 43, 0.15);
+  color: #8B5A2B;
+  border: 1px solid rgba(139, 90, 43, 0.3);
+}
+
+/* Range indicator */
+.mech-foundry.roll-result .range-indicator {
+  background: rgba(75, 0, 130, 0.1);
+  color: #4B0082;
+  border: 1px solid rgba(75, 0, 130, 0.25);
+}

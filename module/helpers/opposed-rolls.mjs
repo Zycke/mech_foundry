@@ -242,6 +242,32 @@ export class OpposedRollHelper {
   }
 
   /**
+   * Create a hit location result from an aimed shot selection
+   * @param {string} aimedLocation The aimed body part
+   * @returns {Object} Hit location result matching rollHitLocation format
+   */
+  static getAimedHitLocation(aimedLocation) {
+    const locationMap = {
+      head: { location: 'head', displayLocation: 'Head (Aimed)', armorLocation: 'head' },
+      chest: { location: 'chest', displayLocation: 'Chest (Aimed)', armorLocation: 'torso' },
+      abdomen: { location: 'abdomen', displayLocation: 'Abdomen (Aimed)', armorLocation: 'torso' },
+      arm: { location: 'rightArm', displayLocation: 'Arm (Aimed)', armorLocation: 'arms' },
+      leg: { location: 'legs', displayLocation: 'Legs (Aimed)', armorLocation: 'legs' },
+      hand: { location: 'rightHand', displayLocation: 'Hand (Aimed)', armorLocation: 'arms' },
+      foot: { location: 'rightFoot', displayLocation: 'Foot (Aimed)', armorLocation: 'legs' }
+    };
+
+    const mapped = locationMap[aimedLocation] || locationMap.chest;
+    return {
+      roll: '—',
+      subRoll: null,
+      location: mapped.location,
+      displayLocation: mapped.displayLocation,
+      armorLocation: mapped.armorLocation
+    };
+  }
+
+  /**
    * Get BAR value for a specific damage type and location
    * @param {Actor} actor The target actor
    * @param {string} damageType 'm', 'b', 'e', or 'x'
@@ -599,5 +625,145 @@ export class OpposedRollHelper {
       'x': "Explosive"
     };
     return types[damageType] || damageType.toUpperCase();
+  }
+
+  /**
+   * Get damage multiplier based on hit location
+   * Per "A Time of War" rules, damage is modified based on where the hit lands
+   * @param {string} location The specific hit location
+   * @returns {Object} Multiplier info with value and display name
+   */
+  static getLocationDamageMultiplier(location) {
+    const multipliers = {
+      'head': { value: 2.0, display: 'x2' },
+      'chest': { value: 1.0, display: 'x1' },
+      'abdomen': { value: 1.0, display: 'x1' },
+      'leftArm': { value: 0.5, display: 'x0.5' },
+      'rightArm': { value: 0.5, display: 'x0.5' },
+      'leftHand': { value: 0.25, display: 'x0.25' },
+      'rightHand': { value: 0.25, display: 'x0.25' },
+      'legs': { value: 0.75, display: 'x0.75' },
+      'leftFoot': { value: 0.25, display: 'x0.25' },
+      'rightFoot': { value: 0.25, display: 'x0.25' }
+    };
+    return multipliers[location] || { value: 1.0, display: 'x1' };
+  }
+
+  /**
+   * Calculate damage after armor reduction AND location multiplier
+   * @param {number} damage Raw damage amount
+   * @param {number} ap Armor penetration
+   * @param {string} damageType 'm', 'b', 'e', or 'x'
+   * @param {Actor} targetActor The target
+   * @param {string} armorLocation The armor location (head, torso, arms, legs)
+   * @param {string} specificLocation The specific hit location (head, chest, leftArm, etc.)
+   * @returns {Object} Damage calculation result with location modifier applied
+   */
+  static calculateDamageWithLocation(damage, ap, damageType, targetActor, armorLocation, specificLocation) {
+    const bar = this.getBAR(targetActor, damageType, armorLocation);
+    const effectiveArmor = Math.max(0, bar - ap);
+    const damageAfterArmor = Math.max(0, damage - effectiveArmor);
+
+    // Apply location damage multiplier (round up per rules)
+    const locationMod = this.getLocationDamageMultiplier(specificLocation);
+    const finalDamage = Math.ceil(damageAfterArmor * locationMod.value);
+
+    return {
+      originalDamage: damage,
+      armorValue: bar,
+      apValue: ap,
+      effectiveArmor,
+      damageAfterArmor,
+      locationMultiplier: locationMod.value,
+      locationMultiplierDisplay: locationMod.display,
+      finalDamage,
+      absorbed: damage - damageAfterArmor,
+      damageType,
+      armorLocation,
+      specificLocation
+    };
+  }
+
+  /**
+   * Roll on the Specific Wound Effects table
+   * Called when attack roll is doubles AND damage is dealt
+   * @returns {Promise<Object>} Wound effect result
+   */
+  static async rollWoundEffect() {
+    const roll = await new Roll("1d6").evaluate();
+    const result = roll.total;
+
+    const effects = {
+      1: {
+        name: 'Dazed',
+        description: 'Character suffers 1D6 additional Fatigue damage points',
+        automated: true,
+        fatigueRoll: true
+      },
+      2: {
+        name: 'Deafened',
+        description: 'Character suffers critical damage to ear equal to Level 3 Poor Hearing (see p. 122)',
+        automated: false,
+        note: 'Surgery Skill required to stabilize/repair; apply -2 modifier to all Surgery Checks'
+      },
+      3: {
+        name: 'Blinded',
+        description: 'Character suffers critical damage to eye equal to Level 3 Poor Vision (see p. 122)',
+        automated: false,
+        note: 'Surgery Skill required to stabilize/repair; apply -2 modifier to all Surgery Checks'
+      },
+      4: {
+        name: 'Internal Damage',
+        description: 'Character suffers 1D6 additional Standard damage points (check for bleeding)',
+        automated: true,
+        standardRoll: true,
+        note: 'Check for bleeding'
+      },
+      5: {
+        name: 'Knockdown',
+        description: 'Character must make a RFL Attribute Check to avoid falling, applying Injury modifiers',
+        automated: false,
+        note: 'RFL Attribute Check required to avoid falling'
+      },
+      6: {
+        name: 'Shattered Limb',
+        description: 'Character cannot use the affected limb (check for bleeding)',
+        automated: false,
+        note: 'Check for bleeding; affected limb cannot be used'
+      }
+    };
+
+    const effect = effects[result];
+
+    // Roll additional damage if applicable
+    let additionalFatigue = 0;
+    let additionalStandard = 0;
+    let additionalRoll = null;
+
+    if (effect.fatigueRoll) {
+      additionalRoll = await new Roll("1d6").evaluate();
+      additionalFatigue = additionalRoll.total;
+    } else if (effect.standardRoll) {
+      additionalRoll = await new Roll("1d6").evaluate();
+      additionalStandard = additionalRoll.total;
+    }
+
+    return {
+      roll: result,
+      ...effect,
+      additionalFatigue,
+      additionalStandard,
+      additionalRoll: additionalRoll ? additionalRoll.total : null
+    };
+  }
+
+  /**
+   * Check if attack roll is doubles (both dice show same value)
+   * @param {Array} diceResults Array of individual dice results
+   * @returns {boolean} True if doubles
+   */
+  static isDoubles(diceResults) {
+    if (!diceResults || diceResults.length < 2) return false;
+    return diceResults[0] === diceResults[1];
   }
 }

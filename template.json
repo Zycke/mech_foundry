@@ -13,6 +13,9 @@
         },
         "stun": false,
         "unconscious": false,
+        "cover": "none",
+        "bleeding": false,
+        "prone": false,
         "biography": ""
       },
       "attributes": {
@@ -67,7 +70,8 @@
         "hair": "",
         "eyes": "",
         "player": "",
-        "extra": ""
+        "extra": "",
+        "size": "medium"
       },
       "affiliation": "",
       "phenotype": "",
