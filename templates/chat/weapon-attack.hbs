@@ -2,6 +2,16 @@
   <div class="roll-title">{{weaponName}} Attack</div>
   <div class="attack-type">Attack Type: {{attackType}}</div>
 
+  {{!-- Loaded Ammo Info --}}
+  {{#if loadedAmmoName}}
+  <div class="ammo-info">
+    <i class="fas fa-crosshairs"></i> Ammo: {{loadedAmmoName}}
+    {{#if ammoSpecialEffects.length}}
+    <span class="ammo-effects">[{{#each ammoSpecialEffects}}{{this}}{{#unless @last}}, {{/unless}}{{/each}}]</span>
+    {{/if}}
+  </div>
+  {{/if}}
+
   {{!-- Combat Option Indicators --}}
   <div class="combat-options-info">
     {{#if coverLabel}}

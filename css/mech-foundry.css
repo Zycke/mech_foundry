@@ -1086,6 +1086,173 @@
 }
 
 /* ----------------------------------------- */
+/* Ammunition System                          */
+/* ----------------------------------------- */
+
+/* Weapon ammo display */
+.mech-foundry .weapon-ammo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.9em;
+}
+
+.mech-foundry .weapon-ammo .ammo-count {
+  font-weight: bold;
+}
+
+.mech-foundry .weapon-ammo .ammo-type {
+  font-size: 0.85em;
+  color: var(--mf-secondary);
+  max-width: 80px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mech-foundry .weapon-ammo .ammo-controls {
+  display: flex;
+  gap: 4px;
+}
+
+.mech-foundry .weapon-ammo .ammo-controls a {
+  font-size: 0.9em;
+  color: var(--mf-primary);
+}
+
+.mech-foundry .weapon-ammo .ammo-controls a:hover {
+  color: var(--mf-accent);
+}
+
+.mech-foundry .weapon-ammo .no-ammo-warning {
+  color: var(--mf-danger);
+  font-weight: bold;
+  font-size: 0.85em;
+}
+
+.mech-foundry .weapon-ammo .weapon-load-ammo {
+  color: var(--mf-success);
+  margin-left: 4px;
+}
+
+/* Ammo inventory section */
+.mech-foundry .ammo-category {
+  margin-top: 10px;
+}
+
+.mech-foundry .ammo-category .inventory-table {
+  width: 100%;
+}
+
+.mech-foundry .ammo-category .ammo-type-cell {
+  font-size: 0.85em;
+  color: var(--mf-secondary);
+}
+
+.mech-foundry .ammo-category .ammo-quantity {
+  font-weight: bold;
+}
+
+.mech-foundry .ammo-category .full-indicator {
+  color: var(--mf-success);
+  margin-left: 4px;
+}
+
+.mech-foundry .ammo-category .partial-ammo {
+  background-color: rgba(212, 160, 23, 0.1);
+}
+
+.mech-foundry .ammo-load-into-weapon {
+  color: var(--mf-primary);
+}
+
+.mech-foundry .ammo-load-into-weapon:hover {
+  color: var(--mf-accent);
+}
+
+/* Ammo item sheet */
+.mech-foundry.ammo-sheet .ammo-ballistics-section,
+.mech-foundry.ammo-sheet .ammo-energy-section,
+.mech-foundry.ammo-sheet .ammo-ordnance-section {
+  padding: 10px;
+  background: rgba(26, 95, 122, 0.05);
+  border: 1px solid var(--mf-border);
+  border-radius: var(--mf-border-radius);
+  margin-bottom: 10px;
+}
+
+.mech-foundry.ammo-sheet .hidden {
+  display: none;
+}
+
+.mech-foundry .compatibility-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px;
+  background: rgba(255, 255, 255, 0.5);
+  border: 1px solid var(--mf-border);
+  border-radius: var(--mf-border-radius);
+  min-height: 40px;
+}
+
+.mech-foundry .compatibility-tags .tag-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.mech-foundry .compatibility-tags .tag-item input {
+  width: 120px;
+  padding: 4px 8px;
+  font-size: 0.85em;
+}
+
+.mech-foundry .compatibility-tags .remove-tag,
+.mech-foundry .compatibility-tags .remove-ammo-tag {
+  color: var(--mf-danger);
+  cursor: pointer;
+}
+
+.mech-foundry .compatibility-tags .add-tag,
+.mech-foundry .compatibility-tags .add-ammo-tag {
+  color: var(--mf-success);
+  cursor: pointer;
+  font-size: 0.85em;
+}
+
+.mech-foundry .special-effects-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 8px;
+  padding: 8px;
+  background: rgba(255, 255, 255, 0.5);
+  border: 1px solid var(--mf-border);
+  border-radius: var(--mf-border-radius);
+}
+
+.mech-foundry .special-effects-list .effect-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.85em;
+}
+
+.mech-foundry .hint {
+  font-size: 0.8em;
+  color: #666;
+  font-style: italic;
+  margin-top: 4px;
+}
+
+.mech-foundry .hint-inline {
+  font-size: 0.8em;
+  color: #666;
+  font-style: italic;
+}
+
+/* ----------------------------------------- */
 /* Biography Tab - Life Modules               */
 /* ----------------------------------------- */
 
@@ -1468,9 +1635,14 @@
 .mech-foundry.roll-result .ammo-info {
   font-size: 0.85em;
   color: var(--mf-secondary);
-  margin-top: 8px;
-  padding-top: 8px;
-  border-top: 1px dashed var(--mf-border);
+  margin-top: 4px;
+  margin-bottom: 4px;
+}
+
+.mech-foundry.roll-result .ammo-info .ammo-effects {
+  color: var(--mf-accent);
+  font-weight: bold;
+  margin-left: 4px;
 }
 
 /* Damage Section in Chat */

@@ -98,7 +98,7 @@
     }
   },
   "Item": {
-    "types": ["skill", "trait", "weapon", "armor", "vehicle", "fuel", "electronics", "powerpack", "healthcare", "prosthetics", "drugpoison", "activeEffect"],
+    "types": ["skill", "trait", "weapon", "armor", "vehicle", "fuel", "electronics", "powerpack", "healthcare", "prosthetics", "drugpoison", "activeEffect", "ammo"],
     "templates": {
       "base": {
         "description": ""
@@ -156,7 +156,10 @@
         "max": 0
       },
       "reloadCost": 0,
-      "reloadMass": 0
+      "reloadMass": 0,
+      "loadedAmmo": null,
+      "pps": 0,
+      "ammoCompatibility": []
     },
     "armor": {
       "templates": ["base", "equipment_base", "has_effects"],
@@ -257,6 +260,30 @@
         "fatigueDamage": 0
       },
       "persistentModifiers": []
+    },
+    "ammo": {
+      "templates": ["base"],
+      "ammoCategory": "ballistics",
+      "ammoType": "",
+      "weaponCompatibility": [],
+      "quantity": {
+        "value": 1,
+        "max": 1
+      },
+      "mass": 0,
+      "cost": 0,
+      "costMultiplier": 1.0,
+      "apModifier": 0,
+      "apFactorOverride": "",
+      "bdModifier": 0,
+      "bdFactorOverride": "",
+      "rangeModifier": 1.0,
+      "ap": 0,
+      "bd": 0,
+      "damageType": "",
+      "specialEffects": [],
+      "quickCharge": false,
+      "notes": ""
     }
   }
 }

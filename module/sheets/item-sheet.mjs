@@ -47,6 +47,42 @@ export class MechFoundryItemSheet extends ItemSheet {
         : [];
     }
 
+    // For weapons, ensure ammoCompatibility is always an array
+    if (this.item.type === 'weapon' && context.system) {
+      context.system.ammoCompatibility = Array.isArray(context.system.ammoCompatibility)
+        ? context.system.ammoCompatibility
+        : [];
+    }
+
+    // For ammo items, ensure arrays are initialized and prepare special effects options
+    if (this.item.type === 'ammo' && context.system) {
+      context.system.weaponCompatibility = Array.isArray(context.system.weaponCompatibility)
+        ? context.system.weaponCompatibility
+        : [];
+      context.system.specialEffects = Array.isArray(context.system.specialEffects)
+        ? context.system.specialEffects
+        : [];
+
+      // Prepare special effects checkboxes
+      const allEffects = [
+        { value: 'continuous', label: game.i18n.localize('MECHFOUNDRY.EffectContinuous') },
+        { value: 'splash', label: game.i18n.localize('MECHFOUNDRY.EffectSplash') },
+        { value: 'incendiary', label: game.i18n.localize('MECHFOUNDRY.EffectIncendiary') },
+        { value: 'tagged', label: game.i18n.localize('MECHFOUNDRY.EffectTagged') },
+        { value: 'half-ap-barriers', label: game.i18n.localize('MECHFOUNDRY.EffectHalfAPBarriers') },
+        { value: 'no-ap-barriers', label: game.i18n.localize('MECHFOUNDRY.EffectNoAPBarriers') },
+        { value: 'ignore-cover', label: game.i18n.localize('MECHFOUNDRY.EffectIgnoreCover') },
+        { value: 'tracer', label: game.i18n.localize('MECHFOUNDRY.EffectTracer') },
+        { value: 'guided', label: game.i18n.localize('MECHFOUNDRY.EffectGuided') },
+        { value: 'illumination', label: game.i18n.localize('MECHFOUNDRY.EffectIllumination') },
+        { value: 'flash', label: game.i18n.localize('MECHFOUNDRY.EffectFlash') }
+      ];
+      context.specialEffectOptions = allEffects.map(effect => ({
+        ...effect,
+        checked: context.system.specialEffects.includes(effect.value)
+      }));
+    }
+
     // Add config data
     context.config = game.mechfoundry?.config || {};
 
@@ -81,6 +117,28 @@ export class MechFoundryItemSheet extends ItemSheet {
         burstFields.hide();
       }
     });
+
+    // Weapon ammo compatibility tag handlers
+    if (this.item.type === 'weapon') {
+      // Add ammo compatibility tag
+      html.on('click', '.add-ammo-tag', async (event) => {
+        event.preventDefault();
+        const tags = this._gatherAmmoCompatibilityTagsFromForm(html[0].closest('form'));
+        tags.push('');
+        await this.item.update({ 'system.ammoCompatibility': tags });
+      });
+
+      // Remove ammo compatibility tag
+      html.on('click', '.remove-ammo-tag', async (event) => {
+        event.preventDefault();
+        const index = parseInt(event.currentTarget.dataset.index);
+        const tags = this._gatherAmmoCompatibilityTagsFromForm(html[0].closest('form'));
+        if (index >= 0 && index < tags.length) {
+          tags.splice(index, 1);
+          await this.item.update({ 'system.ammoCompatibility': tags });
+        }
+      });
+    }
 
     // Active Effect specific handlers
     if (this.item.type === 'activeEffect') {
@@ -154,6 +212,36 @@ export class MechFoundryItemSheet extends ItemSheet {
           modifiers[index].targetType = targetType;
           modifiers[index].target = defaultTarget;
           await this.item.update({ 'system.persistentModifiers': modifiers });
+        }
+      });
+    }
+
+    // Ammo item specific handlers
+    if (this.item.type === 'ammo') {
+      // Ammo category change - show/hide relevant sections
+      html.on('change', '.ammo-category-select', (event) => {
+        const category = event.currentTarget.value;
+        html.find('.ammo-ballistics-section').toggleClass('hidden', category !== 'ballistics');
+        html.find('.ammo-energy-section').toggleClass('hidden', category !== 'energy');
+        html.find('.ammo-ordnance-section').toggleClass('hidden', category !== 'ordnance');
+      });
+
+      // Add compatibility tag
+      html.on('click', '.add-tag', async (event) => {
+        event.preventDefault();
+        const tags = this._gatherCompatibilityTagsFromForm(html[0].closest('form'));
+        tags.push('');
+        await this.item.update({ 'system.weaponCompatibility': tags });
+      });
+
+      // Remove compatibility tag
+      html.on('click', '.remove-tag', async (event) => {
+        event.preventDefault();
+        const index = parseInt(event.currentTarget.dataset.index);
+        const tags = this._gatherCompatibilityTagsFromForm(html[0].closest('form'));
+        if (index >= 0 && index < tags.length) {
+          tags.splice(index, 1);
+          await this.item.update({ 'system.weaponCompatibility': tags });
         }
       });
     }
@@ -282,6 +370,57 @@ export class MechFoundryItemSheet extends ItemSheet {
 
     }
 
+    // Handle ammo item arrays
+    if (this.item.type === 'ammo') {
+      // Handle weaponCompatibility array
+      if (expanded.system?.weaponCompatibility && !Array.isArray(expanded.system.weaponCompatibility)) {
+        const tagsObj = expanded.system.weaponCompatibility;
+        const tagsArray = [];
+        const keys = Object.keys(tagsObj).sort((a, b) => parseInt(a) - parseInt(b));
+        for (const key of keys) {
+          if (tagsObj[key]) tagsArray.push(tagsObj[key]); // Skip empty tags
+        }
+        for (const key of Object.keys(formData)) {
+          if (key.startsWith('system.weaponCompatibility.')) {
+            delete formData[key];
+          }
+        }
+        formData['system.weaponCompatibility'] = tagsArray;
+      }
+
+      // Handle specialEffects checkboxes - collect all checked values
+      const specialEffects = [];
+      for (const key of Object.keys(formData)) {
+        if (key === 'system.specialEffects') {
+          const value = formData[key];
+          if (Array.isArray(value)) {
+            specialEffects.push(...value);
+          } else if (value) {
+            specialEffects.push(value);
+          }
+        }
+      }
+      formData['system.specialEffects'] = specialEffects;
+    }
+
+    // Handle weapon ammoCompatibility array
+    if (this.item.type === 'weapon') {
+      if (expanded.system?.ammoCompatibility && !Array.isArray(expanded.system.ammoCompatibility)) {
+        const tagsObj = expanded.system.ammoCompatibility;
+        const tagsArray = [];
+        const keys = Object.keys(tagsObj).sort((a, b) => parseInt(a) - parseInt(b));
+        for (const key of keys) {
+          if (tagsObj[key]) tagsArray.push(tagsObj[key]); // Skip empty tags
+        }
+        for (const key of Object.keys(formData)) {
+          if (key.startsWith('system.ammoCompatibility.')) {
+            delete formData[key];
+          }
+        }
+        formData['system.ammoCompatibility'] = tagsArray;
+      }
+    }
+
     return super._updateObject(event, formData);
   }
 
@@ -357,5 +496,37 @@ export class MechFoundryItemSheet extends ItemSheet {
     });
 
     return effects;
+  }
+
+  /**
+   * Gather compatibility tags from form inputs to preserve unsaved changes
+   * @param {HTMLElement} formElement The form element
+   * @returns {Array} Array of tag strings
+   */
+  _gatherCompatibilityTagsFromForm(formElement) {
+    const tags = [];
+    const tagInputs = formElement.querySelectorAll('.tag-item input[name^="system.weaponCompatibility"]');
+
+    tagInputs.forEach((input) => {
+      if (input.value) tags.push(input.value);
+    });
+
+    return tags;
+  }
+
+  /**
+   * Gather ammo compatibility tags from weapon form inputs
+   * @param {HTMLElement} formElement The form element
+   * @returns {Array} Array of tag strings
+   */
+  _gatherAmmoCompatibilityTagsFromForm(formElement) {
+    const tags = [];
+    const tagInputs = formElement.querySelectorAll('.tag-item input[name^="system.ammoCompatibility"]');
+
+    tagInputs.forEach((input) => {
+      if (input.value) tags.push(input.value);
+    });
+
+    return tags;
   }
 }
