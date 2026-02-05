@@ -753,13 +753,71 @@
                 {{#if (eq this.system.weaponType "melee")}}Melee{{else}}{{this.system.range.pointBlank}}/{{this.system.range.short}}/{{this.system.range.medium}}/{{this.system.range.long}}/{{this.system.range.extreme}}{{/if}}
               </td>
               <td class="weapon-ammo">
-                {{#if this.system.ammo.max}}
-                  {{this.system.ammo.value}}/{{this.system.ammo.max}}
-                  {{#if (ne this.system.weaponType "melee")}}<a class="weapon-reload" data-item-id="{{this._id}}" title="Reload"><i class="fas fa-redo"></i></a>{{/if}}
+                {{#if this.loadedAmmoData}}
+                  {{#if this.isEnergyWeapon}}
+                    <span class="ammo-count">{{this.loadedAmmoData.system.quantity.value}}/{{this.loadedAmmoData.system.quantity.max}} PP</span>
+                  {{else}}
+                    <span class="ammo-count">{{this.system.ammo.value}}/{{this.system.ammo.max}}</span>
+                  {{/if}}
+                  <span class="ammo-type" title="{{this.loadedAmmoData.name}}">({{this.loadedAmmoData.name}})</span>
+                  <div class="ammo-controls">
+                    <a class="weapon-reload" data-item-id="{{this._id}}" title="Reload"><i class="fas fa-redo"></i></a>
+                    <a class="weapon-unload" data-item-id="{{this._id}}" title="Unload"><i class="fas fa-eject"></i></a>
+                  </div>
+                {{else if this.system.ammo.max}}
+                  <span class="no-ammo-warning">NO AMMO</span>
+                  <a class="weapon-load-ammo" data-item-id="{{this._id}}" title="Load Ammo"><i class="fas fa-arrow-up"></i></a>
+                {{else if this.system.pps}}
+                  <span class="no-ammo-warning">NO PACK</span>
+                  <a class="weapon-load-ammo" data-item-id="{{this._id}}" title="Attach Power Pack"><i class="fas fa-arrow-up"></i></a>
                 {{else}}—{{/if}}
               </td>
               <td class="item-mass">{{this.system.mass}}</td>
               <td class="item-controls">
+                <a class="item-edit" title="Edit"><i class="fas fa-edit"></i></a>
+                <a class="item-delete" title="Delete"><i class="fas fa-trash"></i></a>
+              </td>
+            </tr>
+            {{/each}}
+          </tbody>
+        </table>
+      </div>
+      {{/if}}
+
+      {{!-- Ammunition Category --}}
+      {{#if inventory.ammo.length}}
+      <div class="inventory-category ammo-category">
+        <h3 class="section-title">{{localize "MECHFOUNDRY.Ammunition"}}</h3>
+        <table class="inventory-table centered-data">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Type</th>
+              <th>Quantity</th>
+              <th>Mass</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {{#each inventory.ammo}}
+            <tr class="item {{#unless this.isFull}}partial-ammo{{/unless}}" data-item-id="{{this._id}}">
+              <td class="item-name">{{this.name}}</td>
+              <td class="ammo-type-cell">
+                {{#if (eq this.system.ammoCategory "ballistics")}}{{localize "MECHFOUNDRY.AmmoCategoryBallistics"}}{{/if}}
+                {{#if (eq this.system.ammoCategory "energy")}}{{localize "MECHFOUNDRY.AmmoCategoryEnergy"}}{{/if}}
+                {{#if (eq this.system.ammoCategory "ordnance")}}{{localize "MECHFOUNDRY.AmmoCategoryOrdnance"}}{{/if}}
+              </td>
+              <td class="ammo-quantity">
+                {{#if (eq this.system.ammoCategory "energy")}}
+                  {{this.system.quantity.value}}/{{this.system.quantity.max}} PP
+                {{else}}
+                  {{this.system.quantity.value}}/{{this.system.quantity.max}}
+                {{/if}}
+                {{#if this.isFull}}<span class="full-indicator" title="Full"><i class="fas fa-check-circle"></i></span>{{/if}}
+              </td>
+              <td class="item-mass">{{this.system.mass}}</td>
+              <td class="item-controls">
+                <a class="ammo-load-into-weapon" data-item-id="{{this._id}}" title="Load into weapon"><i class="fas fa-arrow-up"></i></a>
                 <a class="item-edit" title="Edit"><i class="fas fa-edit"></i></a>
                 <a class="item-delete" title="Delete"><i class="fas fa-trash"></i></a>
               </td>

@@ -123,7 +123,7 @@
         </div>
       </div>
 
-      <h3>Ammunition</h3>
+      <h3>{{localize "MECHFOUNDRY.Ammunition"}}</h3>
       <div class="form-row">
         <div class="form-group">
           <label>Current</label>
@@ -133,6 +133,25 @@
           <label>Max (Shots)</label>
           <input type="number" name="system.ammo.max" value="{{system.ammo.max}}" data-dtype="Number"/>
         </div>
+        <div class="form-group">
+          <label>{{localize "MECHFOUNDRY.PPS"}} <span class="hint-inline">(Energy)</span></label>
+          <input type="number" name="system.pps" value="{{system.pps}}" data-dtype="Number" min="0" placeholder="Power Per Shot"/>
+        </div>
+      </div>
+
+      {{!-- Ammo Compatibility Tags --}}
+      <div class="form-group full-width">
+        <label>{{localize "MECHFOUNDRY.AmmoCompatibility"}}</label>
+        <div class="compatibility-tags">
+          {{#each system.ammoCompatibility}}
+          <div class="tag-item" data-index="{{@index}}">
+            <input type="text" name="system.ammoCompatibility.{{@index}}" value="{{this}}"/>
+            <a class="remove-ammo-tag" data-index="{{@index}}" title="Remove"><i class="fas fa-times"></i></a>
+          </div>
+          {{/each}}
+          <a class="add-ammo-tag" title="{{localize "MECHFOUNDRY.AddTag"}}"><i class="fas fa-plus"></i> {{localize "MECHFOUNDRY.AddTag"}}</a>
+        </div>
+        <p class="hint">Tags for compatible ammo types: slug-thrower, rifle, shotgun, energy, laser, grenade-launcher, etc.</p>
       </div>
 
       <h3>Cost & Weight</h3>

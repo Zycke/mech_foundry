@@ -199,7 +199,8 @@ export class MechFoundryActorSheet extends ActorSheet {
       prosthetics: [],
       drugpoisons: [],
       vehicles: [],
-      fuel: []
+      fuel: [],
+      ammo: []
     };
 
     let totalWeight = 0;
@@ -247,6 +248,14 @@ export class MechFoundryActorSheet extends ActorSheet {
         traits.push(i);
       }
       else if (i.type === 'weapon') {
+        // Add loaded ammo data for display
+        if (i.system.loadedAmmo) {
+          const loadedAmmoItem = this.actor.items.get(i.system.loadedAmmo);
+          if (loadedAmmoItem) {
+            i.loadedAmmoData = loadedAmmoItem.toObject(false);
+            i.isEnergyWeapon = loadedAmmoItem.system.ammoCategory === 'energy';
+          }
+        }
         weapons.push(i);
         inventory.weapons.push(i);
         // Add weight if equipped or carried
@@ -310,6 +319,13 @@ export class MechFoundryActorSheet extends ActorSheet {
         if (status !== 'stored') {
           totalWeight += parseFloat(i.system.mass) || 0;
         }
+      }
+      else if (i.type === 'ammo') {
+        // Add isFull flag for stacking display
+        i.isFull = i.system.quantity.value === i.system.quantity.max;
+        inventory.ammo.push(i);
+        // Ammo adds to weight
+        totalWeight += parseFloat(i.system.mass) || 0;
       }
       else if (i.type === 'activeEffect') {
         activeEffects.push(i);
@@ -618,6 +634,11 @@ export class MechFoundryActorSheet extends ActorSheet {
 
     // Weapon reload
     html.on('click', '.weapon-reload', this._onWeaponReload.bind(this));
+
+    // Weapon ammo management
+    html.on('click', '.weapon-unload', this._onWeaponUnload.bind(this));
+    html.on('click', '.weapon-load-ammo', this._onWeaponLoadAmmo.bind(this));
+    html.on('click', '.ammo-load-into-weapon', this._onAmmoLoadIntoWeapon.bind(this));
 
     // Life Modules event handlers
     html.on('click', '.add-language', this._onAddLanguage.bind(this));
@@ -1866,6 +1887,13 @@ export class MechFoundryActorSheet extends ActorSheet {
     const weapon = this.actor.items.get(itemId);
     if (!weapon) return;
 
+    // Use the new ammo system if weapon has loaded ammo
+    if (weapon.system.loadedAmmo) {
+      await this.actor.reloadWeapon(itemId);
+      return;
+    }
+
+    // Legacy behavior: just set to max
     const maxAmmo = weapon.system.ammo?.max || 0;
     const currentAmmo = weapon.system.ammo?.value || 0;
 
@@ -1876,6 +1904,157 @@ export class MechFoundryActorSheet extends ActorSheet {
 
     await weapon.update({ "system.ammo.value": maxAmmo });
     ui.notifications.info(`${weapon.name} reloaded to ${maxAmmo} rounds.`);
+  }
+
+  /**
+   * Handle weapon unload
+   * @param {Event} event The originating click event
+   * @private
+   */
+  async _onWeaponUnload(event) {
+    event.preventDefault();
+    event.stopPropagation();
+
+    let itemId = event.currentTarget.dataset.itemId;
+    if (!itemId) {
+      const li = $(event.currentTarget).parents(".item");
+      itemId = li.data("itemId");
+    }
+
+    await this.actor.unloadAmmoFromWeapon(itemId);
+  }
+
+  /**
+   * Handle loading ammo into a weapon (opens selection dialog)
+   * @param {Event} event The originating click event
+   * @private
+   */
+  async _onWeaponLoadAmmo(event) {
+    event.preventDefault();
+    event.stopPropagation();
+
+    let weaponId = event.currentTarget.dataset.itemId;
+    if (!weaponId) {
+      const li = $(event.currentTarget).parents(".item");
+      weaponId = li.data("itemId");
+    }
+
+    const weapon = this.actor.items.get(weaponId);
+    if (!weapon) return;
+
+    // Get compatible ammo items
+    const compatibleAmmo = this.actor.getCompatibleAmmo(weaponId);
+
+    if (compatibleAmmo.length === 0) {
+      ui.notifications.warn(`No compatible ammunition available for ${weapon.name}.`);
+      return;
+    }
+
+    // Build selection dialog
+    const ammoOptions = compatibleAmmo.map(ammo => {
+      const qty = ammo.system.ammoCategory === 'energy'
+        ? `${ammo.system.quantity.value}/${ammo.system.quantity.max} PP`
+        : `${ammo.system.quantity.value}/${ammo.system.quantity.max}`;
+      return `<option value="${ammo.id}">${ammo.name} (${qty})</option>`;
+    }).join('');
+
+    const content = `
+      <form>
+        <div class="form-group">
+          <label>Select Ammunition</label>
+          <select name="ammoId">
+            ${ammoOptions}
+          </select>
+        </div>
+      </form>
+    `;
+
+    new Dialog({
+      title: `Load Ammo into ${weapon.name}`,
+      content: content,
+      buttons: {
+        load: {
+          icon: '<i class="fas fa-arrow-up"></i>',
+          label: "Load",
+          callback: async (html) => {
+            const ammoId = html.find('[name="ammoId"]').val();
+            await this.actor.loadAmmoIntoWeapon(weaponId, ammoId);
+          }
+        },
+        cancel: {
+          icon: '<i class="fas fa-times"></i>',
+          label: "Cancel"
+        }
+      },
+      default: "load"
+    }).render(true);
+  }
+
+  /**
+   * Handle loading ammo into a weapon from the ammo list
+   * @param {Event} event The originating click event
+   * @private
+   */
+  async _onAmmoLoadIntoWeapon(event) {
+    event.preventDefault();
+    event.stopPropagation();
+
+    let ammoId = event.currentTarget.dataset.itemId;
+    if (!ammoId) {
+      const li = $(event.currentTarget).parents(".item");
+      ammoId = li.data("itemId");
+    }
+
+    const ammo = this.actor.items.get(ammoId);
+    if (!ammo) return;
+
+    // Get weapons that can use this ammo
+    const compatibleWeapons = this.actor.items.filter(item =>
+      item.type === 'weapon' &&
+      this.actor._isAmmoCompatible(item, ammo)
+    );
+
+    if (compatibleWeapons.length === 0) {
+      ui.notifications.warn(`No weapons are compatible with ${ammo.name}.`);
+      return;
+    }
+
+    // Build selection dialog
+    const weaponOptions = compatibleWeapons.map(weapon => {
+      const loaded = weapon.system.loadedAmmo ? ' (has ammo)' : '';
+      return `<option value="${weapon.id}">${weapon.name}${loaded}</option>`;
+    }).join('');
+
+    const content = `
+      <form>
+        <div class="form-group">
+          <label>Select Weapon</label>
+          <select name="weaponId">
+            ${weaponOptions}
+          </select>
+        </div>
+      </form>
+    `;
+
+    new Dialog({
+      title: `Load ${ammo.name} into Weapon`,
+      content: content,
+      buttons: {
+        load: {
+          icon: '<i class="fas fa-arrow-up"></i>',
+          label: "Load",
+          callback: async (html) => {
+            const weaponId = html.find('[name="weaponId"]').val();
+            await this.actor.loadAmmoIntoWeapon(weaponId, ammoId);
+          }
+        },
+        cancel: {
+          icon: '<i class="fas fa-times"></i>',
+          label: "Cancel"
+        }
+      },
+      default: "load"
+    }).render(true);
   }
 
   /* -------------------------------------------- */

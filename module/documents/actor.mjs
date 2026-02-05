@@ -587,6 +587,23 @@ export class MechFoundryActor extends Actor {
 
     const weaponData = weapon.system;
 
+    // Check for loaded ammo (required for ranged weapons with ammo capacity)
+    const loadedAmmoId = weaponData.loadedAmmo;
+    const loadedAmmo = loadedAmmoId ? this.items.get(loadedAmmoId) : null;
+    const ammoCategory = loadedAmmo?.system?.ammoCategory || null;
+    const isEnergyWeapon = ammoCategory === 'energy';
+
+    // For weapons that require ammo, ensure ammo is loaded
+    if (weaponData.ammo?.max > 0 || weaponData.pps > 0) {
+      if (!loadedAmmo) {
+        ui.notifications.warn(`${weapon.name} has no ammo loaded!`);
+        return;
+      }
+    }
+
+    // Get effective weapon stats (may be modified by ammo)
+    const effectiveStats = this.getWeaponEffectiveStats(weaponId);
+
     // AOE weapons use the dedicated AOE attack flow
     if (weaponData.bdFactor === 'A') {
       return AOEHelper.initiateAOEAttack(this, weapon, options);
@@ -678,10 +695,25 @@ export class MechFoundryActor extends Actor {
       firingModeMod = area - roundsPerSqm;  // Area penalty minus rounds benefit
     }
 
-    // Check ammo
-    if (weaponData.ammo?.max > 0 && currentAmmo < ammoUsed) {
-      ui.notifications.error(`Not enough ammunition! Need ${ammoUsed}, have ${currentAmmo}.`);
-      return;
+    // Check ammo availability
+    let ammoAvailable, ammoNeeded;
+    if (isEnergyWeapon) {
+      // Energy weapons consume PPS from the power pack
+      const pps = weaponData.pps || 1;
+      ammoNeeded = pps * ammoUsed; // ammoUsed is shots count for burst
+      ammoAvailable = loadedAmmo.system.quantity.value;
+      if (ammoAvailable < ammoNeeded) {
+        ui.notifications.error(`Not enough power! Need ${ammoNeeded} PP, have ${ammoAvailable} PP.`);
+        return;
+      }
+    } else if (weaponData.ammo?.max > 0) {
+      // Ballistics/Ordnance consume from weapon's magazine
+      ammoNeeded = ammoUsed;
+      ammoAvailable = currentAmmo;
+      if (ammoAvailable < ammoNeeded) {
+        ui.notifications.error(`Not enough ammunition! Need ${ammoNeeded}, have ${ammoAvailable}.`);
+        return;
+      }
     }
 
     // Find linked skill
@@ -774,11 +806,13 @@ export class MechFoundryActor extends Actor {
     const totalMod = skillMod + inputMod + injuryMod + fatigueMod + itemEffectMod + splashMod + coverMod + proneMod + friendlyInLoFMod + aimedShotMod + sizeMod + rangeMod - recoilMod - firingModeMod;
     const targetNumber = skill?.system.targetNumber || 7;
 
-    // Get weapon damage values
-    const baseDamage = weaponData.bd || 0;
-    const ap = weaponData.ap || 0;
-    const apFactor = weaponData.apFactor || '';
-    const isSubduing = weaponData.subduing || weaponData.bdFactor === 'D';
+    // Get weapon damage values (use effective stats if ammo modifies them)
+    const baseDamage = effectiveStats?.bd ?? weaponData.bd ?? 0;
+    const ap = effectiveStats?.ap ?? weaponData.ap ?? 0;
+    const apFactor = effectiveStats?.apFactor ?? weaponData.apFactor ?? '';
+    const bdFactor = effectiveStats?.bdFactor ?? weaponData.bdFactor ?? '';
+    const isSubduing = weaponData.subduing || bdFactor === 'D';
+    const ammoSpecialEffects = effectiveStats?.specialEffects || [];
     const str = this.system.attributes.str?.value || 5;
 
     // Get damage modifiers from equipped item effects
@@ -953,7 +987,12 @@ export class MechFoundryActor extends Actor {
     }
 
     // Reduce ammo
-    if (weaponData.ammo?.max > 0) {
+    if (isEnergyWeapon && loadedAmmo) {
+      // Energy weapons: decrement power pack PP
+      const newPP = loadedAmmo.system.quantity.value - ammoNeeded;
+      await loadedAmmo.update({ 'system.quantity.value': Math.max(0, newPP) });
+    } else if (weaponData.ammo?.max > 0) {
+      // Ballistics/Ordnance: decrement weapon magazine
       await weapon.update({ "system.ammo.value": Math.max(0, currentAmmo - ammoUsed) });
     }
 
@@ -988,6 +1027,9 @@ export class MechFoundryActor extends Actor {
         targetNumber: targetNumber,
         results: results,
         targetName: targetActor?.name || null,
+        // Loaded ammo info
+        loadedAmmoName: loadedAmmo?.name || null,
+        ammoSpecialEffects: ammoSpecialEffects,
         // Broken down modifiers for display
         skillMod: skillMod,
         inputMod: inputMod,
@@ -1856,5 +1898,315 @@ export class MechFoundryActor extends Actor {
     await roll.evaluate();
 
     return roll.total;
+  }
+
+  /* -------------------------------------------- */
+  /*  Ammunition Management                        */
+  /* -------------------------------------------- */
+
+  /**
+   * Check if ammo is compatible with a weapon based on their tags.
+   * @param {Item} weapon The weapon item
+   * @param {Item} ammo The ammo item
+   * @returns {boolean} True if compatible
+   */
+  _isAmmoCompatible(weapon, ammo) {
+    const weaponTags = weapon.system.ammoCompatibility || [];
+    const ammoTags = ammo.system.weaponCompatibility || [];
+
+    // If weapon has no compatibility tags, it doesn't use ammo
+    if (weaponTags.length === 0) return false;
+
+    // If ammo has no compatibility tags, it's incompatible
+    if (ammoTags.length === 0) return false;
+
+    // Energy ammo only for weapons with PPS > 0
+    if (ammo.system.ammoCategory === 'energy' && !weapon.system.pps) {
+      return false;
+    }
+
+    // Check for any matching tag
+    return weaponTags.some(tag => ammoTags.includes(tag));
+  }
+
+  /**
+   * Load ammo into a weapon. Automatically unloads existing ammo first.
+   * @param {string} weaponId The weapon item ID
+   * @param {string} ammoId The ammo item ID to load
+   * @returns {Promise<boolean>} True if successful
+   */
+  async loadAmmoIntoWeapon(weaponId, ammoId) {
+    const weapon = this.items.get(weaponId);
+    const ammo = this.items.get(ammoId);
+
+    if (!weapon || !ammo) {
+      ui.notifications.error("Invalid weapon or ammo.");
+      return false;
+    }
+
+    if (weapon.type !== 'weapon') {
+      ui.notifications.error("Target is not a weapon.");
+      return false;
+    }
+
+    if (ammo.type !== 'ammo') {
+      ui.notifications.error("Item is not ammunition.");
+      return false;
+    }
+
+    // Validate compatibility
+    if (!this._isAmmoCompatible(weapon, ammo)) {
+      ui.notifications.warn(`${ammo.name} is not compatible with ${weapon.name}.`);
+      return false;
+    }
+
+    // Unload existing ammo first (handles all categories appropriately)
+    if (weapon.system.loadedAmmo) {
+      await this.unloadAmmoFromWeapon(weaponId);
+    }
+
+    const ammoCategory = ammo.system.ammoCategory;
+    const magazineCapacity = weapon.system.ammo.max;
+    const available = ammo.system.quantity.value;
+
+    if (available <= 0) {
+      ui.notifications.warn(`${ammo.name} is empty.`);
+      return false;
+    }
+
+    switch (ammoCategory) {
+      case 'energy':
+        // Link power pack to weapon (pack tracks its own PP)
+        await weapon.update({ 'system.loadedAmmo': ammoId });
+        ui.notifications.info(
+          `Attached ${ammo.name} to ${weapon.name} (${available} PP available).`
+        );
+        break;
+
+      case 'ballistics':
+      case 'ordnance':
+        // Load rounds into weapon's magazine
+        const toLoad = Math.min(magazineCapacity, available);
+
+        await weapon.update({
+          'system.loadedAmmo': ammoId,
+          'system.ammo.value': toLoad
+        });
+
+        // Decrement source ammo stack
+        const remaining = available - toLoad;
+        if (remaining <= 0) {
+          // Delete the empty ammo item
+          await ammo.delete();
+        } else {
+          await ammo.update({ 'system.quantity.value': remaining });
+        }
+
+        ui.notifications.info(
+          `Loaded ${toLoad} ${ammo.name} into ${weapon.name}.`
+        );
+        break;
+    }
+
+    return true;
+  }
+
+  /**
+   * Unload ammo from a weapon, returning it to inventory appropriately.
+   * - Ballistics: Creates partial ammo item if rounds remain, discards if empty
+   * - Energy: Pack stays in inventory (just detaches reference)
+   * - Ordnance: Creates partial ammo item if rounds remain
+   * @param {string} weaponId The weapon item ID
+   */
+  async unloadAmmoFromWeapon(weaponId) {
+    const weapon = this.items.get(weaponId);
+    if (!weapon) return;
+
+    const loadedAmmoId = weapon.system.loadedAmmo;
+    if (!loadedAmmoId) {
+      ui.notifications.info(`${weapon.name} has no ammo loaded.`);
+      return;
+    }
+
+    const loadedAmmo = this.items.get(loadedAmmoId);
+    if (!loadedAmmo) {
+      // Orphaned reference, just clear it
+      await weapon.update({ 'system.loadedAmmo': null, 'system.ammo.value': 0 });
+      return;
+    }
+
+    const ammoCategory = loadedAmmo.system.ammoCategory;
+    const remainingRounds = weapon.system.ammo.value;
+
+    switch (ammoCategory) {
+      case 'energy':
+        // Power pack remains in inventory with current PP (rechargeable)
+        // Just detach the reference - the item already exists in inventory
+        ui.notifications.info(
+          `Detached ${loadedAmmo.name} (${loadedAmmo.system.quantity.value}/${loadedAmmo.system.quantity.max} PP remaining).`
+        );
+        break;
+
+      case 'ballistics':
+      case 'ordnance':
+        if (remainingRounds > 0) {
+          // Create new inventory item with remaining ammo
+          const partialAmmoData = loadedAmmo.toObject();
+          partialAmmoData.system.quantity.value = remainingRounds;
+          delete partialAmmoData._id;
+
+          await this.createEmbeddedDocuments('Item', [partialAmmoData]);
+
+          const unitLabel = ammoCategory === 'ordnance' ? 'rounds' : 'rounds';
+          ui.notifications.info(
+            `Returned ${remainingRounds} ${unitLabel} of ${loadedAmmo.name} to inventory.`
+          );
+        } else {
+          // Empty - ballistics magazine discarded, ordnance tube empty
+          ui.notifications.info(`${weapon.name} unloaded (empty).`);
+        }
+        break;
+    }
+
+    // Clear weapon's ammo reference
+    await weapon.update({
+      'system.loadedAmmo': null,
+      'system.ammo.value': 0
+    });
+  }
+
+  /**
+   * Reload a weapon from its currently loaded ammo type (if available in inventory).
+   * For energy weapons, this is a no-op (swap power packs instead).
+   * @param {string} weaponId The weapon item ID
+   * @param {string} [ammoId] Optional specific ammo ID to reload from
+   */
+  async reloadWeapon(weaponId, ammoId = null) {
+    const weapon = this.items.get(weaponId);
+    if (!weapon) return;
+
+    const currentAmmoId = ammoId || weapon.system.loadedAmmo;
+    if (!currentAmmoId) {
+      ui.notifications.warn('No ammo type selected for reload.');
+      return;
+    }
+
+    const ammo = this.items.get(currentAmmoId);
+    if (!ammo) {
+      ui.notifications.warn('Ammo not found in inventory.');
+      return;
+    }
+
+    const ammoCategory = ammo.system.ammoCategory;
+
+    if (ammoCategory === 'energy') {
+      // Energy packs don't reload - swap instead
+      ui.notifications.info('Swap power packs using Load Ammo.');
+      return;
+    }
+
+    const currentInMag = weapon.system.ammo.value;
+    const magazineCapacity = weapon.system.ammo.max;
+    const needed = magazineCapacity - currentInMag;
+    const available = ammo.system.quantity.value;
+
+    if (needed <= 0) {
+      ui.notifications.info('Magazine is already full.');
+      return;
+    }
+
+    if (available <= 0) {
+      ui.notifications.warn('No ammo available to reload.');
+      return;
+    }
+
+    const toLoad = Math.min(needed, available);
+
+    await weapon.update({ 'system.ammo.value': currentInMag + toLoad });
+
+    const remaining = available - toLoad;
+    if (remaining <= 0) {
+      await ammo.delete();
+    } else {
+      await ammo.update({ 'system.quantity.value': remaining });
+    }
+
+    ui.notifications.info(`Reloaded ${toLoad} rounds into ${weapon.name}.`);
+  }
+
+  /**
+   * Get compatible ammo items from inventory for a weapon.
+   * @param {string} weaponId The weapon item ID
+   * @returns {Item[]} Array of compatible ammo items
+   */
+  getCompatibleAmmo(weaponId) {
+    const weapon = this.items.get(weaponId);
+    if (!weapon) return [];
+
+    return this.items.filter(item =>
+      item.type === 'ammo' &&
+      this._isAmmoCompatible(weapon, item) &&
+      item.system.quantity.value > 0
+    );
+  }
+
+  /**
+   * Get effective weapon stats including ammo modifications.
+   * @param {string} weaponId The weapon item ID
+   * @returns {Object} Effective stats (ap, apFactor, bd, bdFactor, range, specialEffects)
+   */
+  getWeaponEffectiveStats(weaponId) {
+    const weapon = this.items.get(weaponId);
+    if (!weapon) return null;
+
+    const base = {
+      ap: weapon.system.ap,
+      apFactor: weapon.system.apFactor,
+      bd: weapon.system.bd,
+      bdFactor: weapon.system.bdFactor,
+      range: { ...weapon.system.range },
+      specialEffects: []
+    };
+
+    const loadedAmmoId = weapon.system.loadedAmmo;
+    if (!loadedAmmoId) return base;
+
+    const loadedAmmo = this.items.get(loadedAmmoId);
+    if (!loadedAmmo) return base;
+
+    const ammoData = loadedAmmo.system;
+
+    if (ammoData.ammoCategory === 'ballistics') {
+      // Apply modifiers
+      base.ap += ammoData.apModifier || 0;
+      base.bd += ammoData.bdModifier || 0;
+
+      // Override factors if specified
+      if (ammoData.apFactorOverride) base.apFactor = ammoData.apFactorOverride;
+      if (ammoData.bdFactorOverride) base.bdFactor = ammoData.bdFactorOverride;
+
+      // Apply range modifier
+      if (ammoData.rangeModifier && ammoData.rangeModifier !== 1.0) {
+        for (const band of ['pointBlank', 'short', 'medium', 'long', 'extreme']) {
+          if (base.range[band]) {
+            base.range[band] = Math.floor(Number(base.range[band]) * ammoData.rangeModifier);
+          }
+        }
+      }
+
+      // Add special effects
+      base.specialEffects = ammoData.specialEffects || [];
+
+    } else if (ammoData.ammoCategory === 'ordnance') {
+      // Ordnance completely replaces weapon stats
+      base.ap = ammoData.ap;
+      base.apFactor = ammoData.damageType;
+      base.bd = ammoData.bd;
+      base.bdFactor = ammoData.bdFactorOverride || '';
+      base.specialEffects = ammoData.specialEffects || [];
+    }
+    // Energy weapons: no stat modification, just power consumption
+
+    return base;
   }
 }
