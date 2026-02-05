@@ -157,6 +157,9 @@ export class AOEHelper {
     const injuryMod = actor.system.injuryModifier || 0;
     const fatigueMod = actor.system.fatigueModifier || 0;
     const aoeMod = 2; // +2 AOE bonus
+    const indirectFire = options.indirectFire || false;
+    const spotter = options.spotter || false;
+    const indirectMod = indirectFire ? (spotter ? -2 : -4) : 0;
 
     // Find linked skill
     const skillName = weaponData.skill;
@@ -195,7 +198,7 @@ export class AOEHelper {
     const itemCombatMod = ItemEffectsHelper.getCombatModifier(actor, 'ranged', weapon.id);
     const itemEffectMod = itemCombatMod.totalBonus;
 
-    const totalMod = skillMod + inputMod + injuryMod + fatigueMod + itemEffectMod + aoeMod;
+    const totalMod = skillMod + inputMod + injuryMod + fatigueMod + itemEffectMod + aoeMod + indirectMod;
     const targetNumber = skill?.system.targetNumber || 7;
 
     // Roll the attack
@@ -320,6 +323,10 @@ export class AOEHelper {
         fatigueMod,
         itemEffectMod,
         itemCombatModBreakdown: itemCombatMod.breakdown,
+        // Indirect fire info
+        indirectFire,
+        spotter,
+        indirectMod,
         // Scatter info
         didScatter: !!scatterInfo,
         scatterInfo,
@@ -447,6 +454,221 @@ export class AOEHelper {
       const meterDistance = pixelDistance / pixelsPerMeter;
 
       if (pixelDistance <= radiusPixels) {
+        results.push({
+          token,
+          distance: meterDistance
+        });
+      }
+    }
+
+    return results;
+  }
+
+  // ============================================
+  // Suppression Fire Template Methods
+  // ============================================
+
+  /**
+   * Initiate suppression fire with rectangular template placement.
+   * The rectangle is 1m wide and the length is defined by the suppression area.
+   *
+   * @param {Actor} actor The attacking actor
+   * @param {Item} weapon The weapon
+   * @param {Object} options Attack options (suppressionArea, roundsPerSqm, modifier, etc.)
+   */
+  static async initiateSuppressionFire(actor, weapon, options = {}) {
+    const length = options.suppressionArea || 1; // Length in meters
+
+    // Create a rectangular template preview (ray type: 1m wide, length from area)
+    const templateData = {
+      t: "ray",
+      user: game.user.id,
+      distance: length,
+      width: 1, // 1 meter wide
+      direction: 0,
+      x: 0,
+      y: 0,
+      fillColor: game.user.color || "#ffaa00",
+      flags: {
+        "mech-foundry": {
+          isSuppressionFire: true,
+          actorId: actor.id,
+          weaponId: weapon.id
+        }
+      }
+    };
+
+    const templateDoc = new MeasuredTemplateDocument(templateData, { parent: canvas.scene });
+    const template = new MeasuredTemplate(templateDoc);
+
+    const placementResult = await this._enterRayPlacementMode(template, length);
+
+    if (!placementResult) {
+      ui.notifications.info("Suppression fire cancelled.");
+      return;
+    }
+
+    // Place the final template on the canvas
+    const finalTemplate = await this._placeSuppressionTemplate(placementResult, length);
+
+    // Find all tokens within the rectangle
+    const targets = this._getTokensInRay(placementResult, length);
+
+    // Now delegate back to the standard rollWeaponAttack for each target
+    // Pass the detected targets so it makes one roll per target
+    options.suppressionTargets = targets;
+    options.suppressionTemplateId = finalTemplate?.id || null;
+
+    await actor.rollWeaponAttack(weapon.id, options);
+  }
+
+  /**
+   * Enter ray (rectangle) placement mode.
+   * Player clicks to set the origin, then moves mouse to set direction, clicks again to confirm.
+   *
+   * @param {MeasuredTemplate} template The template object for preview
+   * @param {number} length The ray length in grid units
+   * @returns {Promise<{x: number, y: number, direction: number}|null>}
+   */
+  static async _enterRayPlacementMode(template, length) {
+    return new Promise((resolve) => {
+      let originSet = false;
+      let origin = null;
+
+      template.draw();
+      template.layer.preview.addChild(template);
+
+      const moveHandler = (event) => {
+        const pos = event.getLocalPosition(canvas.app.stage);
+        const snapped = canvas.grid.getSnappedPoint(pos, { mode: CONST.GRID_SNAPPING_MODES.CENTER });
+
+        if (!originSet) {
+          // Move template origin with cursor
+          template.document.updateSource({ x: snapped.x, y: snapped.y });
+        } else {
+          // Origin is set, update direction based on mouse position
+          const dx = snapped.x - origin.x;
+          const dy = snapped.y - origin.y;
+          const angle = (Math.atan2(dy, dx) * 180) / Math.PI;
+          template.document.updateSource({ direction: angle });
+        }
+        template.refresh();
+      };
+
+      const clickHandler = (event) => {
+        // Only respond to left clicks
+        if (event.button !== 0) return;
+
+        const pos = event.getLocalPosition(canvas.app.stage);
+        const snapped = canvas.grid.getSnappedPoint(pos, { mode: CONST.GRID_SNAPPING_MODES.CENTER });
+
+        if (!originSet) {
+          // First click: set origin
+          originSet = true;
+          origin = { x: snapped.x, y: snapped.y };
+          template.document.updateSource({ x: snapped.x, y: snapped.y });
+          template.refresh();
+          ui.notifications.info("Now aim the suppression zone. Click to confirm direction.");
+        } else {
+          // Second click: confirm direction
+          const dx = snapped.x - origin.x;
+          const dy = snapped.y - origin.y;
+          const direction = (Math.atan2(dy, dx) * 180) / Math.PI;
+
+          cleanup();
+          resolve({ x: origin.x, y: origin.y, direction });
+        }
+      };
+
+      const cancelHandler = (event) => {
+        if (event.button === 2 || event.key === "Escape") {
+          cleanup();
+          resolve(null);
+        }
+      };
+
+      const cleanup = () => {
+        canvas.stage.off("pointermove", moveHandler);
+        canvas.stage.off("pointerdown", clickHandler);
+        document.removeEventListener("keydown", cancelHandler);
+        canvas.stage.off("pointerdown", cancelHandler);
+        template.layer.preview.removeChild(template);
+        template.destroy();
+      };
+
+      canvas.stage.on("pointermove", moveHandler);
+      canvas.stage.on("pointerdown", clickHandler);
+      document.addEventListener("keydown", cancelHandler);
+
+      ui.notifications.info("Click to set the suppression zone origin. Right-click or Escape to cancel.");
+    });
+  }
+
+  /**
+   * Place the final suppression fire template on the canvas.
+   *
+   * @param {{x: number, y: number, direction: number}} placement The placement data
+   * @param {number} length The ray length in meters
+   * @returns {Promise<MeasuredTemplateDocument|null>}
+   */
+  static async _placeSuppressionTemplate(placement, length) {
+    const templateData = {
+      t: "ray",
+      user: game.user.id,
+      x: placement.x,
+      y: placement.y,
+      distance: length,
+      width: 1,
+      direction: placement.direction,
+      fillColor: "#ffaa00",
+      flags: {
+        "mech-foundry": {
+          isSuppressionFire: true
+        }
+      }
+    };
+
+    const created = await canvas.scene.createEmbeddedDocuments("MeasuredTemplate", [templateData]);
+    return created?.[0] || null;
+  }
+
+  /**
+   * Find all tokens within a ray (rectangle) template area.
+   *
+   * @param {{x: number, y: number, direction: number}} placement The ray origin and direction
+   * @param {number} length The ray length in meters
+   * @returns {Array<{token: Token, distance: number}>}
+   */
+  static _getTokensInRay(placement, length) {
+    const gridSize = canvas.grid.size;
+    const gridDistance = canvas.grid.distance;
+    const pixelsPerMeter = gridSize / gridDistance;
+    const lengthPixels = length * pixelsPerMeter;
+    const halfWidthPixels = 0.5 * pixelsPerMeter; // 1m wide / 2
+
+    // Direction in radians
+    const dirRad = (placement.direction * Math.PI) / 180;
+
+    // Unit vectors along and perpendicular to the ray
+    const dirX = Math.cos(dirRad);
+    const dirY = Math.sin(dirRad);
+    const perpX = -dirY;
+    const perpY = dirX;
+
+    const results = [];
+
+    for (const token of canvas.tokens.placeables) {
+      const tokenCenter = token.center;
+      const dx = tokenCenter.x - placement.x;
+      const dy = tokenCenter.y - placement.y;
+
+      // Project onto ray axis (along) and perpendicular axis
+      const along = dx * dirX + dy * dirY;
+      const perp = dx * perpX + dy * perpY;
+
+      // Check if within rectangle bounds
+      if (along >= 0 && along <= lengthPixels && Math.abs(perp) <= halfWidthPixels) {
+        const meterDistance = along / pixelsPerMeter;
         results.push({
           token,
           distance: meterDistance
