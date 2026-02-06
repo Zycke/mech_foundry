@@ -970,11 +970,35 @@ export class MechFoundryActorSheet extends ActorSheet {
       return;
     }
 
-    // Get medtech skill for this actor (the one performing the aid)
+    // Check if MedTech skill is present
     const medtechSkill = this.actor.items.find(i => i.type === 'skill' && i.name.toLowerCase().includes('medtech'));
-    const medtechLevel = medtechSkill?.system?.level || 0;
-    const linkedAttr1 = medtechSkill?.system?.linkedAttribute1 || 'int';
-    const attr1Value = this.actor.system.attributes[linkedAttr1]?.total || 0;
+    const hasSkill = !!medtechSkill;
+
+    // Calculate modifier based on skill or attribute check
+    let baseMod = 0;
+    let checkType = '';
+    if (hasSkill) {
+      // Skill check: skill level + linked attribute linkMods
+      const skillLevel = medtechSkill.system?.level || 0;
+      const linkedAttr1 = medtechSkill.system?.linkedAttribute1;
+      const linkedAttr2 = medtechSkill.system?.linkedAttribute2;
+      let linkMod = 0;
+      if (linkedAttr1) {
+        linkMod += this.actor.system.attributes[linkedAttr1]?.linkMod || 0;
+      }
+      if (linkedAttr2) {
+        linkMod += this.actor.system.attributes[linkedAttr2]?.linkMod || 0;
+      }
+      baseMod = skillLevel + linkMod;
+      checkType = `MedTech ${skillLevel}${linkMod >= 0 ? '+' : ''}${linkMod}`;
+    } else {
+      // Attribute check: INT linkMod only
+      baseMod = this.actor.system.attributes.int?.linkMod || 0;
+      checkType = `INT ${baseMod >= 0 ? '+' : ''}${baseMod}`;
+    }
+
+    // Fixed target number for MedTech
+    const targetNumber = 7;
 
     // Get healthcare items for bonuses
     const healthcareItems = this.actor.items.filter(i =>
@@ -998,7 +1022,6 @@ export class MechFoundryActorSheet extends ActorSheet {
     // Calculate wound penalty for stabilization (-1 per wound)
     const targetWounds = targetActor.system.wounds || [];
     const woundPenalty = -targetWounds.length;
-    const woundPenaltyText = woundPenalty < 0 ? ` (Wounds: ${woundPenalty})` : '';
 
     const content = `
       <form>
@@ -1017,12 +1040,9 @@ export class MechFoundryActorSheet extends ActorSheet {
           <label>Healthcare Item</label>
           <select name="healthcareItem">${healthcareOptions}</select>
         </div>
-        <div class="form-group">
-          <label>Target Number</label>
-          <input type="number" name="targetNumber" value="7"/>
-        </div>
         <p class="hint">
-          <strong>MedTech:</strong> ${medtechLevel}+${attr1Value}${selfModifierText} = ${medtechLevel + attr1Value + selfModifier}<br>
+          <strong>${hasSkill ? 'MedTech Skill Check' : 'INT Attribute Check'}:</strong> ${checkType}${selfModifierText} = ${baseMod + selfModifier}<br>
+          <strong>Target Number:</strong> ${targetNumber}<br>
           <strong>First Aid:</strong> Heal MoS/2 damage (once per combat per patient)<br>
           <strong>Stabilize:</strong> Stops bleeding, required before surgery${woundPenalty < 0 ? `<br><span style="color: #c44536;"><strong>Stabilize Penalty:</strong> ${woundPenalty} (${targetWounds.length} wounds)</span>` : ''}
         </p>
@@ -1032,17 +1052,19 @@ export class MechFoundryActorSheet extends ActorSheet {
     const targetActorRef = targetActor;
     const selfMod = selfModifier;
     const woundMod = woundPenalty;
+    const baseModRef = baseMod;
+    const checkTypeRef = checkType;
+    const hasSkillRef = hasSkill;
 
     new Dialog({
       title: `Render Aid - ${targetActor.name}`,
       content: content,
       buttons: {
         roll: {
-          label: "Roll MedTech",
+          label: hasSkill ? "Roll MedTech" : "Roll INT Check",
           callback: async (html) => {
             const actionType = html.find('[name="actionType"]').val();
             const healthcareItemId = html.find('[name="healthcareItem"]').val();
-            const targetNumber = parseInt(html.find('[name="targetNumber"]').val()) || 7;
 
             // Get healthcare item bonus if selected
             let bonus = 0;
@@ -1057,11 +1079,11 @@ export class MechFoundryActorSheet extends ActorSheet {
             // Calculate wound penalty (only applies to stabilization)
             const stabilizePenalty = actionType === 'stabilize' ? woundMod : 0;
 
-            // Roll MedTech check (includes self-modifier and wound penalty if applicable)
-            const totalSkill = medtechLevel + attr1Value + bonus + selfMod + stabilizePenalty;
+            // Roll check (includes self-modifier and wound penalty if applicable)
+            const totalMod = baseModRef + bonus + selfMod + stabilizePenalty;
             const roll = new Roll('2d6');
             await roll.evaluate();
-            const result = roll.total + totalSkill;
+            const result = roll.total + totalMod;
             const mos = result - targetNumber;
             const success = mos >= 0;
 
@@ -1101,13 +1123,14 @@ export class MechFoundryActorSheet extends ActorSheet {
             const selfText = selfMod ? ' Self -2' : '';
             const stabilizeText = stabilizePenalty ? ` Wounds ${stabilizePenalty}` : '';
             const modifiersText = (selfText || stabilizeText) ? ` (${[selfText, stabilizeText].filter(Boolean).join(',')})` : '';
+            const checkLabel = hasSkillRef ? 'MedTech' : 'INT Check';
             const messageContent = `
               <div class="mech-foundry roll-result">
                 <h3>Render Aid: ${actionType === 'firstAid' ? 'First Aid' : 'Stabilize'}</h3>
                 <div class="roll-details">
                   <span class="roll-target-name">Patient: ${targetActorRef.name}</span>
-                  <span class="roll-formula">2d6 + ${totalSkill} (MedTech${bonus ? ` +${bonus} item` : ''}${modifiersText})</span>
-                  <span class="roll-result">${roll.total} + ${totalSkill} = <strong>${result}</strong></span>
+                  <span class="roll-formula">2d6 + ${totalMod} (${checkLabel}${bonus ? ` +${bonus} item` : ''}${modifiersText})</span>
+                  <span class="roll-result">${roll.total} + ${totalMod} = <strong>${result}</strong></span>
                   <span class="roll-target">TN: ${targetNumber}</span>
                   <span class="roll-mos ${success ? 'success' : 'failure'}">MoS: ${mos} - ${success ? 'SUCCESS' : 'FAILURE'}</span>
                   ${actionResult}
@@ -1176,11 +1199,37 @@ export class MechFoundryActorSheet extends ActorSheet {
       return;
     }
 
-    // Get surgery skill for this actor (the one performing surgery)
+    // Check if Surgery skill is present
     const surgerySkill = this.actor.items.find(i => i.type === 'skill' && i.name.toLowerCase().includes('surgery'));
-    const surgeryLevel = surgerySkill?.system?.level || 0;
-    const linkedAttr1 = surgerySkill?.system?.linkedAttribute1 || 'int';
-    const attr1Value = this.actor.system.attributes[linkedAttr1]?.total || 0;
+    const hasSkill = !!surgerySkill;
+
+    // Calculate modifier based on skill or attribute check
+    let baseMod = 0;
+    let checkType = '';
+    if (hasSkill) {
+      // Skill check: skill level + linked attribute linkMods
+      const skillLevel = surgerySkill.system?.level || 0;
+      const linkedAttr1 = surgerySkill.system?.linkedAttribute1;
+      const linkedAttr2 = surgerySkill.system?.linkedAttribute2;
+      let linkMod = 0;
+      if (linkedAttr1) {
+        linkMod += this.actor.system.attributes[linkedAttr1]?.linkMod || 0;
+      }
+      if (linkedAttr2) {
+        linkMod += this.actor.system.attributes[linkedAttr2]?.linkMod || 0;
+      }
+      baseMod = skillLevel + linkMod;
+      checkType = `Surgery ${skillLevel}${linkMod >= 0 ? '+' : ''}${linkMod}`;
+    } else {
+      // Attribute check: INT + DEX linkMods
+      const intMod = this.actor.system.attributes.int?.linkMod || 0;
+      const dexMod = this.actor.system.attributes.dex?.linkMod || 0;
+      baseMod = intMod + dexMod;
+      checkType = `INT${intMod >= 0 ? '+' : ''}${intMod} + DEX${dexMod >= 0 ? '+' : ''}${dexMod}`;
+    }
+
+    // Fixed target number for Surgery
+    const targetNumber = 9;
 
     // Get healthcare items for surgery bonuses
     const healthcareItems = this.actor.items.filter(i =>
@@ -1229,12 +1278,9 @@ export class MechFoundryActorSheet extends ActorSheet {
           <label>Healthcare Item</label>
           <select name="healthcareItem">${healthcareOptions}</select>
         </div>
-        <div class="form-group">
-          <label>Target Number</label>
-          <input type="number" name="targetNumber" value="7"/>
-        </div>
         <p class="hint">
-          <strong>Surgery:</strong> ${surgeryLevel}+${attr1Value} = ${surgeryLevel + attr1Value}<br>
+          <strong>${hasSkill ? 'Surgery Skill Check' : 'INT+DEX Attribute Check'}:</strong> ${checkType} = ${baseMod}<br>
+          <strong>Target Number:</strong> ${targetNumber}<br>
           Success removes the selected wound effect.
         </p>
       </form>
@@ -1242,17 +1288,18 @@ export class MechFoundryActorSheet extends ActorSheet {
 
     const targetActorRef = targetActor;
     const woundsRef = wounds;
+    const baseModRef = baseMod;
+    const hasSkillRef = hasSkill;
 
     new Dialog({
       title: `Surgery - ${targetActor.name}`,
       content: content,
       buttons: {
         roll: {
-          label: "Roll Surgery",
+          label: hasSkill ? "Roll Surgery" : "Roll INT+DEX Check",
           callback: async (html) => {
             const woundIndex = parseInt(html.find('[name="woundIndex"]').val());
             const healthcareItemId = html.find('[name="healthcareItem"]').val();
-            const targetNumber = parseInt(html.find('[name="targetNumber"]').val()) || 7;
 
             // Get healthcare item bonus if selected
             let bonus = 0;
@@ -1264,11 +1311,11 @@ export class MechFoundryActorSheet extends ActorSheet {
               }
             }
 
-            // Roll Surgery check
-            const totalSkill = surgeryLevel + attr1Value + bonus;
+            // Roll check
+            const totalMod = baseModRef + bonus;
             const roll = new Roll('2d6');
             await roll.evaluate();
-            const result = roll.total + totalSkill;
+            const result = roll.total + totalMod;
             const mos = result - targetNumber;
             const success = mos >= 0;
 
@@ -1290,13 +1337,14 @@ export class MechFoundryActorSheet extends ActorSheet {
             }
 
             // Create chat message
+            const checkLabel = hasSkillRef ? 'Surgery' : 'INT+DEX Check';
             const messageContent = `
               <div class="mech-foundry roll-result">
                 <h3>Surgery</h3>
                 <div class="roll-details">
                   <span class="roll-target-name">Patient: ${targetActorRef.name}</span>
-                  <span class="roll-formula">2d6 + ${totalSkill} (Surgery${bonus ? ` +${bonus} item` : ''})</span>
-                  <span class="roll-result">${roll.total} + ${totalSkill} = <strong>${result}</strong></span>
+                  <span class="roll-formula">2d6 + ${totalMod} (${checkLabel}${bonus ? ` +${bonus} item` : ''})</span>
+                  <span class="roll-result">${roll.total} + ${totalMod} = <strong>${result}</strong></span>
                   <span class="roll-target">TN: ${targetNumber}</span>
                   <span class="roll-mos ${success ? 'success' : 'failure'}">MoS: ${mos} - ${success ? 'SUCCESS' : 'FAILURE'}</span>
                   ${actionResult}
