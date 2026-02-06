@@ -1139,6 +1139,8 @@ export class MechFoundryActor extends Actor {
     if (animationPath && !isMelee) {
       const sourceToken = AnimationHelper.getActorToken(this);
       const targetToken = options.target || null;
+      const animationDelay = weaponData.animationDelay ?? 50;
+      const animationDuration = weaponData.animationDuration ?? 0;
 
       if (sourceToken) {
         if (firingMode === 'suppression' && options.suppressionTemplateId) {
@@ -1154,7 +1156,7 @@ export class MechFoundryActor extends Actor {
                 distance: templateDoc.distance
               },
               ammoUsed,
-              { file: animationPath }
+              { file: animationPath, bulletDelay: animationDelay, duration: animationDuration }
             );
           }
         } else if (firingMode === 'burst' || firingMode === 'controlled') {
@@ -1172,7 +1174,7 @@ export class MechFoundryActor extends Actor {
                 attackHit: firstResult.success,
                 marginOfSuccess: firstResult.marginOfSuccess
               },
-              { file: animationPath }
+              { file: animationPath, bulletDelay: animationDelay, duration: animationDuration }
             );
           }
         } else if (targetToken && results.length > 0) {
@@ -1185,7 +1187,7 @@ export class MechFoundryActor extends Actor {
               success: firstResult.success,
               marginOfSuccess: firstResult.marginOfSuccess
             },
-            { file: animationPath }
+            { file: animationPath, duration: animationDuration }
           );
         }
       }

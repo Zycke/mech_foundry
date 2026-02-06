@@ -167,7 +167,9 @@
       "loadedAmmoCategory": "",
       "pps": 0,
       "ammoCompatibility": [],
-      "animation": ""
+      "animation": "",
+      "animationDelay": 50,
+      "animationDuration": 0
     },
     "armor": {
       "templates": ["base", "equipment_base", "has_effects"],
