@@ -3,6 +3,7 @@ import { SocketHandler, SOCKET_EVENTS } from '../helpers/socket-handler.mjs';
 import { DiceMechanics } from '../helpers/dice-mechanics.mjs';
 import { ItemEffectsHelper } from '../helpers/effects-helper.mjs';
 import { AOEHelper } from '../helpers/aoe-helper.mjs';
+import { AnimationHelper } from '../helpers/animation-helper.mjs';
 
 /**
  * Extend the base Actor document for Mech Foundry system
@@ -1130,6 +1131,63 @@ export class MechFoundryActor extends Actor {
       // Also update the ammo item to stay in sync
       if (loadedAmmo) {
         await loadedAmmo.update({ 'system.quantity.value': newAmmoValue });
+      }
+    }
+
+    // Play weapon attack animations (if Sequencer is available and animation is configured)
+    const animationPath = weaponData.animation;
+    if (animationPath && !isMelee) {
+      const sourceToken = AnimationHelper.getActorToken(this);
+      const targetToken = options.target || null;
+
+      if (sourceToken) {
+        if (firingMode === 'suppression' && options.suppressionTemplateId) {
+          // Suppression fire: spray bullets across the template area
+          const templateDoc = canvas.scene.templates.get(options.suppressionTemplateId);
+          if (templateDoc) {
+            await AnimationHelper.playSuppressionAnimation(
+              sourceToken,
+              {
+                x: templateDoc.x,
+                y: templateDoc.y,
+                direction: templateDoc.direction,
+                distance: templateDoc.distance
+              },
+              ammoUsed,
+              { file: animationPath }
+            );
+          }
+        } else if (firingMode === 'burst' || firingMode === 'controlled') {
+          // Burst fire: individual bullet trajectories with hit/miss distribution
+          if (targetToken && results.length > 0) {
+            const firstResult = results[0];
+            // For burst, hits = base 1 + MoS (capped at extra shots)
+            const hitsCount = firstResult.success ? 1 + Math.min(firstResult.marginOfSuccess, ammoUsed - 1) : 0;
+            await AnimationHelper.playBurstAnimation(
+              sourceToken,
+              targetToken,
+              {
+                totalBullets: ammoUsed,
+                hitsCount: hitsCount,
+                attackHit: firstResult.success,
+                marginOfSuccess: firstResult.marginOfSuccess
+              },
+              { file: animationPath }
+            );
+          }
+        } else if (targetToken && results.length > 0) {
+          // Single shot: hit goes to target, miss goes to scattered coords
+          const firstResult = results[0];
+          await AnimationHelper.playSingleShotAnimation(
+            sourceToken,
+            targetToken,
+            {
+              success: firstResult.success,
+              marginOfSuccess: firstResult.marginOfSuccess
+            },
+            { file: animationPath }
+          );
+        }
       }
     }
 
