@@ -1,4 +1,5 @@
 import { OpposedRollHelper } from "./opposed-rolls.mjs";
+import { AnimationHelper } from "./animation-helper.mjs";
 
 /**
  * AOE (Area of Effect) Attack Helper
@@ -235,6 +236,17 @@ export class AOEHelper {
       const marginOfFailure = Math.abs(marginOfSuccess);
       scatterInfo = await this._calculateScatter(marginOfFailure);
       impactPoint = this._applyScatter(aimPoint, scatterInfo);
+    }
+
+    // Play AOE projectile animation (if configured)
+    const animationPath = weapon.system.animation;
+    if (animationPath) {
+      const sourceToken = AnimationHelper.getActorToken(actor);
+      if (sourceToken) {
+        await AnimationHelper.playAOEAnimation(sourceToken, impactPoint, {
+          file: animationPath
+        });
+      }
     }
 
     // Place the final template on the canvas

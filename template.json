@@ -166,7 +166,8 @@
       "loadedAmmoName": "",
       "loadedAmmoCategory": "",
       "pps": 0,
-      "ammoCompatibility": []
+      "ammoCompatibility": [],
+      "animation": ""
     },
     "armor": {
       "templates": ["base", "equipment_base", "has_effects"],
