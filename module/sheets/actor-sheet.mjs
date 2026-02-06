@@ -701,7 +701,8 @@ export class MechFoundryActorSheet extends ActorSheet {
     html.on('change', '.item-effect-toggle', this._onItemEffectToggle.bind(this));
 
     // Medical actions
-    html.on('click', '.render-aid', this._onRenderAid.bind(this));
+    html.on('click', '.first-aid', this._onFirstAid.bind(this));
+    html.on('click', '.stabilize-patient', this._onStabilize.bind(this));
     html.on('click', '.surgery', this._onSurgery.bind(this));
     html.on('click', '.heal-wound', this._onHealWound.bind(this));
     html.on('click', '.add-wound', this._onAddWound.bind(this));
@@ -953,12 +954,13 @@ export class MechFoundryActorSheet extends ActorSheet {
   }
 
   /**
-   * Open Render Aid dialog for First Aid or Stabilize
-   * Targets: Self (with -2 modifier) or targeted creature
+   * First Aid action - heal damage on target
+   * Targets: Self (with -2 penalty) or targeted creature
+   * Cannot be used on Critically Injured/Dying targets unless they are Stabilized
    * @param {Event} event
    * @private
    */
-  async _onRenderAid(event) {
+  async _onFirstAid(event) {
     event.preventDefault();
 
     // Get target - can be self or targeted token
@@ -967,19 +969,18 @@ export class MechFoundryActorSheet extends ActorSheet {
     let isSelfTarget = false;
 
     if (targets.length === 0) {
-      // No target selected - default to self
       targetActor = this.actor;
       isSelfTarget = true;
     } else if (targets.length === 1) {
       targetActor = targets[0].actor;
       isSelfTarget = targetActor.id === this.actor.id;
     } else {
-      ui.notifications.warn("Please target exactly one creature for Render Aid.");
+      ui.notifications.warn("Please target exactly one creature for First Aid.");
       return;
     }
 
     if (!targetActor) {
-      ui.notifications.warn("No valid target for Render Aid.");
+      ui.notifications.warn("No valid target for First Aid.");
       return;
     }
 
@@ -991,6 +992,13 @@ export class MechFoundryActorSheet extends ActorSheet {
       return;
     }
 
+    // Check if first aid already used on this patient this combat
+    const firstAidUsed = targetActor.system.firstAidUsedThisCombat || false;
+    if (firstAidUsed) {
+      ui.notifications.warn(`First Aid has already been used on ${targetActor.name} this combat.`);
+      return;
+    }
+
     // Check if MedTech skill is present
     const medtechSkill = this.actor.items.find(i => i.type === 'skill' && i.name.toLowerCase().includes('medtech'));
     const hasSkill = !!medtechSkill;
@@ -999,27 +1007,21 @@ export class MechFoundryActorSheet extends ActorSheet {
     let baseMod = 0;
     let checkType = '';
     if (hasSkill) {
-      // Skill check: skill level + linked attribute linkMods
       const skillLevel = medtechSkill.system?.level || 0;
       const linkedAttr1 = medtechSkill.system?.linkedAttribute1;
       const linkedAttr2 = medtechSkill.system?.linkedAttribute2;
       let linkMod = 0;
-      if (linkedAttr1) {
-        linkMod += this.actor.system.attributes[linkedAttr1]?.linkMod || 0;
-      }
-      if (linkedAttr2) {
-        linkMod += this.actor.system.attributes[linkedAttr2]?.linkMod || 0;
-      }
+      if (linkedAttr1) linkMod += this.actor.system.attributes[linkedAttr1]?.linkMod || 0;
+      if (linkedAttr2) linkMod += this.actor.system.attributes[linkedAttr2]?.linkMod || 0;
       baseMod = skillLevel + linkMod;
       checkType = `MedTech ${skillLevel}${linkMod >= 0 ? '+' : ''}${linkMod}`;
     } else {
-      // Attribute check: INT linkMod only
       baseMod = this.actor.system.attributes.int?.linkMod || 0;
       checkType = `INT ${baseMod >= 0 ? '+' : ''}${baseMod}`;
     }
 
-    // Fixed target number for MedTech
     const targetNumber = 7;
+    const selfModifier = isSelfTarget ? -2 : 0;
 
     // Get healthcare items for bonuses
     const healthcareItems = this.actor.items.filter(i =>
@@ -1035,27 +1037,11 @@ export class MechFoundryActorSheet extends ActorSheet {
       healthcareOptions += `<option value="${item.id}">${item.name}${bonus}${charges}</option>`;
     }
 
-    // Check if first aid already used on this patient this combat
-    const firstAidUsed = targetActor.system.firstAidUsedThisCombat || false;
-    const selfModifier = isSelfTarget ? -2 : 0;
-    const selfModifierText = isSelfTarget ? ' (Self: -2)' : '';
-
-    // Calculate wound penalty for stabilization (-1 per wound)
-    const targetWounds = targetActor.system.wounds || [];
-    const woundPenalty = -targetWounds.length;
-
     const content = `
       <form>
         <div class="form-group">
-          <label>Target</label>
-          <span><strong>${targetActor.name}</strong>${isSelfTarget ? ' (Self)' : ''}${targetWounds.length > 0 ? ` - ${targetWounds.length} wound(s)` : ''}</span>
-        </div>
-        <div class="form-group">
-          <label>Action Type</label>
-          <select name="actionType">
-            <option value="firstAid" ${firstAidUsed ? 'disabled' : ''}>First Aid${firstAidUsed ? ' (Used this combat)' : ''}</option>
-            <option value="stabilize">Stabilize${woundPenalty < 0 ? ` (${woundPenalty} wound penalty)` : ''}</option>
-          </select>
+          <label>Patient</label>
+          <span><strong>${targetActor.name}</strong>${isSelfTarget ? ' (Self)' : ''}</span>
         </div>
         <div class="form-group">
           <label>Healthcare Item</label>
@@ -1066,10 +1052,183 @@ export class MechFoundryActorSheet extends ActorSheet {
           <input type="number" name="modifier" value="0" style="width: 60px;"/>
         </div>
         <p class="hint">
-          <strong>${hasSkill ? 'MedTech Skill Check' : 'INT Attribute Check'}:</strong> ${checkType}${selfModifierText} = ${baseMod + selfModifier}<br>
+          <strong>${hasSkill ? 'MedTech Skill Check' : 'INT Attribute Check'}:</strong> ${checkType}${isSelfTarget ? ' (Self: -2)' : ''} = ${baseMod + selfModifier}<br>
           <strong>Target Number:</strong> ${targetNumber}<br>
-          <strong>First Aid:</strong> Heal MoS/2 damage (once per combat per patient)<br>
-          <strong>Stabilize:</strong> Stops bleeding, required before surgery${woundPenalty < 0 ? `<br><span style="color: #c44536;"><strong>Stabilize Penalty:</strong> ${woundPenalty} (${targetWounds.length} wounds)</span>` : ''}
+          <strong>Effect:</strong> Heal MoS/2 damage (min 1) on success
+        </p>
+      </form>
+    `;
+
+    const targetActorRef = targetActor;
+    const selfMod = selfModifier;
+    const baseModRef = baseMod;
+    const hasSkillRef = hasSkill;
+
+    new Dialog({
+      title: `First Aid - ${targetActor.name}`,
+      content: content,
+      buttons: {
+        roll: {
+          label: hasSkill ? "Roll MedTech" : "Roll INT Check",
+          callback: async (html) => {
+            const healthcareItemId = html.find('[name="healthcareItem"]').val();
+            const inputModifier = parseInt(html.find('[name="modifier"]').val()) || 0;
+
+            let bonus = 0;
+            let healthcareItem = null;
+            if (healthcareItemId) {
+              healthcareItem = this.actor.items.get(healthcareItemId);
+              if (healthcareItem) bonus = healthcareItem.system.medTechBonus || 0;
+            }
+
+            const totalMod = baseModRef + bonus + selfMod + inputModifier;
+            const roll = new Roll('2d6');
+            await roll.evaluate();
+            const result = roll.total + totalMod;
+            const mos = result - targetNumber;
+            const success = mos >= 0;
+
+            if (healthcareItem && healthcareItem.system.charges.max > 0) {
+              await healthcareItem.update({'system.charges.value': Math.max(0, healthcareItem.system.charges.value - 1)});
+            }
+
+            let actionResult = '';
+            if (success) {
+              const healAmount = Math.max(1, Math.floor(mos / 2));
+              const currentDamage = targetActorRef.system.damage.value;
+              const newDamage = Math.max(0, currentDamage - healAmount);
+              await targetActorRef.update({
+                'system.damage.value': newDamage,
+                'system.firstAidUsedThisCombat': true
+              });
+              actionResult = `<br><strong>Healed ${healAmount} damage on ${targetActorRef.name}!</strong> (${currentDamage} → ${newDamage})`;
+            } else {
+              await targetActorRef.update({'system.firstAidUsedThisCombat': true});
+              actionResult = '<br>First Aid failed. No healing.';
+            }
+
+            const selfText = selfMod ? 'Self -2' : '';
+            const inputModText = inputModifier ? `Mod ${inputModifier >= 0 ? '+' : ''}${inputModifier}` : '';
+            const modifierParts = [selfText, inputModText].filter(Boolean);
+            const modifiersText = modifierParts.length > 0 ? ` (${modifierParts.join(', ')})` : '';
+            const checkLabel = hasSkillRef ? 'MedTech' : 'INT Check';
+
+            ChatMessage.create({
+              speaker: ChatMessage.getSpeaker({ actor: this.actor }),
+              content: `
+                <div class="mech-foundry roll-result">
+                  <h3>First Aid</h3>
+                  <div class="roll-details">
+                    <span class="roll-target-name">Patient: ${targetActorRef.name}</span>
+                    <span class="roll-formula">2d6 + ${totalMod} (${checkLabel}${bonus ? ` +${bonus} item` : ''}${modifiersText})</span>
+                    <span class="roll-result">${roll.total} + ${totalMod} = <strong>${result}</strong></span>
+                    <span class="roll-target">TN: ${targetNumber}</span>
+                    <span class="roll-mos ${success ? 'success' : 'failure'}">MoS: ${mos} - ${success ? 'SUCCESS' : 'FAILURE'}</span>
+                    ${actionResult}
+                  </div>
+                </div>
+              `,
+              rolls: [roll]
+            });
+          }
+        },
+        cancel: { label: "Cancel" }
+      },
+      default: "roll"
+    }).render(true);
+  }
+
+  /**
+   * Stabilize action - stop bleeding and set stabilized status
+   * Targets: Self (with -2 penalty) or targeted creature
+   * Can be used on Critically Injured/Dying targets
+   * @param {Event} event
+   * @private
+   */
+  async _onStabilize(event) {
+    event.preventDefault();
+
+    // Get target - can be self or targeted token
+    const targets = Array.from(game.user.targets);
+    let targetActor = null;
+    let isSelfTarget = false;
+
+    if (targets.length === 0) {
+      targetActor = this.actor;
+      isSelfTarget = true;
+    } else if (targets.length === 1) {
+      targetActor = targets[0].actor;
+      isSelfTarget = targetActor.id === this.actor.id;
+    } else {
+      ui.notifications.warn("Please target exactly one creature for Stabilize.");
+      return;
+    }
+
+    if (!targetActor) {
+      ui.notifications.warn("No valid target for Stabilize.");
+      return;
+    }
+
+    // Check if MedTech skill is present
+    const medtechSkill = this.actor.items.find(i => i.type === 'skill' && i.name.toLowerCase().includes('medtech'));
+    const hasSkill = !!medtechSkill;
+
+    // Calculate modifier based on skill or attribute check
+    let baseMod = 0;
+    let checkType = '';
+    if (hasSkill) {
+      const skillLevel = medtechSkill.system?.level || 0;
+      const linkedAttr1 = medtechSkill.system?.linkedAttribute1;
+      const linkedAttr2 = medtechSkill.system?.linkedAttribute2;
+      let linkMod = 0;
+      if (linkedAttr1) linkMod += this.actor.system.attributes[linkedAttr1]?.linkMod || 0;
+      if (linkedAttr2) linkMod += this.actor.system.attributes[linkedAttr2]?.linkMod || 0;
+      baseMod = skillLevel + linkMod;
+      checkType = `MedTech ${skillLevel}${linkMod >= 0 ? '+' : ''}${linkMod}`;
+    } else {
+      baseMod = this.actor.system.attributes.int?.linkMod || 0;
+      checkType = `INT ${baseMod >= 0 ? '+' : ''}${baseMod}`;
+    }
+
+    const targetNumber = 7;
+    const selfModifier = isSelfTarget ? -2 : 0;
+
+    // Calculate wound penalty for stabilization (-1 per wound)
+    const targetWounds = targetActor.system.wounds || [];
+    const woundPenalty = -targetWounds.length;
+
+    // Get healthcare items for bonuses
+    const healthcareItems = this.actor.items.filter(i =>
+      i.type === 'healthcare' &&
+      i.system.carryStatus === 'carried' &&
+      (i.system.charges.max === 0 || i.system.charges.value > 0)
+    );
+
+    let healthcareOptions = '<option value="">None</option>';
+    for (const item of healthcareItems) {
+      const charges = item.system.charges.max > 0 ? ` (${item.system.charges.value}/${item.system.charges.max})` : '';
+      const bonus = item.system.medTechBonus ? ` [+${item.system.medTechBonus}]` : '';
+      healthcareOptions += `<option value="${item.id}">${item.name}${bonus}${charges}</option>`;
+    }
+
+    const content = `
+      <form>
+        <div class="form-group">
+          <label>Patient</label>
+          <span><strong>${targetActor.name}</strong>${isSelfTarget ? ' (Self)' : ''}${targetWounds.length > 0 ? ` - ${targetWounds.length} wound(s)` : ''}</span>
+        </div>
+        <div class="form-group">
+          <label>Healthcare Item</label>
+          <select name="healthcareItem">${healthcareOptions}</select>
+        </div>
+        <div class="form-group">
+          <label>Modifier (+/-)</label>
+          <input type="number" name="modifier" value="0" style="width: 60px;"/>
+        </div>
+        <p class="hint">
+          <strong>${hasSkill ? 'MedTech Skill Check' : 'INT Attribute Check'}:</strong> ${checkType}${isSelfTarget ? ' (Self: -2)' : ''} = ${baseMod + selfModifier}<br>
+          <strong>Target Number:</strong> ${targetNumber}<br>
+          <strong>Effect:</strong> Stops bleeding, sets Stabilized status${woundPenalty < 0 ? `<br><span style="color: #c44536;"><strong>Wound Penalty:</strong> ${woundPenalty} (${targetWounds.length} wounds)</span>` : ''}
         </p>
       </form>
     `;
@@ -1078,104 +1237,74 @@ export class MechFoundryActorSheet extends ActorSheet {
     const selfMod = selfModifier;
     const woundMod = woundPenalty;
     const baseModRef = baseMod;
-    const checkTypeRef = checkType;
     const hasSkillRef = hasSkill;
 
     new Dialog({
-      title: `Render Aid - ${targetActor.name}`,
+      title: `Stabilize - ${targetActor.name}`,
       content: content,
       buttons: {
         roll: {
           label: hasSkill ? "Roll MedTech" : "Roll INT Check",
           callback: async (html) => {
-            const actionType = html.find('[name="actionType"]').val();
             const healthcareItemId = html.find('[name="healthcareItem"]').val();
             const inputModifier = parseInt(html.find('[name="modifier"]').val()) || 0;
 
-            // Get healthcare item bonus if selected
             let bonus = 0;
             let healthcareItem = null;
             if (healthcareItemId) {
               healthcareItem = this.actor.items.get(healthcareItemId);
-              if (healthcareItem) {
-                bonus = healthcareItem.system.medTechBonus || 0;
-              }
+              if (healthcareItem) bonus = healthcareItem.system.medTechBonus || 0;
             }
 
-            // Calculate wound penalty (only applies to stabilization)
-            const stabilizePenalty = actionType === 'stabilize' ? woundMod : 0;
-
-            // Roll check (includes self-modifier, wound penalty, and input modifier)
-            const totalMod = baseModRef + bonus + selfMod + stabilizePenalty + inputModifier;
+            const totalMod = baseModRef + bonus + selfMod + woundMod + inputModifier;
             const roll = new Roll('2d6');
             await roll.evaluate();
             const result = roll.total + totalMod;
             const mos = result - targetNumber;
             const success = mos >= 0;
 
-            // Consume healthcare charge if applicable
             if (healthcareItem && healthcareItem.system.charges.max > 0) {
               await healthcareItem.update({'system.charges.value': Math.max(0, healthcareItem.system.charges.value - 1)});
             }
 
             let actionResult = '';
-            if (actionType === 'firstAid') {
-              if (success) {
-                const healAmount = Math.max(1, Math.floor(mos / 2));
-                const currentDamage = targetActorRef.system.damage.value;
-                const newDamage = Math.max(0, currentDamage - healAmount);
-                await targetActorRef.update({
-                  'system.damage.value': newDamage,
-                  'system.firstAidUsedThisCombat': true
-                });
-                actionResult = `<br><strong>Healed ${healAmount} damage on ${targetActorRef.name}!</strong> (${currentDamage} → ${newDamage})`;
-              } else {
-                await targetActorRef.update({'system.firstAidUsedThisCombat': true});
-                actionResult = '<br>First Aid failed. No healing.';
-              }
-            } else if (actionType === 'stabilize') {
-              if (success) {
-                await targetActorRef.update({
-                  'system.bleeding': false,
-                  'system.stabilized': true
-                });
-                actionResult = `<br><strong>${targetActorRef.name} stabilized!</strong> Bleeding stopped.`;
-              } else {
-                actionResult = '<br>Stabilization failed. Patient still bleeding.';
-              }
+            if (success) {
+              await targetActorRef.update({
+                'system.bleeding': false,
+                'system.stabilized': true
+              });
+              actionResult = `<br><strong>${targetActorRef.name} stabilized!</strong> Bleeding stopped.`;
+            } else {
+              actionResult = '<br>Stabilization failed. Patient still bleeding.';
             }
 
-            // Create chat message
             const selfText = selfMod ? 'Self -2' : '';
-            const stabilizeText = stabilizePenalty ? `Wounds ${stabilizePenalty}` : '';
+            const woundText = woundMod ? `Wounds ${woundMod}` : '';
             const inputModText = inputModifier ? `Mod ${inputModifier >= 0 ? '+' : ''}${inputModifier}` : '';
-            const modifierParts = [selfText, stabilizeText, inputModText].filter(Boolean);
+            const modifierParts = [selfText, woundText, inputModText].filter(Boolean);
             const modifiersText = modifierParts.length > 0 ? ` (${modifierParts.join(', ')})` : '';
             const checkLabel = hasSkillRef ? 'MedTech' : 'INT Check';
-            const messageContent = `
-              <div class="mech-foundry roll-result">
-                <h3>Render Aid: ${actionType === 'firstAid' ? 'First Aid' : 'Stabilize'}</h3>
-                <div class="roll-details">
-                  <span class="roll-target-name">Patient: ${targetActorRef.name}</span>
-                  <span class="roll-formula">2d6 + ${totalMod} (${checkLabel}${bonus ? ` +${bonus} item` : ''}${modifiersText})</span>
-                  <span class="roll-result">${roll.total} + ${totalMod} = <strong>${result}</strong></span>
-                  <span class="roll-target">TN: ${targetNumber}</span>
-                  <span class="roll-mos ${success ? 'success' : 'failure'}">MoS: ${mos} - ${success ? 'SUCCESS' : 'FAILURE'}</span>
-                  ${actionResult}
-                </div>
-              </div>
-            `;
 
             ChatMessage.create({
               speaker: ChatMessage.getSpeaker({ actor: this.actor }),
-              content: messageContent,
+              content: `
+                <div class="mech-foundry roll-result">
+                  <h3>Stabilize</h3>
+                  <div class="roll-details">
+                    <span class="roll-target-name">Patient: ${targetActorRef.name}</span>
+                    <span class="roll-formula">2d6 + ${totalMod} (${checkLabel}${bonus ? ` +${bonus} item` : ''}${modifiersText})</span>
+                    <span class="roll-result">${roll.total} + ${totalMod} = <strong>${result}</strong></span>
+                    <span class="roll-target">TN: ${targetNumber}</span>
+                    <span class="roll-mos ${success ? 'success' : 'failure'}">MoS: ${mos} - ${success ? 'SUCCESS' : 'FAILURE'}</span>
+                    ${actionResult}
+                  </div>
+                </div>
+              `,
               rolls: [roll]
             });
           }
         },
-        cancel: {
-          label: "Cancel"
-        }
+        cancel: { label: "Cancel" }
       },
       default: "roll"
     }).render(true);
