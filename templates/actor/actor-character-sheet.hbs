@@ -411,7 +411,7 @@
 
               {{!-- Wounds List (Critical Hit Effects) --}}
               <div class="wounds-section">
-                <label>Wounds</label>
+                <label>Wounds {{#if isGM}}<a class="add-wound gm-only" title="Add Wound (GM Only)"><i class="fas fa-plus-circle"></i></a>{{/if}}</label>
                 {{#if system.wounds.length}}
                 <div class="wounds-list">
                   {{#each system.wounds}}
@@ -425,6 +425,7 @@
                       {{#if (eq this.type "severeStrain")}}<i class="fas fa-running"></i> Severe Strain{{/if}}
                       {{#if (eq this.type "severelyWounded")}}<i class="fas fa-skull-crossbones"></i> Severely Wounded{{/if}}
                     </span>
+                    <span class="wound-severity" title="Severity (reduce to 0 via surgery to heal)">[{{#if this.severity}}{{this.severity}}{{else}}5{{/if}}]</span>
                     {{#if this.location}}<span class="wound-location">({{this.location}})</span>{{/if}}
                     <a class="heal-wound" data-wound-index="{{@index}}" title="Heal this wound (Surgery)"><i class="fas fa-syringe"></i></a>
                   </div>
@@ -588,33 +589,33 @@
                   </tr>
                 </thead>
                 <tbody>
-                  <tr>
+                  <tr class="{{#if totalArmor.head.isDamaged}}armor-damaged{{/if}}">
                     <td>Head</td>
-                    <td>{{totalArmor.head.m}}</td>
-                    <td>{{totalArmor.head.b}}</td>
-                    <td>{{totalArmor.head.e}}</td>
-                    <td>{{totalArmor.head.x}}</td>
+                    <td class="{{#if totalArmor.head.isDamaged}}damaged-value{{/if}}">{{totalArmor.head.m}}</td>
+                    <td class="{{#if totalArmor.head.isDamaged}}damaged-value{{/if}}">{{totalArmor.head.b}}</td>
+                    <td class="{{#if totalArmor.head.isDamaged}}damaged-value{{/if}}">{{totalArmor.head.e}}</td>
+                    <td class="{{#if totalArmor.head.isDamaged}}damaged-value{{/if}}">{{totalArmor.head.x}}</td>
                   </tr>
-                  <tr>
+                  <tr class="{{#if totalArmor.torso.isDamaged}}armor-damaged{{/if}}">
                     <td>Torso</td>
-                    <td>{{totalArmor.torso.m}}</td>
-                    <td>{{totalArmor.torso.b}}</td>
-                    <td>{{totalArmor.torso.e}}</td>
-                    <td>{{totalArmor.torso.x}}</td>
+                    <td class="{{#if totalArmor.torso.isDamaged}}damaged-value{{/if}}">{{totalArmor.torso.m}}</td>
+                    <td class="{{#if totalArmor.torso.isDamaged}}damaged-value{{/if}}">{{totalArmor.torso.b}}</td>
+                    <td class="{{#if totalArmor.torso.isDamaged}}damaged-value{{/if}}">{{totalArmor.torso.e}}</td>
+                    <td class="{{#if totalArmor.torso.isDamaged}}damaged-value{{/if}}">{{totalArmor.torso.x}}</td>
                   </tr>
-                  <tr>
+                  <tr class="{{#if totalArmor.arms.isDamaged}}armor-damaged{{/if}}">
                     <td>Arms</td>
-                    <td>{{totalArmor.arms.m}}</td>
-                    <td>{{totalArmor.arms.b}}</td>
-                    <td>{{totalArmor.arms.e}}</td>
-                    <td>{{totalArmor.arms.x}}</td>
+                    <td class="{{#if totalArmor.arms.isDamaged}}damaged-value{{/if}}">{{totalArmor.arms.m}}</td>
+                    <td class="{{#if totalArmor.arms.isDamaged}}damaged-value{{/if}}">{{totalArmor.arms.b}}</td>
+                    <td class="{{#if totalArmor.arms.isDamaged}}damaged-value{{/if}}">{{totalArmor.arms.e}}</td>
+                    <td class="{{#if totalArmor.arms.isDamaged}}damaged-value{{/if}}">{{totalArmor.arms.x}}</td>
                   </tr>
-                  <tr>
+                  <tr class="{{#if totalArmor.legs.isDamaged}}armor-damaged{{/if}}">
                     <td>Legs</td>
-                    <td>{{totalArmor.legs.m}}</td>
-                    <td>{{totalArmor.legs.b}}</td>
-                    <td>{{totalArmor.legs.e}}</td>
-                    <td>{{totalArmor.legs.x}}</td>
+                    <td class="{{#if totalArmor.legs.isDamaged}}damaged-value{{/if}}">{{totalArmor.legs.m}}</td>
+                    <td class="{{#if totalArmor.legs.isDamaged}}damaged-value{{/if}}">{{totalArmor.legs.b}}</td>
+                    <td class="{{#if totalArmor.legs.isDamaged}}damaged-value{{/if}}">{{totalArmor.legs.e}}</td>
+                    <td class="{{#if totalArmor.legs.isDamaged}}damaged-value{{/if}}">{{totalArmor.legs.x}}</td>
                   </tr>
                 </tbody>
               </table>
@@ -632,15 +633,18 @@
               </thead>
               <tbody>
                 {{#each equippedArmor}}
-                <tr class="item" data-item-id="{{this._id}}">
-                  <td class="armor-type">{{this.name}}</td>
+                <tr class="item {{#if this.isDamaged}}armor-damaged{{/if}}" data-item-id="{{this._id}}">
+                  <td class="armor-type">
+                    {{this.name}}
+                    {{#if this.isDamaged}}<span class="damage-indicator" title="Damaged: -{{this.armorDamage}} to all BAR (Max: {{this.system.bar.m}}/{{this.system.bar.b}}/{{this.system.bar.e}}/{{this.system.bar.x}})"><i class="fas fa-exclamation-triangle"></i></span>{{/if}}
+                  </td>
                   <td class="armor-coverage">
                     {{#if this.system.coverage.head}}H{{/if}}{{#if this.system.coverage.torso}}T{{/if}}{{#if this.system.coverage.arms}}A{{/if}}{{#if this.system.coverage.legs}}L{{/if}}
                   </td>
-                  <td class="armor-bar">{{this.system.bar.m}}</td>
-                  <td class="armor-bar">{{this.system.bar.b}}</td>
-                  <td class="armor-bar">{{this.system.bar.e}}</td>
-                  <td class="armor-bar">{{this.system.bar.x}}</td>
+                  <td class="armor-bar {{#if this.isDamaged}}damaged-value{{/if}}" title="{{#if this.isDamaged}}Max: {{this.system.bar.m}}{{/if}}">{{this.currentBar.m}}</td>
+                  <td class="armor-bar {{#if this.isDamaged}}damaged-value{{/if}}" title="{{#if this.isDamaged}}Max: {{this.system.bar.b}}{{/if}}">{{this.currentBar.b}}</td>
+                  <td class="armor-bar {{#if this.isDamaged}}damaged-value{{/if}}" title="{{#if this.isDamaged}}Max: {{this.system.bar.e}}{{/if}}">{{this.currentBar.e}}</td>
+                  <td class="armor-bar {{#if this.isDamaged}}damaged-value{{/if}}" title="{{#if this.isDamaged}}Max: {{this.system.bar.x}}{{/if}}">{{this.currentBar.x}}</td>
                   <td class="item-controls">
                     <a class="item-edit" title="Edit"><i class="fas fa-edit"></i></a>
                   </td>
@@ -786,19 +790,25 @@
           </thead>
           <tbody>
             {{#each inventory.armor}}
-            <tr class="item" data-item-id="{{this._id}}">
+            <tr class="item {{#if this.isDamaged}}armor-damaged{{/if}}" data-item-id="{{this._id}}">
               <td class="item-status">
                 <a class="carry-status-toggle" data-status="{{this.system.carryStatus}}" title="{{this.system.carryStatus}}">
                   {{#if (eq this.system.carryStatus "equipped")}}<i class="fas fa-shield-alt"></i>{{else if (eq this.system.carryStatus "carried")}}<i class="fas fa-suitcase"></i>{{else}}<i class="fas fa-warehouse"></i>{{/if}}
                 </a>
               </td>
-              <td class="item-name">{{this.name}}</td>
-              <td class="armor-bar">{{this.system.bar.m}}/{{this.system.bar.b}}/{{this.system.bar.e}}/{{this.system.bar.x}}</td>
+              <td class="item-name">
+                {{this.name}}
+                {{#if this.isDamaged}}<span class="damage-indicator" title="Damaged: -{{this.armorDamage}} to all BAR"><i class="fas fa-exclamation-triangle"></i></span>{{/if}}
+              </td>
+              <td class="armor-bar {{#if this.isDamaged}}damaged-value{{/if}}" title="{{#if this.isDamaged}}Max: {{this.system.bar.m}}/{{this.system.bar.b}}/{{this.system.bar.e}}/{{this.system.bar.x}}{{/if}}">
+                {{this.currentBar.m}}/{{this.currentBar.b}}/{{this.currentBar.e}}/{{this.currentBar.x}}
+              </td>
               <td class="armor-coverage">
                 {{#if this.system.coverage.head}}Head{{/if}}{{#if (and this.system.coverage.head (or this.system.coverage.torso this.system.coverage.arms this.system.coverage.legs))}}, {{/if}}{{#if this.system.coverage.torso}}Torso{{/if}}{{#if (and this.system.coverage.torso (or this.system.coverage.arms this.system.coverage.legs))}}, {{/if}}{{#if this.system.coverage.arms}}Arms{{/if}}{{#if (and this.system.coverage.arms this.system.coverage.legs)}}, {{/if}}{{#if this.system.coverage.legs}}Legs{{/if}}
               </td>
               <td class="item-mass">{{this.system.mass}}</td>
               <td class="item-controls">
+                {{#if this.isDamaged}}<a class="armor-repair" title="Repair Armor"><i class="fas fa-wrench"></i></a>{{/if}}
                 <a class="item-edit" title="Edit"><i class="fas fa-edit"></i></a>
                 <a class="item-delete" title="Delete"><i class="fas fa-trash"></i></a>
               </td>
@@ -947,42 +957,6 @@
               <td class="item-name">{{this.name}}</td>
               <td class="item-range">{{this.system.range}}</td>
               <td class="item-power">{{this.system.powerUse}}</td>
-              <td class="item-mass">{{this.system.mass}}</td>
-              <td class="item-controls">
-                <a class="item-edit" title="Edit"><i class="fas fa-edit"></i></a>
-                <a class="item-delete" title="Delete"><i class="fas fa-trash"></i></a>
-              </td>
-            </tr>
-            {{/each}}
-          </tbody>
-        </table>
-      </div>
-      {{/if}}
-
-      {{!-- Power Packs Category --}}
-      {{#if inventory.powerpacks.length}}
-      <div class="inventory-category powerpacks-category">
-        <h3 class="section-title">Power Packs</h3>
-        <table class="inventory-table">
-          <thead>
-            <tr>
-              <th class="status-col"></th>
-              <th>Name</th>
-              <th>Capacity</th>
-              <th>Mass</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {{#each inventory.powerpacks}}
-            <tr class="item" data-item-id="{{this._id}}">
-              <td class="item-status">
-                <a class="carry-status-toggle" data-status="{{this.system.carryStatus}}" title="{{this.system.carryStatus}}">
-                  {{#if (eq this.system.carryStatus "carried")}}<i class="fas fa-suitcase"></i>{{else}}<i class="fas fa-warehouse"></i>{{/if}}
-                </a>
-              </td>
-              <td class="item-name">{{this.name}}</td>
-              <td class="item-capacity">{{this.system.powerCapacity}}</td>
               <td class="item-mass">{{this.system.mass}}</td>
               <td class="item-controls">
                 <a class="item-edit" title="Edit"><i class="fas fa-edit"></i></a>

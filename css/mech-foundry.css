@@ -3783,8 +3783,20 @@
 .mech-foundry .wounds-section > label {
   font-weight: 600;
   font-size: 0.85em;
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 6px;
   margin-bottom: 4px;
+}
+
+.mech-foundry .add-wound {
+  color: var(--mf-secondary);
+  cursor: pointer;
+  font-size: 0.9em;
+}
+
+.mech-foundry .add-wound:hover {
+  color: var(--mf-primary);
 }
 
 .mech-foundry .wounds-list {
@@ -3811,6 +3823,13 @@
 
 .mech-foundry .wound-type i {
   margin-right: 4px;
+}
+
+.mech-foundry .wound-severity {
+  color: #c44536;
+  font-weight: 600;
+  font-size: 0.85em;
+  margin-left: 4px;
 }
 
 .mech-foundry .wound-location {
@@ -4092,4 +4111,32 @@
   font-size: 0.85em;
   color: var(--mf-secondary);
   font-style: italic;
+}
+
+/* Damaged armor styling */
+.mech-foundry .armor-damaged {
+  background: rgba(200, 50, 50, 0.08);
+}
+
+.mech-foundry .damaged-value {
+  color: var(--mf-danger, #c85050);
+  font-weight: bold;
+}
+
+.mech-foundry .damage-indicator {
+  color: var(--mf-danger, #c85050);
+  margin-left: 4px;
+  cursor: help;
+}
+
+.mech-foundry .armor-repair {
+  color: var(--mf-secondary, #57837f);
+}
+
+.mech-foundry .armor-repair:hover {
+  color: var(--mf-primary, #3a5a5a);
+}
+
+.mech-foundry .total-armor-table .damaged-value {
+  color: var(--mf-danger, #c85050);
 }

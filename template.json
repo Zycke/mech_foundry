@@ -103,7 +103,7 @@
     }
   },
   "Item": {
-    "types": ["skill", "trait", "weapon", "armor", "vehicle", "fuel", "electronics", "powerpack", "healthcare", "prosthetics", "drugpoison", "activeEffect", "ammo"],
+    "types": ["skill", "trait", "weapon", "armor", "vehicle", "fuel", "electronics", "healthcare", "prosthetics", "drugpoison", "activeEffect", "ammo"],
     "templates": {
       "base": {
         "description": ""
@@ -177,6 +177,7 @@
         "e": 0,
         "x": 0
       },
+      "armorDamage": 0,
       "patchCost": 0,
       "coverage": {
         "head": false,
@@ -224,10 +225,6 @@
       "templates": ["base", "equipment_base", "has_effects"],
       "range": "",
       "powerUse": 0
-    },
-    "powerpack": {
-      "templates": ["base", "equipment_base"],
-      "powerCapacity": 0
     },
     "healthcare": {
       "templates": ["base", "equipment_base", "has_effects"],

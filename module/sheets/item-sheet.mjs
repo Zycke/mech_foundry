@@ -90,6 +90,9 @@ export class MechFoundryItemSheet extends ItemSheet {
     context.owner = this.document.isOwner;
     context.editable = this.isEditable;
 
+    // Add GM status for GM-only fields (like armor damage editing)
+    context.isGM = game.user.isGM;
+
     // Enrich description for editor
     context.enrichedDescription = await TextEditor.enrichHTML(
       this.item.system.description,

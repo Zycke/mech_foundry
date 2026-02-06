@@ -196,6 +196,7 @@
               data-standard="{{#if this.armorCalc}}{{this.armorCalc.finalDamage}}{{else}}{{this.standardDamage}}{{/if}}"
               data-fatigue="{{this.fatigueDamage}}"
               data-subduing="{{this.isSubduing}}"
+              data-raw-damage="{{this.standardDamage}}"
               data-location="{{#if this.hitLocation}}{{this.hitLocation.armorLocation}}{{/if}}"
               {{#if this.woundEffect}}data-wound-type="{{this.woundEffect.type}}"{{/if}}>
         Apply Damage

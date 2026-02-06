@@ -192,6 +192,7 @@
             data-standard="{{attackerArmorCalc.finalDamage}}"
             data-fatigue="{{attackerDamage.fatigueDamage}}"
             data-subduing="{{attackerDamage.isSubduing}}"
+            data-raw-damage="{{attackerDamage.standardDamage}}"
             data-location="{{attackerHitLocation.armorLocation}}"
             {{#if attackerWoundEffect}}data-wound-type="{{attackerWoundEffect.type}}"{{/if}}>
       Apply Damage to {{defenderName}}
@@ -203,6 +204,7 @@
             data-standard="{{attackerArmorCalc.finalDamage}}"
             data-fatigue="{{attackerDamage.fatigueDamage}}"
             data-subduing="{{attackerDamage.isSubduing}}"
+            data-raw-damage="{{attackerDamage.standardDamage}}"
             data-location="{{attackerHitLocation.armorLocation}}"
             {{#if attackerWoundEffect}}data-wound-type="{{attackerWoundEffect.type}}"{{/if}}>
       Apply Damage to {{defenderName}}
@@ -324,6 +326,7 @@
             data-standard="{{defenderArmorCalc.finalDamage}}"
             data-fatigue="{{defenderDamage.fatigueDamage}}"
             data-subduing="{{defenderDamage.isSubduing}}"
+            data-raw-damage="{{defenderDamage.standardDamage}}"
             data-location="{{defenderHitLocation.armorLocation}}"
             {{#if defenderWoundEffect}}data-wound-type="{{defenderWoundEffect.type}}"{{/if}}>
       Apply Damage to {{attackerName}}
@@ -335,6 +338,7 @@
             data-standard="{{defenderArmorCalc.finalDamage}}"
             data-fatigue="{{defenderDamage.fatigueDamage}}"
             data-subduing="{{defenderDamage.isSubduing}}"
+            data-raw-damage="{{defenderDamage.standardDamage}}"
             data-location="{{defenderHitLocation.armorLocation}}"
             {{#if defenderWoundEffect}}data-wound-type="{{defenderWoundEffect.type}}"{{/if}}>
       Apply Damage to {{attackerName}}
