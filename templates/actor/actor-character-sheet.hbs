@@ -409,16 +409,24 @@
             <div class="medical-subpanel status-subpanel">
               <h4 class="subsection-title">Status</h4>
 
-              {{!-- Wounds List --}}
+              {{!-- Wounds List (Critical Hit Effects) --}}
               <div class="wounds-section">
                 <label>Wounds</label>
                 {{#if system.wounds.length}}
                 <div class="wounds-list">
                   {{#each system.wounds}}
-                  <div class="wound-item" data-wound-index="{{@index}}">
-                    <span class="wound-damage">{{this.damage}} damage</span>
-                    <span class="wound-source">{{this.source}}</span>
-                    <a class="heal-wound" data-wound-index="{{@index}}" title="Heal this wound"><i class="fas fa-band-aid"></i></a>
+                  <div class="wound-item wound-{{this.type}}" data-wound-index="{{@index}}">
+                    <span class="wound-type">
+                      {{#if (eq this.type "dazed")}}<i class="fas fa-dizzy"></i> Dazed{{/if}}
+                      {{#if (eq this.type "concussion")}}<i class="fas fa-brain"></i> Concussion{{/if}}
+                      {{#if (eq this.type "hemorrhage")}}<i class="fas fa-tint"></i> Hemorrhage{{/if}}
+                      {{#if (eq this.type "traumaticImpact")}}<i class="fas fa-fist-raised"></i> Traumatic Impact{{/if}}
+                      {{#if (eq this.type "nerveDamage")}}<i class="fas fa-bolt"></i> Nerve Damage{{/if}}
+                      {{#if (eq this.type "severeStrain")}}<i class="fas fa-running"></i> Severe Strain{{/if}}
+                      {{#if (eq this.type "severelyWounded")}}<i class="fas fa-skull-crossbones"></i> Severely Wounded{{/if}}
+                    </span>
+                    {{#if this.location}}<span class="wound-location">({{this.location}})</span>{{/if}}
+                    <a class="heal-wound" data-wound-index="{{@index}}" title="Heal this wound (Surgery)"><i class="fas fa-syringe"></i></a>
                   </div>
                   {{/each}}
                 </div>
@@ -429,24 +437,36 @@
 
               {{!-- Standard Damage Track --}}
               <div class="condition-track damage-track">
-                <label>Standard Damage</label>
+                <label>Standard Damage{{#if system.lockedDamage}} <span class="locked-count">({{system.lockedDamage}} locked)</span>{{/if}}</label>
                 <div class="condition-boxes">
+                  {{!-- Available boxes --}}
                   {{#times system.damageCapacity}}
                   <span class="condition-box {{#if (lt this @root.system.damage.value)}}filled{{/if}}" data-index="{{this}}" data-type="damage"></span>
                   {{/times}}
+                  {{!-- Locked boxes (from wounds) --}}
+                  {{#times system.lockedDamage}}
+                  <span class="condition-box locked" title="Locked by wound"><i class="fas fa-times"></i></span>
+                  {{/times}}
                 </div>
                 <input type="number" class="condition-input" name="system.damage.value" value="{{system.damage.value}}" min="0" max="{{system.damageCapacity}}" data-dtype="Number" data-max="{{system.damageCapacity}}"/>
+                {{#if system.dead}}<span class="death-warning"><i class="fas fa-skull"></i> DEAD</span>{{/if}}
               </div>
 
               {{!-- Fatigue Track --}}
               <div class="condition-track fatigue-track">
-                <label>Fatigue Damage</label>
+                <label>Fatigue Damage{{#if system.lockedFatigue}} <span class="locked-count">({{system.lockedFatigue}} locked)</span>{{/if}}</label>
                 <div class="condition-boxes">
+                  {{!-- Available boxes --}}
                   {{#times system.fatigueCapacity}}
                   <span class="condition-box {{#if (lt this @root.system.fatigue.value)}}filled{{/if}}" data-index="{{this}}" data-type="fatigue"></span>
                   {{/times}}
+                  {{!-- Locked boxes (from wounds) --}}
+                  {{#times system.lockedFatigue}}
+                  <span class="condition-box locked" title="Locked by wound"><i class="fas fa-times"></i></span>
+                  {{/times}}
                 </div>
                 <input type="number" class="condition-input" name="system.fatigue.value" value="{{system.fatigue.value}}" min="0" max="{{system.fatigueCapacity}}" data-dtype="Number" data-max="{{system.fatigueCapacity}}"/>
+                {{#if system.coma}}<span class="coma-warning"><i class="fas fa-bed"></i> COMA</span>{{/if}}
               </div>
 
               {{!-- Condition Modifiers --}}

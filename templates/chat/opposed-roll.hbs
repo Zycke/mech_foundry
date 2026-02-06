@@ -192,7 +192,8 @@
             data-standard="{{attackerArmorCalc.finalDamage}}"
             data-fatigue="{{attackerDamage.fatigueDamage}}"
             data-subduing="{{attackerDamage.isSubduing}}"
-            data-location="{{attackerHitLocation.armorLocation}}">
+            data-location="{{attackerHitLocation.armorLocation}}"
+            {{#if attackerWoundEffect}}data-wound-type="{{attackerWoundEffect.type}}"{{/if}}>
       Apply Damage to {{defenderName}}
     </button>
     {{else if showDefenderChoice}}
@@ -202,7 +203,8 @@
             data-standard="{{attackerArmorCalc.finalDamage}}"
             data-fatigue="{{attackerDamage.fatigueDamage}}"
             data-subduing="{{attackerDamage.isSubduing}}"
-            data-location="{{attackerHitLocation.armorLocation}}">
+            data-location="{{attackerHitLocation.armorLocation}}"
+            {{#if attackerWoundEffect}}data-wound-type="{{attackerWoundEffect.type}}"{{/if}}>
       Apply Damage to {{defenderName}}
     </button>
     {{/if}}
@@ -322,7 +324,8 @@
             data-standard="{{defenderArmorCalc.finalDamage}}"
             data-fatigue="{{defenderDamage.fatigueDamage}}"
             data-subduing="{{defenderDamage.isSubduing}}"
-            data-location="{{defenderHitLocation.armorLocation}}">
+            data-location="{{defenderHitLocation.armorLocation}}"
+            {{#if defenderWoundEffect}}data-wound-type="{{defenderWoundEffect.type}}"{{/if}}>
       Apply Damage to {{attackerName}}
     </button>
     {{else if showDefenderChoice}}
@@ -332,7 +335,8 @@
             data-standard="{{defenderArmorCalc.finalDamage}}"
             data-fatigue="{{defenderDamage.fatigueDamage}}"
             data-subduing="{{defenderDamage.isSubduing}}"
-            data-location="{{defenderHitLocation.armorLocation}}">
+            data-location="{{defenderHitLocation.armorLocation}}"
+            {{#if defenderWoundEffect}}data-wound-type="{{defenderWoundEffect.type}}"{{/if}}>
       Apply Damage to {{attackerName}}
     </button>
     {{/if}}

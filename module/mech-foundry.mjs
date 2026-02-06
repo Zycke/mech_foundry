@@ -514,6 +514,7 @@ Hooks.on('renderChatMessage', (message, html, data) => {
     const fatigueDamage = parseInt(button.dataset.fatigue) || 0;
     const isSubduing = button.dataset.subduing === 'true';
     const location = button.dataset.location || null;
+    const woundType = button.dataset.woundType || null;
 
     // Get the target actor - prefer token actor for unlinked token support
     let target = null;
@@ -542,6 +543,13 @@ Hooks.on('renderChatMessage', (message, html, data) => {
     } else {
       // Standard damage - apply standard damage (fatigue is added automatically)
       await target.applyDamage(standardDamage, 0, 'm', location, false);
+    }
+
+    // Apply wound effect if present (from critical hit - doubles on attack)
+    // Valid wound types: dazed, deafened, blinded, internalDamage, shatteredLimb
+    // Knockdown is not a wound, just a status effect
+    if (woundType && woundType !== 'knockdown') {
+      await target.inflictWound(woundType, location, 'Critical Hit');
     }
 
     // Disable the button and update text
