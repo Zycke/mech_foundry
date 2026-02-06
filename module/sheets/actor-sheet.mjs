@@ -194,7 +194,6 @@ export class MechFoundryActorSheet extends ActorSheet {
       armor: [],
       weapons: [],
       electronics: [],
-      powerpacks: [],
       healthcare: [],
       prosthetics: [],
       drugpoisons: [],
@@ -310,13 +309,6 @@ export class MechFoundryActorSheet extends ActorSheet {
       }
       else if (i.type === 'electronics') {
         inventory.electronics.push(i);
-        const status = i.system.carryStatus || 'carried';
-        if (status !== 'stored') {
-          totalWeight += parseFloat(i.system.mass) || 0;
-        }
-      }
-      else if (i.type === 'powerpack') {
-        inventory.powerpacks.push(i);
         const status = i.system.carryStatus || 'carried';
         if (status !== 'stored') {
           totalWeight += parseFloat(i.system.mass) || 0;
@@ -695,6 +687,7 @@ export class MechFoundryActorSheet extends ActorSheet {
     html.on('click', '.render-aid', this._onRenderAid.bind(this));
     html.on('click', '.surgery', this._onSurgery.bind(this));
     html.on('click', '.heal-wound', this._onHealWound.bind(this));
+    html.on('click', '.add-wound', this._onAddWound.bind(this));
 
     // Drag events for macros
     if (this.actor.isOwner) {
@@ -970,6 +963,14 @@ export class MechFoundryActorSheet extends ActorSheet {
       return;
     }
 
+    // Check if target has Critically Injured or Dying status without Stabilized
+    const isCriticalOrDying = targetActor.system.criticallyInjured || targetActor.system.dying;
+    const isStabilized = targetActor.system.stabilized;
+    if (isCriticalOrDying && !isStabilized) {
+      ui.notifications.warn(`${targetActor.name} is critically injured or dying and must be stabilized before First Aid can be applied.`);
+      return;
+    }
+
     // Check if MedTech skill is present
     const medtechSkill = this.actor.items.find(i => i.type === 'skill' && i.name.toLowerCase().includes('medtech'));
     const hasSkill = !!medtechSkill;
@@ -1040,6 +1041,10 @@ export class MechFoundryActorSheet extends ActorSheet {
           <label>Healthcare Item</label>
           <select name="healthcareItem">${healthcareOptions}</select>
         </div>
+        <div class="form-group">
+          <label>Modifier (+/-)</label>
+          <input type="number" name="modifier" value="0" style="width: 60px;"/>
+        </div>
         <p class="hint">
           <strong>${hasSkill ? 'MedTech Skill Check' : 'INT Attribute Check'}:</strong> ${checkType}${selfModifierText} = ${baseMod + selfModifier}<br>
           <strong>Target Number:</strong> ${targetNumber}<br>
@@ -1065,6 +1070,7 @@ export class MechFoundryActorSheet extends ActorSheet {
           callback: async (html) => {
             const actionType = html.find('[name="actionType"]').val();
             const healthcareItemId = html.find('[name="healthcareItem"]').val();
+            const inputModifier = parseInt(html.find('[name="modifier"]').val()) || 0;
 
             // Get healthcare item bonus if selected
             let bonus = 0;
@@ -1079,8 +1085,8 @@ export class MechFoundryActorSheet extends ActorSheet {
             // Calculate wound penalty (only applies to stabilization)
             const stabilizePenalty = actionType === 'stabilize' ? woundMod : 0;
 
-            // Roll check (includes self-modifier and wound penalty if applicable)
-            const totalMod = baseModRef + bonus + selfMod + stabilizePenalty;
+            // Roll check (includes self-modifier, wound penalty, and input modifier)
+            const totalMod = baseModRef + bonus + selfMod + stabilizePenalty + inputModifier;
             const roll = new Roll('2d6');
             await roll.evaluate();
             const result = roll.total + totalMod;
@@ -1120,9 +1126,11 @@ export class MechFoundryActorSheet extends ActorSheet {
             }
 
             // Create chat message
-            const selfText = selfMod ? ' Self -2' : '';
-            const stabilizeText = stabilizePenalty ? ` Wounds ${stabilizePenalty}` : '';
-            const modifiersText = (selfText || stabilizeText) ? ` (${[selfText, stabilizeText].filter(Boolean).join(',')})` : '';
+            const selfText = selfMod ? 'Self -2' : '';
+            const stabilizeText = stabilizePenalty ? `Wounds ${stabilizePenalty}` : '';
+            const inputModText = inputModifier ? `Mod ${inputModifier >= 0 ? '+' : ''}${inputModifier}` : '';
+            const modifierParts = [selfText, stabilizeText, inputModText].filter(Boolean);
+            const modifiersText = modifierParts.length > 0 ? ` (${modifierParts.join(', ')})` : '';
             const checkLabel = hasSkillRef ? 'MedTech' : 'INT Check';
             const messageContent = `
               <div class="mech-foundry roll-result">
@@ -1261,7 +1269,8 @@ export class MechFoundryActorSheet extends ActorSheet {
     wounds.forEach((wound, index) => {
       const woundTypeName = woundNames[wound.type] || wound.type;
       const locationText = wound.location ? ` (${wound.location})` : '';
-      woundOptions += `<option value="${index}">${woundTypeName}${locationText}</option>`;
+      const severity = wound.severity ?? 5;
+      woundOptions += `<option value="${index}">${woundTypeName}${locationText} [Severity: ${severity}]</option>`;
     });
 
     const content = `
@@ -1278,10 +1287,14 @@ export class MechFoundryActorSheet extends ActorSheet {
           <label>Healthcare Item</label>
           <select name="healthcareItem">${healthcareOptions}</select>
         </div>
+        <div class="form-group">
+          <label>Modifier (+/-)</label>
+          <input type="number" name="modifier" value="0" style="width: 60px;"/>
+        </div>
         <p class="hint">
           <strong>${hasSkill ? 'Surgery Skill Check' : 'INT+DEX Attribute Check'}:</strong> ${checkType} = ${baseMod}<br>
           <strong>Target Number:</strong> ${targetNumber}<br>
-          Success removes the selected wound effect.
+          Success reduces the wound's severity by MoS.
         </p>
       </form>
     `;
@@ -1300,6 +1313,7 @@ export class MechFoundryActorSheet extends ActorSheet {
           callback: async (html) => {
             const woundIndex = parseInt(html.find('[name="woundIndex"]').val());
             const healthcareItemId = html.find('[name="healthcareItem"]').val();
+            const inputModifier = parseInt(html.find('[name="modifier"]').val()) || 0;
 
             // Get healthcare item bonus if selected
             let bonus = 0;
@@ -1312,7 +1326,7 @@ export class MechFoundryActorSheet extends ActorSheet {
             }
 
             // Roll check
-            const totalMod = baseModRef + bonus;
+            const totalMod = baseModRef + bonus + inputModifier;
             const roll = new Roll('2d6');
             await roll.evaluate();
             const result = roll.total + totalMod;
@@ -1327,23 +1341,37 @@ export class MechFoundryActorSheet extends ActorSheet {
             let actionResult = '';
             const wound = woundsRef[woundIndex];
             const woundTypeName = woundNames[wound.type] || wound.type;
+            const currentSeverity = wound.severity ?? 5;
 
-            if (success) {
-              // Remove the wound using the actor method
-              await targetActorRef.healWound(woundIndex);
-              actionResult = `<br><strong>Surgery successful!</strong> ${woundTypeName} wound removed from ${targetActorRef.name}.`;
+            if (success && mos > 0) {
+              // Reduce wound severity by MoS
+              const newSeverity = currentSeverity - mos;
+              if (newSeverity <= 0) {
+                // Remove the wound using the actor method
+                await targetActorRef.healWound(woundIndex);
+                actionResult = `<br><strong>Surgery successful!</strong> ${woundTypeName} wound removed from ${targetActorRef.name}. (Severity ${currentSeverity} → 0)`;
+              } else {
+                // Reduce severity but wound remains
+                await targetActorRef.reduceWoundSeverity(woundIndex, mos);
+                actionResult = `<br><strong>Surgery progress!</strong> ${woundTypeName} severity reduced: ${currentSeverity} → ${newSeverity}`;
+              }
+            } else if (success) {
+              // MoS of 0 - minimal success
+              actionResult = '<br>Surgery barely succeeded. No severity reduction (MoS 0).';
             } else {
               actionResult = '<br>Surgery failed. Wound remains.';
             }
 
             // Create chat message
             const checkLabel = hasSkillRef ? 'Surgery' : 'INT+DEX Check';
+            const inputModText = inputModifier ? ` Mod ${inputModifier >= 0 ? '+' : ''}${inputModifier}` : '';
+            const modifiersText = inputModText ? ` (${inputModText.trim()})` : '';
             const messageContent = `
               <div class="mech-foundry roll-result">
                 <h3>Surgery</h3>
                 <div class="roll-details">
                   <span class="roll-target-name">Patient: ${targetActorRef.name}</span>
-                  <span class="roll-formula">2d6 + ${totalMod} (${checkLabel}${bonus ? ` +${bonus} item` : ''})</span>
+                  <span class="roll-formula">2d6 + ${totalMod} (${checkLabel}${bonus ? ` +${bonus} item` : ''}${modifiersText})</span>
                   <span class="roll-result">${roll.total} + ${totalMod} = <strong>${result}</strong></span>
                   <span class="roll-target">TN: ${targetNumber}</span>
                   <span class="roll-mos ${success ? 'success' : 'failure'}">MoS: ${mos} - ${success ? 'SUCCESS' : 'FAILURE'}</span>
@@ -1412,6 +1440,71 @@ export class MechFoundryActorSheet extends ActorSheet {
 
     // Remove the wound using the actor method
     await this.actor.healWound(woundIndex);
+  }
+
+  /**
+   * Handle manually adding a wound (GM only)
+   * @param {Event} event The originating click event
+   * @private
+   */
+  async _onAddWound(event) {
+    event.preventDefault();
+
+    // GM only check
+    if (!game.user.isGM) {
+      ui.notifications.warn("Only the GM can manually add wounds.");
+      return;
+    }
+
+    // Wound type options
+    const woundTypes = {
+      dazed: 'Dazed (+1d6 Fatigue)',
+      concussion: 'Concussion (-2 INT/WIL)',
+      hemorrhage: 'Hemorrhage (Automatic Bleeding)',
+      traumaticImpact: 'Traumatic Impact (+1d6 Standard)',
+      nerveDamage: 'Nerve Damage (-2 DEX/RFL)',
+      severeStrain: 'Severe Strain (-50% Movement)',
+      severelyWounded: 'Severely Wounded (3 capacity penalty)'
+    };
+
+    let woundOptions = '';
+    for (const [type, label] of Object.entries(woundTypes)) {
+      woundOptions += `<option value="${type}">${label}</option>`;
+    }
+
+    const content = `
+      <form>
+        <div class="form-group">
+          <label>Wound Type</label>
+          <select name="woundType">${woundOptions}</select>
+        </div>
+        <div class="form-group">
+          <label>Location (optional)</label>
+          <input type="text" name="location" placeholder="e.g., Left Arm"/>
+        </div>
+      </form>
+    `;
+
+    new Dialog({
+      title: `Add Wound - ${this.actor.name}`,
+      content: content,
+      buttons: {
+        add: {
+          icon: '<i class="fas fa-plus"></i>',
+          label: "Add Wound",
+          callback: async (html) => {
+            const woundType = html.find('[name="woundType"]').val();
+            const location = html.find('[name="location"]').val() || null;
+            await this.actor.inflictWound(woundType, location, 'GM Added');
+          }
+        },
+        cancel: {
+          icon: '<i class="fas fa-times"></i>',
+          label: "Cancel"
+        }
+      },
+      default: "add"
+    }).render(true);
   }
 
   /**
@@ -1968,7 +2061,6 @@ export class MechFoundryActorSheet extends ActorSheet {
       { type: 'weapon', label: 'Weapon' },
       { type: 'armor', label: 'Armor' },
       { type: 'electronics', label: 'Electronics' },
-      { type: 'powerpack', label: 'Power Pack' },
       { type: 'healthcare', label: 'Health Care' },
       { type: 'prosthetics', label: 'Prosthetics' },
       { type: 'drugpoison', label: 'Drugs & Poisons' },

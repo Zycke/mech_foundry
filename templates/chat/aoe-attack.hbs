@@ -133,6 +133,8 @@
                 data-standard="{{#if this.armorCalc}}{{this.armorCalc.finalDamage}}{{else}}{{this.standardDamage}}{{/if}}"
                 data-fatigue="{{this.fatigueDamage}}"
                 data-subduing="false"
+                data-explosive="true"
+                data-raw-damage="{{this.standardDamage}}"
                 data-location="{{#if this.hitLocation}}{{this.hitLocation.armorLocation}}{{/if}}">
           Apply Damage to {{this.tokenName}}
         </button>

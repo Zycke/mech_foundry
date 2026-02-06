@@ -1639,13 +1639,29 @@ export class MechFoundryActor extends Actor {
    * @param {string} location Hit location
    * @param {boolean} isSubduing Whether this is subduing damage
    */
-  async applyDamage(damage, ap = 0, damageType = 'm', location = null, isSubduing = false) {
-    const bar = this.getBAR(damageType, location);
+  async applyDamage(damage, ap = 0, damageType = 'm', location = null, isSubduing = false, isExplosive = false, rawDamageForKnockdown = null) {
+    // If rawDamageForKnockdown is provided, use it for knockdown check
+    // Otherwise assume damage is raw and needs armor reduction
+    const knockdownDamage = rawDamageForKnockdown ?? damage;
+
     let finalDamage = damage;
 
-    // If BAR > AP, reduce damage by difference
-    if (bar > ap) {
-      finalDamage = Math.max(0, damage - (bar - ap));
+    // Only apply armor reduction if rawDamageForKnockdown wasn't provided
+    // (meaning damage is raw and needs reduction)
+    if (rawDamageForKnockdown === null) {
+      const bar = this.getBAR(damageType, location);
+      // If BAR > AP, reduce damage by difference
+      if (bar > ap) {
+        finalDamage = Math.max(0, damage - (bar - ap));
+      }
+    }
+
+    // Check for knockdown (based on raw damage before armor)
+    // Explosive weapons always trigger knockdown check
+    // Non-explosive only trigger if raw damage > STR
+    const str = this.system.attributes.str?.total || 5;
+    if (isExplosive || knockdownDamage > str) {
+      await this._checkKnockdown(knockdownDamage, str, isExplosive);
     }
 
     if (finalDamage <= 0) {
@@ -1844,6 +1860,63 @@ export class MechFoundryActor extends Actor {
           "system.fatigue.value": fatigueCapacity
         });
       }
+    }
+  }
+
+  /**
+   * Check if the character is knocked down from damage
+   * Knockdown is a RFL attribute check with modifier based on damage vs STR
+   * @param {number} damage The raw damage dealt (before armor)
+   * @param {number} str The character's STR total
+   * @param {boolean} isExplosive Whether the damage is from an explosive weapon
+   */
+  async _checkKnockdown(damage, str, isExplosive) {
+    // Calculate modifier: negative if damage > str, positive if damage < str
+    const modifier = str - damage;
+    const modifierText = modifier >= 0 ? `+${modifier}` : `${modifier}`;
+
+    // Perform RFL attribute check (single attribute, TN 12)
+    const rfl = this.system.attributes.rfl?.total || 5;
+    const injuryMod = this.system.injuryModifier || 0;
+    const fatigueMod = this.system.fatigueModifier || 0;
+    const totalMod = rfl + modifier + injuryMod + fatigueMod;
+
+    const roll = await new Roll(`2d6 + ${totalMod}`).evaluate();
+    const diceResults = roll.dice[0].results.map(r => r.result);
+    const targetNumber = 12;
+    const success = roll.total >= targetNumber;
+    const mos = roll.total - targetNumber;
+
+    // Check for auto-fail on snake eyes
+    const isFumble = diceResults[0] === 1 && diceResults[1] === 1;
+
+    // Create chat message for knockdown check
+    const explosiveText = isExplosive ? ' (Explosive)' : '';
+    const messageContent = `
+      <div class="mech-foundry roll-result">
+        <h3>Knockdown Check${explosiveText}</h3>
+        <div class="roll-details">
+          <span class="roll-formula">2d6 + ${totalMod} (RFL ${rfl}, Damage vs STR ${modifierText}${injuryMod ? `, Injury ${injuryMod}` : ''}${fatigueMod ? `, Fatigue ${fatigueMod}` : ''})</span>
+          <span class="roll-result">[${diceResults.join('] [')}] + ${totalMod} = <strong>${roll.total}</strong></span>
+          <span class="roll-target">TN: ${targetNumber}</span>
+          <span class="roll-mos ${success && !isFumble ? 'success' : 'failure'}">
+            ${isFumble ? 'FUMBLE - Auto-Fail!' : (success ? `SUCCESS (MoS: ${mos})` : `FAILURE (MoS: ${mos})`)}
+          </span>
+          ${!success || isFumble ? '<br><strong style="color: #c44536;">Knocked Prone!</strong>' : ''}
+        </div>
+      </div>
+    `;
+
+    ChatMessage.create({
+      speaker: ChatMessage.getSpeaker({ actor: this }),
+      content: messageContent,
+      rolls: [roll]
+    });
+
+    // If failed, set prone
+    if (!success || isFumble) {
+      await this.update({ "system.prone": true });
+      ui.notifications.warn(`${this.name} has been knocked prone!`);
     }
   }
 
@@ -2390,7 +2463,8 @@ export class MechFoundryActor extends Actor {
       type: actualWoundType,
       location: location,
       source: source,
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      severity: 5 // Default severity rating - requires surgery to reduce to 0 to heal
     });
 
     // Apply immediate effects based on wound type
@@ -2441,6 +2515,26 @@ export class MechFoundryActor extends Actor {
    * Remove a wound from this actor
    * @param {number} woundIndex The index of the wound to remove
    */
+  /**
+   * Reduce a wound's severity rating
+   * @param {number} woundIndex The index of the wound to reduce
+   * @param {number} amount The amount to reduce severity by
+   */
+  async reduceWoundSeverity(woundIndex, amount) {
+    const wounds = [...(this.system.wounds || [])];
+    if (woundIndex < 0 || woundIndex >= wounds.length) {
+      console.warn(`Invalid wound index: ${woundIndex}`);
+      return;
+    }
+
+    const wound = wounds[woundIndex];
+    const currentSeverity = wound.severity ?? 5;
+    wound.severity = Math.max(0, currentSeverity - amount);
+
+    await this.update({ "system.wounds": wounds });
+    return wound;
+  }
+
   async healWound(woundIndex) {
     const wounds = [...(this.system.wounds || [])];
     if (woundIndex < 0 || woundIndex >= wounds.length) {

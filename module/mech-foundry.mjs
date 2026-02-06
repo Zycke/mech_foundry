@@ -513,6 +513,8 @@ Hooks.on('renderChatMessage', (message, html, data) => {
     const standardDamage = parseInt(button.dataset.standard) || 0;
     const fatigueDamage = parseInt(button.dataset.fatigue) || 0;
     const isSubduing = button.dataset.subduing === 'true';
+    const isExplosive = button.dataset.explosive === 'true';
+    const rawDamage = parseInt(button.dataset.rawDamage) || standardDamage;
     const location = button.dataset.location || null;
     const woundType = button.dataset.woundType || null;
 
@@ -536,13 +538,14 @@ Hooks.on('renderChatMessage', (message, html, data) => {
       return;
     }
 
-    // Apply the damage
+    // Apply the damage (pass raw damage for knockdown check, isExplosive flag)
     if (isSubduing) {
-      // Subduing damage - apply fatigue damage
-      await target.applyDamage(fatigueDamage, 0, 'm', location, true);
+      // Subduing damage - apply fatigue damage (no knockdown check for subduing)
+      await target.applyDamage(fatigueDamage, 0, 'm', location, true, false, null);
     } else {
-      // Standard damage - apply standard damage (fatigue is added automatically)
-      await target.applyDamage(standardDamage, 0, 'm', location, false);
+      // Standard damage - damage is already armor-reduced from chat template calculation
+      // Pass rawDamage separately for knockdown check
+      await target.applyDamage(standardDamage, 0, 'm', location, false, isExplosive, rawDamage);
     }
 
     // Apply wound effect if present (from critical hit - doubles on attack)
@@ -620,27 +623,50 @@ Hooks.on('renderChatMessage', (message, html, data) => {
 async function applyVisionEffects(token, actor) {
   if (!token || !actor) return;
 
-  const visionEffects = actor.system.visionEffects;
+  // Calculate vision effects fresh from items (don't rely on cached actor.system.visionEffects
+  // as it may not have been recalculated yet after an item update)
+  const visionEffects = ItemEffectsHelper.getVisionEffects(actor);
   if (!visionEffects) return;
 
   const { vision, light } = visionEffects;
   const updates = {};
 
-  // Apply vision mode if present
-  if (vision?.visionMode && vision.visionRange > 0) {
+  // Get current token settings for comparison
+  const currentDoc = token.document;
+  const hasActiveVisionEffect = vision?.visionMode && vision.visionRange > 0;
+  const hasActiveLightEffect = light?.brightRadius > 0 || light?.dimRadius > 0;
+
+  // Apply vision mode if present, or reset to defaults if no vision effects
+  if (hasActiveVisionEffect) {
     updates['sight.range'] = vision.visionRange;
     updates['sight.visionMode'] = vision.visionMode;
     updates['sight.enabled'] = true;
+  } else {
+    // Reset vision to defaults if currently using a non-basic mode from item effects
+    // Only reset if the current mode suggests it came from an item effect
+    const currentMode = currentDoc.sight?.visionMode;
+    if (currentMode && currentMode !== 'basic') {
+      updates['sight.visionMode'] = 'basic';
+      updates['sight.range'] = 0;
+    }
   }
 
-  // Apply light emission if present
-  if (light?.brightRadius > 0 || light?.dimRadius > 0) {
+  // Apply light emission if present, or reset if no light effects
+  if (hasActiveLightEffect) {
     updates['light.bright'] = light.brightRadius || 0;
     updates['light.dim'] = light.dimRadius || 0;
     updates['light.angle'] = 360; // Full circle light
 
     if (light.lightColor) {
       updates['light.color'] = light.lightColor;
+    }
+  } else {
+    // Reset light to off if currently emitting light
+    const currentBright = currentDoc.light?.bright || 0;
+    const currentDim = currentDoc.light?.dim || 0;
+    if (currentBright > 0 || currentDim > 0) {
+      updates['light.bright'] = 0;
+      updates['light.dim'] = 0;
     }
   }
 

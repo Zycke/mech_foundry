@@ -411,7 +411,7 @@
 
               {{!-- Wounds List (Critical Hit Effects) --}}
               <div class="wounds-section">
-                <label>Wounds</label>
+                <label>Wounds {{#if isGM}}<a class="add-wound gm-only" title="Add Wound (GM Only)"><i class="fas fa-plus-circle"></i></a>{{/if}}</label>
                 {{#if system.wounds.length}}
                 <div class="wounds-list">
                   {{#each system.wounds}}
@@ -425,6 +425,7 @@
                       {{#if (eq this.type "severeStrain")}}<i class="fas fa-running"></i> Severe Strain{{/if}}
                       {{#if (eq this.type "severelyWounded")}}<i class="fas fa-skull-crossbones"></i> Severely Wounded{{/if}}
                     </span>
+                    <span class="wound-severity" title="Severity (reduce to 0 via surgery to heal)">[{{#if this.severity}}{{this.severity}}{{else}}5{{/if}}]</span>
                     {{#if this.location}}<span class="wound-location">({{this.location}})</span>{{/if}}
                     <a class="heal-wound" data-wound-index="{{@index}}" title="Heal this wound (Surgery)"><i class="fas fa-syringe"></i></a>
                   </div>
@@ -947,42 +948,6 @@
               <td class="item-name">{{this.name}}</td>
               <td class="item-range">{{this.system.range}}</td>
               <td class="item-power">{{this.system.powerUse}}</td>
-              <td class="item-mass">{{this.system.mass}}</td>
-              <td class="item-controls">
-                <a class="item-edit" title="Edit"><i class="fas fa-edit"></i></a>
-                <a class="item-delete" title="Delete"><i class="fas fa-trash"></i></a>
-              </td>
-            </tr>
-            {{/each}}
-          </tbody>
-        </table>
-      </div>
-      {{/if}}
-
-      {{!-- Power Packs Category --}}
-      {{#if inventory.powerpacks.length}}
-      <div class="inventory-category powerpacks-category">
-        <h3 class="section-title">Power Packs</h3>
-        <table class="inventory-table">
-          <thead>
-            <tr>
-              <th class="status-col"></th>
-              <th>Name</th>
-              <th>Capacity</th>
-              <th>Mass</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {{#each inventory.powerpacks}}
-            <tr class="item" data-item-id="{{this._id}}">
-              <td class="item-status">
-                <a class="carry-status-toggle" data-status="{{this.system.carryStatus}}" title="{{this.system.carryStatus}}">
-                  {{#if (eq this.system.carryStatus "carried")}}<i class="fas fa-suitcase"></i>{{else}}<i class="fas fa-warehouse"></i>{{/if}}
-                </a>
-              </td>
-              <td class="item-name">{{this.name}}</td>
-              <td class="item-capacity">{{this.system.powerCapacity}}</td>
               <td class="item-mass">{{this.system.mass}}</td>
               <td class="item-controls">
                 <a class="item-edit" title="Edit"><i class="fas fa-edit"></i></a>
