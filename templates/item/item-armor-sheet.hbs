@@ -47,6 +47,38 @@
         </div>
       </div>
 
+      {{!-- Armor Damage Section --}}
+      <div class="armor-damage-section">
+        <h3>Armor Condition</h3>
+        <div class="form-row">
+          {{#if isGM}}
+          <div class="form-group">
+            <label>Armor Damage (GM Only)</label>
+            <input type="number" name="system.armorDamage" value="{{system.armorDamage}}" data-dtype="Number" min="0"/>
+          </div>
+          {{/if}}
+          <div class="form-group armor-status-display">
+            <label>Current Status</label>
+            {{#if (gt system.armorDamage 0)}}
+            <span class="armor-damaged">
+              <strong>DAMAGED</strong> (-{{system.armorDamage}} to all BAR)
+            </span>
+            {{else}}
+            <span class="armor-intact">Intact</span>
+            {{/if}}
+          </div>
+        </div>
+        {{#if (gt system.armorDamage 0)}}
+        <div class="current-bar-display">
+          <span class="bar-label">Current BAR:</span>
+          <span class="bar-value damaged">
+            {{subtract system.bar.m system.armorDamage}}/{{subtract system.bar.b system.armorDamage}}/{{subtract system.bar.e system.armorDamage}}/{{subtract system.bar.x system.armorDamage}}
+          </span>
+          <span class="bar-max">(Max: {{system.bar.m}}/{{system.bar.b}}/{{system.bar.e}}/{{system.bar.x}})</span>
+        </div>
+        {{/if}}
+      </div>
+
       <h3>Coverage</h3>
       <div class="coverage-checkboxes form-row">
         <div class="form-group checkbox-group">

@@ -291,6 +291,18 @@ export class MechFoundryActorSheet extends ActorSheet {
         }
       }
       else if (i.type === 'armor') {
+        // Calculate current BAR values (after armor damage)
+        const armorDamage = i.system.armorDamage || 0;
+        const maxBar = i.system.bar || { m: 0, b: 0, e: 0, x: 0 };
+        i.currentBar = {
+          m: Math.max(0, (maxBar.m || 0) - armorDamage),
+          b: Math.max(0, (maxBar.b || 0) - armorDamage),
+          e: Math.max(0, (maxBar.e || 0) - armorDamage),
+          x: Math.max(0, (maxBar.x || 0) - armorDamage)
+        };
+        i.isDamaged = armorDamage > 0;
+        i.armorDamage = armorDamage;
+
         armor.push(i);
         inventory.armor.push(i);
         // Add weight if equipped or carried
@@ -483,39 +495,44 @@ export class MechFoundryActorSheet extends ActorSheet {
    */
   _calculateTotalArmor(equippedArmor) {
     const totalArmor = {
-      head: { m: 0, b: 0, e: 0, x: 0 },
-      torso: { m: 0, b: 0, e: 0, x: 0 },
-      arms: { m: 0, b: 0, e: 0, x: 0 },
-      legs: { m: 0, b: 0, e: 0, x: 0 }
+      head: { m: 0, b: 0, e: 0, x: 0, isDamaged: false },
+      torso: { m: 0, b: 0, e: 0, x: 0, isDamaged: false },
+      arms: { m: 0, b: 0, e: 0, x: 0, isDamaged: false },
+      legs: { m: 0, b: 0, e: 0, x: 0, isDamaged: false }
     };
 
     for (const armor of equippedArmor) {
       const coverage = armor.system.coverage || {};
-      const bar = armor.system.bar || { m: 0, b: 0, e: 0, x: 0 };
+      // Use currentBar (after damage) instead of system.bar
+      const bar = armor.currentBar || armor.system.bar || { m: 0, b: 0, e: 0, x: 0 };
 
       if (coverage.head) {
         totalArmor.head.m += bar.m || 0;
         totalArmor.head.b += bar.b || 0;
         totalArmor.head.e += bar.e || 0;
         totalArmor.head.x += bar.x || 0;
+        if (armor.isDamaged) totalArmor.head.isDamaged = true;
       }
       if (coverage.torso) {
         totalArmor.torso.m += bar.m || 0;
         totalArmor.torso.b += bar.b || 0;
         totalArmor.torso.e += bar.e || 0;
         totalArmor.torso.x += bar.x || 0;
+        if (armor.isDamaged) totalArmor.torso.isDamaged = true;
       }
       if (coverage.arms) {
         totalArmor.arms.m += bar.m || 0;
         totalArmor.arms.b += bar.b || 0;
         totalArmor.arms.e += bar.e || 0;
         totalArmor.arms.x += bar.x || 0;
+        if (armor.isDamaged) totalArmor.arms.isDamaged = true;
       }
       if (coverage.legs) {
         totalArmor.legs.m += bar.m || 0;
         totalArmor.legs.b += bar.b || 0;
         totalArmor.legs.e += bar.e || 0;
         totalArmor.legs.x += bar.x || 0;
+        if (armor.isDamaged) totalArmor.legs.isDamaged = true;
       }
     }
 
@@ -688,6 +705,9 @@ export class MechFoundryActorSheet extends ActorSheet {
     html.on('click', '.surgery', this._onSurgery.bind(this));
     html.on('click', '.heal-wound', this._onHealWound.bind(this));
     html.on('click', '.add-wound', this._onAddWound.bind(this));
+
+    // Armor repair
+    html.on('click', '.armor-repair', this._onArmorRepair.bind(this));
 
     // Drag events for macros
     if (this.actor.isOwner) {
@@ -1504,6 +1524,53 @@ export class MechFoundryActorSheet extends ActorSheet {
         }
       },
       default: "add"
+    }).render(true);
+  }
+
+  /**
+   * Repair damaged armor
+   * @param {Event} event
+   * @private
+   */
+  async _onArmorRepair(event) {
+    event.preventDefault();
+
+    const btn = $(event.currentTarget);
+    const itemId = btn.data("itemId") || btn.parents(".item").data("itemId");
+    const item = this.actor.items.get(itemId);
+
+    if (!item || item.type !== 'armor') return;
+
+    const armorDamage = item.system.armorDamage || 0;
+    if (armorDamage <= 0) {
+      ui.notifications.info(`${item.name} is not damaged.`);
+      return;
+    }
+
+    const patchCost = item.system.patchCost || 0;
+    const content = `
+      <p>Repair <strong>${item.name}</strong>?</p>
+      <p>Current Damage: <strong>${armorDamage}</strong></p>
+      ${patchCost > 0 ? `<p>Patch Cost: <strong>${patchCost} C-bills</strong></p>` : ''}
+    `;
+
+    new Dialog({
+      title: `Repair Armor - ${item.name}`,
+      content: content,
+      buttons: {
+        repair: {
+          icon: '<i class="fas fa-wrench"></i>',
+          label: "Repair",
+          callback: async () => {
+            await item.repairArmor();
+          }
+        },
+        cancel: {
+          icon: '<i class="fas fa-times"></i>',
+          label: "Cancel"
+        }
+      },
+      default: "repair"
     }).render(true);
   }
 

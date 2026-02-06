@@ -548,19 +548,20 @@ export class MechFoundryActor extends Actor {
 
   /**
    * Get equipped armor by location
-   * @param {string} location Optional location filter
+   * @param {string} location Optional location filter (uses coverage system)
    * @returns {Array} Array of equipped armor items
    */
   getEquippedArmor(location = null) {
     let armor = this.items.filter(i => i.type === 'armor' && i.system.equipped);
     if (location) {
-      armor = armor.filter(a => a.system.location === location);
+      armor = armor.filter(a => a.coversLocation(location));
     }
     return armor;
   }
 
   /**
    * Get highest BAR value from equipped armor for a damage type
+   * Uses current BAR values (after armor damage reduction)
    * @param {string} damageType 'm', 'b', 'e', or 'x'
    * @param {string} location Optional location filter
    * @returns {number}
@@ -568,9 +569,35 @@ export class MechFoundryActor extends Actor {
   getBAR(damageType = 'm', location = null) {
     const armor = this.getEquippedArmor(location);
     return armor.reduce((max, a) => {
-      const bar = a.system.bar?.[damageType] || 0;
+      // Use current BAR (after damage reduction) instead of base BAR
+      const currentBAR = a.getCurrentBAR();
+      const bar = currentBAR[damageType] || 0;
       return Math.max(max, bar);
     }, 0);
+  }
+
+  /**
+   * Apply damage to all equipped armor covering a specific location
+   * @param {number} amount Amount of damage to apply
+   * @param {string} location The hit location
+   * @returns {Array} Array of damaged armor items with info
+   */
+  async applyArmorDamageAtLocation(amount, location) {
+    const armor = this.getEquippedArmor(location);
+    const damagedArmor = [];
+
+    for (const armorItem of armor) {
+      const previousDamage = armorItem.system.armorDamage || 0;
+      await armorItem.applyArmorDamage(amount);
+      damagedArmor.push({
+        name: armorItem.name,
+        damageApplied: amount,
+        previousDamage: previousDamage,
+        newDamage: previousDamage + amount
+      });
+    }
+
+    return damagedArmor;
   }
 
   /**
@@ -1654,6 +1681,13 @@ export class MechFoundryActor extends Actor {
       if (bar > ap) {
         finalDamage = Math.max(0, damage - (bar - ap));
       }
+    }
+
+    // Apply armor damage: 1 point per 5 damage dealt to location (after reduction)
+    // Only applies if damage actually got through
+    if (finalDamage >= 5 && location) {
+      const armorDamageAmount = Math.floor(finalDamage / 5);
+      await this.applyArmorDamageAtLocation(armorDamageAmount, location);
     }
 
     // Check for knockdown (based on raw damage before armor)

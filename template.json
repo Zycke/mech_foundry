@@ -177,6 +177,7 @@
         "e": 0,
         "x": 0
       },
+      "armorDamage": 0,
       "patchCost": 0,
       "coverage": {
         "head": false,
