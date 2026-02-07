@@ -31,6 +31,7 @@ export class AnimationHelper {
    * @param {string} options.file The Sequencer-compatible animation path (e.g., "jb2a.bullet.01.orange")
    * @param {boolean} options.hit Whether the attack hit (affects visual feedback)
    * @param {number} options.delay Delay before playing (ms)
+   * @param {number} options.duration Duration for projectile to reach target (ms), 0 = default
    * @returns {Promise<void>}
    */
   static async playProjectileAnimation(sourceToken, target, options = {}) {
@@ -39,12 +40,18 @@ export class AnimationHelper {
 
     const sequence = new Sequence();
 
-    sequence.effect()
+    let effect = sequence.effect()
       .file(options.file)
       .atLocation(sourceToken)
       .stretchTo(target)
-      .delay(options.delay || 0)
-      .waitUntilFinished(options.waitUntilFinished ?? -500);
+      .delay(options.delay || 0);
+
+    // Apply custom duration if specified (controls projectile travel time)
+    if (options.duration && options.duration > 0) {
+      effect = effect.duration(options.duration);
+    }
+
+    effect.waitUntilFinished(options.waitUntilFinished ?? -500);
 
     // Optional impact effect on hit
     if (options.hit && options.impactFile) {
@@ -131,12 +138,18 @@ export class AnimationHelper {
         bulletTarget = await this.calculateMissOffset(targetToken.center, scatterDistance);
       }
 
-      sequence.effect()
+      let effect = sequence.effect()
         .file(options.file)
         .atLocation(sourceToken)
         .stretchTo(bulletTarget)
-        .delay(i * bulletDelay)
-        .waitUntilFinished(-500);
+        .delay(i * bulletDelay);
+
+      // Apply custom duration if specified
+      if (options.duration && options.duration > 0) {
+        effect = effect.duration(options.duration);
+      }
+
+      effect.waitUntilFinished(-500);
     }
 
     await sequence.play();
@@ -176,12 +189,18 @@ export class AnimationHelper {
         width
       );
 
-      sequence.effect()
+      let effect = sequence.effect()
         .file(options.file)
         .atLocation(sourceToken)
         .stretchTo(bulletTarget)
-        .delay(i * bulletDelay)
-        .waitUntilFinished(-500);
+        .delay(i * bulletDelay);
+
+      // Apply custom duration if specified
+      if (options.duration && options.duration > 0) {
+        effect = effect.duration(options.duration);
+      }
+
+      effect.waitUntilFinished(-500);
     }
 
     await sequence.play();
@@ -195,6 +214,7 @@ export class AnimationHelper {
    * @param {Object} options Animation options
    * @param {string} options.file The projectile animation path
    * @param {string} options.explosionFile Optional explosion effect at impact
+   * @param {number} options.duration Duration for projectile to reach target (ms), 0 = default
    * @returns {Promise<void>}
    */
   static async playAOEAnimation(sourceToken, impactPoint, options = {}) {
@@ -204,11 +224,17 @@ export class AnimationHelper {
     const sequence = new Sequence();
 
     // Projectile to impact point
-    sequence.effect()
+    let effect = sequence.effect()
       .file(options.file)
       .atLocation(sourceToken)
-      .stretchTo(impactPoint)
-      .waitUntilFinished(-200);
+      .stretchTo(impactPoint);
+
+    // Apply custom duration if specified
+    if (options.duration && options.duration > 0) {
+      effect = effect.duration(options.duration);
+    }
+
+    effect.waitUntilFinished(-200);
 
     // Optional explosion at impact
     if (options.explosionFile) {

@@ -243,8 +243,10 @@ export class AOEHelper {
     if (animationPath) {
       const sourceToken = AnimationHelper.getActorToken(actor);
       if (sourceToken) {
+        const animationDuration = weapon.system.animationDuration ?? 0;
         await AnimationHelper.playAOEAnimation(sourceToken, impactPoint, {
-          file: animationPath
+          file: animationPath,
+          duration: animationDuration
         });
       }
     }
