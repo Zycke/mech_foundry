@@ -377,5 +377,45 @@
   "MECHFOUNDRY.None": "-- None --",
   "MECHFOUNDRY.Select": "-- Select --",
   "MECHFOUNDRY.Details": "Details",
-  "MECHFOUNDRY.Description": "Description"
+  "MECHFOUNDRY.Description": "Description",
+
+  "MECHFOUNDRY.SheetCompany": "Company Sheet",
+  "MECHFOUNDRY.SheetVehicleActor": "Vehicle Actor Sheet",
+  "MECHFOUNDRY.SheetShip": "Ship Actor Sheet",
+
+  "MECHFOUNDRY.Company": "Company",
+  "MECHFOUNDRY.CompanyName": "Company Name",
+  "MECHFOUNDRY.TotalPersonnel": "Total Personnel",
+  "MECHFOUNDRY.MonthlyExpenses": "Monthly Expenses",
+  "MECHFOUNDRY.AvailableFunds": "Available Funds",
+
+  "MECHFOUNDRY.TabPersonnel": "Personnel",
+  "MECHFOUNDRY.TabOrganization": "Organization",
+  "MECHFOUNDRY.TabStatus": "Status",
+  "MECHFOUNDRY.TabMTOE": "MTOE",
+  "MECHFOUNDRY.TabLogistics": "Logistics",
+  "MECHFOUNDRY.TabAssets": "Assets",
+
+  "MECHFOUNDRY.Personnel": "Personnel",
+  "MECHFOUNDRY.PayRate": "Pay Rate",
+  "MECHFOUNDRY.MonthlyCost": "Monthly Cost",
+  "MECHFOUNDRY.Veterancy": "Veterancy",
+  "MECHFOUNDRY.Health": "Health",
+  "MECHFOUNDRY.Readiness": "Readiness",
+  "MECHFOUNDRY.SkillName": "Skill Name",
+  "MECHFOUNDRY.SkillTN": "Skill TN",
+
+  "MECHFOUNDRY.Supplies": "Supplies",
+  "MECHFOUNDRY.SupplyType": "Supply Type",
+
+  "MECHFOUNDRY.Unit": "Unit",
+  "MECHFOUNDRY.AddUnit": "Add Unit",
+  "MECHFOUNDRY.DeleteUnit": "Delete Unit",
+  "MECHFOUNDRY.Commander": "Commander",
+  "MECHFOUNDRY.AssignPersonnel": "Assign Personnel",
+  "MECHFOUNDRY.AssignedPersonnel": "Assigned Personnel",
+
+  "MECHFOUNDRY.VehicleActorSheet": "Vehicle",
+  "MECHFOUNDRY.ShipActorSheet": "Ship",
+  "MECHFOUNDRY.CompanyAssets": "Company Assets"
 }

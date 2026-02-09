@@ -1,6 +1,6 @@
 {
   "Actor": {
-    "types": ["character", "npc"],
+    "types": ["character", "npc", "company", "vehicle_actor", "ship"],
     "templates": {
       "base": {
         "damage": {
@@ -100,10 +100,24 @@
       "templates": ["base", "attributes"],
       "threat": 1,
       "role": ""
+    },
+    "company": {
+      "cbills": 0,
+      "totalPersonnel": 0,
+      "totalMonthlyExpenses": 0,
+      "notes": "",
+      "units": [],
+      "biography": ""
+    },
+    "vehicle_actor": {
+      "biography": ""
+    },
+    "ship": {
+      "biography": ""
     }
   },
   "Item": {
-    "types": ["skill", "trait", "weapon", "armor", "vehicle", "fuel", "electronics", "healthcare", "prosthetics", "drugpoison", "activeEffect", "ammo"],
+    "types": ["skill", "trait", "weapon", "armor", "vehicle", "fuel", "electronics", "healthcare", "prosthetics", "drugpoison", "activeEffect", "ammo", "personnel", "supplies"],
     "templates": {
       "base": {
         "description": ""
@@ -298,6 +312,29 @@
       "quickCharge": false,
       "notes": "",
       "loadedInWeapon": null
+    },
+    "personnel": {
+      "templates": ["base"],
+      "quantity": 1,
+      "payRate": 0,
+      "skillName": "",
+      "skillTN": 7,
+      "skillComplexity": "S",
+      "veterancy": 0,
+      "health": {
+        "value": 1,
+        "max": 1
+      },
+      "readiness": {
+        "value": 1,
+        "max": 1
+      }
+    },
+    "supplies": {
+      "templates": ["base"],
+      "supplyType": "",
+      "cost": 0,
+      "quantity": 1
     }
   }
 }

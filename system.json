@@ -2,7 +2,7 @@
   "id": "mech-foundry",
   "title": "Mech Foundry",
   "description": "A mech-based TTRPG system inspired by A Time of War and the BattleTech universe.",
-  "version": "0.1.58",
+  "version": "0.1.59",
   "compatibility": {
     "minimum": "11",
     "verified": "12"
