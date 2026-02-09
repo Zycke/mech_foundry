@@ -105,8 +105,10 @@
       "cbills": 0,
       "totalPersonnel": 0,
       "totalMonthlyExpenses": 0,
+      "reputation": "",
       "notes": "",
       "units": [],
+      "financialLedger": [],
       "biography": ""
     },
     "vehicle_actor": {

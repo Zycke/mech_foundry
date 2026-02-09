@@ -2,7 +2,7 @@ import { DiceMechanics } from '../helpers/dice-mechanics.mjs';
 
 /**
  * Company Actor Sheet - Represents a mercenary or military organization
- * Features 6 tabs: Personnel, Organization, Status, MTOE, Logistics, Assets
+ * Tabs: Personnel, Organization, Status, Logistics, MTOE, Assets, Finances
  * @extends {ActorSheet}
  */
 export class MechFoundryCompanySheet extends ActorSheet {
@@ -46,6 +46,18 @@ export class MechFoundryCompanySheet extends ActorSheet {
     // Prepare unit data for organization tab
     this._prepareUnits(context);
 
+    // Prepare financial ledger for display
+    context.financialLedger = (this.actor.system.financialLedger || []).map(entry => ({
+      ...entry,
+      formattedDate: new Date(entry.date).toLocaleDateString(game.i18n.lang || 'en', {
+        year: 'numeric', month: 'short', day: 'numeric',
+        hour: '2-digit', minute: '2-digit'
+      })
+    }));
+
+    // Prepare MTOE actor assets (vehicle_actor and ship actors linked via flag)
+    this._prepareMTOEActors(context);
+
     // Enrich biography
     context.enrichedBiography = await TextEditor.enrichHTML(
       this.actor.system.biography || "",
@@ -63,32 +75,58 @@ export class MechFoundryCompanySheet extends ActorSheet {
   _prepareItems(context) {
     const personnel = [];
     const supplies = [];
-    const assets = [];
+
+    // Asset categories (matching character inventory pattern)
+    const companyAssets = {
+      weapon: [],
+      armor: [],
+      ammo: [],
+      electronics: [],
+      healthcare: [],
+      prosthetics: [],
+      drugpoison: [],
+      fuel: []
+    };
 
     for (const item of this.actor.items) {
+      const itemData = item.toObject(false);
+
       if (item.type === 'personnel') {
-        const monthlyExpense = (item.system.quantity || 0) * (item.system.payRate || 0);
-        personnel.push({
-          ...item,
-          monthlyExpense: monthlyExpense
-        });
+        itemData.monthlyExpense = (item.system.quantity || 0) * (item.system.payRate || 0);
+        personnel.push(itemData);
       } else if (item.type === 'supplies') {
-        supplies.push(item);
+        supplies.push(itemData);
+      } else if (companyAssets.hasOwnProperty(item.type)) {
+        companyAssets[item.type].push(itemData);
       }
     }
 
-    // Look for linked vehicle_actor and ship actors (stored as IDs in flags)
+    companyAssets.hasItems = Object.entries(companyAssets)
+      .some(([key, arr]) => key !== 'hasItems' && Array.isArray(arr) && arr.length > 0);
+
+    context.personnel = personnel;
+    context.supplies = supplies;
+    context.companyAssets = companyAssets;
+  }
+
+  /**
+   * Prepare MTOE actors (vehicle_actor and ship actors linked via flag)
+   */
+  _prepareMTOEActors(context) {
+    const mtoeActors = [];
     const linkedAssets = this.actor.getFlag('mech-foundry', 'linkedAssets') || [];
     for (const assetId of linkedAssets) {
       const actor = game.actors.get(assetId);
       if (actor && (actor.type === 'vehicle_actor' || actor.type === 'ship')) {
-        assets.push(actor);
+        mtoeActors.push({
+          id: actor.id,
+          name: actor.name,
+          img: actor.img,
+          type: actor.type
+        });
       }
     }
-
-    context.personnel = personnel;
-    context.supplies = supplies;
-    context.assets = assets;
+    context.mtoeActors = mtoeActors;
   }
 
   /**
@@ -109,69 +147,97 @@ export class MechFoundryCompanySheet extends ActorSheet {
 
   /**
    * Prepare unit hierarchy data for the Organization tab
+   * Units contain character/NPC actors as leader + members
    */
   _prepareUnits(context) {
     const units = foundry.utils.deepClone(this.actor.system.units || []);
 
-    // Build personnel availability map (total available minus assigned)
-    const personnelAvailability = {};
-    for (const p of context.personnel) {
-      personnelAvailability[p.id] = {
-        name: p.name,
-        totalQuantity: p.system.quantity || 0,
-        assigned: 0
-      };
-    }
-
-    // Calculate assigned personnel across all units
     for (const unit of units) {
-      if (unit.assignedPersonnel) {
-        for (const assignment of unit.assignedPersonnel) {
-          if (personnelAvailability[assignment.personnelId]) {
-            personnelAvailability[assignment.personnelId].assigned += assignment.quantity || 0;
-          }
-        }
+      // Migrate old format: commanderId → leaderId
+      if (unit.commanderId && !unit.leaderId) {
+        unit.leaderId = unit.commanderId;
+        delete unit.commanderId;
+        delete unit.assignedPersonnel;
       }
 
-      // Resolve commander data
-      if (unit.commanderId) {
-        const commander = game.actors.get(unit.commanderId);
-        if (commander) {
-          unit.commanderName = commander.name;
-          unit.commanderImg = commander.img;
+      // Ensure arrays exist
+      if (!unit.members) unit.members = [];
+      if (!unit.skills) unit.skills = [];
+
+      // Resolve leader data
+      if (unit.leaderId) {
+        const leader = game.actors.get(unit.leaderId);
+        if (leader) {
+          unit.leaderData = this._getActorSummary(leader);
+          // Get skill levels for tracked skills
+          unit.leaderData.skillLevels = this._getActorSkillLevels(leader, unit.skills);
         } else {
-          unit.commanderName = "Unknown";
-          unit.commanderImg = "icons/svg/mystery-man.svg";
+          unit.leaderData = null;
+          unit.leaderId = null;
         }
       }
 
-      // Resolve personnel assignment names
-      if (unit.assignedPersonnel) {
-        for (const assignment of unit.assignedPersonnel) {
-          const personnelItem = this.actor.items.get(assignment.personnelId);
-          if (personnelItem) {
-            assignment.personnelName = personnelItem.name;
-          } else {
-            assignment.personnelName = "Unknown";
-          }
-        }
-      }
-    }
+      // Resolve member data
+      unit.memberData = unit.members.map(memberId => {
+        const actor = game.actors.get(memberId);
+        if (!actor) return null;
+        const summary = this._getActorSummary(actor);
+        summary.skillLevels = this._getActorSkillLevels(actor, unit.skills);
+        return summary;
+      }).filter(Boolean);
 
-    // Calculate remaining availability
-    for (const [id, data] of Object.entries(personnelAvailability)) {
-      data.remaining = data.totalQuantity - data.assigned;
+      // Calculate skill averages across all unit actors
+      unit.skillSummary = unit.skills.map(skillName => {
+        const allActorIds = [unit.leaderId, ...unit.members].filter(Boolean);
+        let totalLevel = 0;
+        let count = 0;
+
+        for (const actorId of allActorIds) {
+          const actor = game.actors.get(actorId);
+          if (!actor) continue;
+          const skillItem = actor.items.find(i => i.type === 'skill' && i.name.toLowerCase() === skillName.toLowerCase());
+          const level = skillItem ? skillItem.system.level : 0;
+          totalLevel += level;
+          count++;
+        }
+
+        return {
+          name: skillName,
+          average: count > 0 ? (totalLevel / count).toFixed(1) : "0.0"
+        };
+      });
     }
 
     context.units = units;
-    context.personnelAvailability = personnelAvailability;
+  }
 
-    // Build list of available personnel types for the assignment dropdown
-    context.availablePersonnelTypes = context.personnel.map(p => ({
-      id: p.id,
-      name: p.name,
-      remaining: personnelAvailability[p.id]?.remaining || 0
-    }));
+  /**
+   * Get a summary of an actor's key stats for unit display
+   */
+  _getActorSummary(actor) {
+    const bod = actor.system.attributes?.bod?.total || actor.system.attributes?.bod?.value || 5;
+    const wil = actor.system.attributes?.wil?.total || actor.system.attributes?.wil?.value || 5;
+    return {
+      id: actor.id,
+      name: actor.name,
+      img: actor.img,
+      damage: actor.system.damage || { value: 0, max: 10 },
+      fatigue: actor.system.fatigue || { value: 0, max: 10 },
+      damageCapacity: actor.system.damageCapacity || (bod * 2),
+      fatigueCapacity: actor.system.fatigueCapacity || (wil * 2)
+    };
+  }
+
+  /**
+   * Get an actor's skill levels for the tracked skills in a unit
+   */
+  _getActorSkillLevels(actor, skills) {
+    const levels = {};
+    for (const skillName of skills) {
+      const skillItem = actor.items.find(i => i.type === 'skill' && i.name.toLowerCase() === skillName.toLowerCase());
+      levels[skillName] = skillItem ? skillItem.system.level : 0;
+    }
+    return levels;
   }
 
   /* -------------------------------------------- */
@@ -190,16 +256,25 @@ export class MechFoundryCompanySheet extends ActorSheet {
     html.on('click', '.item-edit', this._onItemEdit.bind(this));
     html.on('click', '.item-delete', this._onItemDelete.bind(this));
 
-    // Asset management
-    html.on('click', '.asset-remove', this._onAssetRemove.bind(this));
+    // C-Bills fund management
+    html.on('click', '.cbills-add', this._onAddFunds.bind(this));
+    html.on('click', '.cbills-remove', this._onRemoveFunds.bind(this));
+
+    // Finance management
+    html.on('click', '.ledger-delete', this._onLedgerDelete.bind(this));
+    html.on('click', '.pay-monthly-expenses', this._onPayMonthlyExpenses.bind(this));
+
+    // MTOE asset management
+    html.on('click', '.mtoe-remove', this._onMTOERemove.bind(this));
 
     // Unit management (Organization tab)
     html.on('click', '.add-unit', this._onAddUnit.bind(this));
     html.on('click', '.delete-unit', this._onDeleteUnit.bind(this));
     html.on('change', '.unit-name-input', this._onUnitNameChange.bind(this));
-    html.on('click', '.remove-commander', this._onRemoveCommander.bind(this));
-    html.on('click', '.assign-personnel', this._onAssignPersonnel.bind(this));
-    html.on('click', '.remove-assigned-personnel', this._onRemoveAssignedPersonnel.bind(this));
+    html.on('click', '.remove-leader', this._onRemoveLeader.bind(this));
+    html.on('click', '.remove-member', this._onRemoveMember.bind(this));
+    html.on('click', '.add-unit-skill', this._onAddUnitSkill.bind(this));
+    html.on('click', '.remove-unit-skill', this._onRemoveUnitSkill.bind(this));
   }
 
   /* -------------------------------------------- */
@@ -213,9 +288,8 @@ export class MechFoundryCompanySheet extends ActorSheet {
     const item = await Item.implementation.fromDropData(data);
     if (!item) return false;
 
-    // Only accept personnel and supplies items
-    if (item.type === 'personnel' || item.type === 'supplies') {
-      // Check if this item already exists on the company
+    // Personnel items: check for duplicates by name
+    if (item.type === 'personnel') {
       const existingItem = this.actor.items.find(i => i.name === item.name && i.type === item.type);
       if (existingItem) {
         ui.notifications.warn(`${item.name} already exists on this company sheet.`);
@@ -224,7 +298,18 @@ export class MechFoundryCompanySheet extends ActorSheet {
       return super._onDropItem(event, data);
     }
 
-    ui.notifications.warn("Only Personnel and Supplies items can be added to a Company sheet via the appropriate tabs.");
+    // Supplies items
+    if (item.type === 'supplies') {
+      return super._onDropItem(event, data);
+    }
+
+    // Asset item types (for the Assets tab)
+    const assetItemTypes = ['weapon', 'armor', 'ammo', 'electronics', 'healthcare', 'prosthetics', 'drugpoison', 'fuel'];
+    if (assetItemTypes.includes(item.type)) {
+      return super._onDropItem(event, data);
+    }
+
+    ui.notifications.warn("This item type cannot be added to the company sheet.");
     return false;
   }
 
@@ -239,17 +324,23 @@ export class MechFoundryCompanySheet extends ActorSheet {
     const dropTarget = event.target.closest('.tab');
     const tabName = dropTarget?.dataset?.tab;
 
-    // Handle dropping character actors onto unit panels (Organization tab)
+    // Handle dropping character/NPC actors onto unit panels (Organization tab)
     if (tabName === 'organization') {
       const unitPanel = event.target.closest('.unit-panel');
       if (unitPanel && (actor.type === 'character' || actor.type === 'npc')) {
         const unitIndex = parseInt(unitPanel.dataset.unitIndex);
-        await this._assignCommanderToUnit(unitIndex, actor.id);
+        const leaderZone = event.target.closest('.unit-leader-zone');
+
+        if (leaderZone) {
+          await this._assignLeaderToUnit(unitIndex, actor.id);
+        } else {
+          await this._addMemberToUnit(unitIndex, actor.id);
+        }
         return false;
       }
     }
 
-    // Handle dropping vehicle_actor/ship onto Assets tab
+    // Handle dropping vehicle_actor/ship onto MTOE tab
     if (actor.type === 'vehicle_actor' || actor.type === 'ship') {
       const linkedAssets = this.actor.getFlag('mech-foundry', 'linkedAssets') || [];
       if (linkedAssets.includes(actor.id)) {
@@ -258,12 +349,177 @@ export class MechFoundryCompanySheet extends ActorSheet {
       }
       linkedAssets.push(actor.id);
       await this.actor.setFlag('mech-foundry', 'linkedAssets', linkedAssets);
-      ui.notifications.info(`${actor.name} added to company assets.`);
+      ui.notifications.info(`${actor.name} added to company MTOE.`);
       return false;
     }
 
-    ui.notifications.warn("Only Vehicle and Ship actors can be added to the Assets tab. Character actors can be assigned as unit commanders on the Organization tab.");
+    ui.notifications.warn("Drag character/NPC actors to the Organization tab to assign them to units. Drag Vehicle/Ship actors to the MTOE tab.");
     return false;
+  }
+
+  /* -------------------------------------------- */
+  /*  C-Bills / Fund Management                   */
+  /* -------------------------------------------- */
+
+  /**
+   * Process a financial transaction (add or remove funds)
+   */
+  async _processTransaction(amount, type, reason) {
+    const currentCBills = this.actor.system.cbills || 0;
+    const newCBills = type === 'add'
+      ? currentCBills + amount
+      : currentCBills - amount;
+
+    if (newCBills < 0) {
+      ui.notifications.warn("Insufficient funds for this transaction.");
+      return;
+    }
+
+    const ledger = foundry.utils.deepClone(this.actor.system.financialLedger || []);
+    ledger.unshift({
+      id: foundry.utils.randomID(),
+      date: new Date().toISOString(),
+      submittedBy: game.user.name,
+      amount: amount,
+      type: type,
+      reason: reason || "",
+      balance: newCBills
+    });
+
+    await this.actor.update({
+      'system.cbills': newCBills,
+      'system.financialLedger': ledger
+    });
+  }
+
+  /**
+   * Open dialog to add funds
+   */
+  async _onAddFunds(event) {
+    event.preventDefault();
+    const dialogContent = `
+      <form>
+        <div class="form-group">
+          <label>Amount (C-Bills)</label>
+          <input type="number" name="amount" value="0" min="0" />
+        </div>
+        <div class="form-group">
+          <label>Reason</label>
+          <input type="text" name="reason" value="" placeholder="Reason for deposit" />
+        </div>
+      </form>
+    `;
+
+    new Dialog({
+      title: "Add Funds",
+      content: dialogContent,
+      buttons: {
+        confirm: {
+          icon: '<i class="fas fa-check"></i>',
+          label: "Confirm",
+          callback: async (html) => {
+            const amount = Math.abs(parseInt(html.find('[name="amount"]').val()) || 0);
+            const reason = html.find('[name="reason"]').val() || "";
+            if (amount <= 0) return;
+            await this._processTransaction(amount, 'add', reason);
+          }
+        },
+        cancel: {
+          icon: '<i class="fas fa-times"></i>',
+          label: "Cancel"
+        }
+      },
+      default: "confirm"
+    }).render(true);
+  }
+
+  /**
+   * Open dialog to remove funds
+   */
+  async _onRemoveFunds(event) {
+    event.preventDefault();
+    const currentCBills = this.actor.system.cbills || 0;
+    const dialogContent = `
+      <form>
+        <div class="form-group">
+          <label>Amount (C-Bills) — Current balance: ${currentCBills}</label>
+          <input type="number" name="amount" value="0" min="0" />
+        </div>
+        <div class="form-group">
+          <label>Reason</label>
+          <input type="text" name="reason" value="" placeholder="Reason for withdrawal" />
+        </div>
+      </form>
+    `;
+
+    new Dialog({
+      title: "Remove Funds",
+      content: dialogContent,
+      buttons: {
+        confirm: {
+          icon: '<i class="fas fa-check"></i>',
+          label: "Confirm",
+          callback: async (html) => {
+            const amount = Math.abs(parseInt(html.find('[name="amount"]').val()) || 0);
+            const reason = html.find('[name="reason"]').val() || "";
+            if (amount <= 0) return;
+            await this._processTransaction(amount, 'remove', reason);
+          }
+        },
+        cancel: {
+          icon: '<i class="fas fa-times"></i>',
+          label: "Cancel"
+        }
+      },
+      default: "confirm"
+    }).render(true);
+  }
+
+  /**
+   * Pay monthly expenses
+   */
+  async _onPayMonthlyExpenses(event) {
+    event.preventDefault();
+
+    // Calculate total from personnel items
+    let totalExpenses = 0;
+    for (const item of this.actor.items) {
+      if (item.type === 'personnel') {
+        totalExpenses += (item.system.quantity || 0) * (item.system.payRate || 0);
+      }
+    }
+
+    if (totalExpenses <= 0) {
+      ui.notifications.warn("No monthly expenses to pay.");
+      return;
+    }
+
+    const confirmed = await Dialog.confirm({
+      title: "Pay Monthly Expenses",
+      content: `<p>Deduct <strong>${totalExpenses} C-Bills</strong> for monthly personnel expenses?</p>`,
+      yes: () => true,
+      no: () => false,
+      defaultYes: false
+    });
+
+    if (confirmed) {
+      await this._processTransaction(totalExpenses, 'remove', 'Monthly Expenses (Wages)');
+    }
+  }
+
+  /**
+   * Delete a ledger entry (GM only)
+   */
+  async _onLedgerDelete(event) {
+    event.preventDefault();
+    if (!game.user.isGM) return;
+    const ledgerId = event.currentTarget.dataset.ledgerId;
+    const ledger = foundry.utils.deepClone(this.actor.system.financialLedger || []);
+    const index = ledger.findIndex(e => e.id === ledgerId);
+    if (index >= 0) {
+      ledger.splice(index, 1);
+      await this.actor.update({ 'system.financialLedger': ledger });
+    }
   }
 
   /* -------------------------------------------- */
@@ -411,30 +667,13 @@ export class MechFoundryCompanySheet extends ActorSheet {
     const li = event.currentTarget.closest(".item");
     const item = this.actor.items.get(li.dataset.itemId);
     if (!item) return;
-
-    // Remove any unit assignments that reference this personnel item
-    if (item.type === 'personnel') {
-      const units = foundry.utils.deepClone(this.actor.system.units || []);
-      let changed = false;
-      for (const unit of units) {
-        if (unit.assignedPersonnel) {
-          const before = unit.assignedPersonnel.length;
-          unit.assignedPersonnel = unit.assignedPersonnel.filter(a => a.personnelId !== item.id);
-          if (unit.assignedPersonnel.length !== before) changed = true;
-        }
-      }
-      if (changed) {
-        await this.actor.update({ 'system.units': units });
-      }
-    }
-
     await item.delete();
   }
 
   /**
-   * Handle removing an asset
+   * Handle removing a MTOE actor asset
    */
-  async _onAssetRemove(event) {
+  async _onMTOERemove(event) {
     event.preventDefault();
     const actorId = event.currentTarget.dataset.actorId;
     const linkedAssets = (this.actor.getFlag('mech-foundry', 'linkedAssets') || []).filter(id => id !== actorId);
@@ -453,8 +692,9 @@ export class MechFoundryCompanySheet extends ActorSheet {
     const units = foundry.utils.deepClone(this.actor.system.units || []);
     units.push({
       name: "New Unit",
-      commanderId: null,
-      assignedPersonnel: []
+      leaderId: null,
+      members: [],
+      skills: []
     });
     await this.actor.update({ 'system.units': units });
   }
@@ -486,130 +726,98 @@ export class MechFoundryCompanySheet extends ActorSheet {
   }
 
   /**
-   * Assign a commander to a unit (via drag & drop)
+   * Assign a leader to a unit (via drag & drop)
    */
-  async _assignCommanderToUnit(unitIndex, actorId) {
+  async _assignLeaderToUnit(unitIndex, actorId) {
     const units = foundry.utils.deepClone(this.actor.system.units || []);
     if (unitIndex >= 0 && unitIndex < units.length) {
-      units[unitIndex].commanderId = actorId;
+      units[unitIndex].leaderId = actorId;
       await this.actor.update({ 'system.units': units });
     }
   }
 
   /**
-   * Remove a commander from a unit
+   * Add a member to a unit (via drag & drop)
    */
-  async _onRemoveCommander(event) {
-    event.preventDefault();
-    const unitIndex = parseInt(event.currentTarget.dataset.unitIndex);
+  async _addMemberToUnit(unitIndex, actorId) {
     const units = foundry.utils.deepClone(this.actor.system.units || []);
     if (unitIndex >= 0 && unitIndex < units.length) {
-      units[unitIndex].commanderId = null;
+      if (!units[unitIndex].members) units[unitIndex].members = [];
+      if (units[unitIndex].members.includes(actorId) || units[unitIndex].leaderId === actorId) {
+        ui.notifications.warn("This character is already in this unit.");
+        return;
+      }
+      units[unitIndex].members.push(actorId);
       await this.actor.update({ 'system.units': units });
     }
   }
 
   /**
-   * Assign personnel to a unit via dialog
+   * Remove a leader from a unit
    */
-  async _onAssignPersonnel(event) {
+  async _onRemoveLeader(event) {
     event.preventDefault();
     const unitIndex = parseInt(event.currentTarget.dataset.unitIndex);
-
-    // Build list of available personnel
-    const personnel = this.actor.items.filter(i => i.type === 'personnel');
-    if (personnel.length === 0) {
-      ui.notifications.warn("No personnel available. Add personnel items to the Personnel tab first.");
-      return;
+    const units = foundry.utils.deepClone(this.actor.system.units || []);
+    if (unitIndex >= 0 && unitIndex < units.length) {
+      units[unitIndex].leaderId = null;
+      await this.actor.update({ 'system.units': units });
     }
+  }
 
-    // Calculate availability
-    const units = this.actor.system.units || [];
-    const availability = {};
-    for (const p of personnel) {
-      availability[p.id] = {
-        name: p.name,
-        total: p.system.quantity || 0,
-        assigned: 0
-      };
-    }
-    for (const unit of units) {
-      if (unit.assignedPersonnel) {
-        for (const a of unit.assignedPersonnel) {
-          if (availability[a.personnelId]) {
-            availability[a.personnelId].assigned += a.quantity || 0;
-          }
-        }
+  /**
+   * Remove a member from a unit
+   */
+  async _onRemoveMember(event) {
+    event.preventDefault();
+    const unitIndex = parseInt(event.currentTarget.dataset.unitIndex);
+    const memberIndex = parseInt(event.currentTarget.dataset.memberIndex);
+    const units = foundry.utils.deepClone(this.actor.system.units || []);
+    if (unitIndex >= 0 && unitIndex < units.length) {
+      if (units[unitIndex].members && memberIndex >= 0 && memberIndex < units[unitIndex].members.length) {
+        units[unitIndex].members.splice(memberIndex, 1);
+        await this.actor.update({ 'system.units': units });
       }
     }
+  }
 
-    // Build dialog options
-    const options = personnel
-      .filter(p => {
-        const avail = availability[p.id];
-        return avail && (avail.total - avail.assigned) > 0;
-      })
-      .map(p => {
-        const remaining = availability[p.id].total - availability[p.id].assigned;
-        return `<option value="${p.id}">${p.name} (${remaining} available)</option>`;
-      })
-      .join('');
-
-    if (!options) {
-      ui.notifications.warn("No unassigned personnel available.");
-      return;
-    }
+  /**
+   * Add a tracked skill to a unit
+   */
+  async _onAddUnitSkill(event) {
+    event.preventDefault();
+    const unitIndex = parseInt(event.currentTarget.dataset.unitIndex);
 
     const dialogContent = `
       <form>
         <div class="form-group">
-          <label>Personnel Type</label>
-          <select name="personnelId">${options}</select>
-        </div>
-        <div class="form-group">
-          <label>Quantity</label>
-          <input type="number" name="quantity" value="1" min="1" />
+          <label>Skill Name</label>
+          <input type="text" name="skillName" value="" placeholder="e.g., Small Arms, Gunnery/Mech" />
         </div>
       </form>
     `;
 
     new Dialog({
-      title: "Assign Personnel to Unit",
+      title: "Add Tracked Skill",
       content: dialogContent,
       buttons: {
-        assign: {
+        add: {
           icon: '<i class="fas fa-plus"></i>',
-          label: "Assign",
+          label: "Add",
           callback: async (html) => {
-            const personnelId = html.find('[name="personnelId"]').val();
-            let quantity = parseInt(html.find('[name="quantity"]').val()) || 1;
+            const skillName = html.find('[name="skillName"]').val()?.trim();
+            if (!skillName) return;
 
-            // Validate quantity doesn't exceed available
-            const avail = availability[personnelId];
-            const remaining = avail.total - avail.assigned;
-            if (quantity > remaining) {
-              ui.notifications.warn(`Only ${remaining} of that personnel type are available.`);
-              quantity = remaining;
+            const units = foundry.utils.deepClone(this.actor.system.units || []);
+            if (unitIndex >= 0 && unitIndex < units.length) {
+              if (!units[unitIndex].skills) units[unitIndex].skills = [];
+              if (units[unitIndex].skills.some(s => s.toLowerCase() === skillName.toLowerCase())) {
+                ui.notifications.warn("This skill is already tracked for this unit.");
+                return;
+              }
+              units[unitIndex].skills.push(skillName);
+              await this.actor.update({ 'system.units': units });
             }
-            if (quantity <= 0) return;
-
-            const updatedUnits = foundry.utils.deepClone(this.actor.system.units || []);
-            if (!updatedUnits[unitIndex].assignedPersonnel) {
-              updatedUnits[unitIndex].assignedPersonnel = [];
-            }
-
-            // Check if this type is already assigned to the unit
-            const existing = updatedUnits[unitIndex].assignedPersonnel.find(a => a.personnelId === personnelId);
-            if (existing) {
-              existing.quantity += quantity;
-            } else {
-              updatedUnits[unitIndex].assignedPersonnel.push({
-                personnelId: personnelId,
-                quantity: quantity
-              });
-            }
-
-            await this.actor.update({ 'system.units': updatedUnits });
           }
         },
         cancel: {
@@ -617,22 +825,21 @@ export class MechFoundryCompanySheet extends ActorSheet {
           label: "Cancel"
         }
       },
-      default: "assign"
+      default: "add"
     }).render(true);
   }
 
   /**
-   * Remove assigned personnel from a unit
+   * Remove a tracked skill from a unit
    */
-  async _onRemoveAssignedPersonnel(event) {
+  async _onRemoveUnitSkill(event) {
     event.preventDefault();
     const unitIndex = parseInt(event.currentTarget.dataset.unitIndex);
-    const assignmentIndex = parseInt(event.currentTarget.dataset.assignmentIndex);
-
+    const skillIndex = parseInt(event.currentTarget.dataset.skillIndex);
     const units = foundry.utils.deepClone(this.actor.system.units || []);
     if (unitIndex >= 0 && unitIndex < units.length) {
-      if (units[unitIndex].assignedPersonnel && assignmentIndex >= 0 && assignmentIndex < units[unitIndex].assignedPersonnel.length) {
-        units[unitIndex].assignedPersonnel.splice(assignmentIndex, 1);
+      if (units[unitIndex].skills && skillIndex >= 0 && skillIndex < units[unitIndex].skills.length) {
+        units[unitIndex].skills.splice(skillIndex, 1);
         await this.actor.update({ 'system.units': units });
       }
     }
