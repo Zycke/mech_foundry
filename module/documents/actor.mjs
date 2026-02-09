@@ -27,6 +27,9 @@ export class MechFoundryActor extends Actor {
     const actorData = this;
     const systemData = actorData.system;
 
+    // Skip character-specific calculations for non-character actor types
+    if (!["character", "npc"].includes(this.type)) return;
+
     // Calculate total attribute scores (base + modifier, capped at 9)
     this._calculateAttributeTotals(systemData);
 

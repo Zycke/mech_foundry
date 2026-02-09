@@ -1,0 +1,244 @@
+<form class="{{cssClass}} mech-foundry company-sheet" autocomplete="off">
+
+  {{!-- Company Header --}}
+  <header class="sheet-header company-header">
+    <img class="profile-img" src="{{actor.img}}" data-edit="img" title="{{actor.name}}" height="70" width="70" />
+    <div class="header-fields">
+      <h1 class="company-name">
+        <input name="name" type="text" value="{{actor.name}}" placeholder="Company Name" />
+      </h1>
+      <div class="company-summary">
+        <div class="summary-field">
+          <label>C-Bills</label>
+          <input type="number" name="system.cbills" value="{{system.cbills}}" />
+        </div>
+        <div class="summary-field">
+          <label>Personnel</label>
+          <span class="computed-value">{{totalPersonnel}}</span>
+        </div>
+        <div class="summary-field">
+          <label>Monthly Expenses</label>
+          <span class="computed-value">{{totalMonthlyExpenses}} C-Bills</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  {{!-- Tab Navigation --}}
+  <nav class="sheet-tabs tabs" data-group="primary">
+    <a class="item" data-tab="personnel">Personnel</a>
+    <a class="item" data-tab="organization">Organization</a>
+    <a class="item" data-tab="status">Status</a>
+    <a class="item" data-tab="mtoe">MTOE</a>
+    <a class="item" data-tab="logistics">Logistics</a>
+    <a class="item" data-tab="assets">Assets</a>
+  </nav>
+
+  {{!-- Sheet Body --}}
+  <section class="sheet-body">
+
+    {{!-- Personnel Tab --}}
+    <div class="tab" data-tab="personnel" data-group="primary">
+      <div class="tab-content">
+        <div class="items-header personnel-header flexrow">
+          <div class="item-name flex3">Name</div>
+          <div class="item-field flex1">Qty</div>
+          <div class="item-field flex1">Pay Rate</div>
+          <div class="item-field flex1">Monthly Cost</div>
+          <div class="item-field flex1">Skill (TN)</div>
+          <div class="item-field flex1">Veterancy</div>
+          <div class="item-field flex1">Health</div>
+          <div class="item-field flex1">Readiness</div>
+          <div class="item-controls flex1">Controls</div>
+        </div>
+        <ol class="item-list personnel-list">
+          {{#each personnel}}
+          <li class="item flexrow" data-item-id="{{this.id}}">
+            <div class="item-name flex3">
+              <a class="personnel-roll" title="Roll Skill Check">
+                <i class="fas fa-dice-d20"></i>
+                {{this.name}}
+              </a>
+            </div>
+            <div class="item-field flex1">{{this.system.quantity}}</div>
+            <div class="item-field flex1">{{this.system.payRate}}</div>
+            <div class="item-field flex1">{{this.monthlyExpense}}</div>
+            <div class="item-field flex1">
+              {{#if this.system.skillName}}{{this.system.skillName}}{{else}}--{{/if}}
+              (TN{{this.system.skillTN}}/{{this.system.skillComplexity}})
+            </div>
+            <div class="item-field flex1">+{{this.system.veterancy}}</div>
+            <div class="item-field flex1">{{this.system.health.value}}/{{this.system.health.max}}</div>
+            <div class="item-field flex1">{{this.system.readiness.value}}/{{this.system.readiness.max}}</div>
+            <div class="item-controls flex1">
+              <a class="item-edit" title="Edit"><i class="fas fa-edit"></i></a>
+              <a class="item-delete" title="Delete"><i class="fas fa-trash"></i></a>
+            </div>
+          </li>
+          {{/each}}
+        </ol>
+        {{#unless personnel.length}}
+        <p class="empty-notice">Drag Personnel items here to add them to the company.</p>
+        {{/unless}}
+      </div>
+    </div>
+
+    {{!-- Organization Tab --}}
+    <div class="tab" data-tab="organization" data-group="primary">
+      <div class="tab-content">
+        <div class="organization-controls">
+          <button type="button" class="add-unit"><i class="fas fa-plus"></i> Add Unit</button>
+        </div>
+
+        <div class="units-container">
+          {{#each units}}
+          <div class="unit-panel" data-unit-index="{{@index}}">
+            <div class="unit-header">
+              <input type="text" class="unit-name-input" data-unit-index="{{@index}}" value="{{this.name}}" placeholder="Unit Name" />
+              <button type="button" class="delete-unit" data-unit-index="{{@index}}" title="Delete Unit"><i class="fas fa-trash"></i></button>
+            </div>
+
+            {{!-- Commander Section --}}
+            <div class="unit-commander">
+              <h4>Commander</h4>
+              {{#if this.commanderId}}
+              <div class="commander-info">
+                <img src="{{this.commanderImg}}" width="36" height="36" />
+                <span>{{this.commanderName}}</span>
+                <a class="remove-commander" data-unit-index="{{@index}}" title="Remove Commander"><i class="fas fa-times"></i></a>
+              </div>
+              {{else}}
+              <div class="commander-drop-zone">
+                <p>Drag a character here to assign as commander</p>
+              </div>
+              {{/if}}
+            </div>
+
+            {{!-- Assigned Personnel Section --}}
+            <div class="unit-personnel">
+              <div class="unit-personnel-header">
+                <h4>Assigned Personnel</h4>
+                <button type="button" class="assign-personnel" data-unit-index="{{@index}}"><i class="fas fa-plus"></i> Assign</button>
+              </div>
+              {{#if this.assignedPersonnel.length}}
+              <ul class="assigned-personnel-list">
+                {{#each this.assignedPersonnel}}
+                <li class="assigned-personnel-entry">
+                  <span class="assigned-name">{{this.personnelName}}</span>
+                  <span class="assigned-qty">x{{this.quantity}}</span>
+                  <a class="remove-assigned-personnel" data-unit-index="{{@../index}}" data-assignment-index="{{@index}}" title="Remove"><i class="fas fa-minus-circle"></i></a>
+                </li>
+                {{/each}}
+              </ul>
+              {{else}}
+              <p class="empty-notice">No personnel assigned.</p>
+              {{/if}}
+            </div>
+          </div>
+          {{/each}}
+        </div>
+
+        {{#unless units.length}}
+        <p class="empty-notice">Click "Add Unit" to create organizational units.</p>
+        {{/unless}}
+      </div>
+    </div>
+
+    {{!-- Status Tab --}}
+    <div class="tab" data-tab="status" data-group="primary">
+      <div class="tab-content">
+        <div class="status-section">
+          <h3>Company Status</h3>
+          <div class="status-overview">
+            <div class="status-item">
+              <label>Total Personnel</label>
+              <span>{{totalPersonnel}}</span>
+            </div>
+            <div class="status-item">
+              <label>Total Monthly Expenses</label>
+              <span>{{totalMonthlyExpenses}} C-Bills</span>
+            </div>
+            <div class="status-item">
+              <label>Available Funds</label>
+              <span>{{system.cbills}} C-Bills</span>
+            </div>
+          </div>
+          <div class="company-notes">
+            <h3>Notes</h3>
+            {{editor enrichedBiography target="system.biography" button=true owner=owner editable=editable}}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {{!-- MTOE Tab --}}
+    <div class="tab" data-tab="mtoe" data-group="primary">
+      <div class="tab-content">
+        <h3>Modified Table of Organization &amp; Equipment</h3>
+        <p class="empty-notice">MTOE tracking will be expanded in a future update.</p>
+      </div>
+    </div>
+
+    {{!-- Logistics Tab --}}
+    <div class="tab" data-tab="logistics" data-group="primary">
+      <div class="tab-content">
+        <div class="items-header supplies-header flexrow">
+          <div class="item-name flex3">Supply Name</div>
+          <div class="item-field flex2">Supply Type</div>
+          <div class="item-field flex1">Cost</div>
+          <div class="item-field flex1">Quantity</div>
+          <div class="item-controls flex1">Controls</div>
+        </div>
+        <ol class="item-list supplies-list">
+          {{#each supplies}}
+          <li class="item flexrow" data-item-id="{{this.id}}">
+            <div class="item-name flex3">{{this.name}}</div>
+            <div class="item-field flex2">{{this.system.supplyType}}</div>
+            <div class="item-field flex1">{{this.system.cost}}</div>
+            <div class="item-field flex1">{{this.system.quantity}}</div>
+            <div class="item-controls flex1">
+              <a class="item-edit" title="Edit"><i class="fas fa-edit"></i></a>
+              <a class="item-delete" title="Delete"><i class="fas fa-trash"></i></a>
+            </div>
+          </li>
+          {{/each}}
+        </ol>
+        {{#unless supplies.length}}
+        <p class="empty-notice">Drag Supplies items here to add them to logistics.</p>
+        {{/unless}}
+      </div>
+    </div>
+
+    {{!-- Assets Tab --}}
+    <div class="tab" data-tab="assets" data-group="primary">
+      <div class="tab-content">
+        <h3>Company Assets</h3>
+        <div class="items-header assets-header flexrow">
+          <div class="item-name flex3">Name</div>
+          <div class="item-field flex2">Type</div>
+          <div class="item-controls flex1">Controls</div>
+        </div>
+        <ol class="item-list assets-list">
+          {{#each assets}}
+          <li class="item flexrow" data-actor-id="{{this.id}}">
+            <div class="item-name flex3">
+              <img src="{{this.img}}" width="24" height="24" />
+              {{this.name}}
+            </div>
+            <div class="item-field flex2">
+              {{#if (eq this.type "vehicle_actor")}}Vehicle{{else}}Ship{{/if}}
+            </div>
+            <div class="item-controls flex1">
+              <a class="asset-remove" data-actor-id="{{this.id}}" title="Remove"><i class="fas fa-trash"></i></a>
+            </div>
+          </li>
+          {{/each}}
+        </ol>
+        {{#unless assets.length}}
+        <p class="empty-notice">Drag Vehicle or Ship actors here to add them as company assets.</p>
+        {{/unless}}
+      </div>
+    </div>
+
+  </section>
+</form>

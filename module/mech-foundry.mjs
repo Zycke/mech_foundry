@@ -16,6 +16,9 @@ import { MechFoundryItem } from "./documents/item.mjs";
 // Import sheet classes
 import { MechFoundryActorSheet } from "./sheets/actor-sheet.mjs";
 import { MechFoundryItemSheet } from "./sheets/item-sheet.mjs";
+import { MechFoundryCompanySheet } from "./sheets/company-sheet.mjs";
+import { MechFoundryVehicleActorSheet } from "./sheets/vehicle-actor-sheet.mjs";
+import { MechFoundryShipSheet } from "./sheets/ship-sheet.mjs";
 
 // Import helper/utility classes
 import { preloadHandlebarsTemplates } from "./helpers/templates.mjs";
@@ -50,7 +53,23 @@ Hooks.once('init', function() {
   Actors.unregisterSheet("core", ActorSheet);
   Actors.registerSheet("mech-foundry", MechFoundryActorSheet, {
     makeDefault: true,
+    types: ["character", "npc"],
     label: "MECHFOUNDRY.SheetActor"
+  });
+  Actors.registerSheet("mech-foundry", MechFoundryCompanySheet, {
+    types: ["company"],
+    makeDefault: true,
+    label: "MECHFOUNDRY.SheetCompany"
+  });
+  Actors.registerSheet("mech-foundry", MechFoundryVehicleActorSheet, {
+    types: ["vehicle_actor"],
+    makeDefault: true,
+    label: "MECHFOUNDRY.SheetVehicleActor"
+  });
+  Actors.registerSheet("mech-foundry", MechFoundryShipSheet, {
+    types: ["ship"],
+    makeDefault: true,
+    label: "MECHFOUNDRY.SheetShip"
   });
 
   Items.unregisterSheet("core", ItemSheet);

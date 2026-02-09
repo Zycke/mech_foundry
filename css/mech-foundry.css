@@ -4140,3 +4140,416 @@
 .mech-foundry .total-armor-table .damaged-value {
   color: var(--mf-danger, #c85050);
 }
+
+/* ================================================ */
+/*  Company Sheet                                   */
+/* ================================================ */
+
+.mech-foundry.company-sheet {
+  background: var(--mf-sheet-bg, #f0ebe3);
+}
+
+.mech-foundry .company-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px;
+  background: var(--mf-dark, #0d2d3a);
+  color: var(--mf-light, #f0ebe3);
+  border-radius: 4px;
+  margin-bottom: 4px;
+}
+
+.mech-foundry .company-header .header-fields {
+  flex: 1;
+}
+
+.mech-foundry .company-header .company-name input {
+  color: var(--mf-light, #f0ebe3);
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid rgba(255,255,255,0.3);
+  font-size: 1.4em;
+  font-weight: bold;
+  width: 100%;
+}
+
+.mech-foundry .company-summary {
+  display: flex;
+  gap: 16px;
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+
+.mech-foundry .company-summary .summary-field {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.mech-foundry .company-summary .summary-field label {
+  font-size: 0.75em;
+  text-transform: uppercase;
+  opacity: 0.8;
+  margin-bottom: 2px;
+}
+
+.mech-foundry .company-summary .summary-field input {
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.2);
+  color: var(--mf-light, #f0ebe3);
+  border-radius: 3px;
+  padding: 2px 6px;
+  width: 120px;
+  font-size: 1em;
+}
+
+.mech-foundry .company-summary .computed-value {
+  font-size: 1em;
+  font-weight: bold;
+  color: var(--mf-accent, #c38154);
+  padding: 2px 6px;
+}
+
+/* Company Tab Content */
+.mech-foundry.company-sheet .tab-content {
+  padding: 8px;
+}
+
+/* Personnel List */
+.mech-foundry .personnel-header,
+.mech-foundry .supplies-header,
+.mech-foundry .assets-header {
+  background: var(--mf-primary, #1a5f7a);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 3px;
+  font-weight: bold;
+  font-size: 0.85em;
+  margin-bottom: 2px;
+}
+
+.mech-foundry .personnel-list .item,
+.mech-foundry .supplies-list .item,
+.mech-foundry .assets-list .item {
+  padding: 4px 8px;
+  border-bottom: 1px solid rgba(0,0,0,0.1);
+  align-items: center;
+  font-size: 0.9em;
+}
+
+.mech-foundry .personnel-list .item:nth-child(even),
+.mech-foundry .supplies-list .item:nth-child(even),
+.mech-foundry .assets-list .item:nth-child(even) {
+  background: rgba(0,0,0,0.03);
+}
+
+.mech-foundry .personnel-list .item:hover,
+.mech-foundry .supplies-list .item:hover,
+.mech-foundry .assets-list .item:hover {
+  background: rgba(26,95,122,0.08);
+}
+
+.mech-foundry .personnel-roll {
+  cursor: pointer;
+  color: var(--mf-primary, #1a5f7a);
+  text-decoration: none;
+}
+
+.mech-foundry .personnel-roll:hover {
+  color: var(--mf-accent, #c38154);
+  text-decoration: underline;
+}
+
+.mech-foundry .personnel-roll i {
+  margin-right: 4px;
+}
+
+.mech-foundry .empty-notice {
+  text-align: center;
+  color: #888;
+  font-style: italic;
+  padding: 20px;
+}
+
+/* Organization Tab - Units */
+.mech-foundry .organization-controls {
+  margin-bottom: 10px;
+}
+
+.mech-foundry .organization-controls button {
+  background: var(--mf-primary, #1a5f7a);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 14px;
+  cursor: pointer;
+  font-size: 0.9em;
+}
+
+.mech-foundry .organization-controls button:hover {
+  background: var(--mf-secondary, #57837b);
+}
+
+.mech-foundry .units-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.mech-foundry .unit-panel {
+  border: 2px solid var(--mf-primary, #1a5f7a);
+  border-radius: 6px;
+  overflow: hidden;
+  background: white;
+}
+
+.mech-foundry .unit-header {
+  display: flex;
+  align-items: center;
+  background: var(--mf-primary, #1a5f7a);
+  padding: 6px 10px;
+  gap: 8px;
+}
+
+.mech-foundry .unit-header .unit-name-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid rgba(255,255,255,0.4);
+  color: white;
+  font-size: 1.1em;
+  font-weight: bold;
+}
+
+.mech-foundry .unit-header .delete-unit {
+  background: rgba(200,80,80,0.7);
+  border: none;
+  color: white;
+  border-radius: 3px;
+  padding: 3px 8px;
+  cursor: pointer;
+}
+
+.mech-foundry .unit-header .delete-unit:hover {
+  background: rgba(200,80,80,1);
+}
+
+.mech-foundry .unit-commander {
+  padding: 8px 12px;
+  border-bottom: 1px solid rgba(0,0,0,0.1);
+}
+
+.mech-foundry .unit-commander h4 {
+  margin: 0 0 6px 0;
+  font-size: 0.9em;
+  color: var(--mf-primary, #1a5f7a);
+  text-transform: uppercase;
+}
+
+.mech-foundry .commander-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px;
+  background: rgba(26,95,122,0.05);
+  border-radius: 4px;
+}
+
+.mech-foundry .commander-info img {
+  border-radius: 50%;
+  border: 2px solid var(--mf-accent, #c38154);
+}
+
+.mech-foundry .commander-info span {
+  flex: 1;
+  font-weight: bold;
+}
+
+.mech-foundry .commander-info .remove-commander {
+  color: var(--mf-danger, #c85050);
+  cursor: pointer;
+}
+
+.mech-foundry .commander-drop-zone {
+  border: 2px dashed rgba(0,0,0,0.2);
+  border-radius: 4px;
+  padding: 10px;
+  text-align: center;
+  color: #888;
+  font-style: italic;
+}
+
+.mech-foundry .unit-personnel {
+  padding: 8px 12px;
+}
+
+.mech-foundry .unit-personnel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.mech-foundry .unit-personnel-header h4 {
+  margin: 0;
+  font-size: 0.9em;
+  color: var(--mf-primary, #1a5f7a);
+  text-transform: uppercase;
+}
+
+.mech-foundry .unit-personnel-header .assign-personnel {
+  background: var(--mf-secondary, #57837b);
+  color: white;
+  border: none;
+  border-radius: 3px;
+  padding: 3px 10px;
+  cursor: pointer;
+  font-size: 0.8em;
+}
+
+.mech-foundry .unit-personnel-header .assign-personnel:hover {
+  background: var(--mf-primary, #1a5f7a);
+}
+
+.mech-foundry .assigned-personnel-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.mech-foundry .assigned-personnel-entry {
+  display: flex;
+  align-items: center;
+  padding: 3px 6px;
+  border-bottom: 1px solid rgba(0,0,0,0.05);
+  gap: 8px;
+}
+
+.mech-foundry .assigned-personnel-entry .assigned-name {
+  flex: 1;
+}
+
+.mech-foundry .assigned-personnel-entry .assigned-qty {
+  font-weight: bold;
+  color: var(--mf-accent, #c38154);
+}
+
+.mech-foundry .assigned-personnel-entry .remove-assigned-personnel {
+  color: var(--mf-danger, #c85050);
+  cursor: pointer;
+}
+
+/* Status Tab */
+.mech-foundry .status-overview {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.mech-foundry .status-item {
+  background: var(--mf-dark, #0d2d3a);
+  color: var(--mf-light, #f0ebe3);
+  padding: 12px;
+  border-radius: 6px;
+  text-align: center;
+}
+
+.mech-foundry .status-item label {
+  display: block;
+  font-size: 0.8em;
+  text-transform: uppercase;
+  opacity: 0.8;
+  margin-bottom: 4px;
+}
+
+.mech-foundry .status-item span {
+  font-size: 1.2em;
+  font-weight: bold;
+  color: var(--mf-accent, #c38154);
+}
+
+/* Assets Tab */
+.mech-foundry .assets-list .item-name img {
+  margin-right: 6px;
+  vertical-align: middle;
+  border-radius: 3px;
+}
+
+/* ================================================ */
+/*  Personnel Item Sheet                            */
+/* ================================================ */
+
+.mech-foundry.personnel-sheet .form-group-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.mech-foundry.personnel-sheet .form-group label {
+  display: block;
+  font-weight: bold;
+  font-size: 0.85em;
+  margin-bottom: 2px;
+  color: var(--mf-primary, #1a5f7a);
+}
+
+.mech-foundry.personnel-sheet h3 {
+  color: var(--mf-primary, #1a5f7a);
+  border-bottom: 2px solid var(--mf-primary, #1a5f7a);
+  padding-bottom: 4px;
+  margin-top: 12px;
+  margin-bottom: 8px;
+  font-size: 1em;
+}
+
+/* ================================================ */
+/*  Supplies Item Sheet                             */
+/* ================================================ */
+
+.mech-foundry.supplies-sheet .form-group-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.mech-foundry.supplies-sheet .form-group label {
+  display: block;
+  font-weight: bold;
+  font-size: 0.85em;
+  margin-bottom: 2px;
+  color: var(--mf-primary, #1a5f7a);
+}
+
+.mech-foundry.supplies-sheet h3 {
+  color: var(--mf-primary, #1a5f7a);
+  border-bottom: 2px solid var(--mf-primary, #1a5f7a);
+  padding-bottom: 4px;
+  margin-top: 12px;
+  margin-bottom: 8px;
+  font-size: 1em;
+}
+
+/* ================================================ */
+/*  Vehicle & Ship Actor Sheets (Placeholder)       */
+/* ================================================ */
+
+.mech-foundry.vehicle-actor-sheet .placeholder-content,
+.mech-foundry.ship-sheet .placeholder-content {
+  padding: 20px;
+  text-align: center;
+}
+
+.mech-foundry.vehicle-actor-sheet .placeholder-content h3,
+.mech-foundry.ship-sheet .placeholder-content h3 {
+  color: var(--mf-primary, #1a5f7a);
+}
+
+.mech-foundry.vehicle-actor-sheet .placeholder-content p,
+.mech-foundry.ship-sheet .placeholder-content p {
+  color: #888;
+  font-style: italic;
+}

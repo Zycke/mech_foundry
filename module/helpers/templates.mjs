@@ -8,6 +8,9 @@ export const preloadHandlebarsTemplates = async function() {
     // Actor sheets
     "systems/mech-foundry/templates/actor/actor-character-sheet.hbs",
     "systems/mech-foundry/templates/actor/actor-npc-sheet.hbs",
+    "systems/mech-foundry/templates/actor/actor-company-sheet.hbs",
+    "systems/mech-foundry/templates/actor/actor-vehicle_actor-sheet.hbs",
+    "systems/mech-foundry/templates/actor/actor-ship-sheet.hbs",
 
     // Item sheets
     "systems/mech-foundry/templates/item/item-skill-sheet.hbs",
@@ -25,6 +28,8 @@ export const preloadHandlebarsTemplates = async function() {
     "systems/mech-foundry/templates/item/item-drugpoison-sheet.hbs",
     "systems/mech-foundry/templates/item/item-activeeffect-sheet.hbs",
     "systems/mech-foundry/templates/item/item-ammo-sheet.hbs",
+    "systems/mech-foundry/templates/item/item-personnel-sheet.hbs",
+    "systems/mech-foundry/templates/item/item-supplies-sheet.hbs",
 
     // Chat partials
     "systems/mech-foundry/templates/chat/skill-roll.hbs",
