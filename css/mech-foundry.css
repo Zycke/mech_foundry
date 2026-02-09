@@ -4272,6 +4272,57 @@
   padding: 20px;
 }
 
+/* C-Bills Display & Controls */
+.mech-foundry .cbills-display {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.mech-foundry .cbills-controls {
+  display: flex;
+  gap: 3px;
+}
+
+.mech-foundry .cbills-controls button {
+  background: rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,0.3);
+  color: var(--mf-light, #f0ebe3);
+  border-radius: 3px;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 0.75em;
+  transition: background 0.2s;
+}
+
+.mech-foundry .cbills-controls button:hover {
+  background: rgba(255,255,255,0.3);
+}
+
+.mech-foundry .cbills-controls .cbills-add:hover {
+  background: rgba(74,157,74,0.5);
+}
+
+.mech-foundry .cbills-controls .cbills-remove:hover {
+  background: rgba(196,69,54,0.5);
+}
+
+/* Reputation Input */
+.mech-foundry .reputation-input {
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.2);
+  color: var(--mf-light, #f0ebe3);
+  border-radius: 3px;
+  padding: 2px 6px;
+  width: 120px;
+  font-size: 1em;
+}
+
 /* Organization Tab - Units */
 .mech-foundry .organization-controls {
   margin-bottom: 10px;
@@ -4327,117 +4378,272 @@
   border: none;
   color: white;
   border-radius: 3px;
-  padding: 3px 8px;
   cursor: pointer;
+  font-size: 0.75em;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
 .mech-foundry .unit-header .delete-unit:hover {
   background: rgba(200,80,80,1);
 }
 
-.mech-foundry .unit-commander {
-  padding: 8px 12px;
-  border-bottom: 1px solid rgba(0,0,0,0.1);
+/* Unit Skill Summary Badges */
+.mech-foundry .unit-skill-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 6px 10px;
+  background: rgba(26,95,122,0.05);
+  border-bottom: 1px solid rgba(0,0,0,0.08);
 }
 
-.mech-foundry .unit-commander h4 {
+.mech-foundry .skill-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--mf-primary, #1a5f7a);
+  color: white;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.8em;
+  font-weight: bold;
+}
+
+.mech-foundry .skill-badge .remove-unit-skill {
+  color: rgba(255,255,255,0.7);
+  cursor: pointer;
+  font-size: 0.85em;
+}
+
+.mech-foundry .skill-badge .remove-unit-skill:hover {
+  color: white;
+}
+
+.mech-foundry .unit-skill-controls {
+  padding: 4px 10px;
+  border-bottom: 1px solid rgba(0,0,0,0.08);
+}
+
+.mech-foundry .unit-skill-controls button {
+  background: var(--mf-secondary, #57837b);
+  color: white;
+  border: none;
+  border-radius: 3px;
+  padding: 2px 8px;
+  cursor: pointer;
+  font-size: 0.8em;
+}
+
+.mech-foundry .unit-skill-controls button:hover {
+  background: var(--mf-primary, #1a5f7a);
+}
+
+/* Unit Leader & Members Sections */
+.mech-foundry .unit-leader,
+.mech-foundry .unit-members {
+  padding: 8px 12px;
+  border-bottom: 1px solid rgba(0,0,0,0.08);
+}
+
+.mech-foundry .unit-leader h4,
+.mech-foundry .unit-members h4 {
   margin: 0 0 6px 0;
   font-size: 0.9em;
   color: var(--mf-primary, #1a5f7a);
   text-transform: uppercase;
 }
 
-.mech-foundry .commander-info {
+/* Member Cards (shared for leader and members) */
+.mech-foundry .member-card {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 4px;
+  padding: 5px 8px;
   background: rgba(26,95,122,0.05);
   border-radius: 4px;
+  margin-bottom: 4px;
+  flex-wrap: wrap;
 }
 
-.mech-foundry .commander-info img {
+.mech-foundry .member-card.leader-card {
+  background: rgba(195,129,84,0.1);
+  border: 1px solid rgba(195,129,84,0.3);
+}
+
+.mech-foundry .member-card img {
   border-radius: 50%;
-  border: 2px solid var(--mf-accent, #c38154);
+  border: 2px solid var(--mf-border, #888);
+  flex-shrink: 0;
 }
 
-.mech-foundry .commander-info span {
-  flex: 1;
+.mech-foundry .member-card.leader-card img {
+  border-color: var(--mf-accent, #c38154);
+}
+
+.mech-foundry .member-name {
   font-weight: bold;
+  min-width: 80px;
 }
 
-.mech-foundry .commander-info .remove-commander {
-  color: var(--mf-danger, #c85050);
+.mech-foundry .member-status {
+  font-size: 0.8em;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: rgba(0,0,0,0.06);
+  white-space: nowrap;
+}
+
+.mech-foundry .member-skill-level {
+  font-size: 0.75em;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: var(--mf-secondary, #57837b);
+  color: white;
+  white-space: nowrap;
+}
+
+.mech-foundry .remove-leader,
+.mech-foundry .remove-member {
+  color: var(--mf-danger, #c44536);
   cursor: pointer;
+  margin-left: auto;
+  flex-shrink: 0;
 }
 
-.mech-foundry .commander-drop-zone {
+.mech-foundry .remove-leader:hover,
+.mech-foundry .remove-member:hover {
+  color: darkred;
+}
+
+/* Drop Zones */
+.mech-foundry .drop-zone {
   border: 2px dashed rgba(0,0,0,0.2);
   border-radius: 4px;
   padding: 10px;
   text-align: center;
   color: #888;
   font-style: italic;
+  margin-top: 4px;
 }
 
-.mech-foundry .unit-personnel {
-  padding: 8px 12px;
+.mech-foundry .drop-zone:hover {
+  border-color: var(--mf-primary, #1a5f7a);
+  background: rgba(26,95,122,0.03);
 }
 
-.mech-foundry .unit-personnel-header {
-  display: flex;
-  justify-content: space-between;
+/* MTOE Tab */
+.mech-foundry .mtoe-header {
+  background: var(--mf-primary, #1a5f7a);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 3px;
+  font-weight: bold;
+  font-size: 0.85em;
+  margin-bottom: 2px;
+}
+
+.mech-foundry .mtoe-list .item {
+  padding: 4px 8px;
+  border-bottom: 1px solid rgba(0,0,0,0.1);
   align-items: center;
-  margin-bottom: 6px;
-}
-
-.mech-foundry .unit-personnel-header h4 {
-  margin: 0;
   font-size: 0.9em;
-  color: var(--mf-primary, #1a5f7a);
-  text-transform: uppercase;
 }
 
-.mech-foundry .unit-personnel-header .assign-personnel {
+.mech-foundry .mtoe-list .item-name img {
+  margin-right: 6px;
+  vertical-align: middle;
+  border-radius: 3px;
+}
+
+.mech-foundry .mtoe-remove {
+  color: var(--mf-danger, #c44536);
+  cursor: pointer;
+}
+
+/* Asset Categories */
+.mech-foundry .asset-category {
+  margin-bottom: 12px;
+}
+
+.mech-foundry .asset-category .category-title {
+  margin: 8px 0 4px 0;
+  padding: 3px 8px;
   background: var(--mf-secondary, #57837b);
   color: white;
-  border: none;
   border-radius: 3px;
-  padding: 3px 10px;
+  font-size: 0.9em;
+}
+
+/* Finances Tab */
+.mech-foundry .finance-controls {
+  margin-bottom: 12px;
+}
+
+.mech-foundry .finance-controls button {
+  background: var(--mf-accent, #c38154);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 16px;
   cursor: pointer;
-  font-size: 0.8em;
-}
-
-.mech-foundry .unit-personnel-header .assign-personnel:hover {
-  background: var(--mf-primary, #1a5f7a);
-}
-
-.mech-foundry .assigned-personnel-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-
-.mech-foundry .assigned-personnel-entry {
-  display: flex;
-  align-items: center;
-  padding: 3px 6px;
-  border-bottom: 1px solid rgba(0,0,0,0.05);
-  gap: 8px;
-}
-
-.mech-foundry .assigned-personnel-entry .assigned-name {
-  flex: 1;
-}
-
-.mech-foundry .assigned-personnel-entry .assigned-qty {
+  font-size: 0.9em;
   font-weight: bold;
-  color: var(--mf-accent, #c38154);
+  transition: background 0.2s;
 }
 
-.mech-foundry .assigned-personnel-entry .remove-assigned-personnel {
-  color: var(--mf-danger, #c85050);
+.mech-foundry .finance-controls button:hover {
+  background: #a86d3f;
+}
+
+.mech-foundry .finance-header {
+  background: var(--mf-primary, #1a5f7a);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 3px;
+  font-weight: bold;
+  font-size: 0.85em;
+  margin-bottom: 2px;
+}
+
+.mech-foundry .finance-list .item {
+  padding: 4px 8px;
+  border-bottom: 1px solid rgba(0,0,0,0.1);
+  align-items: center;
+  font-size: 0.85em;
+}
+
+.mech-foundry .finance-list .item:nth-child(even) {
+  background: rgba(0,0,0,0.03);
+}
+
+.mech-foundry .ledger-entry .funds-add {
+  color: var(--mf-success, #4a9d4a);
+  font-weight: bold;
+}
+
+.mech-foundry .ledger-entry .funds-remove {
+  color: var(--mf-danger, #c44536);
+  font-weight: bold;
+}
+
+.mech-foundry .ledger-controls {
+  text-align: center;
+  flex: 0 0 30px;
+}
+
+.mech-foundry .ledger-delete {
+  color: var(--mf-danger, #c44536);
   cursor: pointer;
+}
+
+.mech-foundry .ledger-delete:hover {
+  color: darkred;
 }
 
 /* Status Tab */

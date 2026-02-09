@@ -417,5 +417,33 @@
 
   "MECHFOUNDRY.VehicleActorSheet": "Vehicle",
   "MECHFOUNDRY.ShipActorSheet": "Ship",
-  "MECHFOUNDRY.CompanyAssets": "Company Assets"
+  "MECHFOUNDRY.CompanyAssets": "Company Assets",
+
+  "MECHFOUNDRY.Reputation": "Reputation",
+  "MECHFOUNDRY.AddFunds": "Add Funds",
+  "MECHFOUNDRY.RemoveFunds": "Remove Funds",
+  "MECHFOUNDRY.Amount": "Amount",
+  "MECHFOUNDRY.Reason": "Reason",
+  "MECHFOUNDRY.Confirm": "Confirm",
+  "MECHFOUNDRY.Cancel": "Cancel",
+  "MECHFOUNDRY.InsufficientFunds": "Insufficient funds for this transaction.",
+
+  "MECHFOUNDRY.TabFinances": "Finances",
+  "MECHFOUNDRY.TransactionHistory": "Transaction History",
+  "MECHFOUNDRY.Date": "Date",
+  "MECHFOUNDRY.SubmittedBy": "Submitted By",
+  "MECHFOUNDRY.Type": "Type",
+  "MECHFOUNDRY.Balance": "Balance",
+  "MECHFOUNDRY.Deposit": "Deposit",
+  "MECHFOUNDRY.Withdrawal": "Withdrawal",
+  "MECHFOUNDRY.PayMonthlyExpenses": "Pay Monthly Expenses",
+  "MECHFOUNDRY.NoExpenses": "No monthly expenses to pay.",
+  "MECHFOUNDRY.NoTransactions": "No transactions recorded yet.",
+
+  "MECHFOUNDRY.Leader": "Leader",
+  "MECHFOUNDRY.Members": "Members",
+  "MECHFOUNDRY.AddSkill": "Add Skill",
+  "MECHFOUNDRY.SkillAverage": "Skill Average",
+  "MECHFOUNDRY.RemoveLeader": "Remove Leader",
+  "MECHFOUNDRY.RemoveMember": "Remove Member"
 }
