@@ -3,53 +3,145 @@
     <img class="profile-img" src="{{item.img}}" data-edit="img" title="{{item.name}}" height="50" width="50" />
     <div class="header-fields">
       <h1>
-        <input name="name" type="text" value="{{item.name}}" placeholder="Personnel Type Name" />
+        <input name="name" type="text" value="{{item.name}}" placeholder="Personnel Name" />
       </h1>
     </div>
   </header>
 
   <section class="sheet-body">
     <div class="tab-content">
-      {{!-- Core Fields --}}
+      {{!-- Type Selection --}}
       <div class="form-group-grid personnel-fields">
         <div class="form-group">
-          <label>Quantity</label>
-          <input type="number" name="system.quantity" value="{{system.quantity}}" min="0" />
+          <label>Personnel Type</label>
+          <select name="system.personnelType">
+            <option value="crewmember" {{#if (eq system.personnelType "crewmember")}}selected{{/if}}>Crewmember</option>
+            <option value="infantry" {{#if (eq system.personnelType "infantry")}}selected{{/if}}>Infantry</option>
+            <option value="pilot" {{#if (eq system.personnelType "pilot")}}selected{{/if}}>Pilot</option>
+          </select>
         </div>
         <div class="form-group">
           <label>Pay Rate (per month)</label>
           <input type="number" name="system.payRate" value="{{system.payRate}}" min="0" />
         </div>
-      </div>
-
-      {{!-- Skill Fields --}}
-      <h3>Skill</h3>
-      <div class="form-group-grid personnel-fields">
         <div class="form-group">
-          <label>Skill Name</label>
-          <input type="text" name="system.skillName" value="{{system.skillName}}" placeholder="e.g., Small Arms" />
+          <label>XP</label>
+          <input type="number" name="system.xp" value="{{system.xp}}" min="0" />
         </div>
         <div class="form-group">
-          <label>Target Number (TN)</label>
-          <input type="number" name="system.skillTN" value="{{system.skillTN}}" min="1" />
-        </div>
-        <div class="form-group">
-          <label>Complexity</label>
-          <select name="system.skillComplexity">
-            <option value="S" {{#if (eq system.skillComplexity "S")}}selected{{/if}}>Simple (S)</option>
-            <option value="C" {{#if (eq system.skillComplexity "C")}}selected{{/if}}>Complex (C)</option>
-          </select>
+          <label>Assignment</label>
+          <input type="text" value="{{system.assignment}}" disabled placeholder="Set via Company Sheet" />
         </div>
       </div>
 
-      {{!-- Veterancy --}}
-      <h3>Veterancy</h3>
-      <div class="form-group-grid personnel-fields">
+      {{!-- Crewmember Skills --}}
+      {{#if (eq system.personnelType "crewmember")}}
+      <h3>Crewmember Skills</h3>
+      <div class="form-group-grid personnel-fields skills-grid">
         <div class="form-group">
-          <label>Veterancy Rank</label>
-          <input type="number" name="system.veterancy" value="{{system.veterancy}}" min="0" />
+          <label>Technician</label>
+          <input type="number" name="system.skills.technician" value="{{system.skills.technician}}" min="0" max="10" />
+        </div>
+        <div class="form-group">
+          <label>Engineering</label>
+          <input type="number" name="system.skills.engineering" value="{{system.skills.engineering}}" min="0" max="10" />
+        </div>
+        <div class="form-group">
+          <label>Medical</label>
+          <input type="number" name="system.skills.medical" value="{{system.skills.medical}}" min="0" max="10" />
+        </div>
+        <div class="form-group">
+          <label>Crew</label>
+          <input type="number" name="system.skills.crew" value="{{system.skills.crew}}" min="0" max="10" />
+        </div>
+        <div class="form-group">
+          <label>Admin</label>
+          <input type="number" name="system.skills.admin" value="{{system.skills.admin}}" min="0" max="10" />
+        </div>
+        <div class="form-group">
+          <label>Leadership</label>
+          <input type="number" name="system.skills.leadership" value="{{system.skills.leadership}}" min="0" max="10" />
         </div>
       </div>
+      {{/if}}
+
+      {{!-- Infantry Skills --}}
+      {{#if (eq system.personnelType "infantry")}}
+      <h3>Infantry Skills</h3>
+      <div class="form-group-grid personnel-fields skills-grid">
+        <div class="form-group">
+          <label>Small Arms</label>
+          <input type="number" name="system.skills.smallArms" value="{{system.skills.smallArms}}" min="0" max="10" />
+        </div>
+        <div class="form-group">
+          <label>Demolitions</label>
+          <input type="number" name="system.skills.demolitions" value="{{system.skills.demolitions}}" min="0" max="10" />
+        </div>
+        <div class="form-group">
+          <label>Support Weapons</label>
+          <input type="number" name="system.skills.supportWeapons" value="{{system.skills.supportWeapons}}" min="0" max="10" />
+        </div>
+        <div class="form-group">
+          <label>Stealth</label>
+          <input type="number" name="system.skills.stealth" value="{{system.skills.stealth}}" min="0" max="10" />
+        </div>
+        <div class="form-group">
+          <label>Zero-G</label>
+          <input type="number" name="system.skills.zeroG" value="{{system.skills.zeroG}}" min="0" max="10" />
+        </div>
+        <div class="form-group">
+          <label>Leadership</label>
+          <input type="number" name="system.skills.leadership" value="{{system.skills.leadership}}" min="0" max="10" />
+        </div>
+        <div class="form-group">
+          <label>Tactics</label>
+          <input type="number" name="system.skills.tactics" value="{{system.skills.tactics}}" min="0" max="10" />
+        </div>
+        <div class="form-group">
+          <label>Strategy</label>
+          <input type="number" name="system.skills.strategy" value="{{system.skills.strategy}}" min="0" max="10" />
+        </div>
+      </div>
+      {{/if}}
+
+      {{!-- Pilot Skills --}}
+      {{#if (eq system.personnelType "pilot")}}
+      <h3>Pilot Skills</h3>
+      <div class="form-group-grid personnel-fields skills-grid">
+        <div class="form-group">
+          <label>Gunnery</label>
+          <input type="number" name="system.skills.gunnery" value="{{system.skills.gunnery}}" min="0" max="10" />
+        </div>
+        <div class="form-group">
+          <label>Pilot (Aero)</label>
+          <input type="number" name="system.skills.pilotAero" value="{{system.skills.pilotAero}}" min="0" max="10" />
+        </div>
+        <div class="form-group">
+          <label>Pilot (Mech)</label>
+          <input type="number" name="system.skills.pilotMech" value="{{system.skills.pilotMech}}" min="0" max="10" />
+        </div>
+        <div class="form-group">
+          <label>Pilot (Vehicle)</label>
+          <input type="number" name="system.skills.pilotVehicle" value="{{system.skills.pilotVehicle}}" min="0" max="10" />
+        </div>
+        <div class="form-group">
+          <label>Navigation</label>
+          <input type="number" name="system.skills.navigation" value="{{system.skills.navigation}}" min="0" max="10" />
+        </div>
+        <div class="form-group">
+          <label>Leadership</label>
+          <input type="number" name="system.skills.leadership" value="{{system.skills.leadership}}" min="0" max="10" />
+        </div>
+        <div class="form-group">
+          <label>Tactics</label>
+          <input type="number" name="system.skills.tactics" value="{{system.skills.tactics}}" min="0" max="10" />
+        </div>
+        <div class="form-group">
+          <label>Strategy</label>
+          <input type="number" name="system.skills.strategy" value="{{system.skills.strategy}}" min="0" max="10" />
+        </div>
+      </div>
+      {{/if}}
 
       {{!-- Health & Readiness --}}
       <h3>Health &amp; Readiness</h3>
