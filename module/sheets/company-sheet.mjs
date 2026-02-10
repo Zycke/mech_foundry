@@ -179,6 +179,17 @@ export class MechFoundryCompanySheet extends ActorSheet {
     companyAssets.hasItems = Object.entries(companyAssets)
       .some(([key, arr]) => key !== 'hasItems' && Array.isArray(arr) && arr.length > 0);
 
+    // Build unit ID → name map for display
+    const unitNameMap = {};
+    for (const u of (this.actor.system.units || [])) {
+      if (u.id) unitNameMap[u.id] = u.name || 'Unnamed Unit';
+    }
+    for (const arr of [infantryPersonnel, pilotPersonnel]) {
+      for (const p of arr) {
+        p.assignmentDisplay = unitNameMap[p.system.assignment] || p.system.assignment || '';
+      }
+    }
+
     context.crewmemberPersonnel = crewmemberPersonnel;
     context.infantryPersonnel = infantryPersonnel;
     context.pilotPersonnel = pilotPersonnel;
@@ -373,22 +384,47 @@ export class MechFoundryCompanySheet extends ActorSheet {
       // Collapse state
       unit.collapsed = this._unitCollapsed.get(unit.id) !== false;
 
-      // Resolve leader
+      // Resolve leader (supports both actor and personnel item leaders)
       if (unit.leaderId) {
-        const leader = game.actors.get(unit.leaderId);
-        if (leader) {
-          unit.leaderData = this._getActorSummary(leader);
-          // Get leader-only skill levels
-          unit.leaderSkills = {};
-          for (const key of leaderSkillKeys) {
-            const displayName = SKILL_DISPLAY_NAMES[key];
-            const skillItem = leader.items.find(i => i.type === 'skill' && i.name.toLowerCase() === displayName.toLowerCase());
-            unit.leaderSkills[key] = skillItem ? skillItem.system.level : 0;
+        if (unit.leaderType === 'item') {
+          // Personnel item leader
+          const leaderItem = this.actor.items.get(unit.leaderId);
+          if (leaderItem) {
+            unit.leaderData = {
+              id: leaderItem.id,
+              name: leaderItem.name,
+              img: leaderItem.img || 'icons/svg/mystery-man.svg',
+              isItem: true,
+              health: leaderItem.system.health || { value: 1, max: 1 },
+              readiness: leaderItem.system.readiness || { value: 1, max: 1 }
+            };
+            unit.leaderSkills = {};
+            for (const key of leaderSkillKeys) {
+              unit.leaderSkills[key] = leaderItem.system.skills?.[key] || 0;
+            }
+          } else {
+            unit.leaderData = null;
+            unit.leaderId = null;
+            unit.leaderType = null;
+            unit.leaderSkills = {};
           }
         } else {
-          unit.leaderData = null;
-          unit.leaderId = null;
-          unit.leaderSkills = {};
+          // Character actor leader
+          const leader = game.actors.get(unit.leaderId);
+          if (leader) {
+            unit.leaderData = this._getActorSummary(leader);
+            unit.leaderData.isItem = false;
+            unit.leaderSkills = {};
+            for (const key of leaderSkillKeys) {
+              const displayName = SKILL_DISPLAY_NAMES[key];
+              const skillItem = leader.items.find(i => i.type === 'skill' && i.name.toLowerCase() === displayName.toLowerCase());
+              unit.leaderSkills[key] = skillItem ? skillItem.system.level : 0;
+            }
+          } else {
+            unit.leaderData = null;
+            unit.leaderId = null;
+            unit.leaderSkills = {};
+          }
         }
       } else {
         unit.leaderSkills = {};
@@ -546,6 +582,8 @@ export class MechFoundryCompanySheet extends ActorSheet {
     html.on('click', '.remove-leader', this._onRemoveLeader.bind(this));
     html.on('click', '.remove-member', this._onRemoveMember.bind(this));
     html.on('click', '.remove-unit-personnel', this._onRemoveUnitPersonnel.bind(this));
+    html.on('click', '.promote-unit-leader-actor', this._onPromoteUnitLeaderActor.bind(this));
+    html.on('click', '.promote-unit-leader-item', this._onPromoteUnitLeaderItem.bind(this));
   }
 
   /* -------------------------------------------- */
@@ -1019,6 +1057,7 @@ export class MechFoundryCompanySheet extends ActorSheet {
     const units = foundry.utils.deepClone(this.actor.system.units || []);
     if (unitIndex >= 0 && unitIndex < units.length) {
       units[unitIndex].leaderId = null;
+      units[unitIndex].leaderType = null;
       await this.actor.update({ 'system.units': units });
     }
   }
@@ -1042,6 +1081,38 @@ export class MechFoundryCompanySheet extends ActorSheet {
     const item = this.actor.items.get(itemId);
     if (item) {
       await item.update({ 'system.assignment': '' });
+    }
+  }
+
+  /**
+   * Promote a character actor member to unit leader
+   */
+  async _onPromoteUnitLeaderActor(event) {
+    event.preventDefault();
+    const unitIndex = parseInt(event.currentTarget.dataset.unitIndex);
+    const actorId = event.currentTarget.dataset.actorId;
+    const units = foundry.utils.deepClone(this.actor.system.units || []);
+    if (unitIndex >= 0 && unitIndex < units.length) {
+      units[unitIndex].leaderId = actorId;
+      units[unitIndex].leaderType = 'actor';
+      // Remove from members array since they're now the leader
+      units[unitIndex].members = (units[unitIndex].members || []).filter(id => id !== actorId);
+      await this.actor.update({ 'system.units': units });
+    }
+  }
+
+  /**
+   * Promote a personnel item member to unit leader
+   */
+  async _onPromoteUnitLeaderItem(event) {
+    event.preventDefault();
+    const unitIndex = parseInt(event.currentTarget.dataset.unitIndex);
+    const itemId = event.currentTarget.dataset.itemId;
+    const units = foundry.utils.deepClone(this.actor.system.units || []);
+    if (unitIndex >= 0 && unitIndex < units.length) {
+      units[unitIndex].leaderId = itemId;
+      units[unitIndex].leaderType = 'item';
+      await this.actor.update({ 'system.units': units });
     }
   }
 
