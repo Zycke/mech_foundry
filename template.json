@@ -107,6 +107,7 @@
       "totalMonthlyExpenses": 0,
       "reputation": "",
       "notes": "",
+      "departments": [],
       "units": [],
       "financialLedger": [],
       "biography": ""
@@ -317,12 +318,10 @@
     },
     "personnel": {
       "templates": ["base"],
-      "quantity": 1,
+      "personnelType": "crewmember",
       "payRate": 0,
-      "skillName": "",
-      "skillTN": 7,
-      "skillComplexity": "S",
-      "veterancy": 0,
+      "xp": 0,
+      "assignment": "",
       "health": {
         "value": 1,
         "max": 1
@@ -330,6 +329,26 @@
       "readiness": {
         "value": 1,
         "max": 1
+      },
+      "skills": {
+        "technician": 0,
+        "engineering": 0,
+        "medical": 0,
+        "crew": 0,
+        "admin": 0,
+        "leadership": 0,
+        "smallArms": 0,
+        "demolitions": 0,
+        "supportWeapons": 0,
+        "stealth": 0,
+        "zeroG": 0,
+        "tactics": 0,
+        "strategy": 0,
+        "gunnery": 0,
+        "pilotAero": 0,
+        "pilotMech": 0,
+        "pilotVehicle": 0,
+        "navigation": 0
       }
     },
     "supplies": {
