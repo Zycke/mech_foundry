@@ -139,7 +139,7 @@
                 <div class="item-field stat-col">{{this.system.readiness.value}}/{{this.system.readiness.max}}</div>
                 <div class="item-field flex1">
                   {{#if this.system.assignment}}
-                  <span class="assignment-tag">{{this.system.assignment}}</span>
+                  <span class="assignment-tag">{{this.assignmentDisplay}}</span>
                   {{else}}
                   <span class="unassigned">--</span>
                   {{/if}}
@@ -192,7 +192,7 @@
                 <div class="item-field stat-col">{{this.system.readiness.value}}/{{this.system.readiness.max}}</div>
                 <div class="item-field flex1">
                   {{#if this.system.assignment}}
-                  <span class="assignment-tag">{{this.system.assignment}}</span>
+                  <span class="assignment-tag">{{this.assignmentDisplay}}</span>
                   {{else}}
                   <span class="unassigned">--</span>
                   {{/if}}
@@ -281,11 +281,11 @@
                 {{#each this.members}}
                 <div class="member-card dept-member-card">
                   <span class="member-name">{{this.name}}</span>
-                  <span class="member-skill-level">{{../../primarySkillDisplay}}: {{this.primarySkillValue}}</span>
+                  <span class="member-skill-level">{{../primarySkillDisplay}}: {{this.primarySkillValue}}</span>
                   <span class="member-status">HP: {{this.system.health.value}}/{{this.system.health.max}}</span>
                   <span class="member-status">Rdy: {{this.system.readiness.value}}/{{this.system.readiness.max}}</span>
                   {{#if ../../editable}}
-                  <a class="promote-dept-leader" data-department="{{../../name}}" data-item-id="{{this._id}}" title="Promote to Leader"><i class="fas fa-crown"></i></a>
+                  <a class="promote-dept-leader" data-department="{{../name}}" data-item-id="{{this._id}}" title="Promote to Leader"><i class="fas fa-crown"></i></a>
                   <a class="remove-from-department" data-item-id="{{this._id}}" title="Remove from Department"><i class="fas fa-times"></i></a>
                   {{/if}}
                 </div>
@@ -316,35 +316,36 @@
             {{#each units}}
             <div class="unit-panel {{#if this.collapsed}}collapsed{{/if}}" data-unit-index="{{@index}}">
               <div class="unit-header">
-                <span class="unit-toggle" data-unit-id="{{this.id}}">
-                  <i class="fas {{#if this.collapsed}}fa-chevron-right{{else}}fa-chevron-down{{/if}}"></i>
-                </span>
-                <span class="unit-type-badge {{this.unitType}}">{{this.unitTypeDisplay}}</span>
-                <input type="text" class="unit-name-input" data-unit-index="{{@index}}" value="{{this.name}}" placeholder="Unit Name" />
-
-                {{!-- Skill Summary Badges --}}
-                <div class="unit-skill-badges">
-                  {{#each this.skillSummary}}
-                  <span class="skill-badge summary-skill-roll" data-label="{{../../name}} - {{this.name}}" data-rating="{{this.averageNum}}">
-                    {{this.name}}: {{this.average}}
+                <div class="unit-header-top">
+                  <span class="unit-toggle" data-unit-id="{{this.id}}">
+                    <i class="fas {{#if this.collapsed}}fa-chevron-right{{else}}fa-chevron-down{{/if}}"></i>
                   </span>
-                  {{/each}}
-                  {{#if ../leaderData}}
-                  <span class="skill-badge-separator">|</span>
-                  {{#each this.leaderSkillSummary}}
-                  <span class="skill-badge leader-skill-badge summary-skill-roll" data-label="{{../../name}} - {{this.name}} (Leader)" data-rating="{{this.value}}">
-                    {{this.name}}: {{this.value}}
-                  </span>
-                  {{/each}}
+                  <span class="unit-type-badge {{this.unitType}}">{{this.unitTypeDisplay}}</span>
+                  <input type="text" class="unit-name-input" data-unit-index="{{@index}}" value="{{this.name}}" placeholder="Unit Name" />
+                  {{#if ../editable}}
+                  <button type="button" class="delete-unit" data-unit-index="{{@index}}" title="Delete Unit"><i class="fas fa-trash"></i></button>
                   {{/if}}
                 </div>
-
-                <span class="unit-stat-badge">HP: {{this.avgHealth}}</span>
-                <span class="unit-stat-badge">Rdy: {{this.avgReadiness}}</span>
-
-                {{#if ../editable}}
-                <button type="button" class="delete-unit" data-unit-index="{{@index}}" title="Delete Unit"><i class="fas fa-trash"></i></button>
-                {{/if}}
+                <div class="unit-header-stats">
+                  {{!-- Skill Summary Badges --}}
+                  <div class="unit-skill-badges">
+                    {{#each this.skillSummary}}
+                    <span class="skill-badge summary-skill-roll" data-label="{{../../name}} - {{this.name}}" data-rating="{{this.averageNum}}">
+                      {{this.name}}: {{this.average}}
+                    </span>
+                    {{/each}}
+                    {{#if this.leaderData}}
+                    <span class="skill-badge-separator">|</span>
+                    {{#each this.leaderSkillSummary}}
+                    <span class="skill-badge leader-skill-badge summary-skill-roll" data-label="{{../../name}} - {{this.name}} (Leader)" data-rating="{{this.value}}">
+                      {{this.name}}: {{this.value}}
+                    </span>
+                    {{/each}}
+                    {{/if}}
+                  </div>
+                  <span class="unit-stat-badge">HP: {{this.avgHealth}}</span>
+                  <span class="unit-stat-badge">Rdy: {{this.avgReadiness}}</span>
+                </div>
               </div>
 
               <div class="unit-content">
@@ -355,18 +356,21 @@
                   <div class="member-card leader-card">
                     <img src="{{this.leaderData.img}}" width="36" height="36" />
                     <span class="member-name">{{this.leaderData.name}}</span>
-                    <span class="member-status">
-                      DMG: {{this.leaderData.damage.value}}/{{this.leaderData.damageCapacity}}
-                    </span>
-                    <span class="member-status">
-                      FAT: {{this.leaderData.fatigue.value}}/{{this.leaderData.fatigueCapacity}}
-                    </span>
+                    {{#if this.leaderData.isItem}}
+                    <span class="leader-type-tag">Personnel</span>
+                    <span class="member-status">HP: {{this.leaderData.health.value}}/{{this.leaderData.health.max}}</span>
+                    <span class="member-status">Rdy: {{this.leaderData.readiness.value}}/{{this.leaderData.readiness.max}}</span>
+                    {{else}}
+                    <span class="leader-type-tag actor-tag">Actor</span>
+                    <span class="member-status">DMG: {{this.leaderData.damage.value}}/{{this.leaderData.damageCapacity}}</span>
+                    <span class="member-status">FAT: {{this.leaderData.fatigue.value}}/{{this.leaderData.fatigueCapacity}}</span>
+                    {{/if}}
                     {{#if ../editable}}
-                    <a class="remove-leader" data-unit-index="{{@../index}}" title="Remove Leader"><i class="fas fa-times"></i></a>
+                    <a class="remove-leader" data-unit-index="{{@index}}" title="Remove Leader"><i class="fas fa-times"></i></a>
                     {{/if}}
                   </div>
                   {{else}}
-                  <div class="drop-zone">Drag a character here to assign as leader</div>
+                  <div class="drop-zone">Drag a character here or promote a member to leader</div>
                   {{/if}}
                 </div>
 
@@ -378,11 +382,10 @@
                   <div class="member-card">
                     <img src="{{this.img}}" width="30" height="30" />
                     <span class="member-name">{{this.name}}</span>
-                    <span class="member-status">
-                      DMG: {{this.damage.value}}/{{this.damageCapacity}}
-                    </span>
+                    <span class="member-status">DMG: {{this.damage.value}}/{{this.damageCapacity}}</span>
                     {{#if ../../editable}}
-                    <a class="remove-member" data-unit-index="{{@../../index}}" data-member-index="{{@index}}" title="Remove Member"><i class="fas fa-times"></i></a>
+                    <a class="promote-unit-leader-actor" data-unit-index="{{@../index}}" data-actor-id="{{this.id}}" title="Promote to Leader"><i class="fas fa-crown"></i></a>
+                    <a class="remove-member" data-unit-index="{{@../index}}" data-member-index="{{@index}}" title="Remove Member"><i class="fas fa-times"></i></a>
                     {{/if}}
                   </div>
                   {{/each}}
@@ -402,6 +405,7 @@
                     <span class="member-status">HP: {{this.system.health.value}}/{{this.system.health.max}}</span>
                     <span class="member-status">Rdy: {{this.system.readiness.value}}/{{this.system.readiness.max}}</span>
                     {{#if ../../editable}}
+                    <a class="promote-unit-leader-item" data-unit-index="{{@../index}}" data-item-id="{{this._id}}" title="Promote to Leader"><i class="fas fa-crown"></i></a>
                     <a class="remove-unit-personnel" data-item-id="{{this._id}}" title="Remove from Unit"><i class="fas fa-times"></i></a>
                     {{/if}}
                   </div>

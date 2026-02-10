@@ -4902,13 +4902,17 @@
   color: darkred;
 }
 
-.mech-foundry .promote-dept-leader {
+.mech-foundry .promote-dept-leader,
+.mech-foundry .promote-unit-leader-actor,
+.mech-foundry .promote-unit-leader-item {
   color: var(--mf-accent, #c38154);
   cursor: pointer;
   margin-left: auto;
 }
 
-.mech-foundry .promote-dept-leader:hover {
+.mech-foundry .promote-dept-leader:hover,
+.mech-foundry .promote-unit-leader-actor:hover,
+.mech-foundry .promote-unit-leader-item:hover {
   color: #8b5e2f;
 }
 
@@ -4932,9 +4936,27 @@
   color: white;
 }
 
-/* Unit Header with Skill Badges */
+/* Unit Header - Two Line Layout */
 .mech-foundry .unit-header {
+  padding: 6px 10px;
+}
+
+.mech-foundry .unit-header-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mech-foundry .unit-header-top .unit-name-input {
+  flex: 1;
+}
+
+.mech-foundry .unit-header-stats {
+  display: flex;
   flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
 }
 
 .mech-foundry .unit-skill-badges {
