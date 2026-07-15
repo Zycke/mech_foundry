@@ -1,5 +1,6 @@
 import { OpposedRollHelper } from "./opposed-rolls.mjs";
-import { AnimationHelper } from "./animation-helper.mjs";
+// AnimationHelper is imported lazily inside methods to avoid a load-time
+// circular import (animation-helper.mjs imports AOEHelper at module top level).
 
 /**
  * AOE (Area of Effect) Attack Helper
@@ -199,6 +200,7 @@ export class AOEHelper {
     const finalTotal = successInfo.finalTotal;
 
     // Determine attacker origin (for scatter direction relative to the firing line)
+    const { AnimationHelper } = await import("./animation-helper.mjs");
     const sourceToken = AnimationHelper.getActorToken(actor);
     const attackerPoint = sourceToken?.center || null;
 

@@ -2531,7 +2531,8 @@ export class MechFoundryActorSheet extends ActorSheet {
               controlledShots: parseInt(html.find('[name="controlledShots"]').val()) || 2,
               suppressionArea: parseInt(html.find('[name="suppressionArea"]').val()) || 1,
               roundsPerSqm: parseInt(html.find('[name="roundsPerSqm"]').val()) || 1,
-              numTargets: parseInt(html.find('[name="numTargets"]').val()) || 1,
+              // Suppression targets are auto-detected from the placed Region; the
+              // numTargets fallback in rollWeaponAttack defaults to 1 when absent.
               target: hasTarget ? target : null,
               ignoreCover,
               friendlyInLoF,
