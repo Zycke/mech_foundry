@@ -150,9 +150,8 @@ export class ItemEffectsHelper {
    * @returns {boolean} True if equipped
    */
   static _isItemEquipped(item) {
-    // Check carryStatus for all equippable item types
-    // carryStatus takes precedence over the legacy 'equipped' flag
-    return item.system.carryStatus === 'equipped';
+    // Delegate to the item's canonical isEquipped getter (carryStatus-based).
+    return item.isEquipped === true;
   }
 
   /**

@@ -382,8 +382,8 @@ export class MechFoundryActorSheet extends ActorSheet {
     context.vehicles = vehicles;
 
     // Filter equipped items for combat tab
-    context.equippedWeapons = weapons.filter(w => w.system.carryStatus === 'equipped');
-    context.equippedArmor = armor.filter(a => a.system.carryStatus === 'equipped');
+    context.equippedWeapons = weapons.filter(w => w.isEquipped);
+    context.equippedArmor = armor.filter(a => a.isEquipped);
 
     // Calculate total armor per body part
     context.totalArmor = this._calculateTotalArmor(context.equippedArmor);
@@ -402,7 +402,7 @@ export class MechFoundryActorSheet extends ActorSheet {
 
     // Calculate highest equipped BAR (M type as default)
     context.equippedBAR = armor
-      .filter(a => a.system.equipped || a.system.carryStatus === 'equipped')
+      .filter(a => a.isEquipped)
       .reduce((max, a) => Math.max(max, a.system.bar?.m || 0), 0);
 
     // Add active effects - split into categories
@@ -920,7 +920,9 @@ export class MechFoundryActorSheet extends ActorSheet {
     event.preventDefault();
     const li = $(event.currentTarget).parents(".item");
     const item = this.actor.items.get(li.data("itemId"));
-    await item.update({ "system.equipped": !item.system.equipped });
+    // Toggle the canonical carryStatus flag (equipped <-> carried).
+    const nowEquipped = item.system.carryStatus === 'equipped';
+    await item.update({ "system.carryStatus": nowEquipped ? 'carried' : 'equipped' });
   }
 
   /**

@@ -276,7 +276,7 @@ export class OpposedRollHelper {
    */
   static getBAR(actor, damageType, armorLocation) {
     const equippedArmor = actor.items.filter(i =>
-      i.type === 'armor' && i.system.equipped
+      i.type === 'armor' && i.isEquipped
     );
 
     return equippedArmor.reduce((max, armor) => {
@@ -374,7 +374,7 @@ export class OpposedRollHelper {
     const meleeWeapon = actor.items.find(i =>
       i.type === 'weapon' &&
       i.system.weaponType === 'melee' &&
-      i.system.equipped
+      i.isEquipped
     );
     return meleeWeapon || null;
   }

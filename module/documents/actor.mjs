@@ -589,7 +589,7 @@ export class MechFoundryActor extends Actor {
    * @returns {Array} Array of equipped armor items
    */
   getEquippedArmor(location = null) {
-    let armor = this.items.filter(i => i.type === 'armor' && i.system.equipped);
+    let armor = this.items.filter(i => i.type === 'armor' && i.isEquipped);
     if (location) {
       armor = armor.filter(a => a.coversLocation(location));
     }

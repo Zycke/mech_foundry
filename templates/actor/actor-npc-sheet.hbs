@@ -147,7 +147,7 @@
         <ul class="items-list armor-list">
           {{#each armor}}
           <li class="item flexrow" data-item-id="{{this._id}}">
-            <span class="armor-toggle">{{#if this.system.equipped}}<i class="fas fa-check"></i>{{/if}}</span>
+            <span class="armor-toggle">{{#if (eq this.system.carryStatus "equipped")}}<i class="fas fa-check"></i>{{/if}}</span>
             <span class="item-name">{{this.name}}</span>
             <span>BAR:{{this.system.bar.m}}/{{this.system.bar.b}}/{{this.system.bar.e}}/{{this.system.bar.x}}</span>
             <div class="item-controls">
