@@ -321,7 +321,7 @@ export class AOEHelper {
     }
 
     // Render and send the chat message
-    const messageContent = await renderTemplate(
+    const messageContent = await foundry.applications.handlebars.renderTemplate(
       "systems/mech-foundry/templates/chat/aoe-attack.hbs",
       {
         weaponName: weapon.name,

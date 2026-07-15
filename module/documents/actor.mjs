@@ -681,7 +681,7 @@ export class MechFoundryActor extends Actor {
     const finalTotal = successInfo.finalTotal;
 
     // Create chat message
-    const messageContent = await renderTemplate(
+    const messageContent = await foundry.applications.handlebars.renderTemplate(
       "systems/mech-foundry/templates/chat/skill-roll.hbs",
       {
         skillName: skill.name,
@@ -1217,7 +1217,7 @@ export class MechFoundryActor extends Actor {
     const targetSizeKey = targetActor?.system?.personalData?.size || 'medium';
     const targetSizeLabel = sizeMod !== 0 ? sizeLabels[targetSizeKey] : null;
 
-    const messageContent = await renderTemplate(
+    const messageContent = await foundry.applications.handlebars.renderTemplate(
       "systems/mech-foundry/templates/chat/weapon-attack.hbs",
       {
         weaponName: weapon.name,
@@ -1589,7 +1589,7 @@ export class MechFoundryActor extends Actor {
     }
 
     // Create chat message
-    const messageContent = await renderTemplate(
+    const messageContent = await foundry.applications.handlebars.renderTemplate(
       "systems/mech-foundry/templates/chat/opposed-roll.hbs",
       templateData
     );
@@ -1886,9 +1886,8 @@ export class MechFoundryActor extends Actor {
     // Measure distance using Foundry's grid system
     let distance;
     try {
-      const ray = new Ray(attackerToken.center, targetToken.center);
-      const segments = [{ ray }];
-      distance = canvas.grid.measureDistances(segments, { gridSpaces: false })[0];
+      // v14: Ray + measureDistances removed; use canvas.grid.measurePath
+      distance = canvas.grid.measurePath([attackerToken.center, targetToken.center]).distance;
     } catch (e) {
       return null;
     }

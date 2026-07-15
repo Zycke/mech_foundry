@@ -392,7 +392,7 @@ export class OpposedRollHelper {
 
     const options = this.getDefenseSkillOptions(actor);
 
-    const content = await renderTemplate(
+    const content = await foundry.applications.handlebars.renderTemplate(
       "systems/mech-foundry/templates/dialog/defender-prompt.hbs",
       {
         attackerName: data.attackerName,

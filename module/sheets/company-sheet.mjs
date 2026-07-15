@@ -1278,8 +1278,7 @@ export class MechFoundryCompanySheet extends ActorSheet {
     await ChatMessage.create({
       speaker: ChatMessage.getSpeaker({ actor: this.actor }),
       content: chatContent,
-      roll: roll,
-      type: CONST.CHAT_MESSAGE_TYPES.ROLL
+      rolls: [roll]
     });
   }
 
