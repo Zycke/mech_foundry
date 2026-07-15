@@ -109,6 +109,27 @@ export class MechFoundryActor extends Actor {
   }
 
   /**
+   * Standard-rate XP thresholds for skill levels 0-10 (A Time of War p.60).
+   */
+  static SKILL_XP_COSTS = [20, 30, 50, 80, 120, 170, 230, 300, 380, 470, 570];
+
+  /**
+   * Derive a skill level (0-10) from accumulated XP using the Standard rate.
+   * Returns -1 when XP is below the level-0 threshold (untrained). XP is the
+   * single source of truth for skill level throughout the system.
+   * @param {number} xp
+   * @returns {number}
+   */
+  static getSkillLevelFromXP(xp) {
+    const x = Number(xp) || 0;
+    const costs = MechFoundryActor.SKILL_XP_COSTS;
+    for (let i = costs.length - 1; i >= 0; i--) {
+      if (x >= costs[i]) return i;
+    }
+    return -1;
+  }
+
+  /**
    * Calculate derived statistics
    * Uses total attribute scores (base + modifier, capped at 9)
    * @param {Object} systemData
@@ -555,7 +576,11 @@ export class MechFoundryActor extends Actor {
       i.type === 'skill' &&
       i.name.toLowerCase().includes(skillName.toLowerCase())
     );
-    return skill?.system.level || null;
+    if (!skill) return null;
+    // XP is the single source of truth for skill level (was reading the stale
+    // system.level field, which diverged from the XP-derived level used in rolls).
+    const level = MechFoundryActor.getSkillLevelFromXP(skill.system.xp);
+    return level >= 0 ? level : null;
   }
 
   /**
@@ -624,17 +649,8 @@ export class MechFoundryActor extends Actor {
     const skillData = skill.system;
     const targetNumber = skillData.targetNumber || 7;
 
-    // Calculate skill level from XP (Standard rate, A Time of War p.60)
-    const xp = skillData.xp || 0;
-    const costs = [20, 30, 50, 80, 120, 170, 230, 300, 380, 470, 570];
-
-    let skillLevel = -1;  // No level if less than 20 XP
-    for (let i = 10; i >= 0; i--) {
-      if (xp >= costs[i]) {
-        skillLevel = i;
-        break;
-      }
-    }
+    // Skill level from XP (single source of truth, Standard rate p.60)
+    const skillLevel = MechFoundryActor.getSkillLevelFromXP(skillData.xp);
 
     // Track linked attribute modifiers separately
     let linkMod = 0;
@@ -869,16 +885,8 @@ export class MechFoundryActor extends Actor {
     if (skillName) {
       skill = this.items.find(i => i.type === 'skill' && i.name === skillName);
       if (skill) {
-        // Calculate skill level from XP
-        const xp = skill.system.xp || 0;
-        const costs = [20, 30, 50, 80, 120, 170, 230, 300, 380, 470, 570];
-        skillLevel = -1;
-        for (let i = 10; i >= 0; i--) {
-          if (xp >= costs[i]) {
-            skillLevel = i;
-            break;
-          }
-        }
+        // Skill level from XP (single source of truth)
+        skillLevel = MechFoundryActor.getSkillLevelFromXP(skill.system.xp);
 
         // Add linked attribute modifiers
         if (skill.system.linkedAttribute1) {
@@ -1356,15 +1364,7 @@ export class MechFoundryActor extends Actor {
     if (skillName) {
       skill = this.items.find(i => i.type === 'skill' && i.name === skillName);
       if (skill) {
-        const xp = skill.system.xp || 0;
-        const costs = [20, 30, 50, 80, 120, 170, 230, 300, 380, 470, 570];
-        skillLevel = -1;
-        for (let i = 10; i >= 0; i--) {
-          if (xp >= costs[i]) {
-            skillLevel = i;
-            break;
-          }
-        }
+        skillLevel = MechFoundryActor.getSkillLevelFromXP(skill.system.xp);
 
         if (skill.system.linkedAttribute1) {
           const attr1 = this.system.attributes[skill.system.linkedAttribute1];

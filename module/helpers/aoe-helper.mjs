@@ -160,15 +160,8 @@ export class AOEHelper {
     if (skillName) {
       skill = actor.items.find(i => i.type === 'skill' && i.name === skillName);
       if (skill) {
-        const xp = skill.system.xp || 0;
-        const costs = [20, 30, 50, 80, 120, 170, 230, 300, 380, 470, 570];
-        skillLevel = -1;
-        for (let i = 10; i >= 0; i--) {
-          if (xp >= costs[i]) {
-            skillLevel = i;
-            break;
-          }
-        }
+        // Skill level from XP (single source of truth on the actor document)
+        skillLevel = actor.constructor.getSkillLevelFromXP(skill.system.xp);
 
         if (skill.system.linkedAttribute1) {
           const attr1 = actor.system.attributes[skill.system.linkedAttribute1];
