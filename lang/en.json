@@ -3,6 +3,14 @@
   "MECHFOUNDRY.SheetActor": "Mech Foundry Actor Sheet",
   "MECHFOUNDRY.SheetItem": "Mech Foundry Item Sheet",
 
+  "MECHFOUNDRY.Fumble": "FUMBLE!",
+  "MECHFOUNDRY.StunningSuccess": "Stunning Success!",
+  "MECHFOUNDRY.MiraculousFeat": "MIRACULOUS FEAT!",
+  "MECHFOUNDRY.DamageType.Melee": "Melee",
+  "MECHFOUNDRY.DamageType.Ballistic": "Ballistic",
+  "MECHFOUNDRY.DamageType.Energy": "Energy",
+  "MECHFOUNDRY.DamageType.Explosive": "Explosive",
+
   "MECHFOUNDRY.Damage": "Damage",
   "MECHFOUNDRY.Fatigue": "Fatigue",
   "MECHFOUNDRY.Stunned": "Stunned",

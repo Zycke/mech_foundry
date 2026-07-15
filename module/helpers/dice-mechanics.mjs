@@ -25,7 +25,7 @@ export class DiceMechanics {
         isMiraculousFeat: false,
         bonusDice: [],
         bonusTotal: 0,
-        displayText: "FUMBLE!"
+        displayText: game.i18n.localize("MECHFOUNDRY.Fumble")
       };
     }
 
@@ -60,7 +60,7 @@ export class DiceMechanics {
         isMiraculousFeat: isMiraculousFeat,
         bonusDice: bonusDice,
         bonusTotal: bonusTotal,
-        displayText: isMiraculousFeat ? "MIRACULOUS FEAT!" : "Stunning Success!"
+        displayText: game.i18n.localize(isMiraculousFeat ? "MECHFOUNDRY.MiraculousFeat" : "MECHFOUNDRY.StunningSuccess")
       };
     }
 

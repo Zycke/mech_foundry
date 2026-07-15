@@ -634,13 +634,14 @@ export class OpposedRollHelper {
    * @returns {string} Localized display name
    */
   static getDamageTypeName(damageType) {
-    const types = {
-      'm': "Melee",
-      'b': "Ballistic",
-      'e': "Energy",
-      'x': "Explosive"
+    const keys = {
+      'm': "MECHFOUNDRY.DamageType.Melee",
+      'b': "MECHFOUNDRY.DamageType.Ballistic",
+      'e': "MECHFOUNDRY.DamageType.Energy",
+      'x': "MECHFOUNDRY.DamageType.Explosive"
     };
-    return types[damageType] || damageType.toUpperCase();
+    const key = keys[damageType];
+    return key ? game.i18n.localize(key) : String(damageType).toUpperCase();
   }
 
   /**
