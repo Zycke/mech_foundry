@@ -380,12 +380,28 @@ export class OpposedRollHelper {
   }
 
   /**
+   * Resolve the defending actor from prompt data, preferring the token's actor
+   * so that unlinked tokens use their own (per-token) data rather than the
+   * shared prototype actor.
+   * @param {Object} data Dialog/prompt data (targetTokenId, sceneId, targetActorId)
+   * @returns {Actor|null}
+   */
+  static resolveTargetActor(data) {
+    if (data.targetTokenId) {
+      const scene = data.sceneId ? game.scenes.get(data.sceneId) : game.scenes.current;
+      const tokenDoc = scene?.tokens.get(data.targetTokenId);
+      if (tokenDoc?.actor) return tokenDoc.actor;
+    }
+    return game.actors.get(data.targetActorId) || null;
+  }
+
+  /**
    * Show defender dialog for skill selection
    * @param {Object} data Dialog data
    * @returns {Promise<Object>} Defense roll result
    */
   static async showDefenderDialog(data) {
-    const actor = game.actors.get(data.targetActorId);
+    const actor = this.resolveTargetActor(data);
     if (!actor) {
       return { declined: true, mos: -3, success: false };
     }

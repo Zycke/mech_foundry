@@ -1305,6 +1305,7 @@ export class MechFoundryActor extends Actor {
         attackerName: this.name,
         targetActorId: targetActor.id,
         targetTokenId: target.id,
+        sceneId: canvas.scene?.id || null,
         weaponName: weapon.name,
         attackType: 'melee'
       });
@@ -1316,7 +1317,9 @@ export class MechFoundryActor extends Actor {
       defenderResult = await OpposedRollHelper.showDefenderDialog({
         attackerName: this.name,
         weaponName: weapon.name,
-        targetActorId: targetActor.id
+        targetActorId: targetActor.id,
+        targetTokenId: target.id,
+        sceneId: canvas.scene?.id || null
       });
     }
 
