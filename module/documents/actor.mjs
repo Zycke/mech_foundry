@@ -1708,8 +1708,9 @@ export class MechFoundryActor extends Actor {
    * @returns {number} The modifier to apply (or 0 if after with reroll)
    */
   async burnEdge(points, timing = 'before') {
-    const edg = this.system.attributes.edg;
-    const available = edg.total - (edg.burned || 0);
+    const edg = this.system.attributes?.edg;
+    if (!edg) return 0;
+    const available = (edg.total || 0) - (edg.burned || 0);
 
     if (points > available) {
       ui.notifications.warn("Not enough Edge points available!");
@@ -2030,8 +2031,8 @@ export class MechFoundryActor extends Actor {
    * Recovers fatigue points equal to BOD score (total)
    */
   async recoverFatigue() {
-    const bod = this.system.attributes.bod.total;
-    const currentFatigue = this.system.fatigue.value || 0;
+    const bod = this.system.attributes?.bod?.total || 0;
+    const currentFatigue = this.system.fatigue?.value || 0;
     const newFatigue = Math.max(0, currentFatigue - bod);
 
     await this.update({
@@ -2136,8 +2137,8 @@ export class MechFoundryActor extends Actor {
    * Roll consciousness check (TN 7)
    */
   async rollConsciousness() {
-    const wil = this.system.attributes.wil;
-    let totalMod = wil.linkMod || 0;
+    const wil = this.system.attributes?.wil;
+    let totalMod = wil?.linkMod || 0;
     totalMod += this.system.injuryModifier || 0;
     totalMod += this.system.fatigueModifier || 0;
     const targetNumber = 7;
