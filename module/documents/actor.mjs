@@ -71,33 +71,41 @@ export class MechFoundryActor extends Actor {
     for (let [key, attr] of Object.entries(systemData.attributes || {})) {
       const baseValue = attr.value || 0;
       const modifier = attr.modifier || 0;
-      // Total is base + modifier, capped at 9
-      attr.total = Math.min(baseValue + modifier, 9);
+      // Total is base + modifier. A Time of War attributes normally run 1-8,
+      // reach 10 for exceptional humans, and can exceed 10 via advancement, so
+      // no artificial ceiling is applied (the old cap of 9 made the +2 link
+      // modifier at 10 unreachable).
+      attr.total = baseValue + modifier;
     }
   }
 
   /**
-   * Calculate Link Attribute Modifiers based on A Time of War rules
-   * Uses total score (base + modifier, capped at 9)
-   * 1: -2, 2-3: -1, 4-6: +0, 7-9: +1, 10: +2
+   * Calculate Link Attribute Modifiers based on A Time of War rules.
+   * Uses the total score (base + modifier).
    * @param {Object} systemData
    */
   _calculateLinkModifiers(systemData) {
     for (let [key, attr] of Object.entries(systemData.attributes || {})) {
-      // Use total (base + modifier, already capped at 9) for link modifier
-      const value = attr.total;
-      if (value <= 1) {
-        attr.linkMod = -2;
-      } else if (value <= 3) {
-        attr.linkMod = -1;
-      } else if (value <= 6) {
-        attr.linkMod = 0;
-      } else if (value <= 9) {
-        attr.linkMod = 1;
-      } else {
-        attr.linkMod = 2;
-      }
+      attr.linkMod = MechFoundryActor.getLinkModifier(attr.total);
     }
+  }
+
+  /**
+   * A Time of War Attribute Link Modifier table (Action Check Modifiers, p.41):
+   *   0 -> -4, 1 -> -2, 2-3 -> -1, 4-6 -> +0, 7-9 -> +1, 10 -> +2,
+   *   11+ -> floor(score / 3), capped at +5.
+   * @param {number} value The (total) attribute score
+   * @returns {number} The link modifier
+   */
+  static getLinkModifier(value) {
+    const v = Number(value) || 0;
+    if (v <= 0) return -4;
+    if (v === 1) return -2;
+    if (v <= 3) return -1;
+    if (v <= 6) return 0;
+    if (v <= 9) return 1;
+    if (v === 10) return 2;
+    return Math.min(5, Math.floor(v / 3));
   }
 
   /**

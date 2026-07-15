@@ -5,7 +5,7 @@
  * Core Mechanics:
  * - 2d6 + modifiers vs Target Number
  * - 8 Attributes: STR, BOD, RFL, DEX, INT, WIL, CHA, EDG
- * - Link Attribute Modifiers: 1=-2, 2-3=-1, 4-6=+0, 7-9=+1, 10=+2
+ * - Link Attribute Modifiers: 0=-4, 1=-2, 2-3=-1, 4-6=+0, 7-9=+1, 10=+2, 11+=floor(score/3) max +5
  * - Skills have TN, Complexity (S/C), Linked Attributes, and Skill Level
  */
 
@@ -224,13 +224,9 @@ function _registerHandlebarsHelpers() {
     return a > b;
   });
 
-  // Calculate Link Attribute Modifier from value
+  // Calculate Link Attribute Modifier from value (single source of truth)
   Handlebars.registerHelper('linkMod', function(value) {
-    if (value <= 1) return -2;
-    if (value <= 3) return -1;
-    if (value <= 6) return 0;
-    if (value <= 9) return 1;
-    return 2;
+    return MechFoundryActor.getLinkModifier(value);
   });
 
   // Format modifier with sign
