@@ -10,6 +10,7 @@ This file provides guidance to Claude Code when working with this repository.
 
 - **Ask clarifying questions**: When a request or requirement is unclear, ambiguous, or not fully described, ask clarifying questions before proceeding. It's better to confirm intent than to make assumptions that may need to be reworked later.
 - **Reference "A Time of War" rules**: When planning or implementing game mechanics, always refer to the rules from "A Time of War" (the BattleTech tabletop RPG) as the authoritative source. This ensures the system accurately represents the intended gameplay experience and stays true to the source material.
+- **Intentional rules divergences**: The wound system (`system.wounds` and the wound types `dazed`, `concussion`, `hemorrhage`, `traumaticImpact`, `nerveDamage`, `severeStrain`, `severelyWounded` in `documents/actor.mjs`) is a **deliberate homebrew expansion** and intentionally does NOT mirror the rulebook's Specific Wound Effects table (Dazed/Deafened/Blinded/Internal Damage/Knockdown/Shattered Limb). Do not "correct" it toward the book without explicit direction.
 
 ## Foundry VTT System Development
 

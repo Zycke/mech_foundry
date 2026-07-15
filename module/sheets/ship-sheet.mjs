@@ -1,38 +1,18 @@
+import { MechFoundryActorSheetV2 } from "./base-actor-sheet.mjs";
+
 /**
- * Ship Actor Sheet - Placeholder for future expansion
- * @extends {ActorSheet}
+ * Ship Actor Sheet (ApplicationV2) - placeholder for future expansion.
+ * @extends {MechFoundryActorSheetV2}
  */
-export class MechFoundryShipSheet extends ActorSheet {
+export class MechFoundryShipSheet extends MechFoundryActorSheetV2 {
 
   /** @override */
-  static get defaultOptions() {
-    return foundry.utils.mergeObject(super.defaultOptions, {
-      classes: ["mech-foundry", "sheet", "actor", "ship-sheet"],
-      width: 600,
-      height: 400,
-      tabs: []
-    });
-  }
+  static DEFAULT_OPTIONS = {
+    classes: ["mech-foundry", "sheet", "actor", "ship-sheet"]
+  };
 
   /** @override */
-  get template() {
-    return "systems/mech-foundry/templates/actor/actor-ship-sheet.hbs";
-  }
-
-  /** @override */
-  async getData() {
-    const context = await super.getData();
-    const actorData = this.document.toObject(false);
-    context.system = actorData.system;
-    context.flags = actorData.flags;
-    context.owner = this.document.isOwner;
-    context.editable = this.isEditable;
-
-    context.enrichedBiography = await TextEditor.enrichHTML(
-      this.actor.system.biography || "",
-      { async: true }
-    );
-
-    return context;
-  }
+  static PARTS = {
+    body: { template: "systems/mech-foundry/templates/actor/actor-ship-sheet.hbs" }
+  };
 }

@@ -51,31 +51,35 @@ Hooks.once('init', function() {
   CONFIG.Item.documentClass = MechFoundryItem;
   CONFIG.Combat.documentClass = MechFoundryCombat;
 
-  // Register sheet application classes
-  Actors.unregisterSheet("core", ActorSheet);
-  Actors.registerSheet("mech-foundry", MechFoundryActorSheet, {
+  // Register sheet application classes (v14: use the namespaced document
+  // collections and the appv1 core sheet classes rather than bare globals).
+  const ActorsCollection = foundry.documents.collections.Actors;
+  const ItemsCollection = foundry.documents.collections.Items;
+
+  ActorsCollection.unregisterSheet("core", foundry.appv1.sheets.ActorSheet);
+  ActorsCollection.registerSheet("mech-foundry", MechFoundryActorSheet, {
     makeDefault: true,
     types: ["character", "npc"],
     label: "MECHFOUNDRY.SheetActor"
   });
-  Actors.registerSheet("mech-foundry", MechFoundryCompanySheet, {
+  ActorsCollection.registerSheet("mech-foundry", MechFoundryCompanySheet, {
     types: ["company"],
     makeDefault: true,
     label: "MECHFOUNDRY.SheetCompany"
   });
-  Actors.registerSheet("mech-foundry", MechFoundryVehicleActorSheet, {
+  ActorsCollection.registerSheet("mech-foundry", MechFoundryVehicleActorSheet, {
     types: ["vehicle_actor"],
     makeDefault: true,
     label: "MECHFOUNDRY.SheetVehicleActor"
   });
-  Actors.registerSheet("mech-foundry", MechFoundryShipSheet, {
+  ActorsCollection.registerSheet("mech-foundry", MechFoundryShipSheet, {
     types: ["ship"],
     makeDefault: true,
     label: "MECHFOUNDRY.SheetShip"
   });
 
-  Items.unregisterSheet("core", ItemSheet);
-  Items.registerSheet("mech-foundry", MechFoundryItemSheet, {
+  ItemsCollection.unregisterSheet("core", foundry.appv1.sheets.ItemSheet);
+  ItemsCollection.registerSheet("mech-foundry", MechFoundryItemSheet, {
     makeDefault: true,
     label: "MECHFOUNDRY.SheetItem"
   });

@@ -64,7 +64,7 @@ const UNIT_LEADER_SKILLS = ['leadership', 'tactics', 'strategy'];
  * Tabs: Personnel, Organization, Status, Logistics, MTOE, Assets, Finances
  * @extends {ActorSheet}
  */
-export class MechFoundryCompanySheet extends ActorSheet {
+export class MechFoundryCompanySheet extends foundry.appv1.sheets.ActorSheet {
 
   /** @override */
   static get defaultOptions() {

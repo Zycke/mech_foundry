@@ -6,7 +6,7 @@ import { ItemEffectsHelper } from '../helpers/effects-helper.mjs';
  * Based on A Time of War mechanics
  * @extends {ActorSheet}
  */
-export class MechFoundryActorSheet extends ActorSheet {
+export class MechFoundryActorSheet extends foundry.appv1.sheets.ActorSheet {
 
   /** @override */
   static get defaultOptions() {
