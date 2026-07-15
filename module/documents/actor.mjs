@@ -1146,22 +1146,20 @@ export class MechFoundryActor extends Actor {
       const animationDuration = weaponData.animationDuration ?? 0;
 
       if (sourceToken) {
-        if (firingMode === 'suppression' && options.suppressionTemplateId) {
-          // Suppression fire: spray bullets across the template area
-          const templateDoc = canvas.scene.templates.get(options.suppressionTemplateId);
-          if (templateDoc) {
-            await AnimationHelper.playSuppressionAnimation(
-              sourceToken,
-              {
-                x: templateDoc.x,
-                y: templateDoc.y,
-                direction: templateDoc.direction,
-                distance: templateDoc.distance
-              },
-              ammoUsed,
-              { file: animationPath, bulletDelay: animationDelay, duration: animationDuration }
-            );
-          }
+        if (firingMode === 'suppression' && options.suppressionPlacement) {
+          // Suppression fire: spray bullets across the placed Region area.
+          // v14: geometry is passed through directly (no MeasuredTemplate lookup).
+          await AnimationHelper.playSuppressionAnimation(
+            sourceToken,
+            {
+              x: options.suppressionPlacement.x,
+              y: options.suppressionPlacement.y,
+              direction: options.suppressionPlacement.direction,
+              distance: options.suppressionPlacement.distance
+            },
+            ammoUsed,
+            { file: animationPath, bulletDelay: animationDelay, duration: animationDuration }
+          );
         } else if (firingMode === 'burst' || firingMode === 'controlled') {
           // Burst fire: individual bullet trajectories with hit/miss distribution
           if (targetToken && results.length > 0) {

@@ -5,35 +5,47 @@ import { AnimationHelper } from "./animation-helper.mjs";
  * AOE (Area of Effect) Attack Helper
  *
  * Handles the full AOE attack flow:
- * 1. Template placement (player chooses aim point)
+ * 1. Region placement (player chooses aim point via canvas.regions.placeRegion)
  * 2. Attack roll (with +2 AOE bonus, MoS forced to 0)
- * 3. Scatter on miss (d12 clock direction, MoF meters distance)
+ * 3. Scatter on miss (1d6 clock direction relative to firing line, MoF meters)
  * 4. Token detection within blast radius
  * 5. Per-target damage with distance falloff (BD and AP decrease by 1/meter)
  *
  * Based on A Time of War area-effect (blast) weapon rules.
+ *
+ * Foundry v14: MeasuredTemplate was removed and absorbed into the Scene Regions
+ * framework. Interactive placement now uses `canvas.regions.placeRegion(...)` and
+ * the persistent visual is a `RegionDocument`. Token detection is done with pure
+ * geometry (`_getTokensInRadius`/`_getTokensInRay`), so the Region is purely a
+ * visual aid and never affects the mechanical result.
  */
 export class AOEHelper {
 
   /**
-   * Clock position to angle mapping (d12 → degrees)
-   * 12 o'clock = 0° (straight up/north on canvas)
+   * Scatter direction labels for a 1d6 roll, per A Time of War: a 1 scatters
+   * directly away from the attacker, with each subsequent number rotating a
+   * further 60 degrees clockwise.
    */
-  static CLOCK_ANGLES = {
-    1: 30, 2: 60, 3: 90, 4: 120, 5: 150, 6: 180,
-    7: 210, 8: 240, 9: 270, 10: 300, 11: 330, 12: 0
-  };
-
-  static CLOCK_LABELS = {
-    1: "1 o'clock", 2: "2 o'clock", 3: "3 o'clock",
-    4: "4 o'clock", 5: "5 o'clock", 6: "6 o'clock",
-    7: "7 o'clock", 8: "8 o'clock", 9: "9 o'clock",
-    10: "10 o'clock", 11: "11 o'clock", 12: "12 o'clock"
+  static SCATTER_LABELS = {
+    1: "directly away from attacker",
+    2: "60° clockwise of firing line",
+    3: "120° clockwise of firing line",
+    4: "180° (back toward attacker)",
+    5: "240° clockwise of firing line",
+    6: "300° clockwise of firing line"
   };
 
   /**
+   * Pixels-per-meter for the current scene grid.
+   * @returns {number}
+   */
+  static _pixelsPerMeter() {
+    return canvas.grid.size / canvas.grid.distance;
+  }
+
+  /**
    * Initiate the AOE attack flow.
-   * Creates a template preview for the player to place, then resolves the attack.
+   * Places a circular Region for the player to position, then resolves the attack.
    *
    * @param {Actor} actor The attacking actor
    * @param {Item} weapon The AOE weapon
@@ -43,115 +55,80 @@ export class AOEHelper {
     const bd = weapon.system.bd || 1;
     const blastRadius = bd; // Radius in meters = BD
 
-    // Create template preview data
-    const templateData = {
-      t: "circle",
-      user: game.user.id,
-      distance: blastRadius,
-      direction: 0,
-      x: 0,
-      y: 0,
-      fillColor: game.user.color || "#ff4400",
-      flags: {
-        "mech-foundry": {
-          isAOEAttack: true,
-          actorId: actor.id,
-          weaponId: weapon.id
-        }
-      }
-    };
+    const placement = await this._placeRegionInteractive({
+      name: `${weapon.name} Blast`,
+      color: game.user.color || "#ff4400",
+      shape: {
+        type: "circle",
+        x: 0,
+        y: 0,
+        radius: blastRadius * this._pixelsPerMeter()
+      },
+      flags: { isAOEAttack: true, actorId: actor.id, weaponId: weapon.id }
+    });
 
-    // Create a temporary MeasuredTemplate document for preview
-    const templateDoc = new MeasuredTemplateDocument(templateData, { parent: canvas.scene });
-    const template = new MeasuredTemplate(templateDoc);
-
-    // Enter template placement mode
-    const placedPosition = await this._enterPlacementMode(template, blastRadius);
-
-    if (!placedPosition) {
-      // Player cancelled placement
+    if (!placement) {
       ui.notifications.info("AOE attack cancelled.");
       return;
     }
 
     // Now roll the attack and resolve
-    await this._rollAndResolve(actor, weapon, placedPosition, blastRadius, options);
+    await this._rollAndResolve(actor, weapon, { x: placement.x, y: placement.y }, blastRadius, options);
   }
 
   /**
-   * Enter template placement mode where the player clicks to place the blast center.
-   * Returns the canvas coordinates of the placement, or null if cancelled.
+   * Run the interactive Region placement flow (Foundry v14 replacement for the
+   * old MeasuredTemplate preview). Returns the snapped placement info, or null if
+   * the player cancelled (right-click / Escape are handled by placeRegion itself).
    *
-   * @param {MeasuredTemplate} template The template object for preview
-   * @param {number} blastRadius The blast radius in grid units
-   * @returns {Promise<{x: number, y: number}|null>}
+   * @param {Object} cfg
+   * @param {string} cfg.name Region name
+   * @param {string} cfg.color Fill color
+   * @param {Object} cfg.shape A single Region shape object (in pixel units)
+   * @param {Object} [cfg.flags] mech-foundry flags to attach to the region
+   * @returns {Promise<{x:number, y:number, rotation:number, region:RegionDocument}|null>}
    */
-  static async _enterPlacementMode(template, blastRadius) {
-    return new Promise((resolve) => {
-      // Disable token layer interactivity so clicks pass through to stage
-      const tokensLayer = canvas.tokens;
-      const originalInteractive = tokensLayer.interactiveChildren;
-      tokensLayer.interactiveChildren = false;
-      tokensLayer.releaseAll();
+  static async _placeRegionInteractive({ name, color, shape, flags = {} }) {
+    const regionData = {
+      name,
+      color,
+      shapes: [shape],
+      visibility: CONST.REGION_VISIBILITY.ALWAYS,
+      flags: { "mech-foundry": flags }
+    };
 
-      // Add the template to the template layer for preview rendering
-      template.draw();
-      template.layer.preview.addChild(template);
+    // Snap the region to grid centers while the player moves it.
+    const onMove = (event) => {
+      const snapped = canvas.grid.getSnappedPoint(event.position, {
+        mode: CONST.GRID_SNAPPING_MODES.CENTER
+      });
+      Object.assign(event.position, snapped);
+    };
 
-      // Track mouse position and update template
-      const moveHandler = (event) => {
-        const pos = event.getLocalPosition(canvas.app.stage);
-        // Snap to grid center
-        const snapped = canvas.grid.getSnappedPoint(pos, { mode: CONST.GRID_SNAPPING_MODES.CENTER });
-        template.document.updateSource({ x: snapped.x, y: snapped.y });
-        template.refresh();
-      };
+    ui.notifications.info("Position the blast, click to confirm. Right-click or Escape to cancel.");
 
-      // Handle left click to place
-      const clickHandler = (event) => {
-        // Only respond to left clicks
-        if (event.button !== 0) return;
+    let region;
+    try {
+      // create:false → returns an unsaved RegionDocument with the placed geometry.
+      region = await canvas.regions.placeRegion(regionData, { create: false, onMove });
+    } catch (e) {
+      console.error("mech-foundry | Region placement failed", e);
+      return null;
+    }
 
-        const pos = event.getLocalPosition(canvas.app.stage);
-        const snapped = canvas.grid.getSnappedPoint(pos, { mode: CONST.GRID_SNAPPING_MODES.CENTER });
+    if (!region) return null;
 
-        // Clean up
-        cleanup();
-        resolve({ x: snapped.x, y: snapped.y });
-      };
-
-      // Handle right click or Escape to cancel
-      const cancelHandler = (event) => {
-        if (event.button === 2 || event.key === "Escape") {
-          cleanup();
-          resolve(null);
-        }
-      };
-
-      const cleanup = () => {
-        // Re-enable token layer interactivity
-        tokensLayer.interactiveChildren = originalInteractive;
-
-        canvas.stage.off("pointermove", moveHandler);
-        canvas.stage.off("pointerdown", clickHandler);
-        document.removeEventListener("keydown", cancelHandler);
-        canvas.stage.off("pointerdown", cancelHandler);
-        template.layer.preview.removeChild(template);
-        template.destroy();
-      };
-
-      // Bind handlers
-      canvas.stage.on("pointermove", moveHandler);
-      canvas.stage.on("pointerdown", clickHandler);
-      document.addEventListener("keydown", cancelHandler);
-
-      // Show placement hint
-      ui.notifications.info("Click to place the blast center. Right-click or Escape to cancel.");
-    });
+    const placedShape = region.shapes?.[0] ?? {};
+    return {
+      x: placedShape.x ?? 0,
+      y: placedShape.y ?? 0,
+      rotation: placedShape.rotation ?? 0,
+      region
+    };
   }
 
   /**
-   * Roll the attack and resolve blast damage after template placement.
+   * Roll the attack and resolve blast damage after region placement.
    *
    * @param {Actor} actor The attacking actor
    * @param {Item} weapon The AOE weapon
@@ -228,6 +205,10 @@ export class AOEHelper {
     const marginOfSuccess = successInfo.mos;
     const finalTotal = successInfo.finalTotal;
 
+    // Determine attacker origin (for scatter direction relative to the firing line)
+    const sourceToken = AnimationHelper.getActorToken(actor);
+    const attackerPoint = sourceToken?.center || null;
+
     // Determine final impact point (scatter on miss)
     let impactPoint = { ...aimPoint };
     let scatterInfo = null;
@@ -235,24 +216,21 @@ export class AOEHelper {
     if (!success) {
       const marginOfFailure = Math.abs(marginOfSuccess);
       scatterInfo = await this._calculateScatter(marginOfFailure);
-      impactPoint = this._applyScatter(aimPoint, scatterInfo);
+      impactPoint = this._applyScatter(aimPoint, scatterInfo, attackerPoint);
     }
 
     // Play AOE projectile animation (if configured)
     const animationPath = weapon.system.animation;
-    if (animationPath) {
-      const sourceToken = AnimationHelper.getActorToken(actor);
-      if (sourceToken) {
-        const animationDuration = weapon.system.animationDuration ?? 0;
-        await AnimationHelper.playAOEAnimation(sourceToken, impactPoint, {
-          file: animationPath,
-          duration: animationDuration
-        });
-      }
+    if (animationPath && sourceToken) {
+      const animationDuration = weapon.system.animationDuration ?? 0;
+      await AnimationHelper.playAOEAnimation(sourceToken, impactPoint, {
+        file: animationPath,
+        duration: animationDuration
+      });
     }
 
-    // Place the final template on the canvas
-    const finalTemplate = await this._placeTemplate(impactPoint, blastRadius, scatterInfo);
+    // Place the final blast Region on the canvas (visual only)
+    const finalRegion = await this._placeBlastRegion(impactPoint, blastRadius, scatterInfo);
 
     // Find all tokens within the blast radius
     const targets = this._getTokensInRadius(impactPoint, blastRadius);
@@ -360,8 +338,8 @@ export class AOEHelper {
         targets: targetResults,
         hasTargets: targetResults.length > 0,
         sceneId: canvas.scene?.id || null,
-        // Template info for cleanup
-        templateId: finalTemplate?.id || null
+        // Region info for cleanup
+        templateId: finalRegion?.id || null
       }
     );
 
@@ -375,22 +353,25 @@ export class AOEHelper {
 
   /**
    * Calculate scatter direction and distance on a miss.
+   * Per A Time of War, direction is a 1d6 roll relative to the firing line:
+   * 1 = directly away from the attacker, each further number +60° clockwise.
+   * Distance = margin of failure in meters.
    *
    * @param {number} marginOfFailure The absolute margin of failure
    * @returns {Promise<Object>} Scatter info with direction and distance
    */
   static async _calculateScatter(marginOfFailure) {
-    // Roll d12 for clock direction
-    const directionRoll = new Roll("1d12");
+    const directionRoll = new Roll("1d6");
     await directionRoll.evaluate();
     const clockPosition = directionRoll.total;
-    const angle = this.CLOCK_ANGLES[clockPosition];
-    const label = this.CLOCK_LABELS[clockPosition];
+    // Offset from the firing line, in degrees clockwise (1 → 0°, 2 → 60°, ...)
+    const relativeAngle = (clockPosition - 1) * 60;
+    const label = this.SCATTER_LABELS[clockPosition];
     const distance = marginOfFailure; // 1 meter per MoF
 
     return {
       clockPosition,
-      angle,
+      relativeAngle,
       label,
       distance,
       directionRoll: directionRoll.total
@@ -399,25 +380,31 @@ export class AOEHelper {
 
   /**
    * Apply scatter offset to the aim point.
+   * The scatter direction is measured relative to the attacker→target firing line
+   * (a 1 on the die scatters directly away from the attacker). If the attacker
+   * position is unknown, "away from attacker" falls back to canvas north.
    *
    * @param {{x: number, y: number}} aimPoint Original aim point
    * @param {Object} scatterInfo Scatter calculation result
+   * @param {{x: number, y: number}|null} attackerPoint The attacker's token center
    * @returns {{x: number, y: number}} New impact point
    */
-  static _applyScatter(aimPoint, scatterInfo) {
-    const gridSize = canvas.grid.size; // pixels per grid square
-    const gridDistance = canvas.grid.distance; // meters per grid square
-    const pixelsPerMeter = gridSize / gridDistance;
-
-    // Convert angle to radians (0° = north/up, clockwise)
-    // Canvas: +x is right, +y is down
-    // 0° (12 o'clock) = -y direction
-    const radians = (scatterInfo.angle * Math.PI) / 180;
+  static _applyScatter(aimPoint, scatterInfo, attackerPoint = null) {
+    const pixelsPerMeter = this._pixelsPerMeter();
     const pixelDistance = scatterInfo.distance * pixelsPerMeter;
 
-    // Calculate offset (sin for x, -cos for y because canvas y is inverted)
-    const dx = Math.sin(radians) * pixelDistance;
-    const dy = -Math.cos(radians) * pixelDistance;
+    // Base direction = "directly away from the attacker" (attacker → aim, continued).
+    // Fallback to canvas north (-y) if attacker position is unavailable.
+    let baseAngle;
+    if (attackerPoint) {
+      baseAngle = Math.atan2(aimPoint.y - attackerPoint.y, aimPoint.x - attackerPoint.x);
+    } else {
+      baseAngle = -Math.PI / 2; // north
+    }
+
+    const totalAngle = baseAngle + (scatterInfo.relativeAngle * Math.PI) / 180;
+    const dx = Math.cos(totalAngle) * pixelDistance;
+    const dy = Math.sin(totalAngle) * pixelDistance;
 
     return {
       x: aimPoint.x + dx,
@@ -426,45 +413,46 @@ export class AOEHelper {
   }
 
   /**
-   * Place the final MeasuredTemplate on the canvas.
+   * Create the persistent blast Region on the canvas (visual aid only).
+   * Failures here are swallowed so a cosmetic issue never breaks resolution.
    *
-   * @param {{x: number, y: number}} position The center position
-   * @param {number} blastRadius The radius in grid units (meters)
-   * @param {Object|null} scatterInfo Scatter info if attack missed
-   * @returns {Promise<MeasuredTemplateDocument|null>}
+   * @param {{x: number, y: number}} position The center position (pixels)
+   * @param {number} blastRadius The radius in meters
+   * @param {Object|null} scatterInfo Scatter info if the attack missed
+   * @returns {Promise<RegionDocument|null>}
    */
-  static async _placeTemplate(position, blastRadius, scatterInfo) {
-    const templateData = {
-      t: "circle",
-      user: game.user.id,
-      x: position.x,
-      y: position.y,
-      distance: blastRadius,
-      direction: 0,
-      fillColor: scatterInfo ? "#ff8800" : "#ff4400", // Orange for scattered, red for direct hit
-      flags: {
-        "mech-foundry": {
-          isAOEBlast: true,
-          scattered: !!scatterInfo
-        }
-      }
+  static async _placeBlastRegion(position, blastRadius, scatterInfo) {
+    const regionData = {
+      name: scatterInfo ? "Scattered Blast" : "Blast",
+      color: scatterInfo ? "#ff8800" : "#ff4400", // Orange for scattered, red for direct hit
+      shapes: [{
+        type: "circle",
+        x: position.x,
+        y: position.y,
+        radius: blastRadius * this._pixelsPerMeter()
+      }],
+      visibility: CONST.REGION_VISIBILITY.ALWAYS,
+      flags: { "mech-foundry": { isAOEBlast: true, scattered: !!scatterInfo } }
     };
 
-    const created = await canvas.scene.createEmbeddedDocuments("MeasuredTemplate", [templateData]);
-    return created?.[0] || null;
+    try {
+      const created = await canvas.scene.createEmbeddedDocuments("Region", [regionData]);
+      return created?.[0] || null;
+    } catch (e) {
+      console.warn("mech-foundry | Could not create blast Region (visual only)", e);
+      return null;
+    }
   }
 
   /**
    * Find all tokens within a given radius from a center point.
    *
-   * @param {{x: number, y: number}} center The blast center
-   * @param {number} radius The radius in grid units (meters)
+   * @param {{x: number, y: number}} center The blast center (pixels)
+   * @param {number} radius The radius in meters
    * @returns {Array<{token: Token, distance: number}>}
    */
   static _getTokensInRadius(center, radius) {
-    const gridSize = canvas.grid.size;
-    const gridDistance = canvas.grid.distance;
-    const pixelsPerMeter = gridSize / gridDistance;
+    const pixelsPerMeter = this._pixelsPerMeter();
     const radiusPixels = radius * pixelsPerMeter;
 
     const results = [];
@@ -491,12 +479,12 @@ export class AOEHelper {
   }
 
   // ============================================
-  // Suppression Fire Template Methods
+  // Suppression Fire Region Methods
   // ============================================
 
   /**
-   * Initiate suppression fire with rectangular template placement.
-   * The rectangle is 1m wide and the length is defined by the suppression area.
+   * Initiate suppression fire with a line (ray) Region placement.
+   * The strip is 1m wide and the length is defined by the suppression area.
    *
    * @param {Actor} actor The attacking actor
    * @param {Item} weapon The weapon
@@ -504,180 +492,91 @@ export class AOEHelper {
    */
   static async initiateSuppressionFire(actor, weapon, options = {}) {
     const length = options.suppressionArea || 1; // Length in meters
+    const pixelsPerMeter = this._pixelsPerMeter();
 
-    // Create a rectangular template preview (ray type: 1m wide, length from area)
-    const templateData = {
-      t: "ray",
-      user: game.user.id,
-      distance: length,
-      width: 1, // 1 meter wide
-      direction: 0,
-      x: 0,
-      y: 0,
-      fillColor: game.user.color || "#ffaa00",
-      flags: {
-        "mech-foundry": {
-          isSuppressionFire: true,
-          actorId: actor.id,
-          weaponId: weapon.id
-        }
-      }
-    };
+    const placement = await this._placeRegionInteractive({
+      name: `${weapon.name} Suppression`,
+      color: game.user.color || "#ffaa00",
+      shape: {
+        type: "line",
+        x: 0,
+        y: 0,
+        length: length * pixelsPerMeter,
+        width: 1 * pixelsPerMeter, // 1 meter wide
+        rotation: 0
+      },
+      flags: { isSuppressionFire: true, actorId: actor.id, weaponId: weapon.id }
+    });
 
-    const templateDoc = new MeasuredTemplateDocument(templateData, { parent: canvas.scene });
-    const template = new MeasuredTemplate(templateDoc);
-
-    const placementResult = await this._enterRayPlacementMode(template, length);
-
-    if (!placementResult) {
+    if (!placement) {
       ui.notifications.info("Suppression fire cancelled.");
       return;
     }
 
-    // Place the final template on the canvas
-    const finalTemplate = await this._placeSuppressionTemplate(placementResult, length);
+    const rayPlacement = { x: placement.x, y: placement.y, direction: placement.rotation };
 
-    // Find all tokens within the rectangle
-    const targets = this._getTokensInRay(placementResult, length);
+    // Place the final suppression Region on the canvas (visual only)
+    const finalRegion = await this._placeSuppressionRegion(rayPlacement, length);
 
-    // Now delegate back to the standard rollWeaponAttack for each target
-    // Pass the detected targets so it makes one roll per target
+    // Find all tokens within the strip
+    const targets = this._getTokensInRay(rayPlacement, length);
+
+    // Delegate back to the standard rollWeaponAttack for each detected target.
+    // Pass placement geometry directly so the animation path needs no canvas lookup.
     options.suppressionTargets = targets;
-    options.suppressionTemplateId = finalTemplate?.id || null;
+    options.suppressionRegionId = finalRegion?.id || null;
+    options.suppressionPlacement = {
+      x: rayPlacement.x,
+      y: rayPlacement.y,
+      direction: rayPlacement.direction,
+      distance: length
+    };
 
     await actor.rollWeaponAttack(weapon.id, options);
   }
 
   /**
-   * Enter ray (rectangle) placement mode.
-   * Player clicks to set the origin, then moves mouse to set direction, clicks again to confirm.
+   * Create the persistent suppression Region on the canvas (visual aid only).
    *
-   * @param {MeasuredTemplate} template The template object for preview
-   * @param {number} length The ray length in grid units
-   * @returns {Promise<{x: number, y: number, direction: number}|null>}
+   * @param {{x: number, y: number, direction: number}} placement Origin + direction (degrees)
+   * @param {number} length The strip length in meters
+   * @returns {Promise<RegionDocument|null>}
    */
-  static async _enterRayPlacementMode(template, length) {
-    return new Promise((resolve) => {
-      let originSet = false;
-      let origin = null;
-
-      // Disable token layer interactivity so clicks pass through to stage
-      const tokensLayer = canvas.tokens;
-      const originalInteractive = tokensLayer.interactiveChildren;
-      tokensLayer.interactiveChildren = false;
-      tokensLayer.releaseAll();
-
-      template.draw();
-      template.layer.preview.addChild(template);
-
-      const moveHandler = (event) => {
-        const pos = event.getLocalPosition(canvas.app.stage);
-        const snapped = canvas.grid.getSnappedPoint(pos, { mode: CONST.GRID_SNAPPING_MODES.CENTER });
-
-        if (!originSet) {
-          // Move template origin with cursor
-          template.document.updateSource({ x: snapped.x, y: snapped.y });
-        } else {
-          // Origin is set, update direction based on mouse position
-          const dx = snapped.x - origin.x;
-          const dy = snapped.y - origin.y;
-          const angle = (Math.atan2(dy, dx) * 180) / Math.PI;
-          template.document.updateSource({ direction: angle });
-        }
-        template.refresh();
-      };
-
-      const clickHandler = (event) => {
-        // Only respond to left clicks
-        if (event.button !== 0) return;
-
-        const pos = event.getLocalPosition(canvas.app.stage);
-        const snapped = canvas.grid.getSnappedPoint(pos, { mode: CONST.GRID_SNAPPING_MODES.CENTER });
-
-        if (!originSet) {
-          // First click: set origin
-          originSet = true;
-          origin = { x: snapped.x, y: snapped.y };
-          template.document.updateSource({ x: snapped.x, y: snapped.y });
-          template.refresh();
-          ui.notifications.info("Now aim the suppression zone. Click to confirm direction.");
-        } else {
-          // Second click: confirm direction
-          const dx = snapped.x - origin.x;
-          const dy = snapped.y - origin.y;
-          const direction = (Math.atan2(dy, dx) * 180) / Math.PI;
-
-          cleanup();
-          resolve({ x: origin.x, y: origin.y, direction });
-        }
-      };
-
-      const cancelHandler = (event) => {
-        if (event.button === 2 || event.key === "Escape") {
-          cleanup();
-          resolve(null);
-        }
-      };
-
-      const cleanup = () => {
-        // Re-enable token layer interactivity
-        tokensLayer.interactiveChildren = originalInteractive;
-
-        canvas.stage.off("pointermove", moveHandler);
-        canvas.stage.off("pointerdown", clickHandler);
-        document.removeEventListener("keydown", cancelHandler);
-        canvas.stage.off("pointerdown", cancelHandler);
-        template.layer.preview.removeChild(template);
-        template.destroy();
-      };
-
-      canvas.stage.on("pointermove", moveHandler);
-      canvas.stage.on("pointerdown", clickHandler);
-      document.addEventListener("keydown", cancelHandler);
-
-      ui.notifications.info("Click to set the suppression zone origin. Right-click or Escape to cancel.");
-    });
-  }
-
-  /**
-   * Place the final suppression fire template on the canvas.
-   *
-   * @param {{x: number, y: number, direction: number}} placement The placement data
-   * @param {number} length The ray length in meters
-   * @returns {Promise<MeasuredTemplateDocument|null>}
-   */
-  static async _placeSuppressionTemplate(placement, length) {
-    const templateData = {
-      t: "ray",
-      user: game.user.id,
-      x: placement.x,
-      y: placement.y,
-      distance: length,
-      width: 1,
-      direction: placement.direction,
-      fillColor: "#ffaa00",
-      flags: {
-        "mech-foundry": {
-          isSuppressionFire: true
-        }
-      }
+  static async _placeSuppressionRegion(placement, length) {
+    const pixelsPerMeter = this._pixelsPerMeter();
+    const regionData = {
+      name: "Suppression Zone",
+      color: "#ffaa00",
+      shapes: [{
+        type: "line",
+        x: placement.x,
+        y: placement.y,
+        length: length * pixelsPerMeter,
+        width: 1 * pixelsPerMeter,
+        rotation: placement.direction
+      }],
+      visibility: CONST.REGION_VISIBILITY.ALWAYS,
+      flags: { "mech-foundry": { isSuppressionFire: true } }
     };
 
-    const created = await canvas.scene.createEmbeddedDocuments("MeasuredTemplate", [templateData]);
-    return created?.[0] || null;
+    try {
+      const created = await canvas.scene.createEmbeddedDocuments("Region", [regionData]);
+      return created?.[0] || null;
+    } catch (e) {
+      console.warn("mech-foundry | Could not create suppression Region (visual only)", e);
+      return null;
+    }
   }
 
   /**
-   * Find all tokens within a ray (rectangle) template area.
+   * Find all tokens within a ray (strip) area.
    *
-   * @param {{x: number, y: number, direction: number}} placement The ray origin and direction
-   * @param {number} length The ray length in meters
+   * @param {{x: number, y: number, direction: number}} placement Origin + direction (degrees)
+   * @param {number} length The strip length in meters
    * @returns {Array<{token: Token, distance: number}>}
    */
   static _getTokensInRay(placement, length) {
-    const gridSize = canvas.grid.size;
-    const gridDistance = canvas.grid.distance;
-    const pixelsPerMeter = gridSize / gridDistance;
+    const pixelsPerMeter = this._pixelsPerMeter();
     const lengthPixels = length * pixelsPerMeter;
     const halfWidthPixels = 0.5 * pixelsPerMeter; // 1m wide / 2
 
