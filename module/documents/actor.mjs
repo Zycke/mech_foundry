@@ -965,7 +965,7 @@ export class MechFoundryActor extends Actor {
     const bdFactor = effectiveStats?.bdFactor ?? weaponData.bdFactor ?? '';
     const isSubduing = weaponData.subduing || bdFactor === 'D';
     const ammoSpecialEffects = effectiveStats?.specialEffects || [];
-    const str = this.system.attributes.str?.value || 5;
+    const str = this.system.attributes.str?.total || 5;
 
     // Get damage modifiers from equipped item effects
     const itemDamageMod = ItemEffectsHelper.getDamageModifier(this, combatType, weaponId);

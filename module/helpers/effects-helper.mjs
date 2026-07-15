@@ -280,8 +280,10 @@ export class ItemEffectsHelper {
         const mode = effect.effectType.replace('vision_', '');
         const range = Number(effect.value) || 0;
 
-        // Take highest range, prefer more advanced vision modes on tie
-        const currentPriority = visionModePriority.indexOf(vision.visionMode) || -1;
+        // Take highest range, prefer more advanced vision modes on tie.
+        // indexOf already returns -1 when not found; a `|| -1` here would corrupt
+        // index 0 (the 'basic' mode) into -1.
+        const currentPriority = visionModePriority.indexOf(vision.visionMode);
         const newPriority = visionModePriority.indexOf(mode);
 
         if (range > vision.visionRange || (range === vision.visionRange && newPriority > currentPriority)) {

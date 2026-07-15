@@ -33,29 +33,25 @@ export class DiceMechanics {
     if (die1 === 6 && die2 === 6) {
       const bonusDice = [];
       let currentRoll = 6;
+      let sixCount = 0;
 
-      // Keep rolling while we get 6s
-      while (currentRoll === 6) {
+      // Keep rolling while we get 6s, capped at 3 bonus 6s. Per the rules the
+      // maximum unmodified total is 30 (5 sixes: the boxcars plus 3 bonus 6s).
+      while (currentRoll === 6 && sixCount < 3) {
         const bonusRoll = await new Roll("1d6").evaluate();
         currentRoll = bonusRoll.total;
         bonusDice.push(currentRoll);
+        if (currentRoll === 6) sixCount++;
       }
 
       const bonusTotal = bonusDice.reduce((sum, d) => sum + d, 0);
 
-      // Check for Miraculous Feat: need 3 consecutive 6s in the bonus dice
-      // That means bonusDice starts with [6, 6, 6, ...] before hitting a non-6
-      // Count consecutive 6s from the start (all but last are 6s if we kept rolling)
+      // Miraculous Feat: 3+ consecutive bonus 6s from the start (total 30).
       let consecutiveSixes = 0;
-      for (let i = 0; i < bonusDice.length - 1; i++) {
-        if (bonusDice[i] === 6) {
-          consecutiveSixes++;
-        } else {
-          break;
-        }
+      for (const d of bonusDice) {
+        if (d === 6) consecutiveSixes++;
+        else break;
       }
-
-      // Miraculous Feat requires 3+ consecutive 6s (giving total of 12 + 6 + 6 + 6 = 30)
       const isMiraculousFeat = consecutiveSixes >= 3;
 
       return {
