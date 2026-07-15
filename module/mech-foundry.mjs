@@ -12,6 +12,7 @@
 // Import document classes
 import { MechFoundryActor } from "./documents/actor.mjs";
 import { MechFoundryItem } from "./documents/item.mjs";
+import { MechFoundryCombat } from "./documents/combat.mjs";
 
 // Import sheet classes
 import { MechFoundryActorSheet } from "./sheets/actor-sheet.mjs";
@@ -48,6 +49,7 @@ Hooks.once('init', function() {
   // Define custom Document classes
   CONFIG.Actor.documentClass = MechFoundryActor;
   CONFIG.Item.documentClass = MechFoundryItem;
+  CONFIG.Combat.documentClass = MechFoundryCombat;
 
   // Register sheet application classes
   Actors.unregisterSheet("core", ActorSheet);
@@ -347,7 +349,7 @@ Hooks.once("init", function() {
 });
 
 // Custom initiative handling for Combat Sense trait
-Hooks.on("preCreateCombatant", async (combatant, data, options, userId) => {
+Hooks.on("preCreateCombatant", (combatant, data, options, userId) => {
   const actor = combatant.actor;
   if (!actor) return;
 
@@ -358,24 +360,17 @@ Hooks.on("preCreateCombatant", async (combatant, data, options, userId) => {
   );
 
   if (hasCombatSense) {
-    // Roll 3d6 and keep highest 2
-    const roll = await new Roll("3d6kh2").evaluate();
+    // preCreate hooks are NOT awaited by Foundry, so the roll must be evaluated
+    // synchronously for updateSource to affect the persisted document.
+    // Roll 3d6 and keep the highest 2.
+    const roll = new Roll("3d6kh2").evaluateSync();
     combatant.updateSource({ initiative: roll.total });
   }
 });
 
-// Initiative tiebreaker by RFL
-Hooks.on("combatStart", (combat) => {
-  // Sort combatants with same initiative by RFL (using total including modifiers)
-  const turns = combat.turns.sort((a, b) => {
-    if (a.initiative === b.initiative) {
-      const rflA = a.actor?.system.attributes.rfl?.total || 0;
-      const rflB = b.actor?.system.attributes.rfl?.total || 0;
-      return rflB - rflA;
-    }
-    return b.initiative - a.initiative;
-  });
-});
+// Initiative ties are broken by RFL in MechFoundryCombat#_sortCombatants
+// (see documents/combat.mjs) — sorting the derived combat.turns array here
+// would have no persistent effect.
 
 // Reset firstAidUsedThisCombat when combat ends
 Hooks.on("deleteCombat", async (combat) => {
