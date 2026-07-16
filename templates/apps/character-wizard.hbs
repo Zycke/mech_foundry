@@ -220,7 +220,10 @@
         <span><strong>Age:</strong> {{preview.age}}</span>
         <span><strong>Modules:</strong> {{preview.moduleCount}}</span>
         <span><strong>XP:</strong> {{preview.spent}} spent / {{preview.remaining}} left</span>
+        <span data-tooltip="From the Wealth Trait (default 1,000). Unspent C-bills are kept as starting cash."><strong>C-Bills:</strong> {{numberFormat wealth.cbills}}</span>
+        <span data-tooltip="From the Equipped Trait: the maximum Tech/Availability/Legality rating of gear you may buy at creation."><strong>Gear rating:</strong> {{wealth.rating}}</span>
       </div>
+      <p class="hint"><i class="fas fa-circle-info"></i> Buy starting gear from your C-bills on the sheet's Inventory tab (items rated at or below {{wealth.rating}}); unspent C-bills stay as cash.</p>
 
       <div class="review-columns">
         <div class="review-block">

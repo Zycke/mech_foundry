@@ -1,6 +1,6 @@
 import { CharacterBuilder, ATTRIBUTE_KEYS, SEVERITY } from '../helpers/character-builder.mjs';
 import * as XP from '../helpers/xp-math.mjs';
-import { ATOW_SKILLS, ATOW_TRAITS, ATOW_TRAIT_DESCRIPTIONS } from '../data/atow-lists.mjs';
+import { ATOW_SKILLS, ATOW_TRAITS, ATOW_TRAIT_DESCRIPTIONS, computeStartingWealth } from '../data/atow-lists.mjs';
 import { grantCharacter } from '../helpers/character-grant.mjs';
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
@@ -297,6 +297,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       context.errorCount = issues.filter(i => i.severity === SEVERITY.ERROR).length;
       context.warningCount = issues.filter(i => i.severity === SEVERITY.WARNING).length;
       context.targetName = this.actor?.name || this.#choices.name || 'a new character';
+      context.wealth = computeStartingWealth(this.#state.traits, { isClan: !!this.#state.isClan });
     }
 
     return context;

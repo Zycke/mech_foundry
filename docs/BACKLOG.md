@@ -106,8 +106,12 @@ steps, commit path). Needs runtime testing on a live v14 world (per §0).
           `mech-foundry.traits` compendia (seeded from the master lists); the runtime config
           lists are rebuilt FROM the compendia at ready, so GM edits flow to the wizard
           without breaking dropdowns/tooltips/grant. `game.mechfoundry.reseedReferences()`.
-    - [ ] Aging effects (book pp.332–333) as an optional post-creation pass; starting
-          C-Bills / gear from Wealth/Equipped traits (the last open M7 item).
+    - [x] **Starting C-Bills / gear**: Wealth Trait sets `system.cbills` (TP table, default
+          1,000); Equipped Trait yields the max equipment rating (D/B/B…) shown in Review and
+          the sheet summary. Gear itself is bought via the existing inventory (compatible with
+          the equipment item schema — no changes needed).
+    - [ ] Aging effects (book pp.332–333) as an optional post-creation pass — the last open
+          M7 item (deprioritised).
 - [ ] **M8 (data track)** — transcribe the full A Time of War module/affiliation catalogue
       against the schema (the seed ships only Capellan + labelled examples).
 

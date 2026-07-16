@@ -172,6 +172,68 @@ export function skillSeedItems(list = ATOW_SKILLS) {
   });
 }
 
+/* -------------------------------------------------------------------------- */
+/*  Wealth -> starting C-Bills, Equipped -> equipment rating (ATOW p.128/116)  */
+/* -------------------------------------------------------------------------- */
+
+/** Wealth Trait Table: TP -> starting cash in C-bills (TP 0 is the 1,000 default). */
+export const WEALTH_CBILLS = {
+  '-1': 100, '0': 1000, '1': 2500, '2': 5000, '3': 10000, '4': 25000,
+  '5': 50000, '6': 100000, '7': 250000, '8': 500000, '9': 1000000, '10': 2000000
+};
+
+/** Default starting cash for a character with no Wealth Trait (Wealth TP 0). */
+export const DEFAULT_STARTING_CBILLS = 1000;
+
+/** Equipped Trait Table: TP -> "Tech/Availability/Legality" max rating codes. */
+export const EQUIPPED_RATINGS = {
+  '-1': 'C/A/B', '0': 'D/B/B', '1': 'D/B/C', '2': 'D/C/C', '3': 'E/C/D',
+  '4': 'E/D/D', '5': 'E/D/E', '6': 'E/E/E', '7': 'E/E/F', '8': 'F/F/F'
+};
+
+const clampKey = (tp, lo, hi) => String(Math.max(lo, Math.min(hi, Math.round(Number(tp) || 0))));
+
+/** Starting C-bills for a Wealth Trait TP. */
+export function wealthCBills(tp) {
+  return WEALTH_CBILLS[clampKey(tp, -1, 10)] ?? DEFAULT_STARTING_CBILLS;
+}
+
+const TECH = ['B', 'C', 'D', 'E', 'F'];
+
+/** Max equipment rating for an Equipped Trait TP, with affiliation adjustments. */
+export function equippedRating(tp, { isClan = false, isPeriphery = false } = {}) {
+  let rating = EQUIPPED_RATINGS[clampKey(tp, -1, 8)] ?? EQUIPPED_RATINGS['0'];
+  if (isClan || isPeriphery) {
+    const parts = rating.split('/');
+    let i = TECH.indexOf(parts[0]);
+    if (isClan) i = Math.min(TECH.length - 1, i + 1);       // Clan: Tech +1 (max F)
+    if (isPeriphery) i = Math.max(0, i - 1);                // Periphery: Tech -1 (min B)
+    parts[0] = TECH[i] ?? parts[0];
+    rating = parts.join('/');
+  }
+  return rating;
+}
+
+/**
+ * Derive starting wealth/equipment from a character's trait XP map.
+ * @param {Object<string, number>} traits  name -> accumulated XP
+ * @param {object} [opts]  { isClan, isPeriphery }
+ * @returns {{ wealthTP:number, equippedTP:number, cbills:number, rating:string }}
+ */
+export function computeStartingWealth(traits = {}, opts = {}) {
+  const sumBase = (base) => Object.entries(traits)
+    .filter(([n]) => n.split('/')[0].trim().toLowerCase() === base)
+    .reduce((a, [, xp]) => a + (Number(xp) || 0), 0);
+  const wealthTP = sumBase('wealth') / 100;
+  const equippedTP = sumBase('equipped') / 100;
+  return {
+    wealthTP,
+    equippedTP,
+    cbills: wealthCBills(wealthTP),
+    rating: equippedRating(equippedTP, opts)
+  };
+}
+
 /** Build `trait` Item data for the reference compendium from the master list. */
 export function traitSeedItems(list = ATOW_TRAITS) {
   return list.map(t => ({

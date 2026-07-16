@@ -169,6 +169,19 @@ ok(XP.getTraitTP(200) === 2 && XP.getTraitTP(50) === 0.5, 'trait TP = XP / 100')
   ok(su.skills['Survival/Wilderness'] === 20 && CB.subskillsResolved(su), 'resolving a subskill adds its XP');
 }
 
+/* ---- Wealth -> C-Bills, Equipped -> rating (ATOW p.128/116) ------------- */
+{
+  const { computeStartingWealth, wealthCBills, equippedRating } = await import('../module/data/atow-lists.mjs');
+  ok(wealthCBills(0) === 1000 && wealthCBills(2) === 5000 && wealthCBills(3) === 10000,
+    'Wealth C-bills table matches the book (0/2/3 -> 1000/5000/10000)');
+  ok(equippedRating(0) === 'D/B/B' && equippedRating(1) === 'D/B/C',
+    'Equipped rating table matches the book');
+  ok(equippedRating(3, { isClan: true }) === 'F/C/D', 'Clan raises Equipped Tech +1');
+  const w = computeStartingWealth({ 'Wealth/Alias': 200, 'Equipped': 100 });
+  ok(w.cbills === 5000 && w.rating === 'D/B/C', 'computeStartingWealth sums identity-based Wealth/Equipped');
+  ok(computeStartingWealth({}).cbills === 1000, 'no Wealth trait -> 1000 default C-bills');
+}
+
 /* ---- Seed data integrity ------------------------------------------------ */
 const { LIFE_MODULE_SEED } = await import('../module/data/life-modules.mjs');
 ok(Array.isArray(LIFE_MODULE_SEED) && LIFE_MODULE_SEED.length > 0, 'seed data is a non-empty array');
