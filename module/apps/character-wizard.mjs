@@ -1,4 +1,5 @@
 import { CharacterBuilder, ATTRIBUTE_KEYS, SEVERITY } from '../helpers/character-builder.mjs';
+import { ATOW_SKILLS, ATOW_TRAITS, ATOW_TRAIT_DESCRIPTIONS } from '../data/atow-lists.mjs';
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -238,7 +239,8 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       context.preview = {
         ...preview,
         attributeRows: ATTRIBUTE_KEYS.map(k => ({ key: k.toUpperCase(), ...preview.attributes[k] })),
-        skillRows: preview.skills.map(s => ({ ...s, levelLabel: s.level < 0 ? 'untrained' : s.level }))
+        skillRows: preview.skills.map(s => ({ ...s, levelLabel: s.level < 0 ? 'Untrained' : `L${s.level}` })),
+        traitRows: preview.traits.map(t => ({ ...t, tooltip: this.#traitTooltip(t.name) }))
       };
       context.issues = issues;
       context.errorCount = issues.filter(i => i.severity === SEVERITY.ERROR).length;
@@ -251,7 +253,6 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
 
   #moduleCard(doc, selected) {
     const sys = doc.system;
-    const pre = this.#prereqSummary(sys.prerequisites);
     return {
       id: doc.id,
       name: doc.name,
@@ -259,21 +260,54 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       selected,
       cost: sys.xpCost || 0,
       time: sys.time || 0,
-      summary: this.#summariseFixedXP(sys),
-      prereq: pre
+      grants: this.#moduleGrants(sys),
+      flexible: this.#flexibleSummaries(sys),
+      prereq: this.#prereqSummary(sys.prerequisites)
     };
   }
 
-  #summariseFixedXP(system) {
-    const parts = [];
-    const attrs = system.fixedXP?.attributes || {};
-    const attrStr = Object.entries(attrs).map(([k, v]) => `${k.toUpperCase()} ${v > 0 ? '+' : ''}${v}`).join(', ');
-    if (attrStr) parts.push(attrStr);
-    const skills = (system.fixedXP?.skills || []).length;
-    if (skills) parts.push(`${skills} skill${skills === 1 ? '' : 's'}`);
-    const traits = (system.fixedXP?.traits || []).length;
-    if (traits) parts.push(`${traits} trait${traits === 1 ? '' : 's'}`);
-    return parts.join(' · ') || 'No fixed XP';
+  /** Structured, human-readable grants for a module card. */
+  #moduleGrants(system) {
+    const attributes = Object.entries(system.fixedXP?.attributes || {})
+      .map(([k, v]) => `${k.toUpperCase()} ${v > 0 ? '+' : ''}${v}`);
+    const skills = (system.fixedXP?.skills || []).map(s => ({
+      label: `${s.subskill ? `${s.name}/${s.subskill}` : s.name} ${s.xp > 0 ? '+' : ''}${s.xp}`
+    }));
+    const traits = (system.fixedXP?.traits || []).map(t => ({
+      label: `${t.name} ${t.xp > 0 ? '+' : ''}${t.xp}`,
+      tooltip: this.#traitTooltip(t.name)
+    }));
+    return {
+      attributes, skills, traits,
+      empty: !attributes.length && !skills.length && !traits.length
+    };
+  }
+
+  /** Short descriptions of a module's flexible-XP pools (for the card). */
+  #flexibleSummaries(system) {
+    return (system.flexibleXP || []).map(p =>
+      p.note || `${p.amount} XP × ${p.count} (${p.targets || 'any'})`);
+  }
+
+  /** Tooltip text for a trait, resolved from its base name (before "/subskill"). */
+  #traitTooltip(name) {
+    const base = String(name).split('/')[0].trim();
+    const map = game.mechfoundry?.config?.traitDescriptions || ATOW_TRAIT_DESCRIPTIONS;
+    return map[base] || map[String(name)] || '';
+  }
+
+  /** Skill dropdown options: master list ∪ skills already in the build. */
+  #skillOptions() {
+    const master = (game.mechfoundry?.config?.skillsList || ATOW_SKILLS).map(s => s.name);
+    const set = new Set([...master, ...Object.keys(this.#state.skills)]);
+    return [...set].sort((a, b) => a.localeCompare(b)).map(n => ({ value: n, label: n }));
+  }
+
+  /** Trait dropdown options: master list ∪ traits already in the build. */
+  #traitOptions() {
+    const master = (game.mechfoundry?.config?.traitsList || ATOW_TRAITS).map(t => t.name);
+    const set = new Set([...master, ...Object.keys(this.#state.traits)]);
+    return [...set].sort((a, b) => a.localeCompare(b)).map(n => ({ value: n, label: n }));
   }
 
   #prereqSummary(pre) {
@@ -285,31 +319,35 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     return bits.join(', ');
   }
 
-  /** Build the flexible-XP step context from the live pending pools. */
+  /** Build the flexible-XP step context — every slot resolves to a dropdown. */
   #buildFlexibleContext() {
+    const skillOptions = this.#skillOptions();
+    const traitOptions = this.#traitOptions();
+    const attrAll = ATTRIBUTE_KEYS.map(k => ({ value: k, label: k.toUpperCase() }));
+    const optionsFor = (kind) => kind === 'skill' ? skillOptions : kind === 'trait' ? traitOptions : attrAll;
+
     return this.#state.flexiblePending.map(pool => {
-      const kind = kindForTargets(pool.targets);
-      const saved = this.#choices.flexible[pool.sourceKey] || [];
+      const baseKind = kindForTargets(pool.targets); // null = 'any'
       const attrChoices = (pool.choices.length ? pool.choices : ATTRIBUTE_KEYS)
         .map(k => ({ value: k, label: k.toUpperCase() }));
+      const saved = this.#choices.flexible[pool.sourceKey] || [];
       const moduleName = this.#state.modules.find(m => m.id === pool.moduleId)?.name || '';
+
+      const slots = Array.from({ length: pool.count }, (_, i) => {
+        const s = saved[i] || {};
+        // 'any' pools let the player pick the kind; fixed-kind pools use it.
+        const kind = baseKind || s.kind || 'attribute';
+        const options = baseKind === 'attribute' ? attrChoices : optionsFor(kind);
+        return { idx: i, isAny: baseKind === null, kind, key: s.key || '', options };
+      });
+
       return {
         sourceKey: pool.sourceKey,
-        note: pool.note || `${pool.amount} XP × ${pool.count}`,
+        note: pool.note || `${pool.amount} XP`,
         amount: pool.amount,
         count: pool.count,
         moduleName,
-        targets: pool.targets,
-        isAttribute: kind === 'attribute',
-        isSkill: kind === 'skill',
-        isTrait: kind === 'trait',
-        isAny: kind === null,
-        attrChoices,
-        slots: Array.from({ length: pool.count }, (_, i) => ({
-          idx: i,
-          key: saved[i]?.key || '',
-          kind: saved[i]?.kind || ''
-        }))
+        slots
       };
     });
   }
@@ -336,7 +374,14 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     }
     if (flexChanged) {
       for (const [sk, slots] of Object.entries(collected)) {
-        this.#choices.flexible[sk] = slots.map(s => ({ kind: s?.kind || '', key: s?.key || '' }));
+        const prev = this.#choices.flexible[sk] || [];
+        this.#choices.flexible[sk] = slots.map((s, i) => {
+          const kind = s?.kind || '';
+          let key = s?.key || '';
+          // If an 'any' pool's kind just changed, the old value no longer fits.
+          if (kind && prev[i]?.kind && prev[i].kind !== kind) key = '';
+          return { kind, key };
+        });
       }
       await this.#rebuildState();
       this.render();

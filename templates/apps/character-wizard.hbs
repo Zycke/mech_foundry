@@ -35,10 +35,13 @@
       {{#if hasModules}}
       <div class="choice-grid">
         {{#each modules}}
-        <button type="button" class="choice-card {{#if this.selected}}selected{{/if}}" data-action="selectAffiliation" data-id="{{this.id}}">
-          <img src="{{this.img}}" alt=""/>
-          <span class="choice-name">{{this.name}}</span>
-          <span class="choice-summary">{{this.summary}}</span>
+        <button type="button" class="choice-card affiliation-card {{#if this.selected}}selected{{/if}}" data-action="selectAffiliation" data-id="{{this.id}}">
+          <span class="card-head">
+            <img src="{{this.img}}" alt=""/>
+            <span class="choice-name">{{this.name}}</span>
+            {{#if this.selected}}<span class="selected-flag"><i class="fas fa-check"></i></span>{{/if}}
+          </span>
+          {{> "systems/mech-foundry/templates/apps/parts/wizard-grants.hbs"}}
         </button>
         {{/each}}
       </div>
@@ -77,14 +80,16 @@
         <button type="button" class="choice-card module-card {{#if this.selected}}selected{{/if}}"
                 data-action="{{#if ../multi}}toggleStageModule{{else}}selectStageModule{{/if}}"
                 data-stage="{{../stage}}" data-id="{{this.id}}">
-          <span class="choice-name">{{this.name}}</span>
+          <span class="card-head">
+            <span class="choice-name">{{this.name}}</span>
+            {{#if this.selected}}<span class="selected-flag"><i class="fas fa-check"></i></span>{{/if}}
+          </span>
           <span class="card-meta">
             <span class="cost">{{this.cost}} XP</span>
             {{#if this.time}}<span class="time">{{this.time}} yr</span>{{/if}}
           </span>
-          <span class="choice-summary">{{this.summary}}</span>
+          {{> "systems/mech-foundry/templates/apps/parts/wizard-grants.hbs"}}
           {{#if this.prereq}}<span class="choice-prereq"><i class="fas fa-lock"></i> {{this.prereq}}</span>{{/if}}
-          {{#if this.selected}}<span class="selected-flag"><i class="fas fa-check"></i></span>{{/if}}
         </button>
         {{/each}}
       </div>
@@ -108,23 +113,19 @@
         <div class="flex-slots">
           {{#each this.slots}}
           <div class="flex-slot">
-            {{#if ../isAttribute}}
-            <select name="flex::{{../sourceKey}}::{{this.idx}}::key">
-              <option value="">— choose attribute —</option>
-              {{#each ../attrChoices}}
-              <option value="{{this.value}}" {{#if (eq this.value ../key)}}selected{{/if}}>{{this.label}}</option>
-              {{/each}}
-            </select>
-            {{else if ../isAny}}
-            <select name="flex::{{../sourceKey}}::{{this.idx}}::kind">
+            {{#if this.isAny}}
+            <select name="flex::{{../sourceKey}}::{{this.idx}}::kind" class="kind-select">
               <option value="attribute" {{#if (eq this.kind "attribute")}}selected{{/if}}>Attribute</option>
               <option value="skill" {{#if (eq this.kind "skill")}}selected{{/if}}>Skill</option>
               <option value="trait" {{#if (eq this.kind "trait")}}selected{{/if}}>Trait</option>
             </select>
-            <input type="text" name="flex::{{../sourceKey}}::{{this.idx}}::key" value="{{this.key}}" placeholder="name (e.g. INT, or Small Arms)"/>
-            {{else}}
-            <input type="text" name="flex::{{../sourceKey}}::{{this.idx}}::key" value="{{this.key}}" placeholder="{{#if ../isSkill}}skill name (Root/Subskill){{else}}trait name{{/if}}"/>
             {{/if}}
+            <select name="flex::{{../sourceKey}}::{{this.idx}}::key" class="value-select">
+              <option value="">— choose {{this.kind}} —</option>
+              {{#each this.options}}
+              <option value="{{this.value}}" {{#if (eq this.value ../key)}}selected{{/if}}>{{this.label}}</option>
+              {{/each}}
+            </select>
           </div>
           {{/each}}
         </div>
@@ -187,16 +188,16 @@
           {{#if preview.skillRows.length}}
           <ul class="review-list">
             {{#each preview.skillRows}}
-            <li><span>{{this.key}}</span><span class="lvl">L{{this.levelLabel}} · {{this.xp}} XP</span></li>
+            <li><span>{{this.key}}</span><span class="lvl">{{this.levelLabel}} · {{this.xp}} XP</span></li>
             {{/each}}
           </ul>
           {{else}}<p class="empty-note">None yet.</p>{{/if}}
 
-          <h3>Traits ({{preview.traits.length}})</h3>
-          {{#if preview.traits.length}}
+          <h3>Traits ({{preview.traitRows.length}})</h3>
+          {{#if preview.traitRows.length}}
           <ul class="review-list">
-            {{#each preview.traits}}
-            <li><span>{{this.name}}</span><span class="lvl {{this.type}}">{{#if (gte this.xp 0)}}+{{/if}}{{this.xp}} XP</span></li>
+            {{#each preview.traitRows}}
+            <li><span {{#if this.tooltip}}class="trait" data-tooltip="{{this.tooltip}}"{{/if}}>{{this.name}}</span><span class="lvl {{this.type}}">{{#if (gte this.xp 0)}}+{{/if}}{{this.xp}} XP</span></li>
             {{/each}}
           </ul>
           {{else}}<p class="empty-note">None yet.</p>{{/if}}

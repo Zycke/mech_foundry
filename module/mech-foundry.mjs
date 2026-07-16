@@ -25,6 +25,7 @@ import { MechFoundryShipSheet } from "./sheets/ship-sheet.mjs";
 import { preloadHandlebarsTemplates } from "./helpers/templates.mjs";
 import { registerSeederSettings, seedLifeModules } from "./helpers/life-module-seeder.mjs";
 import { CharacterWizard } from "./apps/character-wizard.mjs";
+import { ATOW_SKILLS, ATOW_TRAITS, ATOW_TRAIT_DESCRIPTIONS } from "./data/atow-lists.mjs";
 import { SocketHandler, SOCKET_EVENTS } from "./helpers/socket-handler.mjs";
 import { OpposedRollHelper } from "./helpers/opposed-rolls.mjs";
 import { DiceMechanics } from "./helpers/dice-mechanics.mjs";
@@ -50,6 +51,12 @@ Hooks.once('init', function() {
     openCharacterWizard: (actor = null) => new CharacterWizard({ actor }).render(true),
     config: MECHFOUNDRY
   };
+
+  // Canonical A Time of War skill / trait reference lists (wizard dropdowns +
+  // trait tooltips). On config so a module or GM can override them.
+  MECHFOUNDRY.skillsList = ATOW_SKILLS;
+  MECHFOUNDRY.traitsList = ATOW_TRAITS;
+  MECHFOUNDRY.traitDescriptions = ATOW_TRAIT_DESCRIPTIONS;
 
   // Define custom Document classes
   CONFIG.Actor.documentClass = MechFoundryActor;

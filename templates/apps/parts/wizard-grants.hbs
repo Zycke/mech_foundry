@@ -1,0 +1,17 @@
+{{!-- Renders a module card's granted XP. Context = the card object. --}}
+{{#unless grants.empty}}
+<span class="grants">
+  {{#if grants.attributes.length}}
+  <span class="grant-line"><span class="glabel">Attributes</span>{{#each grants.attributes}}<span class="gtag">{{this}}</span>{{/each}}</span>
+  {{/if}}
+  {{#if grants.skills.length}}
+  <span class="grant-line"><span class="glabel">Skills</span>{{#each grants.skills}}<span class="gtag">{{this.label}}</span>{{/each}}</span>
+  {{/if}}
+  {{#if grants.traits.length}}
+  <span class="grant-line"><span class="glabel">Traits</span>{{#each grants.traits}}<span class="gtag trait" data-tooltip="{{this.tooltip}}">{{this.label}}</span>{{/each}}</span>
+  {{/if}}
+</span>
+{{/unless}}
+{{#if flexible.length}}
+<span class="grant-line flexline"><span class="glabel">Flexible</span>{{#each flexible}}<span class="gtag isflex">{{this}}</span>{{/each}}</span>
+{{/if}}

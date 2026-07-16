@@ -5699,10 +5699,11 @@
   gap: 8px;
 }
 .mech-foundry .choice-card {
+  position: relative;
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  gap: 3px;
+  align-items: stretch;
+  gap: 4px;
   padding: 10px;
   text-align: left;
   background: var(--mf-panel);
@@ -5711,13 +5712,39 @@
   color: var(--mf-ink);
   cursor: pointer;
   transition: border-color 0.12s, background 0.12s;
+  /* Override Foundry's fixed button height / nowrap so cards grow with content. */
+  height: auto;
+  min-height: 0;
+  width: 100%;
+  white-space: normal;
+  line-height: 1.35;
+  overflow: visible;
 }
 .mech-foundry .choice-card:hover { border-color: var(--mf-steel); background: var(--mf-panel-2); }
 .mech-foundry .choice-card.selected { border-color: var(--mf-amber); box-shadow: 0 0 0 1px rgba(242,165,58,0.4); }
-.mech-foundry .choice-card img { width: 40px; height: 40px; border: 1px solid var(--mf-steel); border-radius: 2px; }
-.mech-foundry .choice-card .choice-name { font-family: var(--mf-font-head); color: var(--mf-amber-2); font-size: 0.95em; }
+.mech-foundry .choice-card .card-head { display: flex; align-items: center; gap: 8px; }
+.mech-foundry .choice-card img { flex: 0 0 auto; width: 40px; height: 40px; border: 1px solid var(--mf-steel); border-radius: 2px; }
+.mech-foundry .choice-card .choice-name {
+  font-family: var(--mf-font-head); color: var(--mf-amber-2); font-size: 0.95em;
+  word-break: break-word; flex: 1 1 auto;
+}
 .mech-foundry .choice-card .choice-summary,
-.mech-foundry .choice-card .choice-traits { color: var(--mf-ink-dim); font-size: 0.78em; }
+.mech-foundry .choice-card .choice-traits { color: var(--mf-ink-dim); font-size: 0.78em; word-break: break-word; }
+
+/* ---- Module-card grants (skills/traits/attributes granted) ------------- */
+.mech-foundry .choice-card .grants { display: flex; flex-direction: column; gap: 3px; }
+.mech-foundry .choice-card .grant-line { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px; font-size: 0.76em; }
+.mech-foundry .choice-card .grant-line .glabel {
+  flex: 0 0 auto; color: var(--mf-ink-dim); text-transform: uppercase; letter-spacing: 0.03em;
+  font-size: 0.9em; min-width: 58px;
+}
+.mech-foundry .choice-card .gtag {
+  background: var(--mf-panel-2); border: 1px solid var(--mf-line); border-radius: 2px;
+  padding: 0 5px; color: var(--mf-ink); font-family: var(--mf-font-mono); white-space: nowrap;
+}
+.mech-foundry .choice-card .gtag.trait { border-color: var(--mf-steel); color: var(--mf-amber-2); cursor: help; }
+.mech-foundry .choice-card .gtag.isflex { border-style: dashed; color: var(--mf-hazard); white-space: normal; }
+.mech-foundry .choice-card .grant-line.flexline .glabel { color: var(--mf-hazard); }
 
 /* ---- Review ----------------------------------------------- */
 .mech-foundry .review-meta { display: flex; flex-wrap: wrap; gap: 10px; margin: 10px 0; color: var(--mf-ink-dim); font-size: 0.85em; }
@@ -5798,6 +5825,8 @@
   background: #0f1317; border: 1px solid var(--mf-line); border-radius: 2px;
   color: var(--mf-ink); padding: 5px 8px; font-family: var(--mf-font-body);
 }
-.mech-foundry .flex-slot select { flex: 0 0 130px; }
+.mech-foundry .flex-slot .kind-select { flex: 0 0 120px; }
+.mech-foundry .flex-slot .value-select { flex: 1 1 auto; }
+.mech-foundry .review-list .trait { cursor: help; border-bottom: 1px dotted var(--mf-ink-dim); }
 .mech-foundry .flex-slot select:focus,
 .mech-foundry .flex-slot input:focus { outline: none; border-color: var(--mf-amber); box-shadow: 0 0 0 1px rgba(242,165,58,0.35); }
