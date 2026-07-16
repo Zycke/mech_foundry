@@ -4,7 +4,7 @@
  * @return {Promise}
  */
 export const preloadHandlebarsTemplates = async function() {
-  return loadTemplates([
+  return foundry.applications.handlebars.loadTemplates([
     // Actor sheets
     "systems/mech-foundry/templates/actor/actor-character-sheet.hbs",
     "systems/mech-foundry/templates/actor/actor-npc-sheet.hbs",

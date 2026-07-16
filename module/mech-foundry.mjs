@@ -5,13 +5,14 @@
  * Core Mechanics:
  * - 2d6 + modifiers vs Target Number
  * - 8 Attributes: STR, BOD, RFL, DEX, INT, WIL, CHA, EDG
- * - Link Attribute Modifiers: 1=-2, 2-3=-1, 4-6=+0, 7-9=+1, 10=+2
+ * - Link Attribute Modifiers: 0=-4, 1=-2, 2-3=-1, 4-6=+0, 7-9=+1, 10=+2, 11+=floor(score/3) max +5
  * - Skills have TN, Complexity (S/C), Linked Attributes, and Skill Level
  */
 
 // Import document classes
 import { MechFoundryActor } from "./documents/actor.mjs";
 import { MechFoundryItem } from "./documents/item.mjs";
+import { MechFoundryCombat } from "./documents/combat.mjs";
 
 // Import sheet classes
 import { MechFoundryActorSheet } from "./sheets/actor-sheet.mjs";
@@ -48,32 +49,37 @@ Hooks.once('init', function() {
   // Define custom Document classes
   CONFIG.Actor.documentClass = MechFoundryActor;
   CONFIG.Item.documentClass = MechFoundryItem;
+  CONFIG.Combat.documentClass = MechFoundryCombat;
 
-  // Register sheet application classes
-  Actors.unregisterSheet("core", ActorSheet);
-  Actors.registerSheet("mech-foundry", MechFoundryActorSheet, {
+  // Register sheet application classes (v14: use the namespaced document
+  // collections and the appv1 core sheet classes rather than bare globals).
+  const ActorsCollection = foundry.documents.collections.Actors;
+  const ItemsCollection = foundry.documents.collections.Items;
+
+  ActorsCollection.unregisterSheet("core", foundry.appv1.sheets.ActorSheet);
+  ActorsCollection.registerSheet("mech-foundry", MechFoundryActorSheet, {
     makeDefault: true,
     types: ["character", "npc"],
     label: "MECHFOUNDRY.SheetActor"
   });
-  Actors.registerSheet("mech-foundry", MechFoundryCompanySheet, {
+  ActorsCollection.registerSheet("mech-foundry", MechFoundryCompanySheet, {
     types: ["company"],
     makeDefault: true,
     label: "MECHFOUNDRY.SheetCompany"
   });
-  Actors.registerSheet("mech-foundry", MechFoundryVehicleActorSheet, {
+  ActorsCollection.registerSheet("mech-foundry", MechFoundryVehicleActorSheet, {
     types: ["vehicle_actor"],
     makeDefault: true,
     label: "MECHFOUNDRY.SheetVehicleActor"
   });
-  Actors.registerSheet("mech-foundry", MechFoundryShipSheet, {
+  ActorsCollection.registerSheet("mech-foundry", MechFoundryShipSheet, {
     types: ["ship"],
     makeDefault: true,
     label: "MECHFOUNDRY.SheetShip"
   });
 
-  Items.unregisterSheet("core", ItemSheet);
-  Items.registerSheet("mech-foundry", MechFoundryItemSheet, {
+  ItemsCollection.unregisterSheet("core", foundry.appv1.sheets.ItemSheet);
+  ItemsCollection.registerSheet("mech-foundry", MechFoundryItemSheet, {
     makeDefault: true,
     label: "MECHFOUNDRY.SheetItem"
   });
@@ -222,13 +228,9 @@ function _registerHandlebarsHelpers() {
     return a > b;
   });
 
-  // Calculate Link Attribute Modifier from value
+  // Calculate Link Attribute Modifier from value (single source of truth)
   Handlebars.registerHelper('linkMod', function(value) {
-    if (value <= 1) return -2;
-    if (value <= 3) return -1;
-    if (value <= 6) return 0;
-    if (value <= 9) return 1;
-    return 2;
+    return MechFoundryActor.getLinkModifier(value);
   });
 
   // Format modifier with sign
@@ -347,7 +349,7 @@ Hooks.once("init", function() {
 });
 
 // Custom initiative handling for Combat Sense trait
-Hooks.on("preCreateCombatant", async (combatant, data, options, userId) => {
+Hooks.on("preCreateCombatant", (combatant, data, options, userId) => {
   const actor = combatant.actor;
   if (!actor) return;
 
@@ -358,24 +360,17 @@ Hooks.on("preCreateCombatant", async (combatant, data, options, userId) => {
   );
 
   if (hasCombatSense) {
-    // Roll 3d6 and keep highest 2
-    const roll = await new Roll("3d6kh2").evaluate();
+    // preCreate hooks are NOT awaited by Foundry, so the roll must be evaluated
+    // synchronously for updateSource to affect the persisted document.
+    // Roll 3d6 and keep the highest 2.
+    const roll = new Roll("3d6kh2").evaluateSync();
     combatant.updateSource({ initiative: roll.total });
   }
 });
 
-// Initiative tiebreaker by RFL
-Hooks.on("combatStart", (combat) => {
-  // Sort combatants with same initiative by RFL (using total including modifiers)
-  const turns = combat.turns.sort((a, b) => {
-    if (a.initiative === b.initiative) {
-      const rflA = a.actor?.system.attributes.rfl?.total || 0;
-      const rflB = b.actor?.system.attributes.rfl?.total || 0;
-      return rflB - rflA;
-    }
-    return b.initiative - a.initiative;
-  });
-});
+// Initiative ties are broken by RFL in MechFoundryCombat#_sortCombatants
+// (see documents/combat.mjs) — sorting the derived combat.turns array here
+// would have no persistent effect.
 
 // Reset firstAidUsedThisCombat when combat ends
 Hooks.on("deleteCombat", async (combat) => {

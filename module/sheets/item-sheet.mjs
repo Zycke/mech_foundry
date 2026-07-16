@@ -2,7 +2,7 @@
  * Extend the basic ItemSheet for Mech Foundry items
  * @extends {ItemSheet}
  */
-export class MechFoundryItemSheet extends ItemSheet {
+export class MechFoundryItemSheet extends foundry.appv1.sheets.ItemSheet {
 
   /** @override */
   static get defaultOptions() {

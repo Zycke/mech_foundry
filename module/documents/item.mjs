@@ -32,9 +32,8 @@ export class MechFoundryItem extends Item {
    * @returns {boolean}
    */
   get isEquipped() {
-    if (this.type === 'armor') {
-      return this.system.equipped === true || this.system.carryStatus === 'equipped';
-    }
+    // carryStatus is the single source of truth for equipped state across all
+    // equippable types. The legacy `equipped` boolean on armor is vestigial.
     return this.system.carryStatus === 'equipped';
   }
 

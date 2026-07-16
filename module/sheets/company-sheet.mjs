@@ -64,7 +64,7 @@ const UNIT_LEADER_SKILLS = ['leadership', 'tactics', 'strategy'];
  * Tabs: Personnel, Organization, Status, Logistics, MTOE, Assets, Finances
  * @extends {ActorSheet}
  */
-export class MechFoundryCompanySheet extends ActorSheet {
+export class MechFoundryCompanySheet extends foundry.appv1.sheets.ActorSheet {
 
   /** @override */
   static get defaultOptions() {
@@ -1278,8 +1278,7 @@ export class MechFoundryCompanySheet extends ActorSheet {
     await ChatMessage.create({
       speaker: ChatMessage.getSpeaker({ actor: this.actor }),
       content: chatContent,
-      roll: roll,
-      type: CONST.CHAT_MESSAGE_TYPES.ROLL
+      rolls: [roll]
     });
   }
 

@@ -58,29 +58,38 @@ export class SocketHandler {
    * @param {object} data - The prompt data
    */
   static async _handleDefenderPrompt(data) {
-    // Resolve target actor - prefer token actor for unlinked token support
-    let targetActor = null;
-    if (data.targetTokenId) {
-      const scene = game.scenes.current;
-      const tokenDoc = scene?.tokens.get(data.targetTokenId);
-      if (tokenDoc) targetActor = tokenDoc.actor;
-    }
-    if (!targetActor) targetActor = game.actors.get(data.targetActorId);
-
-    // Only process if this client owns the target actor
-    if (!targetActor?.isOwner) return;
-
     // Don't process if we're the attacker (handled locally)
     if (data.attackerUserId === game.user.id) return;
 
+    // Resolve target actor - prefer token actor for unlinked token support
+    const targetActor = OpposedRollHelper.resolveTargetActor(data);
+    if (!targetActor) return;
+
+    // Exactly ONE client should answer. Prefer an active non-GM owner of the
+    // target; otherwise fall back to the first active GM. Without this, a GM
+    // (who owns every actor) and the owning player would both show the dialog
+    // and both emit a response — the second of which is silently dropped.
+    const activePlayerOwner = game.users.find(u =>
+      u.active && !u.isGM && targetActor.testUserPermission(u, "OWNER")
+    );
+    const responderId = activePlayerOwner
+      ? activePlayerOwner.id
+      : game.users.find(u => u.active && u.isGM)?.id;
+    if (game.user.id !== responderId) return;
+
     // Show the defender dialog
     const defenderResult = await OpposedRollHelper.showDefenderDialog(data);
+
+    // Roll instances do not survive socket JSON serialization, so send the
+    // roll as plain data and re-hydrate it on the attacker's side.
+    const payload = { ...defenderResult };
+    if (payload.roll instanceof Roll) payload.roll = payload.roll.toJSON();
 
     // Send response back via socket
     this.emit(SOCKET_EVENTS.DEFENDER_RESPONSE, {
       rollId: data.rollId,
       attackerUserId: data.attackerUserId,
-      defenderResult: defenderResult
+      defenderResult: payload
     });
   }
 
@@ -96,8 +105,19 @@ export class SocketHandler {
     const pendingRoll = game.mechfoundry.pendingOpposedRolls[data.rollId];
     if (!pendingRoll) return;
 
+    // Re-hydrate the defender's Roll (reduced to plain data over the socket)
+    const result = data.defenderResult;
+    if (result && result.roll && !(result.roll instanceof Roll)) {
+      try {
+        result.roll = Roll.fromData(result.roll);
+      } catch (e) {
+        console.warn("mech-foundry | Could not rehydrate defender roll", e);
+        result.roll = null;
+      }
+    }
+
     // Resolve the opposed roll
-    pendingRoll.resolve(data.defenderResult);
+    pendingRoll.resolve(result);
 
     // Clean up
     delete game.mechfoundry.pendingOpposedRolls[data.rollId];

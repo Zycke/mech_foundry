@@ -71,33 +71,62 @@ export class MechFoundryActor extends Actor {
     for (let [key, attr] of Object.entries(systemData.attributes || {})) {
       const baseValue = attr.value || 0;
       const modifier = attr.modifier || 0;
-      // Total is base + modifier, capped at 9
-      attr.total = Math.min(baseValue + modifier, 9);
+      // Total is base + modifier. A Time of War attributes normally run 1-8,
+      // reach 10 for exceptional humans, and can exceed 10 via advancement, so
+      // no artificial ceiling is applied (the old cap of 9 made the +2 link
+      // modifier at 10 unreachable).
+      attr.total = baseValue + modifier;
     }
   }
 
   /**
-   * Calculate Link Attribute Modifiers based on A Time of War rules
-   * Uses total score (base + modifier, capped at 9)
-   * 1: -2, 2-3: -1, 4-6: +0, 7-9: +1, 10: +2
+   * Calculate Link Attribute Modifiers based on A Time of War rules.
+   * Uses the total score (base + modifier).
    * @param {Object} systemData
    */
   _calculateLinkModifiers(systemData) {
     for (let [key, attr] of Object.entries(systemData.attributes || {})) {
-      // Use total (base + modifier, already capped at 9) for link modifier
-      const value = attr.total;
-      if (value <= 1) {
-        attr.linkMod = -2;
-      } else if (value <= 3) {
-        attr.linkMod = -1;
-      } else if (value <= 6) {
-        attr.linkMod = 0;
-      } else if (value <= 9) {
-        attr.linkMod = 1;
-      } else {
-        attr.linkMod = 2;
-      }
+      attr.linkMod = MechFoundryActor.getLinkModifier(attr.total);
     }
+  }
+
+  /**
+   * A Time of War Attribute Link Modifier table (Action Check Modifiers, p.41):
+   *   0 -> -4, 1 -> -2, 2-3 -> -1, 4-6 -> +0, 7-9 -> +1, 10 -> +2,
+   *   11+ -> floor(score / 3), capped at +5.
+   * @param {number} value The (total) attribute score
+   * @returns {number} The link modifier
+   */
+  static getLinkModifier(value) {
+    const v = Number(value) || 0;
+    if (v <= 0) return -4;
+    if (v === 1) return -2;
+    if (v <= 3) return -1;
+    if (v <= 6) return 0;
+    if (v <= 9) return 1;
+    if (v === 10) return 2;
+    return Math.min(5, Math.floor(v / 3));
+  }
+
+  /**
+   * Standard-rate XP thresholds for skill levels 0-10 (A Time of War p.60).
+   */
+  static SKILL_XP_COSTS = [20, 30, 50, 80, 120, 170, 230, 300, 380, 470, 570];
+
+  /**
+   * Derive a skill level (0-10) from accumulated XP using the Standard rate.
+   * Returns -1 when XP is below the level-0 threshold (untrained). XP is the
+   * single source of truth for skill level throughout the system.
+   * @param {number} xp
+   * @returns {number}
+   */
+  static getSkillLevelFromXP(xp) {
+    const x = Number(xp) || 0;
+    const costs = MechFoundryActor.SKILL_XP_COSTS;
+    for (let i = costs.length - 1; i >= 0; i--) {
+      if (x >= costs[i]) return i;
+    }
+    return -1;
   }
 
   /**
@@ -547,7 +576,11 @@ export class MechFoundryActor extends Actor {
       i.type === 'skill' &&
       i.name.toLowerCase().includes(skillName.toLowerCase())
     );
-    return skill?.system.level || null;
+    if (!skill) return null;
+    // XP is the single source of truth for skill level (was reading the stale
+    // system.level field, which diverged from the XP-derived level used in rolls).
+    const level = MechFoundryActor.getSkillLevelFromXP(skill.system.xp);
+    return level >= 0 ? level : null;
   }
 
   /**
@@ -556,7 +589,7 @@ export class MechFoundryActor extends Actor {
    * @returns {Array} Array of equipped armor items
    */
   getEquippedArmor(location = null) {
-    let armor = this.items.filter(i => i.type === 'armor' && i.system.equipped);
+    let armor = this.items.filter(i => i.type === 'armor' && i.isEquipped);
     if (location) {
       armor = armor.filter(a => a.coversLocation(location));
     }
@@ -616,17 +649,8 @@ export class MechFoundryActor extends Actor {
     const skillData = skill.system;
     const targetNumber = skillData.targetNumber || 7;
 
-    // Calculate skill level from XP (Standard rate, A Time of War p.60)
-    const xp = skillData.xp || 0;
-    const costs = [20, 30, 50, 80, 120, 170, 230, 300, 380, 470, 570];
-
-    let skillLevel = -1;  // No level if less than 20 XP
-    for (let i = 10; i >= 0; i--) {
-      if (xp >= costs[i]) {
-        skillLevel = i;
-        break;
-      }
-    }
+    // Skill level from XP (single source of truth, Standard rate p.60)
+    const skillLevel = MechFoundryActor.getSkillLevelFromXP(skillData.xp);
 
     // Track linked attribute modifiers separately
     let linkMod = 0;
@@ -681,7 +705,7 @@ export class MechFoundryActor extends Actor {
     const finalTotal = successInfo.finalTotal;
 
     // Create chat message
-    const messageContent = await renderTemplate(
+    const messageContent = await foundry.applications.handlebars.renderTemplate(
       "systems/mech-foundry/templates/chat/skill-roll.hbs",
       {
         skillName: skill.name,
@@ -861,16 +885,8 @@ export class MechFoundryActor extends Actor {
     if (skillName) {
       skill = this.items.find(i => i.type === 'skill' && i.name === skillName);
       if (skill) {
-        // Calculate skill level from XP
-        const xp = skill.system.xp || 0;
-        const costs = [20, 30, 50, 80, 120, 170, 230, 300, 380, 470, 570];
-        skillLevel = -1;
-        for (let i = 10; i >= 0; i--) {
-          if (xp >= costs[i]) {
-            skillLevel = i;
-            break;
-          }
-        }
+        // Skill level from XP (single source of truth)
+        skillLevel = MechFoundryActor.getSkillLevelFromXP(skill.system.xp);
 
         // Add linked attribute modifiers
         if (skill.system.linkedAttribute1) {
@@ -949,7 +965,7 @@ export class MechFoundryActor extends Actor {
     const bdFactor = effectiveStats?.bdFactor ?? weaponData.bdFactor ?? '';
     const isSubduing = weaponData.subduing || bdFactor === 'D';
     const ammoSpecialEffects = effectiveStats?.specialEffects || [];
-    const str = this.system.attributes.str?.value || 5;
+    const str = this.system.attributes.str?.total || 5;
 
     // Get damage modifiers from equipped item effects
     const itemDamageMod = ItemEffectsHelper.getDamageModifier(this, combatType, weaponId);
@@ -1146,22 +1162,20 @@ export class MechFoundryActor extends Actor {
       const animationDuration = weaponData.animationDuration ?? 0;
 
       if (sourceToken) {
-        if (firingMode === 'suppression' && options.suppressionTemplateId) {
-          // Suppression fire: spray bullets across the template area
-          const templateDoc = canvas.scene.templates.get(options.suppressionTemplateId);
-          if (templateDoc) {
-            await AnimationHelper.playSuppressionAnimation(
-              sourceToken,
-              {
-                x: templateDoc.x,
-                y: templateDoc.y,
-                direction: templateDoc.direction,
-                distance: templateDoc.distance
-              },
-              ammoUsed,
-              { file: animationPath, bulletDelay: animationDelay, duration: animationDuration }
-            );
-          }
+        if (firingMode === 'suppression' && options.suppressionPlacement) {
+          // Suppression fire: spray bullets across the placed Region area.
+          // v14: geometry is passed through directly (no MeasuredTemplate lookup).
+          await AnimationHelper.playSuppressionAnimation(
+            sourceToken,
+            {
+              x: options.suppressionPlacement.x,
+              y: options.suppressionPlacement.y,
+              direction: options.suppressionPlacement.direction,
+              distance: options.suppressionPlacement.distance
+            },
+            ammoUsed,
+            { file: animationPath, bulletDelay: animationDelay, duration: animationDuration }
+          );
         } else if (firingMode === 'burst' || firingMode === 'controlled') {
           // Burst fire: individual bullet trajectories with hit/miss distribution
           if (targetToken && results.length > 0) {
@@ -1217,7 +1231,7 @@ export class MechFoundryActor extends Actor {
     const targetSizeKey = targetActor?.system?.personalData?.size || 'medium';
     const targetSizeLabel = sizeMod !== 0 ? sizeLabels[targetSizeKey] : null;
 
-    const messageContent = await renderTemplate(
+    const messageContent = await foundry.applications.handlebars.renderTemplate(
       "systems/mech-foundry/templates/chat/weapon-attack.hbs",
       {
         weaponName: weapon.name,
@@ -1307,6 +1321,7 @@ export class MechFoundryActor extends Actor {
         attackerName: this.name,
         targetActorId: targetActor.id,
         targetTokenId: target.id,
+        sceneId: canvas.scene?.id || null,
         weaponName: weapon.name,
         attackType: 'melee'
       });
@@ -1318,7 +1333,9 @@ export class MechFoundryActor extends Actor {
       defenderResult = await OpposedRollHelper.showDefenderDialog({
         attackerName: this.name,
         weaponName: weapon.name,
-        targetActorId: targetActor.id
+        targetActorId: targetActor.id,
+        targetTokenId: target.id,
+        sceneId: canvas.scene?.id || null
       });
     }
 
@@ -1347,15 +1364,7 @@ export class MechFoundryActor extends Actor {
     if (skillName) {
       skill = this.items.find(i => i.type === 'skill' && i.name === skillName);
       if (skill) {
-        const xp = skill.system.xp || 0;
-        const costs = [20, 30, 50, 80, 120, 170, 230, 300, 380, 470, 570];
-        skillLevel = -1;
-        for (let i = 10; i >= 0; i--) {
-          if (xp >= costs[i]) {
-            skillLevel = i;
-            break;
-          }
-        }
+        skillLevel = MechFoundryActor.getSkillLevelFromXP(skill.system.xp);
 
         if (skill.system.linkedAttribute1) {
           const attr1 = this.system.attributes[skill.system.linkedAttribute1];
@@ -1589,7 +1598,7 @@ export class MechFoundryActor extends Actor {
     }
 
     // Create chat message
-    const messageContent = await renderTemplate(
+    const messageContent = await foundry.applications.handlebars.renderTemplate(
       "systems/mech-foundry/templates/chat/opposed-roll.hbs",
       templateData
     );
@@ -1699,8 +1708,9 @@ export class MechFoundryActor extends Actor {
    * @returns {number} The modifier to apply (or 0 if after with reroll)
    */
   async burnEdge(points, timing = 'before') {
-    const edg = this.system.attributes.edg;
-    const available = edg.total - (edg.burned || 0);
+    const edg = this.system.attributes?.edg;
+    if (!edg) return 0;
+    const available = (edg.total || 0) - (edg.burned || 0);
 
     if (points > available) {
       ui.notifications.warn("Not enough Edge points available!");
@@ -1886,9 +1896,8 @@ export class MechFoundryActor extends Actor {
     // Measure distance using Foundry's grid system
     let distance;
     try {
-      const ray = new Ray(attackerToken.center, targetToken.center);
-      const segments = [{ ray }];
-      distance = canvas.grid.measureDistances(segments, { gridSpaces: false })[0];
+      // v14: Ray + measureDistances removed; use canvas.grid.measurePath
+      distance = canvas.grid.measurePath([attackerToken.center, targetToken.center]).distance;
     } catch (e) {
       return null;
     }
@@ -2022,8 +2031,8 @@ export class MechFoundryActor extends Actor {
    * Recovers fatigue points equal to BOD score (total)
    */
   async recoverFatigue() {
-    const bod = this.system.attributes.bod.total;
-    const currentFatigue = this.system.fatigue.value || 0;
+    const bod = this.system.attributes?.bod?.total || 0;
+    const currentFatigue = this.system.fatigue?.value || 0;
     const newFatigue = Math.max(0, currentFatigue - bod);
 
     await this.update({
@@ -2128,8 +2137,8 @@ export class MechFoundryActor extends Actor {
    * Roll consciousness check (TN 7)
    */
   async rollConsciousness() {
-    const wil = this.system.attributes.wil;
-    let totalMod = wil.linkMod || 0;
+    const wil = this.system.attributes?.wil;
+    let totalMod = wil?.linkMod || 0;
     totalMod += this.system.injuryModifier || 0;
     totalMod += this.system.fatigueModifier || 0;
     const targetNumber = 7;

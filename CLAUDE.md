@@ -10,6 +10,7 @@ This file provides guidance to Claude Code when working with this repository.
 
 - **Ask clarifying questions**: When a request or requirement is unclear, ambiguous, or not fully described, ask clarifying questions before proceeding. It's better to confirm intent than to make assumptions that may need to be reworked later.
 - **Reference "A Time of War" rules**: When planning or implementing game mechanics, always refer to the rules from "A Time of War" (the BattleTech tabletop RPG) as the authoritative source. This ensures the system accurately represents the intended gameplay experience and stays true to the source material.
+- **Intentional rules divergences**: The wound system (`system.wounds` and the wound types `dazed`, `concussion`, `hemorrhage`, `traumaticImpact`, `nerveDamage`, `severeStrain`, `severelyWounded` in `documents/actor.mjs`) is a **deliberate homebrew expansion** and intentionally does NOT mirror the rulebook's Specific Wound Effects table (Dazed/Deafened/Blinded/Internal Damage/Knockdown/Shattered Limb). Do not "correct" it toward the book without explicit direction.
 
 ## Foundry VTT System Development
 
@@ -20,6 +21,35 @@ This project follows Foundry VTT system development conventions. Key documentati
 - [Community Wiki Tutorial](https://foundryvtt.wiki/en/development/guides/SD-tutorial)
 - [Boilerplate System](https://github.com/asacolips-projects/boilerplate)
 - [DnD5e Reference](https://github.com/foundryvtt/dnd5e)
+
+## Foundry v14 Compatibility (REQUIRED)
+
+**This system targets Foundry VTT v14.** All existing code and any new/proposed changes
+MUST be compatible with v14. Set `compatibility.minimum` and `compatibility.verified`
+to `"14"` in `system.json`. Key v14 constraints confirmed against Foundry's release
+notes and API docs:
+
+- **MeasuredTemplate is REMOVED.** The `MeasuredTemplate` Document type no longer
+  exists in v14 — it was absorbed into the **Scene Regions** framework. Any Area-of-Effect,
+  blast, or template-placement code must use `RegionDocument` and the
+  `canvas.regions.placeRegion` API instead of creating/previewing MeasuredTemplates or
+  reading `canvas.scene.templates`.
+- **Use namespaced APIs, not globals** (the v11/v12-era globals are deprecated and some
+  are removed):
+  - `renderTemplate(...)` → `foundry.applications.handlebars.renderTemplate(...)`
+  - `mergeObject(...)` → `foundry.utils.mergeObject(...)`
+  - `new Ray(...)` + `canvas.grid.measureDistances(...)` → `canvas.grid.measurePath(...)`
+  - `CONST.CHAT_MESSAGE_TYPES` → `CONST.CHAT_MESSAGE_STYLES`
+  - `ChatMessage.create({ roll })` → `ChatMessage.create({ rolls: [roll] })`
+- **Application/Sheet framework:** ApplicationV1 (`ActorSheet`, `ItemSheet`, `Dialog`) is
+  still available in v14 but is **deprecated** (scheduled for removal ~v16). Prefer the
+  V2 framework (`foundry.applications.sheets.ActorSheetV2`, `ItemSheetV2`,
+  `foundry.applications.api.ApplicationV2`, `DialogV2`) for new work; migrating existing
+  sheets is a known, deferrable follow-up.
+- **Text editing:** Foundry is ProseMirror-only in v14 (TinyMCE removed).
+
+When implementing anything, verify the API against the v14 docs
+(`https://foundryvtt.com/api/` — version 14) rather than assuming v11/v12 behavior.
 
 ## Project Structure
 
@@ -54,8 +84,8 @@ The system manifest must include:
   "description": "A mech-based TTRPG system",
   "version": "0.1.0",
   "compatibility": {
-    "minimum": "11",
-    "verified": "12"
+    "minimum": "14",
+    "verified": "14"
   },
   "esmodules": ["module/mech-foundry.mjs"],
   "styles": ["css/mech-foundry.css"],
@@ -163,7 +193,9 @@ export class MechFoundryActor extends Actor {
 ```
 
 ### Sheet Classes
-Extend `ActorSheet` and `ItemSheet` for UI:
+Extend `ActorSheet` and `ItemSheet` for UI (note: these are ApplicationV1, deprecated in
+v14 — see the "Foundry v14 Compatibility" section; new sheets should prefer the V2
+framework):
 ```javascript
 export class MechFoundryActorSheet extends ActorSheet {
   static get defaultOptions() {
@@ -199,7 +231,7 @@ export class MechFoundryActorSheet extends ActorSheet {
 
 - System ID must be lowercase, URL-safe (e.g., `mech-foundry`)
 - Changes to template.json require world reload
-- Test with minimum supported Foundry version
+- Test against Foundry v14 (the verified/minimum target — see "Foundry v14 Compatibility")
 - Use `game.system.id` to reference system in code
 - Compendium packs go in `packs/` directory
 - **Version bumps are required**: Increment the version number in `system.json` with every update/commit
