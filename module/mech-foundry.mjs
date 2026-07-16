@@ -281,6 +281,11 @@ function _registerHandlebarsHelpers() {
     return Math.abs(value);
   });
 
+  // Uppercase a string (e.g. attribute keys shown in the Links column)
+  Handlebars.registerHelper('upper', function(value) {
+    return String(value ?? '').toUpperCase();
+  });
+
   // Not equal
   Handlebars.registerHelper('ne', function(a, b) {
     return a !== b;

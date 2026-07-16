@@ -66,7 +66,7 @@
     </div>
     <div class="xp-bar-item">
       <label>Spent XP</label>
-      <span class="xp-value spent">{{system.xp.spent}}</span>
+      <span class="xp-value spent">{{abs system.xp.spent}}</span>
     </div>
     <div class="xp-bar-item">
       <label>Total XP</label>
@@ -309,8 +309,7 @@
               <td class="skill-total-mod">{{formatMod this.effectiveLevel}}</td>
               <td class="skill-level">{{formatMod this.system.level}}</td>
               <td class="skill-links">
-                {{this.system.linkedAttribute1}}{{#if this.system.linkedAttribute2}}+{{this.system.linkedAttribute2}}{{/if}}
-                ({{formatMod this.totalLinkMod}})
+                {{#if this.system.linkedAttribute1}}{{upper this.system.linkedAttribute1}} ({{formatMod (lookup (lookup @root.system.attributes this.system.linkedAttribute1) "linkMod")}}){{/if}}{{#if this.system.linkedAttribute2}} {{upper this.system.linkedAttribute2}} ({{formatMod (lookup (lookup @root.system.attributes this.system.linkedAttribute2) "linkMod")}}){{/if}}
               </td>
               <td class="skill-tn">{{this.system.targetNumber}}/{{this.system.complexity}}</td>
               <td class="skill-xp">
