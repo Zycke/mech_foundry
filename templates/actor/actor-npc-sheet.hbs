@@ -1,7 +1,7 @@
-<form class="{{cssClass}} mech-foundry npc-sheet" autocomplete="off">
+<div class="actor-sheet-content">
   {{!-- Sheet Header --}}
   <header class="sheet-header">
-    <img class="profile-img" src="{{actor.img}}" data-edit="img" title="{{actor.name}}" height="80" width="80"/>
+    <img class="profile-img" src="{{actor.img}}" data-action="editImage" data-edit="img" title="{{actor.name}}" height="80" width="80"/>
     <div class="header-fields">
       <h1 class="charname">
         <input name="name" type="text" value="{{actor.name}}" placeholder="{{localize 'MECHFOUNDRY.Name'}}"/>
@@ -168,4 +168,4 @@
     </div>
 
   </section>
-</form>
+</div>
