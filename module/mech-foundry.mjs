@@ -23,6 +23,7 @@ import { MechFoundryShipSheet } from "./sheets/ship-sheet.mjs";
 
 // Import helper/utility classes
 import { preloadHandlebarsTemplates } from "./helpers/templates.mjs";
+import { registerSeederSettings, seedLifeModules } from "./helpers/life-module-seeder.mjs";
 import { SocketHandler, SOCKET_EVENTS } from "./helpers/socket-handler.mjs";
 import { OpposedRollHelper } from "./helpers/opposed-rolls.mjs";
 import { DiceMechanics } from "./helpers/dice-mechanics.mjs";
@@ -92,6 +93,9 @@ Hooks.once('init', function() {
 
   // Register system settings
   _registerSystemSettings();
+
+  // Register the one-time life-module seed tracking flag
+  registerSeederSettings();
 });
 
 /* -------------------------------------------- */
@@ -100,6 +104,9 @@ Hooks.once('init', function() {
 
 Hooks.once('ready', function() {
   console.log("Mech Foundry | System Ready");
+
+  // Seed the Life Modules compendium on first load (GM only, idempotent)
+  seedLifeModules();
 
   // Initialize socket handler for cross-player communication
   SocketHandler.initialize();

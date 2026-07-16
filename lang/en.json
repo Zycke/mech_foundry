@@ -3,6 +3,18 @@
   "MECHFOUNDRY.SheetActor": "Mech Foundry Actor Sheet",
   "MECHFOUNDRY.SheetItem": "Mech Foundry Item Sheet",
 
+  "TYPES.Item.lifeModule": "Life Module",
+  "MECHFOUNDRY.LifeStage0": "Stage 0 — Affiliation",
+  "MECHFOUNDRY.LifeStage1": "Stage 1 — Early Childhood",
+  "MECHFOUNDRY.LifeStage2": "Stage 2 — Late Childhood",
+  "MECHFOUNDRY.LifeStage3": "Stage 3 — Higher Education",
+  "MECHFOUNDRY.LifeStage4": "Stage 4 — Real Life",
+  "MECHFOUNDRY.ModuleType.affiliation": "Affiliation",
+  "MECHFOUNDRY.ModuleType.childhood": "Childhood",
+  "MECHFOUNDRY.ModuleType.education": "Higher Education",
+  "MECHFOUNDRY.ModuleType.reallife": "Real Life",
+  "MECHFOUNDRY.ModuleType.field": "Field",
+
   "MECHFOUNDRY.Fumble": "FUMBLE!",
   "MECHFOUNDRY.StunningSuccess": "Stunning Success!",
   "MECHFOUNDRY.MiraculousFeat": "MIRACULOUS FEAT!",

@@ -92,6 +92,32 @@ const overspent = CB.createState({ startingXP: 100 });
 CB.applyModule(overspent, { stage: 0, xpCost: 500 });
 ok(CB.validate(overspent).some(i => i.code === 'pool-overspent'), 'validation flags an overspent pool');
 
+/* ---- Seed data integrity ------------------------------------------------ */
+const { LIFE_MODULE_SEED } = await import('../module/data/life-modules.mjs');
+ok(Array.isArray(LIFE_MODULE_SEED) && LIFE_MODULE_SEED.length > 0, 'seed data is a non-empty array');
+let seedOk = true;
+for (const e of LIFE_MODULE_SEED) {
+  if (e.type !== 'lifeModule' || !e.name || !e.system) seedOk = false;
+  const sys = e.system || {};
+  if (![0, 1, 2, 3, 4].includes(sys.stage)) seedOk = false;
+  if (sys.fixedXP && !Array.isArray(sys.fixedXP.skills)) seedOk = false;
+  if (sys.flexibleXP && !Array.isArray(sys.flexibleXP)) seedOk = false;
+}
+ok(seedOk, 'every seed entry has a valid lifeModule shape');
+
+// Applying every seed module must not throw and must keep XP accounting sane.
+let applyOk = true;
+try {
+  const st = CB.createState();
+  CB.applyUniversalFixedXP(st, { primaryLanguageName: 'Test' });
+  for (const e of LIFE_MODULE_SEED) {
+    if (e.system.affiliationKey === 'universal') continue; // engine applies this itself
+    CB.applyModule(st, e.system, { id: e.name, name: e.name });
+  }
+  CB.derive(st);
+} catch (_e) { applyOk = false; }
+ok(applyOk, 'all seed modules apply through the engine without error');
+
 /* ---- Result ------------------------------------------------------------- */
 if (failed) { console.error(`\n${failed} check(s) FAILED`); process.exit(1); }
 console.log('\nAll character-builder checks passed.');

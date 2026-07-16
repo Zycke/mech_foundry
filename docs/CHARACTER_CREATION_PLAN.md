@@ -218,8 +218,16 @@ All grants routed through **one helper** (`grantToActor`) so the wizard and any 
    resolution, free-spend, derive, validate). Regression suite in
    `tests/character-builder.test.mjs` (`node tests/character-builder.test.mjs`, all passing).
    GM-tunable world settings added: `creationStartingXP`, `creationStrictness`. *No UI yet.*
-2. **M2 — `lifeModule` item type + compendium scaffold** + Universal Fixed XP + all Stage 0
-   affiliations seeded. Draggable/editable in-app.
+2. **M2 — `lifeModule` item type + compendium. ✅ DONE.** New `lifeModule` Item type
+   (template.json) with a GM-editable sheet (`templates/item/item-lifeModule-sheet.hbs`:
+   scalar fields + guarded JSON editors for the structured fixedXP/flexibleXP/prerequisites,
+   parsed in `item-sheet.mjs`). System compendium `mech-foundry.life-modules` declared in
+   system.json, auto-seeded once per world (GM-only, idempotent, respects a cleared pack) by
+   `helpers/life-module-seeder.mjs` from the canonical `module/data/life-modules.mjs`. Starter
+   set: the Universal allotment, a fully-transcribed Capellan (House Liao) Stage 0 affiliation,
+   and clearly-labelled EXAMPLE modules for Stages 1–4. Everything is a normal, editable Item.
+   Seed integrity + apply-through-engine covered by the regression suite. Full-catalogue
+   transcription remains the M8 data track.
 3. **M3 — Wizard shell (ApplicationV2)**: stepper, footer, Concept + Affiliation + Phenotype
    steps writing to builder state; Review preview (no commit yet).
 4. **M4 — Stages 1–4 steps + flexible-XP resolver.** Full Life Module flow end-to-end into
