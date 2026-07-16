@@ -89,7 +89,8 @@ steps, commit path). Needs runtime testing on a live v14 world (per §0).
 - [?] **M6 — Point-Buy quick path** — **DEFERRED / may not be needed.** Free-form spend of
       the XP pool as an alternative to Life Modules. Engine already has `spendPool`; would
       add a single-screen step. Revisit only if wanted.
-- [~] **M7 — Validation & quality polish** (mostly done; needs live-world testing):
+- [x] **M7 — Validation & quality polish** (complete apart from the deferred aging pass;
+      needs live-world testing):
     - [x] **Affiliation legality**: `restrictedToAffiliations` honoured — `isModuleLegal`,
           a validation error, and a "Restricted" badge on illegal stage cards.
     - [x] **Stage rules**: Next is gated until affiliation / Stage 1 / Stage 2 are chosen
@@ -110,8 +111,8 @@ steps, commit path). Needs runtime testing on a live v14 world (per §0).
           1,000); Equipped Trait yields the max equipment rating (D/B/B…) shown in Review and
           the sheet summary. Gear itself is bought via the existing inventory (compatible with
           the equipment item schema — no changes needed).
-    - [ ] Aging effects (book pp.332–333) as an optional post-creation pass — the last open
-          M7 item (deprioritised).
+    - [?] Aging effects (book pp.332–333) as an optional post-creation pass — **DEFERRED**
+          (not needed for now; revisit on request).
 - [ ] **M8 (data track)** — transcribe the full A Time of War module/affiliation catalogue
       against the schema (the seed ships only Capellan + labelled examples).
 
