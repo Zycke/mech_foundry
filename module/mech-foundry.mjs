@@ -49,6 +49,8 @@ Hooks.once('init', function() {
     CharacterWizard,
     /** Open the character-creation wizard, optionally bound to an actor. */
     openCharacterWizard: (actor = null) => new CharacterWizard({ actor }).render(true),
+    /** Manually (re)seed the Life Modules compendium, adding any missing starters. */
+    reseedLifeModules: () => seedLifeModules({ force: true }),
     config: MECHFOUNDRY
   };
 
