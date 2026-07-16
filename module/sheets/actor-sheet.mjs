@@ -1,6 +1,7 @@
 import { MechFoundryActor } from '../documents/actor.mjs';
 import { OpposedRollHelper } from '../helpers/opposed-rolls.mjs';
 import { ItemEffectsHelper } from '../helpers/effects-helper.mjs';
+import { CharacterWizard } from '../apps/character-wizard.mjs';
 
 const { HandlebarsApplicationMixin } = foundry.applications.api;
 const { ActorSheetV2 } = foundry.applications.sheets;
@@ -36,10 +37,29 @@ export class MechFoundryActorSheet extends HandlebarsApplicationMixin(ActorSheet
     form: { submitOnChange: true, closeOnSubmit: false },
     window: { resizable: true },
     actions: {
-      editImage: MechFoundryActorSheet._onEditImage
+      editImage: MechFoundryActorSheet._onEditImage,
+      launchWizard: MechFoundryActorSheet._onLaunchWizard
     },
     dragDrop: [{ dragSelector: ".item", dropSelector: null }]
   };
+
+  /** @override — add a "Character Builder" control for player characters. */
+  _getHeaderControls() {
+    const controls = super._getHeaderControls();
+    if (this.actor.type === 'character') {
+      controls.push({
+        icon: 'fa-solid fa-hat-wizard',
+        label: 'MECHFOUNDRY.WizardTitle',
+        action: 'launchWizard'
+      });
+    }
+    return controls;
+  }
+
+  /** Open the step-by-step character-creation wizard for this actor. */
+  static _onLaunchWizard() {
+    new CharacterWizard({ actor: this.actor }).render(true);
+  }
 
   /** Placeholder; real template chosen per actor type in _configureRenderParts. */
   static PARTS = {

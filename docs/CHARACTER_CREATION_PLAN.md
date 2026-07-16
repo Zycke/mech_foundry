@@ -228,8 +228,14 @@ All grants routed through **one helper** (`grantToActor`) so the wizard and any 
    and clearly-labelled EXAMPLE modules for Stages 1–4. Everything is a normal, editable Item.
    Seed integrity + apply-through-engine covered by the regression suite. Full-catalogue
    transcription remains the M8 data track.
-3. **M3 — Wizard shell (ApplicationV2)**: stepper, footer, Concept + Affiliation + Phenotype
-   steps writing to builder state; Review preview (no commit yet).
+3. **M3 — Wizard shell (ApplicationV2). ✅ DONE.** `module/apps/character-wizard.mjs` +
+   `templates/apps/character-wizard.hbs`: stepper, live footer (XP remaining / age),
+   Back/Next. Concept, Affiliation (reads Stage 0 modules from the compendium, applies the
+   universal allotment + affiliation to builder state), and Phenotype (from CONFIG) steps, plus
+   a live Review preview (derived attributes/skills/traits + validation report). Launch via a
+   "Character Builder" header control on the character sheet and
+   `game.mechfoundry.openCharacterWizard(actor)`. Finish is a preview endpoint — no actor
+   mutation yet (that is M5). Themed to the gritty HUD.
 4. **M4 — Stages 1–4 steps + flexible-XP resolver.** Full Life Module flow end-to-end into
    the Review preview.
 5. **M5 — Commit path** (`grantToActor`, item creation, actor update) + sheet summary +

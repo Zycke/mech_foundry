@@ -24,6 +24,7 @@ import { MechFoundryShipSheet } from "./sheets/ship-sheet.mjs";
 // Import helper/utility classes
 import { preloadHandlebarsTemplates } from "./helpers/templates.mjs";
 import { registerSeederSettings, seedLifeModules } from "./helpers/life-module-seeder.mjs";
+import { CharacterWizard } from "./apps/character-wizard.mjs";
 import { SocketHandler, SOCKET_EVENTS } from "./helpers/socket-handler.mjs";
 import { OpposedRollHelper } from "./helpers/opposed-rolls.mjs";
 import { DiceMechanics } from "./helpers/dice-mechanics.mjs";
@@ -44,6 +45,9 @@ Hooks.once('init', function() {
     ItemEffectsHelper,
     EFFECT_CATEGORIES,
     getEffectTypeOptions,
+    CharacterWizard,
+    /** Open the character-creation wizard, optionally bound to an actor. */
+    openCharacterWizard: (actor = null) => new CharacterWizard({ actor }).render(true),
     config: MECHFOUNDRY
   };
 
