@@ -146,9 +146,9 @@ export class MechFoundryActorSheet extends foundry.appv1.sheets.ActorSheet {
     this._prepareItems(context);
 
     // Enrich biography
-    context.enrichedBiography = await TextEditor.enrichHTML(
+    context.enrichedBiography = await foundry.applications.ux.TextEditor.implementation.enrichHTML(
       this.actor.system.biography,
-      { async: true }
+      { relativeTo: this.actor }
     );
 
     // Prepare life stages data with default modules for single-module stages

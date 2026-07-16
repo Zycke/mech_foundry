@@ -137,9 +137,9 @@ export class MechFoundryCompanySheet extends foundry.appv1.sheets.ActorSheet {
     this._prepareMTOEActors(context);
 
     // Enrich biography
-    context.enrichedBiography = await TextEditor.enrichHTML(
+    context.enrichedBiography = await foundry.applications.ux.TextEditor.implementation.enrichHTML(
       this.actor.system.biography || "",
-      { async: true }
+      { relativeTo: this.actor }
     );
 
     return context;

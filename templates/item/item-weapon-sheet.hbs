@@ -1,6 +1,5 @@
-<form class="{{cssClass}} mech-foundry item-sheet weapon-sheet" autocomplete="off">
   <header class="sheet-header">
-    <img class="item-img" src="{{item.img}}" data-edit="img" title="{{item.name}}"/>
+    <img class="item-img" src="{{item.img}}" data-action="editImage" data-edit="img" title="{{item.name}}"/>
     <div class="header-fields">
       <h1 class="item-name">
         <input name="name" type="text" value="{{item.name}}" placeholder="Weapon Name"/>
@@ -143,10 +142,10 @@
           {{#each system.ammoCompatibility}}
           <div class="tag-item" data-index="{{@index}}">
             <input type="text" name="system.ammoCompatibility.{{@index}}" value="{{this}}"/>
-            <a class="remove-ammo-tag" data-index="{{@index}}" title="Remove"><i class="fas fa-times"></i></a>
+            <a class="remove-ammo-tag" data-action="removeAmmoTag" data-index="{{@index}}" title="Remove"><i class="fas fa-times"></i></a>
           </div>
           {{/each}}
-          <a class="add-ammo-tag" title="Add Tag"><i class="fas fa-plus"></i> Add Tag</a>
+          <a class="add-ammo-tag" data-action="addAmmoTag" title="Add Tag"><i class="fas fa-plus"></i> Add Tag</a>
         </div>
         <p class="hint">Tags for compatible ammo types: slug-thrower, rifle, shotgun, energy, laser, grenade-launcher, etc.</p>
       </div>
@@ -213,4 +212,3 @@
       </div>
     </div>
   </section>
-</form>
