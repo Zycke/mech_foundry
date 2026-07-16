@@ -3,64 +3,74 @@ import { LIFE_MODULE_SEED } from '../data/life-modules.mjs';
 /**
  * life-module-seeder.mjs
  * ----------------------
- * Populates the `mech-foundry.life-modules` compendium with the starter set the
- * first time a world loads (milestone M2). Everything it creates is a normal,
- * fully GM-editable `lifeModule` Item — the GM can unlock the pack and edit,
- * add, or delete entries freely afterwards.
+ * Populates the `mech-foundry.life-modules` compendium with the starter set.
+ * Everything it creates is a normal, fully GM-editable `lifeModule` Item.
  *
- * Idempotent and non-destructive: it only imports when the pack is empty and it
- * has never seeded this world before (tracked by a world setting), so a GM who
- * clears the pack on purpose will not have it silently repopulated.
+ * The seed content is generated at runtime rather than shipped as a compiled
+ * LevelDB (no Foundry CLI in this workflow), so the on-disk pack is empty on a
+ * fresh checkout/update. Because of that the rule is simply: **if the pack is
+ * empty, seed it.** This self-heals after a system update replaces the pack
+ * directory. A GM who deletes individual modules keeps those deletions (we only
+ * ever add entries whose name is not already present, and only auto-seed when
+ * the pack is completely empty). `force: true` re-adds any missing seed entries
+ * even when the pack already has content (used by the manual re-seed command).
  */
 
 const PACK_ID = 'mech-foundry.life-modules';
-const SEEDED_FLAG = 'lifeModulesSeeded';
 
-/** Register the one-time-seed tracking flag. Call from the init hook. */
+/**
+ * Kept for backwards compatibility (older worlds registered this flag). The
+ * seeder no longer gates on it — emptiness of the pack is the source of truth.
+ */
 export function registerSeederSettings() {
-  game.settings.register('mech-foundry', SEEDED_FLAG, {
-    scope: 'world',
-    config: false,
-    type: Boolean,
-    default: false
+  if (game.settings.settings.has('mech-foundry.lifeModulesSeeded')) return;
+  game.settings.register('mech-foundry', 'lifeModulesSeeded', {
+    scope: 'world', config: false, type: Boolean, default: false
   });
 }
 
 /**
- * Seed the compendium if appropriate. Safe to call unconditionally on ready;
- * it no-ops unless the current user is the GM, the pack exists and is empty,
- * and it has not been seeded before.
+ * Seed the compendium. Safe to call on every `ready`.
+ * @param {object} [opts]
+ * @param {boolean} [opts.force]   Add missing seed entries even if the pack is
+ *                                 non-empty (manual re-seed). Also surfaces a
+ *                                 notification when nothing needed adding.
+ * @returns {Promise<number>} how many documents were created
  */
-export async function seedLifeModules() {
-  if (!game.user?.isGM) return;
+export async function seedLifeModules({ force = false } = {}) {
+  if (!game.user?.isGM) return 0;
 
   const pack = game.packs?.get(PACK_ID);
   if (!pack) {
     console.warn(`mech-foundry | Life Modules pack "${PACK_ID}" not found; skipping seed.`);
-    return;
+    if (force) ui.notifications?.warn('Mech Foundry: Life Modules compendium not found.');
+    return 0;
   }
 
-  // Respect a GM who has intentionally emptied the pack.
-  if (game.settings.get('mech-foundry', SEEDED_FLAG)) return;
-
   const index = await pack.getIndex();
-  if (index.size > 0) {
-    // Pack already has content (e.g. from a prior version); mark as seeded.
-    await game.settings.set('mech-foundry', SEEDED_FLAG, true);
-    return;
+  // Auto-seed only when empty; a populated pack is left alone unless forced.
+  if (index.size > 0 && !force) return 0;
+
+  const existingNames = new Set(index.map(e => e.name));
+  const toCreate = LIFE_MODULE_SEED.filter(e => !existingNames.has(e.name));
+  if (!toCreate.length) {
+    if (force) ui.notifications?.info('Mech Foundry: Life Modules compendium already up to date.');
+    return 0;
   }
 
   try {
     const wasLocked = pack.locked;
     if (wasLocked) await pack.configure({ locked: false });
 
-    await Item.createDocuments(foundry.utils.deepClone(LIFE_MODULE_SEED), { pack: PACK_ID });
+    await Item.createDocuments(foundry.utils.deepClone(toCreate), { pack: PACK_ID });
 
     if (wasLocked) await pack.configure({ locked: true });
-    await game.settings.set('mech-foundry', SEEDED_FLAG, true);
-    console.log(`mech-foundry | Seeded ${LIFE_MODULE_SEED.length} life modules into ${PACK_ID}.`);
-    ui.notifications?.info(`Mech Foundry: seeded ${LIFE_MODULE_SEED.length} starter life modules into the Life Modules compendium.`);
+    console.log(`mech-foundry | Seeded ${toCreate.length} life module(s) into ${PACK_ID}.`);
+    ui.notifications?.info(`Mech Foundry: added ${toCreate.length} starter life module(s) to the Life Modules compendium.`);
+    return toCreate.length;
   } catch (err) {
     console.error('mech-foundry | Failed to seed life modules:', err);
+    ui.notifications?.error('Mech Foundry: failed to seed Life Modules (see console). The pack may be read-only.');
+    return 0;
   }
 }
