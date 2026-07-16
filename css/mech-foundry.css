@@ -5300,29 +5300,45 @@
 .mech-foundry .item-delete:hover { color: var(--mf-danger); text-shadow: 0 0 6px rgba(217,72,59,0.5); }
 .mech-foundry .weapon-attack-roll:hover { color: var(--mf-danger); }
 
-/* ---- Inputs / selects: dark terminal fields ---------------- */
-.mech-foundry input[type="text"],
-.mech-foundry input[type="number"],
-.mech-foundry select,
-.mech-foundry textarea {
+/* ---- Inputs / selects: dark terminal fields ----------------
+   Scoped to the sheet content wrappers so they never restyle the
+   ApplicationV2 window frame (header controls, etc.). */
+.mech-foundry .actor-sheet-content input[type="text"],
+.mech-foundry .actor-sheet-content input[type="number"],
+.mech-foundry .actor-sheet-content select,
+.mech-foundry .actor-sheet-content textarea,
+.mech-foundry .item-sheet-content input[type="text"],
+.mech-foundry .item-sheet-content input[type="number"],
+.mech-foundry .item-sheet-content select,
+.mech-foundry .item-sheet-content textarea {
   background: #0f1317;
   border: 1px solid var(--mf-line);
   border-radius: 2px;
   color: var(--mf-ink);
   font-family: var(--mf-font-body);
 }
-.mech-foundry input[type="number"] { font-family: var(--mf-font-mono); }
-.mech-foundry input:focus,
-.mech-foundry select:focus,
-.mech-foundry textarea:focus {
+.mech-foundry .actor-sheet-content input[type="number"],
+.mech-foundry .item-sheet-content input[type="number"] { font-family: var(--mf-font-mono); }
+.mech-foundry .actor-sheet-content input:focus,
+.mech-foundry .actor-sheet-content select:focus,
+.mech-foundry .actor-sheet-content textarea:focus,
+.mech-foundry .item-sheet-content input:focus,
+.mech-foundry .item-sheet-content select:focus,
+.mech-foundry .item-sheet-content textarea:focus {
   outline: none;
   border-color: var(--mf-amber);
   box-shadow: 0 0 0 1px rgba(242,165,58,0.35);
 }
-.mech-foundry label { color: var(--mf-ink-dim); }
+.mech-foundry .actor-sheet-content label,
+.mech-foundry .item-sheet-content label { color: var(--mf-ink-dim); }
 
-/* ---- Buttons ---------------------------------------------- */
-.mech-foundry button {
+/* ---- Buttons ----------------------------------------------
+   Scoped to content wrappers: the ApplicationV2 window-frame header
+   controls (close / copy-uuid / toggle-controls) are <button>s that
+   carry their icon font on the element itself; an unscoped
+   font-family override there renders them as "missing" glyphs. */
+.mech-foundry .actor-sheet-content button,
+.mech-foundry .item-sheet-content button {
   background: var(--mf-panel-2);
   border: 1px solid var(--mf-steel);
   border-radius: 2px;
@@ -5332,7 +5348,8 @@
   text-transform: uppercase;
   cursor: pointer;
 }
-.mech-foundry button:hover { border-color: var(--mf-amber); color: var(--mf-amber-2); }
+.mech-foundry .actor-sheet-content button:hover,
+.mech-foundry .item-sheet-content button:hover { border-color: var(--mf-amber); color: var(--mf-amber-2); }
 
 /* ---- Attribute cells (readout look) ----------------------- */
 .mech-foundry .attribute-compact,
@@ -5379,3 +5396,109 @@
 /* ---- Editor / biography ----------------------------------- */
 .mech-foundry .editor-container,
 .mech-foundry .editor { background: var(--mf-panel); border: 1px solid var(--mf-line); border-radius: 2px; color: var(--mf-ink); }
+
+/* ============================================================
+   Dark-theme normalization (BattleTech gritty HUD)
+   Appended last so it wins the cascade. The original stylesheet
+   was authored as a LIGHT theme (cream --mf-light / white
+   --mf-bg-light backgrounds with dark text); these rules retune
+   the shared tokens and the remaining light surfaces so every
+   sheet tab reads correctly on the dark palette, and fix the
+   row-control vertical alignment reported in review.
+   ============================================================ */
+
+/* 1. Background-only token: every section that used a white panel
+      (attributes, inventory categories, biography, effects, etc.)
+      flips to a gunmetal panel in one move. */
+:root {
+  --mf-bg-light: #1c232a;   /* was #ffffff */
+  --mf-text-muted: var(--mf-ink-dim);
+}
+
+/* 2. Remaining hard-coded light surfaces -> dark panels. */
+.mech-foundry .effect-row,
+.mech-foundry .effect-row:hover,
+.mech-foundry.activeeffect-sheet .modifier-row,
+.mech-foundry .compatibility-tags,
+.mech-foundry .special-effects-list {
+  background: var(--mf-panel-2);
+  border-color: var(--mf-line);
+}
+.mech-foundry .effect-row:hover { border-color: var(--mf-steel); }
+.mech-foundry .cbills-section input,
+.mech-foundry .personal-data-grid input { background: #0f1317; }
+.mech-foundry .medical-subpanel { background: rgba(0,0,0,0.22); }
+
+/* 3. Data text: make it read light on the dark panels. Original
+      rules set dark/teal text tuned for white backgrounds. */
+.mech-foundry .actor-sheet-content td,
+.mech-foundry .actor-sheet-content th,
+.mech-foundry .item-sheet-content td,
+.mech-foundry .item-sheet-content th,
+.mech-foundry .effects-table td,
+.mech-foundry .effects-table th,
+.mech-foundry .effect-row,
+.mech-foundry .effect-row .effect-name,
+.mech-foundry .medical-panel,
+.mech-foundry .medical-subpanel,
+.mech-foundry .medical-status-row,
+.mech-foundry .attribute-name,
+.mech-foundry .attributes-table .attribute-name { color: var(--mf-ink); }
+
+/* Names that need to "pop" per review: brighter ink + weight. */
+.mech-foundry .skill-name,
+.mech-foundry .weapon-name,
+.mech-foundry .item-name,
+.mech-foundry .effect-row .effect-name,
+.mech-foundry .attribute-name {
+  color: var(--mf-ink);
+  font-weight: 600;
+}
+
+/* Numeric readouts: amber so scores/targets stand out. */
+.mech-foundry .score-display,
+.mech-foundry .skill-target-number,
+.mech-foundry .attribute-score input { color: var(--mf-amber); font-weight: 700; }
+
+/* Link modifiers keep the mono readout but with a touch more life. */
+.mech-foundry .link-mod { color: var(--mf-amber-2); }
+
+/* Section / category headers pop against the panels. */
+.mech-foundry .section-title,
+.mech-foundry .inventory-category .section-title,
+.mech-foundry .effects-category > .section-title,
+.mech-foundry .items-header h3 {
+  background: var(--mf-panel-2);
+  color: var(--mf-amber-2);
+  border-left: 3px solid var(--mf-amber);
+  letter-spacing: 0.03em;
+}
+
+/* Cover / stance selects inherit the dark field styling; ensure
+   their text is light even where the rule set a light background. */
+.mech-foundry .cover-select { color: var(--mf-ink); }
+
+/* "Add Effect" and similar action links were too faint. */
+.mech-foundry .add-effect,
+.mech-foundry .effect-create,
+.mech-foundry .add-effect-btn { color: var(--mf-amber); }
+.mech-foundry .add-effect:hover,
+.mech-foundry .effect-create:hover,
+.mech-foundry .add-effect-btn:hover { color: var(--mf-amber-2); }
+
+/* 4. Row-control vertical alignment: edit/delete/roll icons were
+      sitting high relative to the row text (both in flex list rows
+      and in inventory table rows). */
+.mech-foundry .item-controls,
+.mech-foundry .effect-controls { align-items: center; }
+.mech-foundry .item-controls a,
+.mech-foundry .effect-controls a {
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
+}
+.mech-foundry .inventory-table td,
+.mech-foundry .inventory-table th,
+.mech-foundry .effects-table td,
+.mech-foundry .effects-table th { vertical-align: middle; }
+.mech-foundry .inventory-table td .item-controls { justify-content: flex-end; }
