@@ -1724,7 +1724,9 @@
       <div class="biography-section">
         <h3 class="section-title">Other Notes</h3>
         <div class="editor-container">
-          {{editor system.biography target="system.biography" button=true owner=owner editable=editable}}
+          {{#if editable}}
+          <prose-mirror name="system.biography" data-document-uuid="{{actor.uuid}}" value="{{system.biography}}" collaborate="false" toggled="true">{{{enrichedBiography}}}</prose-mirror>
+          {{else}}{{{enrichedBiography}}}{{/if}}
         </div>
       </div>
     </div>

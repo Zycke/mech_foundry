@@ -12,6 +12,8 @@
   <div class="placeholder-content">
     <h3>Vehicle Sheet</h3>
     <p>This vehicle sheet is a placeholder and will be expanded in a future update.</p>
-    {{editor enrichedBiography target="system.biography" button=true owner=owner editable=editable}}
+    {{#if editable}}
+    <prose-mirror name="system.biography" data-document-uuid="{{actor.uuid}}" value="{{system.biography}}" collaborate="false" toggled="true">{{{enrichedBiography}}}</prose-mirror>
+    {{else}}{{{enrichedBiography}}}{{/if}}
   </div>
 </section>
