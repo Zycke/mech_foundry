@@ -5577,3 +5577,49 @@
   opacity: 1;
 }
 .mech-foundry .xp-bar .xp-value { color: var(--mf-ink); }
+
+/* ============================================================
+   Review round 4: weapon-ammo alignment + inventory header bar
+   ============================================================ */
+
+/* The .weapon-ammo <td> was display:flex, so (like the other flex
+   <td>s) it doesn't stretch to the table row height: single-line
+   ammo floated to the top while wrapped multi-line ammo filled the
+   cell. Make it a normal table-cell so vertical-align:middle centers
+   the whole ammo block regardless of how many lines it takes. */
+.mech-foundry td.weapon-ammo {
+  display: table-cell;
+  vertical-align: middle;
+}
+.mech-foundry td.weapon-ammo .ammo-type-label { margin-left: 4px; }
+
+/* Inventory header bar: match the (now-legible) XP bar treatment -
+   gunmetal panel, amber labels, dark value boxes with light text -
+   instead of the light teal/blue gradient with faint grey text. */
+.mech-foundry .inventory-header-bar {
+  background: linear-gradient(180deg, #10151a 0%, #202a33 60%, #171d23 100%);
+  border: 1px solid var(--mf-line);
+  border-radius: 3px;
+}
+.mech-foundry .inventory-header-bar label {
+  color: var(--mf-amber);
+  font-family: var(--mf-font-head);
+  letter-spacing: 0.05em;
+  opacity: 1;
+}
+.mech-foundry .inventory-header-bar .cbills-section input {
+  background: #0f1317;
+  color: var(--mf-ink);
+  border: 1px solid var(--mf-steel);
+}
+.mech-foundry .inventory-header-bar .weight-value {
+  color: var(--mf-ink);
+  background: rgba(0, 0, 0, 0.25);
+}
+
+/* On the darkened inventory bar, the 'overloaded' badge's darkred text
+   is nearly invisible; brighten it (and firm up its background). */
+.mech-foundry .inventory-header-bar .encumbrance-status.overloaded {
+  background: rgba(217, 72, 59, 0.35);
+  color: #ff6f61;
+}
