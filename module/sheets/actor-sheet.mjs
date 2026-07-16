@@ -382,8 +382,10 @@ export class MechFoundryActorSheet extends foundry.appv1.sheets.ActorSheet {
     context.vehicles = vehicles;
 
     // Filter equipped items for combat tab
-    context.equippedWeapons = weapons.filter(w => w.isEquipped);
-    context.equippedArmor = armor.filter(a => a.isEquipped);
+    // weapons/armor here are plain objects (toObject), so check carryStatus
+    // directly rather than the document's isEquipped getter.
+    context.equippedWeapons = weapons.filter(w => w.system.carryStatus === 'equipped');
+    context.equippedArmor = armor.filter(a => a.system.carryStatus === 'equipped');
 
     // Calculate total armor per body part
     context.totalArmor = this._calculateTotalArmor(context.equippedArmor);
@@ -402,7 +404,7 @@ export class MechFoundryActorSheet extends foundry.appv1.sheets.ActorSheet {
 
     // Calculate highest equipped BAR (M type as default)
     context.equippedBAR = armor
-      .filter(a => a.isEquipped)
+      .filter(a => a.system.carryStatus === 'equipped')
       .reduce((max, a) => Math.max(max, a.system.bar?.m || 0), 0);
 
     // Add active effects - split into categories
