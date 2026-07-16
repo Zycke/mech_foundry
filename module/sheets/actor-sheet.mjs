@@ -1,27 +1,134 @@
 import { OpposedRollHelper } from '../helpers/opposed-rolls.mjs';
 import { ItemEffectsHelper } from '../helpers/effects-helper.mjs';
 
-/**
- * Extend the basic ActorSheet with modifications for Mech Foundry
- * Based on A Time of War mechanics
- * @extends {ActorSheet}
- */
-export class MechFoundryActorSheet extends foundry.appv1.sheets.ActorSheet {
+const { HandlebarsApplicationMixin } = foundry.applications.api;
+const { ActorSheetV2 } = foundry.applications.sheets;
 
-  /** @override */
-  static get defaultOptions() {
-    return foundry.utils.mergeObject(super.defaultOptions, {
-      classes: ["mech-foundry", "sheet", "actor"],
-      width: 850,
-      height: 750,
-      tabs: [{ navSelector: ".sheet-tabs", contentSelector: ".sheet-body", initial: "attributes" }],
-      dragDrop: [{ dragSelector: ".item", dropSelector: null }]
-    });
+/**
+ * Actor sheet for characters and NPCs (Foundry v14 ApplicationV2).
+ *
+ * First-pass V2 migration: the class scaffolding (options, parts, context,
+ * drag/drop) is V2, but the large body of jQuery event handlers is reused
+ * verbatim via `_activateSheetListeners` inside `_onRender`. Converting those to
+ * V2 `actions` is a later cleanup.
+ *
+ * @extends {ActorSheetV2}
+ */
+export class MechFoundryActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
+
+  /** Active tab id, preserved across submitOnChange re-renders. */
+  #activeTab = null;
+  #dragDrop;
+  #listenersBound = false;
+
+  constructor(options = {}) {
+    super(options);
+    this.#dragDrop = this.#createDragDropHandlers();
   }
 
   /** @override */
-  get template() {
-    return `systems/mech-foundry/templates/actor/actor-${this.actor.type}-sheet.hbs`;
+  static DEFAULT_OPTIONS = {
+    classes: ["mech-foundry", "sheet", "actor"],
+    position: { width: 850, height: 750 },
+    tag: "form",
+    form: { submitOnChange: true, closeOnSubmit: false },
+    window: { resizable: true },
+    actions: {
+      editImage: MechFoundryActorSheet._onEditImage
+    },
+    dragDrop: [{ dragSelector: ".item", dropSelector: null }]
+  };
+
+  /** Placeholder; real template chosen per actor type in _configureRenderParts. */
+  static PARTS = {
+    form: { template: "systems/mech-foundry/templates/actor/actor-character-sheet.hbs" }
+  };
+
+  /** @override */
+  _configureRenderParts(options) {
+    const parts = super._configureRenderParts(options);
+    parts.form = { template: `systems/mech-foundry/templates/actor/actor-${this.actor.type}-sheet.hbs` };
+    return parts;
+  }
+
+  /* -------------------------------------------- */
+  /*  Image action                                */
+  /* -------------------------------------------- */
+
+  static async _onEditImage(event, target) {
+    const attr = target.dataset.edit || "img";
+    const current = foundry.utils.getProperty(this.document, attr);
+    const fp = new foundry.applications.apps.FilePicker.implementation({
+      type: "image",
+      current,
+      callback: (path) => this.document.update({ [attr]: path })
+    });
+    return fp.browse();
+  }
+
+  /* -------------------------------------------- */
+  /*  Drag and Drop                               */
+  /* -------------------------------------------- */
+
+  #createDragDropHandlers() {
+    return this.options.dragDrop.map((d) => {
+      d.permissions = {
+        dragstart: () => this.isEditable,
+        drop: () => this.isEditable
+      };
+      d.callbacks = {
+        dragstart: this._onDragStart.bind(this),
+        dragover: this._onDragOver.bind(this),
+        drop: this._onDrop.bind(this)
+      };
+      return new foundry.applications.ux.DragDrop.implementation(d);
+    });
+  }
+
+  _onDragStart(event) {
+    const el = event.currentTarget;
+    if (el.classList.contains("inventory-header")) return;
+    const itemId = el.dataset.itemId || el.closest("[data-item-id]")?.dataset.itemId;
+    const item = itemId ? this.actor.items.get(itemId) : null;
+    if (!item) return;
+    event.dataTransfer.setData("text/plain", JSON.stringify(item.toDragData()));
+  }
+
+  _onDragOver(event) {}
+
+  async _onDrop(event) {
+    const data = foundry.applications.ux.TextEditor.implementation.getDragEventData(event);
+    const allowed = Hooks.call("dropActorSheetData", this.actor, this, data);
+    if (allowed === false) return;
+    switch (data.type) {
+      case "Item": return this._onDropItem(event, data);
+      case "ActiveEffect": return this._onDropActiveEffect?.(event, data);
+      case "Folder": return this._onDropFolder?.(event, data);
+    }
+  }
+
+  /**
+   * Reorder an item within the same actor.
+   * @param {DragEvent} event
+   * @param {object} itemData
+   */
+  _onSortItem(event, itemData) {
+    const items = this.actor.items;
+    const source = items.get(itemData._id);
+    const dropTarget = event.target.closest("[data-item-id]");
+    if (!dropTarget) return;
+    const target = items.get(dropTarget.dataset.itemId);
+    if (!target || source.id === target.id) return;
+
+    const siblings = [];
+    for (const el of dropTarget.parentElement.children) {
+      const sid = el.dataset.itemId;
+      if (sid && sid !== source.id) siblings.push(items.get(sid));
+    }
+
+    const sortUpdates = foundry.utils.SortingHelpers.performIntegerSort(source, { target, siblings });
+    const updateData = sortUpdates.map(u => ({ _id: u.target.id, sort: u.update.sort }));
+    return this.actor.updateEmbeddedDocuments("Item", updateData);
   }
 
   /* -------------------------------------------- */
@@ -119,25 +226,22 @@ export class MechFoundryActorSheet extends foundry.appv1.sheets.ActorSheet {
   /* -------------------------------------------- */
 
   /** @override */
-  async getData() {
-    // Retrieve base data structure
-    const context = await super.getData();
-
-    // Use a safe clone of the actor data for further operations
+  async _prepareContext(options) {
     const actorData = this.document.toObject(false);
 
-    // Add the actor's data to context.data for easier access
-    context.system = actorData.system;
-    context.flags = actorData.flags;
-
-    // Add config data
-    context.config = game.mechfoundry?.config || {};
-
-    // Add roll data for TinyMCE editors
-    context.rollData = this.actor.getRollData();
-
-    // Add whether user is GM
-    context.isGM = game.user.isGM;
+    const context = {
+      editable: this.isEditable,
+      owner: this.document.isOwner,
+      limited: this.document.limited,
+      actor: this.actor,
+      document: this.document,
+      system: actorData.system,
+      flags: actorData.flags,
+      config: game.mechfoundry?.config || {},
+      rollData: this.actor.getRollData(),
+      isGM: game.user.isGM,
+      cssClass: this.isEditable ? "editable" : "locked"
+    };
 
     // Prepare XP costs for attributes
     context.xpCosts = this._prepareXPCosts(context.system);
@@ -607,9 +711,45 @@ export class MechFoundryActorSheet extends foundry.appv1.sheets.ActorSheet {
   /* -------------------------------------------- */
 
   /** @override */
-  activateListeners(html) {
-    super.activateListeners(html);
+  /** @override */
+  _onRender(context, options) {
+    super._onRender?.(context, options);
+    // Apply the per-type class the CSS targets (.character-sheet / .npc-sheet)
+    this.element.classList.add(`${this.actor.type}-sheet`);
+    const root = $(this.element);
+    // Delegated jQuery listeners persist on the (stable) frame — bind once.
+    if (!this.#listenersBound) {
+      this._activateSheetListeners(root);
+      this.#listenersBound = true;
+    }
+    // Tabs and drag/drop must (re)bind against freshly rendered content each render.
+    this._applyActiveTab();
+    this.#dragDrop.forEach((d) => d.bind(this.element));
+  }
 
+  /**
+   * Apply/restore the active tab and (re)bind tab clicks. Uses onclick assignment
+   * so repeated renders don't stack handlers.
+   */
+  _applyActiveTab() {
+    const navs = this.element.querySelectorAll(".sheet-tabs .item[data-tab]");
+    const bodies = this.element.querySelectorAll(".sheet-body .tab[data-tab]");
+    if (!navs.length || !bodies.length) return;
+
+    if (!this.#activeTab || ![...bodies].some(b => b.dataset.tab === this.#activeTab)) {
+      this.#activeTab = bodies[0].dataset.tab;
+    }
+
+    for (const n of navs) {
+      n.classList.toggle("active", n.dataset.tab === this.#activeTab);
+      n.onclick = (ev) => { ev.preventDefault(); this.#activeTab = n.dataset.tab; this._applyActiveTab(); };
+    }
+    for (const b of bodies) {
+      b.classList.toggle("active", b.dataset.tab === this.#activeTab);
+    }
+  }
+
+  _activateSheetListeners(html) {
     // Render the item sheet for viewing/editing
     html.on('click', '.item-edit', (ev) => {
       // Get item ID from button's data attribute first, then fall back to parent
@@ -712,21 +852,7 @@ export class MechFoundryActorSheet extends foundry.appv1.sheets.ActorSheet {
     // Armor repair
     html.on('click', '.armor-repair', this._onArmorRepair.bind(this));
 
-    // Drag events for macros
-    if (this.actor.isOwner) {
-      let handler = (ev) => this._onDragStart(ev);
-      // Handle li.item elements (skills, traits, inventory items)
-      html.find('li.item').each((i, li) => {
-        if (li.classList.contains("inventory-header")) return;
-        li.setAttribute("draggable", true);
-        li.addEventListener("dragstart", handler, false);
-      });
-      // Handle tr.item elements (active effects in conditions table)
-      html.find('tr.item').each((i, tr) => {
-        tr.setAttribute("draggable", true);
-        tr.addEventListener("dragstart", handler, false);
-      });
-    }
+    // Drag-out of items is handled by the V2 DragDrop set up in the constructor.
   }
 
   /**
