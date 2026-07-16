@@ -106,9 +106,12 @@ export class MechFoundryActor extends Actor {
    */
   static SKILL_XP_COSTS = XP.SKILL_XP_COSTS;
   static ATTRIBUTE_XP_PER_POINT = XP.ATTRIBUTE_XP_PER_POINT;
+  static TRAIT_XP_PER_TP = XP.TRAIT_XP_PER_TP;
 
   static getLinkModifier(value) { return XP.getLinkModifier(value); }
   static getSkillLevelFromXP(xp) { return XP.getSkillLevelFromXP(xp); }
+  static getTraitTP(xp) { return XP.getTraitTP(xp); }
+  static getTraitXPForTP(tp) { return XP.getTraitXPForTP(tp); }
   static getAttributeXPCost(score) { return XP.getAttributeXPCost(score); }
   static getAttributeScoreFromXP(xp) { return XP.getAttributeScoreFromXP(xp); }
   static getAttributeNextCost(currentScore, max = Infinity) {

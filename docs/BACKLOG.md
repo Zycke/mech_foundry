@@ -96,17 +96,18 @@ steps, commit path). Needs runtime testing on a live v14 world (per §0).
           and all flexible XP is assigned; >2 Stage-3 modules warns.
     - [x] **Leftover-pool spend**: a "Spend XP" step — attribute steppers (100/pt, capped by
           phenotype) and skill XP rows, funded from the remaining pool.
-    - [~] **Prerequisites**: live met/unmet badges on module cards **done**; refining trait
-          prereqs from XP-floor to real TP and modelling `Exceptional Attribute` (+1 cap) —
-          still todo.
+    - [x] **Prerequisites**: live met/unmet badges on module cards; trait prereqs now use
+          real Trait Points (each TP = 100 XP); `Exceptional Attribute/<ATTR>` raises that
+          attribute's cap by 1 in derive.
     - [x] **Languages**: `system.languages` populated from `Language/*` skills on commit.
-    - [ ] **Subskills**: proper handling of `/Any` and `/Affiliation` skill grants
-          (choose the subskill) rather than storing the literal "Skill/Any".
-    - [?] **Skills/Traits editability**: still a config data file (`atow-lists.mjs`),
-          overridable but not in-app editable. Decide whether to promote to GM-editable
-          compendia (matches the "GM can edit everything" goal).
+    - [x] **Subskills**: `/Affiliation` grants auto-resolve to the affiliation; `/Any` grants
+          are queued and the player chooses the subskill (gated before continuing).
+    - [x] **Skills/Traits editability**: promoted to editable `mech-foundry.skills` /
+          `mech-foundry.traits` compendia (seeded from the master lists); the runtime config
+          lists are rebuilt FROM the compendia at ready, so GM edits flow to the wizard
+          without breaking dropdowns/tooltips/grant. `game.mechfoundry.reseedReferences()`.
     - [ ] Aging effects (book pp.332–333) as an optional post-creation pass; starting
-          C-Bills / gear from Wealth/Equipped traits.
+          C-Bills / gear from Wealth/Equipped traits (the last open M7 item).
 - [ ] **M8 (data track)** — transcribe the full A Time of War module/affiliation catalogue
       against the schema (the seed ships only Capellan + labelled examples).
 

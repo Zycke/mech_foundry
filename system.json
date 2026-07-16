@@ -2,7 +2,7 @@
   "id": "mech-foundry",
   "title": "Mech Foundry",
   "description": "A mech-based TTRPG system inspired by A Time of War and the BattleTech universe.",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "compatibility": {
     "minimum": "14",
     "verified": "14"
@@ -33,13 +33,35 @@
         "PLAYER": "OBSERVER",
         "ASSISTANT": "OWNER"
       }
+    },
+    {
+      "name": "skills",
+      "label": "Skills (Reference)",
+      "path": "packs/skills",
+      "type": "Item",
+      "system": "mech-foundry",
+      "ownership": {
+        "PLAYER": "OBSERVER",
+        "ASSISTANT": "OWNER"
+      }
+    },
+    {
+      "name": "traits",
+      "label": "Traits (Reference)",
+      "path": "packs/traits",
+      "type": "Item",
+      "system": "mech-foundry",
+      "ownership": {
+        "PLAYER": "OBSERVER",
+        "ASSISTANT": "OWNER"
+      }
     }
   ],
   "packFolders": [
     {
       "name": "Character Creation",
       "sorting": "m",
-      "packs": ["life-modules"]
+      "packs": ["life-modules", "skills", "traits"]
     }
   ],
   "grid": {

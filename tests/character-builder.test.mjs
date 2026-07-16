@@ -137,6 +137,38 @@ ok(!CB.isModuleLegal({ restrictedToAffiliations: ['davion'] }, 'capellan'), 'unl
     'spendPool rejects spending past the pool');
 }
 
+/* ---- Trait TP, Exceptional Attribute, subskills (M7 Task 2) ------------- */
+ok(XP.getTraitTP(200) === 2 && XP.getTraitTP(50) === 0.5, 'trait TP = XP / 100');
+{
+  const st = CB.createState();
+  CB.addTraitXP(st, 'Connections', 150); // 1.5 TP
+  let iss = CB.validate(st, { modules: { m: { prerequisites: { traits: { Connections: 2 } } } } });
+  // (no module m selected, so no prereq issue yet) — attach a module:
+  CB.applyModule(st, { stage: 3, prerequisites: { traits: { Connections: 2 } } }, { id: 'm', name: 'X' });
+  iss = CB.validate(st, { modules: { m: { prerequisites: { traits: { Connections: 2 } } } } });
+  ok(iss.some(i => i.code === 'prereq-trait'), 'trait prereq (2 TP) unmet at 1.5 TP');
+  CB.addTraitXP(st, 'Connections', 50); // 2.0 TP
+  iss = CB.validate(st, { modules: { m: { prerequisites: { traits: { Connections: 2 } } } } });
+  ok(!iss.some(i => i.code === 'prereq-trait'), 'trait prereq met at 2.0 TP');
+
+  const ex = CB.createState();
+  CB.addAttributeXP(ex, 'dex', 900);
+  CB.addTraitXP(ex, 'Exceptional Attribute/DEX', 200);
+  ok(CB.derive(ex, { maxValues: { dex: 8 } }).attributes.dex.value === 9,
+    'Exceptional Attribute raises the DEX cap 8 -> 9');
+
+  const su = CB.createState(); su.affiliationKey = 'capellan';
+  CB.applyModule(su, { stage: 1, fixedXP: { skills: [
+    { name: 'Survival', subskill: 'Any', xp: 20 },
+    { name: 'Protocol', subskill: 'Affiliation', xp: 10 }
+  ] } }, { id: 's', name: 'Farm' });
+  ok(su.subskillPending.length === 1, '/Any grant is queued as a pending subskill');
+  ok(su.skills['Protocol/Capellan'] === 10, '/Affiliation subskill auto-resolves to the affiliation');
+  ok(!CB.subskillsResolved(su), 'subskills unresolved until chosen');
+  CB.resolveSubskill(su, su.subskillPending[0].sourceKey, 'Wilderness');
+  ok(su.skills['Survival/Wilderness'] === 20 && CB.subskillsResolved(su), 'resolving a subskill adds its XP');
+}
+
 /* ---- Seed data integrity ------------------------------------------------ */
 const { LIFE_MODULE_SEED } = await import('../module/data/life-modules.mjs');
 ok(Array.isArray(LIFE_MODULE_SEED) && LIFE_MODULE_SEED.length > 0, 'seed data is a non-empty array');

@@ -55,6 +55,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     affiliationId: '', phenotypeKey: '',
     modules: { 1: '', 2: '', 3: [], 4: [] }, // stage -> id | id[]
     flexible: {},                            // sourceKey -> [{ kind, key }]
+    subskills: {},                           // subskill sourceKey -> chosen text
     freeSpend: { attributes: {}, skills: [] } // leftover-pool spend
   };
   /** @type {Object<number, Item[]>|null} cached modules grouped by stage */
@@ -162,6 +163,12 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       CharacterBuilder.applyModule(this.#state, d.system, { id: d.id, name: d.name, uuid: d.uuid });
     }
 
+    // Re-apply saved subskill choices (adds the queued XP under the chosen subskill).
+    for (const p of this.#state.subskillPending) {
+      const chosen = this.#choices.subskills[p.sourceKey];
+      if (chosen) CharacterBuilder.resolveSubskill(this.#state, p.sourceKey, chosen);
+    }
+
     // Re-apply saved flexible assignments against the freshly-created pools.
     for (const pool of this.#state.flexiblePending) {
       const saved = this.#choices.flexible[pool.sourceKey] || [];
@@ -259,6 +266,15 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     if (stepId === 'flexible') {
       context.pools = this.#buildFlexibleContext();
       context.hasPools = context.pools.length > 0;
+      context.subskills = this.#state.subskillPending.map(p => ({
+        sourceKey: p.sourceKey,
+        name: p.name,
+        hint: p.hint,
+        xp: p.xp,
+        value: this.#choices.subskills[p.sourceKey] || ''
+      }));
+      context.hasSubskills = context.subskills.length > 0;
+      context.nothingToResolve = !context.hasPools && !context.hasSubskills;
     }
 
     if (stepId === 'spend') {
@@ -324,7 +340,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       if ((s?.level ?? -1) < min) met = false;
     }
     for (const [k, min] of Object.entries(pre.traits || {})) {
-      if ((this.#state.traits[k] ?? 0) < min) met = false;
+      if (XP.getTraitTP(this.#state.traits[k] ?? 0) < min) met = false;
     }
     return { has: true, met };
   }
@@ -439,7 +455,9 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
   #canAdvance(stepId, step) {
     if (stepId === 'affiliation') return !!this.#choices.affiliationId;
     if (step.stage && [1, 2].includes(step.stage)) return !!this.#choices.modules[step.stage];
-    if (stepId === 'flexible') return CharacterBuilder.flexibleResolved(this.#state);
+    if (stepId === 'flexible') {
+      return CharacterBuilder.flexibleResolved(this.#state) && CharacterBuilder.subskillsResolved(this.#state);
+    }
     return true;
   }
 
@@ -448,8 +466,9 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     if (step.stage && [1, 2].includes(step.stage) && !this.#choices.modules[step.stage]) {
       return 'Choose a module for this required stage.';
     }
-    if (stepId === 'flexible' && !CharacterBuilder.flexibleResolved(this.#state)) {
-      return 'Assign all flexible XP to continue.';
+    if (stepId === 'flexible') {
+      if (!CharacterBuilder.subskillsResolved(this.#state)) return 'Choose all subskills to continue.';
+      if (!CharacterBuilder.flexibleResolved(this.#state)) return 'Assign all flexible XP to continue.';
     }
     return '';
   }
@@ -485,6 +504,16 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       (spendSkills[slot] ??= { key: '', xp: '' })[field] = v;
     }
 
+    // Subskill choices: name = "subskill::<sourceKey>"
+    let subChanged = false;
+    for (const [k, v] of Object.entries(data)) {
+      if (!k.startsWith('subskill::')) continue;
+      subChanged = true;
+      const sourceKey = k.slice('subskill::'.length);
+      if (v) this.#choices.subskills[sourceKey] = v;
+      else delete this.#choices.subskills[sourceKey];
+    }
+
     if (flexChanged) {
       for (const [sk, slots] of Object.entries(collected)) {
         const prev = this.#choices.flexible[sk] || [];
@@ -502,7 +531,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
         .map(s => ({ key: s?.key || '', xp: Number(s?.xp) || 0 }))
         .filter(s => s.key && s.xp > 0);
     }
-    if (flexChanged || spendChanged) {
+    if (flexChanged || spendChanged || subChanged) {
       await this.#rebuildState();
       this.render();
     }

@@ -24,6 +24,7 @@ import { MechFoundryShipSheet } from "./sheets/ship-sheet.mjs";
 // Import helper/utility classes
 import { preloadHandlebarsTemplates } from "./helpers/templates.mjs";
 import { registerSeederSettings, seedLifeModules } from "./helpers/life-module-seeder.mjs";
+import { seedReferenceCompendia, rebuildReferenceConfig } from "./helpers/reference-seeder.mjs";
 import { CharacterWizard } from "./apps/character-wizard.mjs";
 import { ATOW_SKILLS, ATOW_TRAITS, ATOW_TRAIT_DESCRIPTIONS } from "./data/atow-lists.mjs";
 import { SocketHandler, SOCKET_EVENTS } from "./helpers/socket-handler.mjs";
@@ -51,6 +52,8 @@ Hooks.once('init', function() {
     openCharacterWizard: (actor = null) => new CharacterWizard({ actor }).render(true),
     /** Manually (re)seed the Life Modules compendium, adding any missing starters. */
     reseedLifeModules: () => seedLifeModules({ force: true }),
+    /** Manually (re)seed the Skills/Traits reference compendia, then refresh config. */
+    reseedReferences: () => seedReferenceCompendia({ force: true }).then(rebuildReferenceConfig),
     config: MECHFOUNDRY
   };
 
@@ -115,11 +118,15 @@ Hooks.once('init', function() {
 /*  Ready Hook                                  */
 /* -------------------------------------------- */
 
-Hooks.once('ready', function() {
+Hooks.once('ready', async function() {
   console.log("Mech Foundry | System Ready");
 
-  // Seed the Life Modules compendium on first load (GM only, idempotent)
-  seedLifeModules();
+  // Seed the character-creation compendia on first load (GM only, idempotent),
+  // then rebuild the runtime skill/trait reference lists FROM the compendia so
+  // GM edits flow through to the wizard.
+  await seedLifeModules();
+  await seedReferenceCompendia();
+  await rebuildReferenceConfig();
 
   // Initialize socket handler for cross-player communication
   SocketHandler.initialize();

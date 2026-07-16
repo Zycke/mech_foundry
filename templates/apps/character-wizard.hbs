@@ -106,9 +106,21 @@
 
     {{#if (eq stepId "flexible")}}
     <div class="wizard-panel">
-      <h2>Flexible XP</h2>
-      <p class="hint">Assign the flexible XP your chosen modules granted. Every slot must be filled before the character is legal.</p>
+      <h2>Flexible XP &amp; Subskills</h2>
+      <p class="hint">Resolve the choices your modules require. Everything here must be filled in before continuing.</p>
+
+      {{#if hasSubskills}}
+      <h3 class="spend-sub">Choose Subskills</h3>
+      {{#each subskills}}
+      <div class="flex-slot subskill-row">
+        <span class="subskill-label">{{this.name}} <span class="subskill-hint">({{this.hint}}, +{{this.xp}})</span></span>
+        <input type="text" name="subskill::{{this.sourceKey}}" value="{{this.value}}" placeholder="e.g. specific language / focus"/>
+      </div>
+      {{/each}}
+      {{/if}}
+
       {{#if hasPools}}
+      {{#if hasSubskills}}<h3 class="spend-sub">Assign Flexible XP</h3>{{/if}}
       {{#each pools}}
       <div class="flex-pool">
         <div class="flex-pool-head">
@@ -136,8 +148,10 @@
         </div>
       </div>
       {{/each}}
-      {{else}}
-      <p class="all-clear"><i class="fas fa-circle-check"></i> No flexible XP to assign — your chosen modules granted only fixed XP.</p>
+      {{/if}}
+
+      {{#if nothingToResolve}}
+      <p class="all-clear"><i class="fas fa-circle-check"></i> Nothing to resolve — your chosen modules granted only fixed XP.</p>
       {{/if}}
     </div>
     {{/if}}

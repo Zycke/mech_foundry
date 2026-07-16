@@ -128,3 +128,62 @@ export const ATOW_TRAITS = [
 export const ATOW_TRAIT_DESCRIPTIONS = Object.fromEntries(
   ATOW_TRAITS.map(t => [t.name, `${t.desc} (${t.type}, ${t.tp} TP)`])
 );
+
+/* -------------------------------------------------------------------------- */
+/*  Shared parsers + compendium seed builders                                  */
+/* -------------------------------------------------------------------------- */
+
+const ATTR_SET = new Set(['str', 'bod', 'rfl', 'dex', 'int', 'wil', 'cha', 'edg']);
+
+/** Parse a "INT+WIL" links string into [linkedAttribute1, linkedAttribute2]. */
+export function parseSkillLinks(links) {
+  const parts = String(links || '').split('+').map(s => s.trim().toLowerCase()).filter(Boolean);
+  const valid = parts.filter(p => ATTR_SET.has(p));
+  return [valid[0] || 'int', valid[1] || ''];
+}
+
+/** Parse a "8/SA" TN/Complexity code into { targetNumber, complexity }. */
+export function parseSkillTNC(tnc) {
+  const [tn, code] = String(tnc || '').split('/');
+  return {
+    targetNumber: Number(tn) || 7,
+    complexity: /^C/i.test((code || '').trim()) ? 'C' : 'S'
+  };
+}
+
+/** First signed integer in a TP range string ("-5 to -1" -> -5, "2" -> 2). */
+function parseTP(tp) {
+  const m = String(tp || '').replace(/[–—]/g, '-').match(/-?\d+/);
+  return m ? Number(m[0]) : 0;
+}
+
+/** Build `skill` Item data for the reference compendium from the master list. */
+export function skillSeedItems(list = ATOW_SKILLS) {
+  return list.map(s => {
+    const [linkedAttribute1, linkedAttribute2] = parseSkillLinks(s.links);
+    const { targetNumber, complexity } = parseSkillTNC(s.tnc);
+    return {
+      name: s.name,
+      type: 'skill',
+      system: { linkedAttribute1, linkedAttribute2, targetNumber, complexity, xp: 0, level: 0 },
+      // Keep the original strings so config can be rebuilt losslessly.
+      flags: { 'mech-foundry': { reference: true, links: s.links, tnc: s.tnc } }
+    };
+  });
+}
+
+/** Build `trait` Item data for the reference compendium from the master list. */
+export function traitSeedItems(list = ATOW_TRAITS) {
+  return list.map(t => ({
+    name: t.name,
+    type: 'trait',
+    system: {
+      traitType: t.type === 'negative' ? 'negative' : 'positive',
+      cost: parseTP(t.tp),
+      xp: 0,
+      purchased: false,
+      description: `<p>${t.desc}</p>`
+    },
+    flags: { 'mech-foundry': { reference: true, category: t.type, tp: t.tp, summary: t.desc } }
+  }));
+}

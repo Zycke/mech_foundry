@@ -66,7 +66,8 @@ function buildTraitItem(name, xp) {
   return {
     name,
     type: 'trait',
-    system: { xp, traitType, purchased: true, description: meta ? `<p>${meta.desc}</p>` : '' },
+    // Each Trait Point costs 100 XP (ATOW p.66).
+    system: { xp, cost: xp / 100, traitType, purchased: true, description: meta ? `<p>${meta.desc}</p>` : '' },
     flags: { [FLAG_SCOPE]: { fromWizard: true } }
   };
 }
