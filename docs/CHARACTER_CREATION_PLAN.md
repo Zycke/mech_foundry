@@ -253,7 +253,8 @@ All grants routed through **one helper** (`grantToActor`) so the wizard and any 
    validates (blocks in strict mode, warns in permissive), confirms via DialogV2, creates the
    actor if unbound, grants, then opens the sheet. The character sheet's Biography tab shows a
    read-only Character Builder summary with a Rebuild button. First fully generated sheet.
-6. **M6 — Point-Buy quick path** (D1) reusing engine.
+6. **M6 — Point-Buy quick path** (D1) reusing engine. **DEFERRED to the backlog** — may not
+   be needed; revisit on request.
 7. **M7 — Validation polish** (D3 strict/permissive toggle as a world setting) + seed the
    representative Stage 1–4 modules + Master Skills/Traits compendium.
 8. **M8 (data track) — Full catalog transcription** against the schema (optional, ongoing).

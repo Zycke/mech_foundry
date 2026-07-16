@@ -77,6 +77,38 @@ Priority things to test in a real v14 world:
 - [ ] Accessibility: `role="button"` / keyboard handlers / `aria-label`s on clickable
       `<span>`/`<a>` controls; the XP dialog re-renders redundantly.
 
+## 6. Character creation system (see docs/CHARACTER_CREATION_PLAN.md)
+
+Milestones M1–M5 shipped (engine, lifeModule compendium, wizard shell, stage/flex
+steps, commit path). Needs runtime testing on a live v14 world (per §0).
+
+- [x] **M1–M5** — engine + XP math, `lifeModule` type + seeded compendium, ApplicationV2
+      wizard (Concept→Affiliation→Phenotype→Stages 1–4→Flexible→Review), commit path
+      (`grantCharacter`) that writes attributes/XP and creates skill/trait items + sheet
+      summary.
+- [?] **M6 — Point-Buy quick path** — **DEFERRED / may not be needed.** Free-form spend of
+      the XP pool as an alternative to Life Modules. Engine already has `spendPool`; would
+      add a single-screen step. Revisit only if wanted.
+- [ ] **M7 — Validation & quality polish** (next). Make the wizard production-grade:
+    - [ ] **Affiliation legality**: honour `restrictedToAffiliations` — filter/flag stage
+          modules illegal for the chosen affiliation (schema field exists, unused).
+    - [ ] **Stage rules**: require a Stage 2 module before Stage 3/4; surface the ≤2
+          Stage-3 GM guidance; gate Next on mandatory stages being chosen.
+    - [ ] **Leftover-pool spend**: a cleanup step to spend remaining XP directly on
+          attributes/skills/traits (engine `spendPool` exists; no UI yet).
+    - [ ] **Prerequisites**: refine trait prereqs from XP-floor to real TP; model
+          `Exceptional Attribute` (+1 cap); live met/unmet badges on module cards.
+    - [ ] **Subskills**: proper handling of `/Any` and `/Affiliation` skill grants
+          (choose the subskill) rather than storing the literal "Skill/Any".
+    - [ ] **Languages**: populate `system.languages` (not only Language/* skill items).
+    - [ ] **Skills/Traits editability**: currently a config data file (`atow-lists.mjs`).
+          Decide whether to promote to GM-editable compendia (matches the
+          "GM can edit everything" goal) or keep as overridable config.
+    - [ ] Aging effects (book pp.332–333) as an optional post-creation pass; starting
+          C-Bills / gear from Wealth/Equipped traits.
+- [ ] **M8 (data track)** — transcribe the full A Time of War module/affiliation catalogue
+      against the schema (the seed ships only Capellan + labelled examples).
+
 ---
 
 ## Done this engagement (for reference)
