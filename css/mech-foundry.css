@@ -5832,3 +5832,30 @@
 .mech-foundry .review-list .trait { cursor: help; border-bottom: 1px dotted var(--mf-ink-dim); }
 .mech-foundry .flex-slot select:focus,
 .mech-foundry .flex-slot input:focus { outline: none; border-color: var(--mf-amber); box-shadow: 0 0 0 1px rgba(242,165,58,0.35); }
+
+/* ---- Character Builder summary on the sheet (M5) ----------- */
+.mech-foundry .creation-summary {
+  border: 1px solid var(--mf-line);
+  border-left: 3px solid var(--mf-amber);
+  border-radius: 3px;
+  background: var(--mf-panel);
+  padding: 8px 10px;
+  margin-bottom: 12px;
+}
+.mech-foundry .creation-summary .cs-head { display: flex; align-items: center; justify-content: space-between; }
+.mech-foundry .creation-summary h3 {
+  margin: 0; font-family: var(--mf-font-head); color: var(--mf-amber-2);
+  text-transform: uppercase; letter-spacing: 0.04em; font-size: 0.9em;
+}
+.mech-foundry .creation-summary .cs-launch {
+  color: var(--mf-amber); cursor: pointer; font-size: 0.8em; text-transform: uppercase; letter-spacing: 0.03em;
+}
+.mech-foundry .creation-summary .cs-launch:hover { color: var(--mf-amber-2); }
+.mech-foundry .creation-summary .cs-meta { display: flex; flex-wrap: wrap; gap: 12px; margin: 6px 0; color: var(--mf-ink-dim); font-size: 0.82em; }
+.mech-foundry .creation-summary .cs-meta strong { color: var(--mf-ink); }
+.mech-foundry .creation-summary .cs-modules { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.mech-foundry .creation-summary .cs-modules li {
+  font-size: 0.8em; color: var(--mf-ink); background: var(--mf-panel-2);
+  border: 1px solid var(--mf-line); border-radius: 2px; padding: 1px 6px;
+}
+.mech-foundry .creation-summary .cs-stage { color: var(--mf-amber); font-family: var(--mf-font-mono); }

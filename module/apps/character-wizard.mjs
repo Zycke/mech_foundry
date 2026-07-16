@@ -1,5 +1,6 @@
 import { CharacterBuilder, ATTRIBUTE_KEYS, SEVERITY } from '../helpers/character-builder.mjs';
 import { ATOW_SKILLS, ATOW_TRAITS, ATOW_TRAIT_DESCRIPTIONS } from '../data/atow-lists.mjs';
+import { grantCharacter } from '../helpers/character-grant.mjs';
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -145,7 +146,13 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     if (!aff) return; // no affiliation yet -> nothing else applies
 
     this.#state.affiliation = aff.name;
-    CharacterBuilder.applyUniversalFixedXP(this.#state, { primaryLanguageName: aff.name });
+    // A clean primary-language label: an explicit field, else the affiliation
+    // key capitalised, else the display name without any "(...)" suffix.
+    const langName = aff.system.primaryLanguage
+      || (aff.system.affiliationKey && aff.system.affiliationKey !== 'universal'
+        ? aff.system.affiliationKey.charAt(0).toUpperCase() + aff.system.affiliationKey.slice(1)
+        : aff.name.replace(/\s*\(.*\)\s*$/, '').trim());
+    CharacterBuilder.applyUniversalFixedXP(this.#state, { primaryLanguageName: langName });
     for (const d of docs) {
       CharacterBuilder.applyModule(this.#state, d.system, { id: d.id, name: d.name, uuid: d.uuid });
     }
@@ -245,7 +252,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       context.issues = issues;
       context.errorCount = issues.filter(i => i.severity === SEVERITY.ERROR).length;
       context.warningCount = issues.filter(i => i.severity === SEVERITY.WARNING).length;
-      context.previewOnly = true; // M3/M4: no commit yet
+      context.targetName = this.actor?.name || this.#choices.name || 'a new character';
     }
 
     return context;
@@ -424,6 +431,51 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   static async #onFinish() {
-    ui.notifications?.info('Character preview complete. Writing to an actor arrives in a later update (M5).');
+    const pheno = this.#phenotypeEntry();
+    const derived = CharacterBuilder.derive(this.#state, pheno);
+    const docs = await this.#selectedModuleDocs();
+    const modulesById = Object.fromEntries(docs.map(d => [d.id, d.system]));
+    const issues = CharacterBuilder.validate(this.#state, { phenotype: pheno, modules: modulesById });
+    const errors = issues.filter(i => i.severity === SEVERITY.ERROR);
+
+    let strict = false;
+    try { strict = game.settings.get('mech-foundry', 'creationStrictness') === 'strict'; } catch (_e) { /* pre-ready */ }
+
+    if (errors.length && strict) {
+      ui.notifications?.error(`Cannot finish: ${errors.length} rule error(s) must be resolved (strict mode is on).`);
+      this.#step = STEPS.length - 1;
+      this.render();
+      return;
+    }
+
+    const targetName = this.actor?.name || this.#choices.name || 'New Character';
+    const warn = errors.length
+      ? `<p style="color:var(--mf-danger)"><i class="fas fa-triangle-exclamation"></i> ${errors.length} unresolved issue(s) will be applied anyway (permissive mode).</p>`
+      : '';
+    const confirmed = await foundry.applications.api.DialogV2.confirm({
+      window: { title: game.i18n.localize('MECHFOUNDRY.WizardTitle') },
+      content: `<p>Write this character to <strong>${foundry.utils.escapeHTML?.(targetName) ?? targetName}</strong>?</p>`
+        + `<p>Attributes, XP, affiliation and phenotype will be set, and skill/trait items (re)created. Previously wizard-generated items are replaced; anything you added by hand is left untouched.</p>${warn}`,
+      rejectClose: false,
+      modal: true
+    });
+    if (!confirmed) return;
+
+    let actor = this.actor;
+    try {
+      if (!actor) {
+        actor = await Actor.create({ name: this.#choices.name || 'New Character', type: 'character' });
+        this.actor = actor;
+      }
+      await grantCharacter(actor, {
+        state: this.#state, derived, choices: this.#choices, phenotypeKey: this.#choices.phenotypeKey
+      });
+      ui.notifications?.info(`Character "${actor.name}" generated.`);
+      await this.close();
+      actor.sheet?.render(true);
+    } catch (err) {
+      console.error('mech-foundry | character grant failed:', err);
+      ui.notifications?.error('Failed to write the character (see console).');
+    }
   }
 }

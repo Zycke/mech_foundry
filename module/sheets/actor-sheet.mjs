@@ -218,6 +218,10 @@ export class MechFoundryActorSheet extends HandlebarsApplicationMixin(ActorSheet
     // Prepare life stages data with default modules for single-module stages
     context.lifeStagesData = this._prepareLifeStagesData(context.system);
 
+    // Read-only summary of a character-wizard build (if this actor was created
+    // or rebuilt through the wizard).
+    context.creation = this.actor.getFlag('mech-foundry', 'creation') || null;
+
     return context;
   }
 
