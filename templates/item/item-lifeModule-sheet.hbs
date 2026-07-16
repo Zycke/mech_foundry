@@ -1,0 +1,111 @@
+<div class="item-sheet-content">
+  <header class="sheet-header">
+    <img class="item-img" src="{{item.img}}" data-action="editImage" data-edit="img" title="{{item.name}}"/>
+    <div class="header-fields">
+      <h1 class="item-name">
+        <input name="name" type="text" value="{{item.name}}" placeholder="Life Module Name"/>
+      </h1>
+    </div>
+  </header>
+
+  <nav class="sheet-tabs tabs" data-group="primary">
+    <a class="item" data-tab="details">Details</a>
+    <a class="item" data-tab="grants">XP &amp; Grants</a>
+    <a class="item" data-tab="prereqs">Prerequisites</a>
+    <a class="item" data-tab="description">Description</a>
+  </nav>
+
+  <section class="sheet-body">
+
+    {{!-- Details --}}
+    <div class="tab details" data-group="primary" data-tab="details">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Stage</label>
+          <select name="system.stage" data-dtype="Number">
+            {{#each stageOptions}}
+            <option value="{{this.value}}" {{#if (eq ../system.stage this.value)}}selected{{/if}}>{{this.label}}</option>
+            {{/each}}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Module Type</label>
+          <select name="system.moduleType">
+            {{#each moduleTypeOptions}}
+            <option value="{{this.value}}" {{#if (eq ../system.moduleType this.value)}}selected{{/if}}>{{this.label}}</option>
+            {{/each}}
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>XP Cost</label>
+          <input type="number" name="system.xpCost" value="{{system.xpCost}}" data-dtype="Number"/>
+        </div>
+        <div class="form-group">
+          <label>Time (years)</label>
+          <input type="number" name="system.time" value="{{system.time}}" data-dtype="Number"/>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Affiliation Key</label>
+          <input type="text" name="system.affiliationKey" value="{{system.affiliationKey}}" placeholder="e.g., capellan"/>
+        </div>
+        <div class="form-group">
+          <label>Page Reference</label>
+          <input type="text" name="system.pageRef" value="{{system.pageRef}}" placeholder="e.g., ATOW p.64"/>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Restricted To Affiliations <span class="hint">(comma-separated keys; blank = any)</span></label>
+        <input type="text" name="system.restrictedToAffiliations" value="{{restrictedCSV}}" placeholder="e.g., capellan, davion"/>
+      </div>
+      <div class="form-group">
+        <label>Notes</label>
+        <textarea name="system.notes" rows="3" placeholder="Special requirements or features">{{system.notes}}</textarea>
+      </div>
+    </div>
+
+    {{!-- XP & Grants --}}
+    <div class="tab grants" data-group="primary" data-tab="grants">
+      <p class="hint">
+        Fixed XP is pre-assigned to the character; flexible XP is distributed by the player.
+        These are structured (JSON) fields. Shape:
+        <code>fixedXP: { attributes: {"wil": 75}, skills: [{name, subskill?, xp}], traits: [{name, xp}] }</code>,
+        <code>flexibleXP: [{ amount, count, targets, choices: [], note }]</code>.
+      </p>
+      <div class="form-group">
+        <label>Fixed XP</label>
+        <textarea class="json-field" name="system.fixedXP" rows="10" spellcheck="false">{{jsonFields.fixedXP}}</textarea>
+      </div>
+      <div class="form-group">
+        <label>Flexible XP</label>
+        <textarea class="json-field" name="system.flexibleXP" rows="8" spellcheck="false">{{jsonFields.flexibleXP}}</textarea>
+      </div>
+    </div>
+
+    {{!-- Prerequisites --}}
+    <div class="tab prereqs" data-group="primary" data-tab="prereqs">
+      <p class="hint">
+        Minimums checked at the end of creation. Shape:
+        <code>{ attributes: {"int": 4}, skills: {"MartialArts": 1}, traits: {"Connections": 2} }</code>.
+      </p>
+      <div class="form-group">
+        <label>Prerequisites</label>
+        <textarea class="json-field" name="system.prerequisites" rows="10" spellcheck="false">{{jsonFields.prerequisites}}</textarea>
+      </div>
+    </div>
+
+    {{!-- Description --}}
+    <div class="tab description" data-group="primary" data-tab="description">
+      <div class="editor-container">
+        <label>Description / Background</label>
+        {{#if editable}}
+        <prose-mirror name="system.description" data-document-uuid="{{item.uuid}}" value="{{system.description}}" collaborate="false" toggled="true">{{{enrichedDescription}}}</prose-mirror>
+        {{else}}{{{enrichedDescription}}}{{/if}}
+      </div>
+    </div>
+
+  </section>
+</div>

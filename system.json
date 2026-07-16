@@ -2,7 +2,7 @@
   "id": "mech-foundry",
   "title": "Mech Foundry",
   "description": "A mech-based TTRPG system inspired by A Time of War and the BattleTech universe.",
-  "version": "0.2.27",
+  "version": "0.3.3",
   "compatibility": {
     "minimum": "14",
     "verified": "14"
@@ -20,6 +20,26 @@
       "lang": "en",
       "name": "English",
       "path": "lang/en.json"
+    }
+  ],
+  "packs": [
+    {
+      "name": "life-modules",
+      "label": "Life Modules",
+      "path": "packs/life-modules",
+      "type": "Item",
+      "system": "mech-foundry",
+      "ownership": {
+        "PLAYER": "OBSERVER",
+        "ASSISTANT": "OWNER"
+      }
+    }
+  ],
+  "packFolders": [
+    {
+      "name": "Character Creation",
+      "sorting": "m",
+      "packs": ["life-modules"]
     }
   ],
   "grid": {

@@ -4,6 +4,7 @@ import { DiceMechanics } from '../helpers/dice-mechanics.mjs';
 import { ItemEffectsHelper } from '../helpers/effects-helper.mjs';
 import { AOEHelper } from '../helpers/aoe-helper.mjs';
 import { AnimationHelper } from '../helpers/animation-helper.mjs';
+import * as XP from '../helpers/xp-math.mjs';
 
 /**
  * Extend the base Actor document for Mech Foundry system
@@ -97,36 +98,21 @@ export class MechFoundryActor extends Actor {
    * @param {number} value The (total) attribute score
    * @returns {number} The link modifier
    */
-  static getLinkModifier(value) {
-    const v = Number(value) || 0;
-    if (v <= 0) return -4;
-    if (v === 1) return -2;
-    if (v <= 3) return -1;
-    if (v <= 6) return 0;
-    if (v <= 9) return 1;
-    if (v === 10) return 2;
-    return Math.min(5, Math.floor(v / 3));
-  }
-
   /**
-   * Standard-rate XP thresholds for skill levels 0-10 (A Time of War p.60).
+   * A Time of War XP / progression math is defined once in helpers/xp-math.mjs
+   * (dependency-free so the character-creation engine can share and unit-test
+   * it). These statics re-expose that module so the document's many call sites
+   * (rolls, sheet, effects) keep using MechFoundryActor.* unchanged.
    */
-  static SKILL_XP_COSTS = [20, 30, 50, 80, 120, 170, 230, 300, 380, 470, 570];
+  static SKILL_XP_COSTS = XP.SKILL_XP_COSTS;
+  static ATTRIBUTE_XP_PER_POINT = XP.ATTRIBUTE_XP_PER_POINT;
 
-  /**
-   * Derive a skill level (0-10) from accumulated XP using the Standard rate.
-   * Returns -1 when XP is below the level-0 threshold (untrained). XP is the
-   * single source of truth for skill level throughout the system.
-   * @param {number} xp
-   * @returns {number}
-   */
-  static getSkillLevelFromXP(xp) {
-    const x = Number(xp) || 0;
-    const costs = MechFoundryActor.SKILL_XP_COSTS;
-    for (let i = costs.length - 1; i >= 0; i--) {
-      if (x >= costs[i]) return i;
-    }
-    return -1;
+  static getLinkModifier(value) { return XP.getLinkModifier(value); }
+  static getSkillLevelFromXP(xp) { return XP.getSkillLevelFromXP(xp); }
+  static getAttributeXPCost(score) { return XP.getAttributeXPCost(score); }
+  static getAttributeScoreFromXP(xp) { return XP.getAttributeScoreFromXP(xp); }
+  static getAttributeNextCost(currentScore, max = Infinity) {
+    return XP.getAttributeNextCost(currentScore, max);
   }
 
   /**

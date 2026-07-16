@@ -1,0 +1,230 @@
+<div class="wizard-content">
+
+  {{!-- Stepper --}}
+  <nav class="wizard-steps">
+    {{#each steps}}
+    <div class="wizard-step {{#if this.active}}active{{/if}} {{#if this.done}}done{{/if}}">
+      <span class="step-index">{{#if this.done}}<i class="fas fa-check"></i>{{else}}{{this.number}}{{/if}}</span>
+      <span class="step-label">{{this.label}}</span>
+    </div>
+    {{/each}}
+  </nav>
+
+  {{!-- Body --}}
+  <section class="wizard-body">
+
+    {{#if (eq stepId "concept")}}
+    <div class="wizard-panel">
+      <h2>Character Concept</h2>
+      <p class="hint">Start with the basics. You can change these any time before finishing.</p>
+      <div class="form-group">
+        <label>Character Name</label>
+        <input type="text" name="name" value="{{choices.name}}" placeholder="Name"/>
+      </div>
+      <div class="form-group">
+        <label>Player</label>
+        <input type="text" name="player" value="{{choices.player}}" placeholder="Controlling player"/>
+      </div>
+    </div>
+    {{/if}}
+
+    {{#if (eq stepId "affiliation")}}
+    <div class="wizard-panel">
+      <h2>Stage 0 — Affiliation</h2>
+      <p class="hint">Your origin. Choosing an affiliation applies the mandatory universal allotment (850 XP) plus the affiliation's own grants.</p>
+      {{#if hasModules}}
+      <div class="choice-grid">
+        {{#each modules}}
+        <button type="button" class="choice-card {{#if this.selected}}selected{{/if}}" data-action="selectAffiliation" data-id="{{this.id}}">
+          <img src="{{this.img}}" alt=""/>
+          <span class="choice-name">{{this.name}}</span>
+          <span class="choice-summary">{{this.summary}}</span>
+        </button>
+        {{/each}}
+      </div>
+      {{else}}
+      <p class="empty-note"><i class="fas fa-triangle-exclamation"></i> No affiliations found in the Life Modules compendium. A GM can add <em>Life Module</em> items (Stage 0, type Affiliation) and reopen the wizard.</p>
+      {{/if}}
+    </div>
+    {{/if}}
+
+    {{#if (eq stepId "phenotype")}}
+    <div class="wizard-panel">
+      <h2>Phenotype</h2>
+      <p class="hint">Sets attribute modifiers, maximum caps, and bonus traits.</p>
+      <div class="choice-grid">
+        {{#each phenotypes}}
+        <button type="button" class="choice-card {{#if this.selected}}selected{{/if}}" data-action="selectPhenotype" data-key="{{this.key}}">
+          <span class="choice-name">{{this.label}}</span>
+          <span class="choice-summary">{{this.modifiers}}</span>
+          {{#if this.bonusTraits}}<span class="choice-traits">Traits: {{this.bonusTraits}}</span>{{/if}}
+        </button>
+        {{/each}}
+      </div>
+    </div>
+    {{/if}}
+
+    {{#if stage}}
+    <div class="wizard-panel">
+      <h2>{{stepLabel}}</h2>
+      <p class="hint">
+        {{#if multi}}Choose any number of modules for this optional stage.{{else}}Choose exactly one module for this required stage.{{/if}}
+        {{#unless multi}}{{#unless mandatory}} This stage is optional.{{/unless}}{{/unless}}
+      </p>
+      {{#if hasModules}}
+      <div class="choice-grid">
+        {{#each modules}}
+        <button type="button" class="choice-card module-card {{#if this.selected}}selected{{/if}}"
+                data-action="{{#if ../multi}}toggleStageModule{{else}}selectStageModule{{/if}}"
+                data-stage="{{../stage}}" data-id="{{this.id}}">
+          <span class="choice-name">{{this.name}}</span>
+          <span class="card-meta">
+            <span class="cost">{{this.cost}} XP</span>
+            {{#if this.time}}<span class="time">{{this.time}} yr</span>{{/if}}
+          </span>
+          <span class="choice-summary">{{this.summary}}</span>
+          {{#if this.prereq}}<span class="choice-prereq"><i class="fas fa-lock"></i> {{this.prereq}}</span>{{/if}}
+          {{#if this.selected}}<span class="selected-flag"><i class="fas fa-check"></i></span>{{/if}}
+        </button>
+        {{/each}}
+      </div>
+      {{else}}
+      <p class="empty-note"><i class="fas fa-circle-info"></i> No Stage {{stage}} modules in the compendium yet.{{#unless mandatory}} This stage is optional — you can continue.{{/unless}} A GM can add <em>Life Module</em> items for this stage.</p>
+      {{/if}}
+    </div>
+    {{/if}}
+
+    {{#if (eq stepId "flexible")}}
+    <div class="wizard-panel">
+      <h2>Flexible XP</h2>
+      <p class="hint">Assign the flexible XP your chosen modules granted. Every slot must be filled before the character is legal.</p>
+      {{#if hasPools}}
+      {{#each pools}}
+      <div class="flex-pool">
+        <div class="flex-pool-head">
+          <span class="flex-note">{{this.note}}</span>
+          <span class="flex-meta">{{this.amount}} XP each{{#if this.moduleName}} · {{this.moduleName}}{{/if}}</span>
+        </div>
+        <div class="flex-slots">
+          {{#each this.slots}}
+          <div class="flex-slot">
+            {{#if ../isAttribute}}
+            <select name="flex::{{../sourceKey}}::{{this.idx}}::key">
+              <option value="">— choose attribute —</option>
+              {{#each ../attrChoices}}
+              <option value="{{this.value}}" {{#if (eq this.value ../key)}}selected{{/if}}>{{this.label}}</option>
+              {{/each}}
+            </select>
+            {{else if ../isAny}}
+            <select name="flex::{{../sourceKey}}::{{this.idx}}::kind">
+              <option value="attribute" {{#if (eq this.kind "attribute")}}selected{{/if}}>Attribute</option>
+              <option value="skill" {{#if (eq this.kind "skill")}}selected{{/if}}>Skill</option>
+              <option value="trait" {{#if (eq this.kind "trait")}}selected{{/if}}>Trait</option>
+            </select>
+            <input type="text" name="flex::{{../sourceKey}}::{{this.idx}}::key" value="{{this.key}}" placeholder="name (e.g. INT, or Small Arms)"/>
+            {{else}}
+            <input type="text" name="flex::{{../sourceKey}}::{{this.idx}}::key" value="{{this.key}}" placeholder="{{#if ../isSkill}}skill name (Root/Subskill){{else}}trait name{{/if}}"/>
+            {{/if}}
+          </div>
+          {{/each}}
+        </div>
+      </div>
+      {{/each}}
+      {{else}}
+      <p class="all-clear"><i class="fas fa-circle-check"></i> No flexible XP to assign — your chosen modules granted only fixed XP.</p>
+      {{/if}}
+    </div>
+    {{/if}}
+
+    {{#if (eq stepId "review")}}
+    <div class="wizard-panel">
+      <h2>Review</h2>
+
+      {{#if issues.length}}
+      <div class="validation-report">
+        <div class="validation-summary">
+          {{#if errorCount}}<span class="badge error">{{errorCount}} error{{#unless (eq errorCount 1)}}s{{/unless}}</span>{{/if}}
+          {{#if warningCount}}<span class="badge warning">{{warningCount}} warning{{#unless (eq warningCount 1)}}s{{/unless}}</span>{{/if}}
+        </div>
+        <ul class="issue-list">
+          {{#each issues}}
+          <li class="issue {{this.severity}}"><i class="fas {{#if (eq this.severity "error")}}fa-circle-xmark{{else}}fa-triangle-exclamation{{/if}}"></i> {{this.message}}</li>
+          {{/each}}
+        </ul>
+      </div>
+      {{else}}
+      <p class="all-clear"><i class="fas fa-circle-check"></i> No issues — the character is ready.</p>
+      {{/if}}
+
+      <div class="review-meta">
+        <span><strong>Affiliation:</strong> {{#if preview.affiliation}}{{preview.affiliation}}{{else}}—{{/if}}</span>
+        <span><strong>Phenotype:</strong> {{#if preview.phenotype}}{{preview.phenotype}}{{else}}—{{/if}}</span>
+        <span><strong>Age:</strong> {{preview.age}}</span>
+        <span><strong>Modules:</strong> {{preview.moduleCount}}</span>
+        <span><strong>XP:</strong> {{preview.spent}} spent / {{preview.remaining}} left</span>
+      </div>
+
+      <div class="review-columns">
+        <div class="review-block">
+          <h3>Attributes</h3>
+          <table class="review-table">
+            <thead><tr><th>Attr</th><th>Score</th><th>Link</th><th>XP</th></tr></thead>
+            <tbody>
+              {{#each preview.attributeRows}}
+              <tr>
+                <td>{{this.key}}</td>
+                <td>{{this.total}}{{#if this.cappedBy}} <span class="capped" title="Capped by phenotype">(cap {{this.cappedBy}})</span>{{/if}}</td>
+                <td>{{#if (gte this.linkMod 0)}}+{{/if}}{{this.linkMod}}</td>
+                <td>{{this.xp}}</td>
+              </tr>
+              {{/each}}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="review-block">
+          <h3>Skills ({{preview.skills.length}})</h3>
+          {{#if preview.skillRows.length}}
+          <ul class="review-list">
+            {{#each preview.skillRows}}
+            <li><span>{{this.key}}</span><span class="lvl">L{{this.levelLabel}} · {{this.xp}} XP</span></li>
+            {{/each}}
+          </ul>
+          {{else}}<p class="empty-note">None yet.</p>{{/if}}
+
+          <h3>Traits ({{preview.traits.length}})</h3>
+          {{#if preview.traits.length}}
+          <ul class="review-list">
+            {{#each preview.traits}}
+            <li><span>{{this.name}}</span><span class="lvl {{this.type}}">{{#if (gte this.xp 0)}}+{{/if}}{{this.xp}} XP</span></li>
+            {{/each}}
+          </ul>
+          {{else}}<p class="empty-note">None yet.</p>{{/if}}
+        </div>
+      </div>
+
+      {{#if previewOnly}}
+      <p class="preview-note"><i class="fas fa-circle-info"></i> Preview only — writing this to a character sheet arrives in a later update.</p>
+      {{/if}}
+    </div>
+    {{/if}}
+
+  </section>
+
+  {{!-- Footer --}}
+  <footer class="wizard-footer">
+    <div class="footer-status">
+      <span class="stat"><i class="fas fa-coins"></i> XP left: <strong class="{{remainingClass}}">{{remaining}}</strong></span>
+      <span class="stat"><i class="fas fa-hourglass-half"></i> Age: <strong>{{age}}</strong></span>
+    </div>
+    <div class="footer-nav">
+      <button type="button" data-action="back" {{#if isFirst}}disabled{{/if}}><i class="fas fa-arrow-left"></i> Back</button>
+      {{#if isLast}}
+      <button type="button" data-action="finish" class="finish"><i class="fas fa-flag-checkered"></i> Finish</button>
+      {{else}}
+      <button type="button" data-action="next">Next <i class="fas fa-arrow-right"></i></button>
+      {{/if}}
+    </div>
+  </footer>
+
+</div>

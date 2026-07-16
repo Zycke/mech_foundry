@@ -23,6 +23,8 @@ import { MechFoundryShipSheet } from "./sheets/ship-sheet.mjs";
 
 // Import helper/utility classes
 import { preloadHandlebarsTemplates } from "./helpers/templates.mjs";
+import { registerSeederSettings, seedLifeModules } from "./helpers/life-module-seeder.mjs";
+import { CharacterWizard } from "./apps/character-wizard.mjs";
 import { SocketHandler, SOCKET_EVENTS } from "./helpers/socket-handler.mjs";
 import { OpposedRollHelper } from "./helpers/opposed-rolls.mjs";
 import { DiceMechanics } from "./helpers/dice-mechanics.mjs";
@@ -43,6 +45,9 @@ Hooks.once('init', function() {
     ItemEffectsHelper,
     EFFECT_CATEGORIES,
     getEffectTypeOptions,
+    CharacterWizard,
+    /** Open the character-creation wizard, optionally bound to an actor. */
+    openCharacterWizard: (actor = null) => new CharacterWizard({ actor }).render(true),
     config: MECHFOUNDRY
   };
 
@@ -92,6 +97,9 @@ Hooks.once('init', function() {
 
   // Register system settings
   _registerSystemSettings();
+
+  // Register the one-time life-module seed tracking flag
+  registerSeederSettings();
 });
 
 /* -------------------------------------------- */
@@ -100,6 +108,9 @@ Hooks.once('init', function() {
 
 Hooks.once('ready', function() {
   console.log("Mech Foundry | System Ready");
+
+  // Seed the Life Modules compendium on first load (GM only, idempotent)
+  seedLifeModules();
 
   // Initialize socket handler for cross-player communication
   SocketHandler.initialize();
@@ -337,6 +348,32 @@ function _registerSystemSettings() {
       "-1": "Difficult (-1)",
       "-3": "Very Difficult (-3)",
       "-5": "Extremely Difficult (-5)"
+    }
+  });
+
+  /* ---- Character creation (GM-tunable) --------------------------------- */
+
+  // Starting XP pool for the character-creation wizard (ATOW default 5000).
+  game.settings.register("mech-foundry", "creationStartingXP", {
+    name: "MECHFOUNDRY.SettingCreationStartingXP",
+    hint: "MECHFOUNDRY.SettingCreationStartingXPHint",
+    scope: "world",
+    config: true,
+    type: Number,
+    default: 5000
+  });
+
+  // How strictly the wizard enforces prerequisites / phenotype caps / stages.
+  game.settings.register("mech-foundry", "creationStrictness", {
+    name: "MECHFOUNDRY.SettingCreationStrictness",
+    hint: "MECHFOUNDRY.SettingCreationStrictnessHint",
+    scope: "world",
+    config: true,
+    type: String,
+    default: "permissive",
+    choices: {
+      permissive: "MECHFOUNDRY.SettingCreationStrictnessPermissive",
+      strict: "MECHFOUNDRY.SettingCreationStrictnessStrict"
     }
   });
 }

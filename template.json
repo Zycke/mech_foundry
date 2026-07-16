@@ -120,7 +120,7 @@
     }
   },
   "Item": {
-    "types": ["skill", "trait", "weapon", "armor", "vehicle", "fuel", "electronics", "healthcare", "prosthetics", "drugpoison", "activeEffect", "ammo", "personnel", "supplies"],
+    "types": ["skill", "trait", "weapon", "armor", "vehicle", "fuel", "electronics", "healthcare", "prosthetics", "drugpoison", "activeEffect", "ammo", "personnel", "supplies", "lifeModule"],
     "templates": {
       "base": {
         "description": ""
@@ -153,6 +153,29 @@
       "traitType": "positive",
       "xp": 0,
       "purchased": false,
+      "pageRef": ""
+    },
+    "lifeModule": {
+      "templates": ["base"],
+      "stage": 0,
+      "moduleType": "affiliation",
+      "affiliationKey": "",
+      "xpCost": 0,
+      "time": 0,
+      "restrictedToAffiliations": [],
+      "prerequisites": {
+        "attributes": {},
+        "skills": {},
+        "traits": {}
+      },
+      "fixedXP": {
+        "attributes": {},
+        "skills": [],
+        "traits": []
+      },
+      "flexibleXP": [],
+      "grantsFields": [],
+      "notes": "",
       "pageRef": ""
     },
     "weapon": {

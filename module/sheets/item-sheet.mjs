@@ -98,12 +98,38 @@ export class MechFoundryItemSheet extends HandlebarsApplicationMixin(ItemSheetV2
       }));
     }
 
+    if (item.type === 'lifeModule') {
+      const sys = item.system;
+      context.stageOptions = [0, 1, 2, 3, 4].map(n => ({
+        value: n, label: game.i18n.localize(`MECHFOUNDRY.LifeStage${n}`)
+      }));
+      context.moduleTypeOptions = ['affiliation', 'childhood', 'education', 'reallife', 'field']
+        .map(v => ({ value: v, label: game.i18n.localize(`MECHFOUNDRY.ModuleType.${v}`) }));
+      context.restrictedCSV = this._asArray(sys.restrictedToAffiliations).join(', ');
+      // Structured sub-objects are edited as pretty-printed JSON (GM power-user
+      // fields); _processFormData parses them back with a guard.
+      context.jsonFields = {
+        prerequisites: this._stringifyField(sys.prerequisites, { attributes: {}, skills: {}, traits: {} }),
+        fixedXP: this._stringifyField(sys.fixedXP, { attributes: {}, skills: [], traits: [] }),
+        flexibleXP: this._stringifyField(sys.flexibleXP, [])
+      };
+    }
+
     context.enrichedDescription = await foundry.applications.ux.TextEditor.implementation.enrichHTML(
       item.system.description ?? "",
       { relativeTo: item }
     );
 
     return context;
+  }
+
+  /** Pretty-print a structured field for the JSON editors, tolerating nulls. */
+  _stringifyField(value, fallback) {
+    try {
+      return JSON.stringify(value ?? fallback, null, 2);
+    } catch (_e) {
+      return JSON.stringify(fallback, null, 2);
+    }
   }
 
   /** @override */
@@ -154,6 +180,27 @@ export class MechFoundryItemSheet extends HandlebarsApplicationMixin(ItemSheetV2
       const checked = Array.from(form.querySelectorAll('input[name="system.specialEffects"]:checked'))
         .map(el => el.value);
       foundry.utils.setProperty(data, "system.specialEffects", checked);
+    }
+    if (type === 'lifeModule') {
+      // Comma-separated affiliation restrictions -> array.
+      const csv = foundry.utils.getProperty(data, "system.restrictedToAffiliations");
+      if (typeof csv === 'string') {
+        foundry.utils.setProperty(data, "system.restrictedToAffiliations",
+          csv.split(',').map(s => s.trim()).filter(Boolean));
+      }
+      // Guarded JSON parse for the structured sub-objects. On malformed input,
+      // restore the previously-stored value so the bad text is not saved, and warn.
+      for (const path of ["system.prerequisites", "system.fixedXP", "system.flexibleXP"]) {
+        const raw = foundry.utils.getProperty(data, path);
+        if (typeof raw !== 'string') continue;
+        try {
+          foundry.utils.setProperty(data, path, JSON.parse(raw));
+        } catch (_e) {
+          // Malformed JSON: keep the previously-stored value and warn.
+          foundry.utils.setProperty(data, path, foundry.utils.getProperty(this.item, path));
+          ui.notifications?.warn(`Life module: invalid JSON in ${path.split('.').pop()}; change was not saved.`);
+        }
+      }
     }
 
     return data;

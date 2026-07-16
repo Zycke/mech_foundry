@@ -30,6 +30,10 @@ export const preloadHandlebarsTemplates = async function() {
     "systems/mech-foundry/templates/item/item-ammo-sheet.hbs",
     "systems/mech-foundry/templates/item/item-personnel-sheet.hbs",
     "systems/mech-foundry/templates/item/item-supplies-sheet.hbs",
+    "systems/mech-foundry/templates/item/item-lifeModule-sheet.hbs",
+
+    // Application windows
+    "systems/mech-foundry/templates/apps/character-wizard.hbs",
 
     // Chat partials
     "systems/mech-foundry/templates/chat/skill-roll.hbs",

@@ -5623,3 +5623,181 @@
   background: rgba(217, 72, 59, 0.35);
   color: #ff6f61;
 }
+
+/* ============================================================
+   Character Creation Wizard (ApplicationV2)
+   ============================================================ */
+.mech-foundry.character-wizard .window-content { padding: 0; background: var(--mf-bg); }
+.mech-foundry .wizard-content {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  color: var(--mf-ink);
+  font-family: var(--mf-font-body);
+}
+
+/* ---- Stepper ---------------------------------------------- */
+.mech-foundry .wizard-steps {
+  display: flex;
+  gap: 4px;
+  padding: 10px 12px;
+  background: linear-gradient(180deg, #10151a 0%, #202a33 60%, #171d23 100%);
+  border-bottom: 2px solid var(--mf-amber);
+}
+.mech-foundry .wizard-step {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1 1 auto;
+  padding: 4px 8px;
+  border: 1px solid var(--mf-line);
+  border-radius: 2px;
+  color: var(--mf-ink-dim);
+  font-family: var(--mf-font-head);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 0.82em;
+}
+.mech-foundry .wizard-step .step-index {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px; height: 20px;
+  border: 1px solid var(--mf-steel);
+  border-radius: 50%;
+  font-size: 0.85em;
+}
+.mech-foundry .wizard-step.active { color: var(--mf-amber-2); border-color: var(--mf-amber); }
+.mech-foundry .wizard-step.active .step-index { border-color: var(--mf-amber); color: var(--mf-amber-2); }
+.mech-foundry .wizard-step.done { color: var(--mf-ok); }
+.mech-foundry .wizard-step.done .step-index { border-color: var(--mf-ok); color: var(--mf-ok); }
+
+/* ---- Body ------------------------------------------------- */
+.mech-foundry .wizard-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 14px 16px; }
+.mech-foundry .wizard-panel h2 {
+  margin: 0 0 4px;
+  font-family: var(--mf-font-head);
+  color: var(--mf-amber-2);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-left: 3px solid var(--mf-amber);
+  padding-left: 8px;
+}
+.mech-foundry .wizard-panel .hint { color: var(--mf-ink-dim); font-size: 0.85em; margin: 0 0 12px; }
+.mech-foundry .wizard-panel .form-group { margin-bottom: 10px; display: flex; flex-direction: column; gap: 4px; }
+.mech-foundry .wizard-panel label { color: var(--mf-ink-dim); font-size: 0.85em; text-transform: uppercase; letter-spacing: 0.03em; }
+.mech-foundry .wizard-panel input[type="text"] {
+  background: #0f1317; border: 1px solid var(--mf-line); border-radius: 2px; color: var(--mf-ink); padding: 6px 8px;
+}
+.mech-foundry .wizard-panel input:focus { outline: none; border-color: var(--mf-amber); box-shadow: 0 0 0 1px rgba(242,165,58,0.35); }
+
+/* ---- Choice cards ----------------------------------------- */
+.mech-foundry .choice-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 8px;
+}
+.mech-foundry .choice-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  padding: 10px;
+  text-align: left;
+  background: var(--mf-panel);
+  border: 1px solid var(--mf-line);
+  border-radius: 3px;
+  color: var(--mf-ink);
+  cursor: pointer;
+  transition: border-color 0.12s, background 0.12s;
+}
+.mech-foundry .choice-card:hover { border-color: var(--mf-steel); background: var(--mf-panel-2); }
+.mech-foundry .choice-card.selected { border-color: var(--mf-amber); box-shadow: 0 0 0 1px rgba(242,165,58,0.4); }
+.mech-foundry .choice-card img { width: 40px; height: 40px; border: 1px solid var(--mf-steel); border-radius: 2px; }
+.mech-foundry .choice-card .choice-name { font-family: var(--mf-font-head); color: var(--mf-amber-2); font-size: 0.95em; }
+.mech-foundry .choice-card .choice-summary,
+.mech-foundry .choice-card .choice-traits { color: var(--mf-ink-dim); font-size: 0.78em; }
+
+/* ---- Review ----------------------------------------------- */
+.mech-foundry .review-meta { display: flex; flex-wrap: wrap; gap: 10px; margin: 10px 0; color: var(--mf-ink-dim); font-size: 0.85em; }
+.mech-foundry .review-meta strong { color: var(--mf-ink); }
+.mech-foundry .review-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.mech-foundry .review-block h3 {
+  font-family: var(--mf-font-head); color: var(--mf-amber-2); text-transform: uppercase;
+  font-size: 0.85em; letter-spacing: 0.04em; margin: 8px 0 4px; border-bottom: 1px solid var(--mf-line);
+}
+.mech-foundry .review-table { width: 100%; border-collapse: collapse; font-size: 0.85em; }
+.mech-foundry .review-table th { text-align: left; color: var(--mf-ink-dim); font-weight: 600; }
+.mech-foundry .review-table td, .mech-foundry .review-table th { padding: 2px 4px; vertical-align: middle; }
+.mech-foundry .review-table .capped { color: var(--mf-hazard); font-size: 0.85em; }
+.mech-foundry .review-list { list-style: none; margin: 0; padding: 0; font-size: 0.85em; }
+.mech-foundry .review-list li { display: flex; justify-content: space-between; gap: 8px; padding: 1px 0; border-bottom: 1px dotted var(--mf-line); }
+.mech-foundry .review-list .lvl { color: var(--mf-ink-dim); font-family: var(--mf-font-mono); white-space: nowrap; }
+.mech-foundry .review-list .lvl.negative { color: var(--mf-danger); }
+.mech-foundry .empty-note { color: var(--mf-ink-dim); font-style: italic; font-size: 0.85em; }
+
+/* ---- Validation ------------------------------------------- */
+.mech-foundry .validation-report { margin-bottom: 12px; }
+.mech-foundry .validation-summary { display: flex; gap: 6px; margin-bottom: 6px; }
+.mech-foundry .badge { padding: 1px 8px; border-radius: 10px; font-size: 0.78em; font-weight: 700; }
+.mech-foundry .badge.error { background: rgba(217,72,59,0.2); color: var(--mf-danger); }
+.mech-foundry .badge.warning { background: rgba(232,177,58,0.2); color: var(--mf-hazard); }
+.mech-foundry .issue-list { list-style: none; margin: 0; padding: 0; }
+.mech-foundry .issue { padding: 3px 0; font-size: 0.85em; }
+.mech-foundry .issue.error { color: var(--mf-danger); }
+.mech-foundry .issue.warning { color: var(--mf-hazard); }
+.mech-foundry .all-clear { color: var(--mf-ok); font-weight: 600; }
+.mech-foundry .preview-note { margin-top: 12px; color: var(--mf-ink-dim); font-size: 0.82em; }
+
+/* ---- Footer ----------------------------------------------- */
+.mech-foundry .wizard-footer {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 14px; border-top: 1px solid var(--mf-line);
+  background: var(--mf-panel);
+}
+.mech-foundry .footer-status { display: flex; gap: 16px; color: var(--mf-ink-dim); font-size: 0.85em; }
+.mech-foundry .footer-status strong { color: var(--mf-amber-2); font-family: var(--mf-font-mono); }
+.mech-foundry .footer-status strong.over { color: var(--mf-danger); }
+.mech-foundry .footer-nav { display: flex; gap: 8px; }
+.mech-foundry .footer-nav button {
+  background: var(--mf-panel-2); border: 1px solid var(--mf-steel); border-radius: 2px;
+  color: var(--mf-ink); font-family: var(--mf-font-head); text-transform: uppercase;
+  letter-spacing: 0.04em; padding: 6px 14px; cursor: pointer;
+}
+.mech-foundry .footer-nav button:hover:not(:disabled) { border-color: var(--mf-amber); color: var(--mf-amber-2); }
+.mech-foundry .footer-nav button:disabled { opacity: 0.4; cursor: default; }
+.mech-foundry .footer-nav button.finish { border-color: var(--mf-ok); color: var(--mf-ok); }
+.mech-foundry .footer-nav button.finish:hover { background: rgba(95,167,98,0.15); }
+
+/* ---- Wizard: stage module cards + flexible XP (M4) --------- */
+.mech-foundry .choice-card.module-card { position: relative; }
+.mech-foundry .choice-card .card-meta { display: flex; gap: 8px; font-family: var(--mf-font-mono); font-size: 0.78em; }
+.mech-foundry .choice-card .card-meta .cost { color: var(--mf-amber); }
+.mech-foundry .choice-card .card-meta .time { color: var(--mf-ink-dim); }
+.mech-foundry .choice-card .choice-prereq { color: var(--mf-hazard); font-size: 0.75em; }
+.mech-foundry .choice-card .selected-flag {
+  position: absolute; top: 6px; right: 6px; color: var(--mf-ok);
+}
+
+.mech-foundry .flex-pool {
+  border: 1px solid var(--mf-line);
+  border-radius: 3px;
+  background: var(--mf-panel);
+  padding: 10px;
+  margin-bottom: 10px;
+}
+.mech-foundry .flex-pool-head { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
+.mech-foundry .flex-pool-head .flex-note { color: var(--mf-ink); font-size: 0.9em; }
+.mech-foundry .flex-pool-head .flex-meta { color: var(--mf-amber); font-family: var(--mf-font-mono); font-size: 0.8em; white-space: nowrap; }
+.mech-foundry .flex-slots { display: flex; flex-direction: column; gap: 6px; }
+.mech-foundry .flex-slot { display: flex; gap: 6px; }
+.mech-foundry .flex-slot select,
+.mech-foundry .flex-slot input[type="text"] {
+  flex: 1 1 auto;
+  background: #0f1317; border: 1px solid var(--mf-line); border-radius: 2px;
+  color: var(--mf-ink); padding: 5px 8px; font-family: var(--mf-font-body);
+}
+.mech-foundry .flex-slot select { flex: 0 0 130px; }
+.mech-foundry .flex-slot select:focus,
+.mech-foundry .flex-slot input:focus { outline: none; border-color: var(--mf-amber); box-shadow: 0 0 0 1px rgba(242,165,58,0.35); }
