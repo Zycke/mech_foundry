@@ -174,9 +174,12 @@ export class CharacterBuilder {
     }
 
     // Queue flexible-XP pools for later resolution.
-    for (const pool of asArray(m.flexibleXP)) {
+    asArray(m.flexibleXP).forEach((pool, i) => {
       state.flexiblePending.push({
         id: foundryRandomId(),
+        // Deterministic across rebuilds (moduleId is the source doc id, i is the
+        // pool's index in the module): lets a caller re-apply saved assignments.
+        sourceKey: `${entry.id}#${i}`,
         moduleId: entry.id,
         amount: Number(pool.amount) || 0,   // XP per assignment
         count: Number(pool.count) || 1,     // number of assignments allowed
@@ -185,7 +188,7 @@ export class CharacterBuilder {
         note: pool.note || '',
         assigned: []                        // [{ target, amount }]
       });
-    }
+    });
 
     // Age / time.
     state.age += Number(m.time) || 0;

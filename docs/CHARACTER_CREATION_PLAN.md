@@ -236,8 +236,15 @@ All grants routed through **one helper** (`grantToActor`) so the wizard and any 
    "Character Builder" header control on the character sheet and
    `game.mechfoundry.openCharacterWizard(actor)`. Finish is a preview endpoint — no actor
    mutation yet (that is M5). Themed to the gritty HUD.
-4. **M4 — Stages 1–4 steps + flexible-XP resolver.** Full Life Module flow end-to-end into
-   the Review preview.
+4. **M4 — Stages 1–4 steps + flexible-XP resolver. ✅ DONE.** Wizard now has the full
+   life-path: Stage 1 & 2 single-select and Stage 3 & 4 multi-select module steps (reading each
+   stage from the compendium, cost/time/prereq shown on cards), plus a flexible-XP resolver step
+   that renders a slot per granted allocation (attribute dropdown, skill/trait text, or
+   kind+value for "any" pools). Selections rebuild the builder state deterministically; flexible
+   assignments persist across re-selection via a stable pool `sourceKey`
+   (`<moduleId>#<index>`) added to the engine. Review validates against every selected module's
+   prerequisites. Engine + reapply logic covered by regression tests; the template was
+   render-validated. Finish still preview-only (commit is M5).
 5. **M5 — Commit path** (`grantToActor`, item creation, actor update) + sheet summary +
    launch buttons. First fully generated sheet.
 6. **M6 — Point-Buy quick path** (D1) reusing engine.

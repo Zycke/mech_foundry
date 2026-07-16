@@ -32,9 +32,9 @@
     <div class="wizard-panel">
       <h2>Stage 0 — Affiliation</h2>
       <p class="hint">Your origin. Choosing an affiliation applies the mandatory universal allotment (850 XP) plus the affiliation's own grants.</p>
-      {{#if hasAffiliations}}
+      {{#if hasModules}}
       <div class="choice-grid">
-        {{#each affiliations}}
+        {{#each modules}}
         <button type="button" class="choice-card {{#if this.selected}}selected{{/if}}" data-action="selectAffiliation" data-id="{{this.id}}">
           <img src="{{this.img}}" alt=""/>
           <span class="choice-name">{{this.name}}</span>
@@ -43,7 +43,7 @@
         {{/each}}
       </div>
       {{else}}
-      <p class="empty-note"><i class="fas fa-triangle-exclamation"></i> No affiliations found in the Life Modules compendium. A GM can add <em>Life Module</em> items (Stage 0, type Affiliation) to <strong>Life Modules</strong> and reopen the wizard.</p>
+      <p class="empty-note"><i class="fas fa-triangle-exclamation"></i> No affiliations found in the Life Modules compendium. A GM can add <em>Life Module</em> items (Stage 0, type Affiliation) and reopen the wizard.</p>
       {{/if}}
     </div>
     {{/if}}
@@ -61,6 +61,78 @@
         </button>
         {{/each}}
       </div>
+    </div>
+    {{/if}}
+
+    {{#if stage}}
+    <div class="wizard-panel">
+      <h2>{{stepLabel}}</h2>
+      <p class="hint">
+        {{#if multi}}Choose any number of modules for this optional stage.{{else}}Choose exactly one module for this required stage.{{/if}}
+        {{#unless multi}}{{#unless mandatory}} This stage is optional.{{/unless}}{{/unless}}
+      </p>
+      {{#if hasModules}}
+      <div class="choice-grid">
+        {{#each modules}}
+        <button type="button" class="choice-card module-card {{#if this.selected}}selected{{/if}}"
+                data-action="{{#if ../multi}}toggleStageModule{{else}}selectStageModule{{/if}}"
+                data-stage="{{../stage}}" data-id="{{this.id}}">
+          <span class="choice-name">{{this.name}}</span>
+          <span class="card-meta">
+            <span class="cost">{{this.cost}} XP</span>
+            {{#if this.time}}<span class="time">{{this.time}} yr</span>{{/if}}
+          </span>
+          <span class="choice-summary">{{this.summary}}</span>
+          {{#if this.prereq}}<span class="choice-prereq"><i class="fas fa-lock"></i> {{this.prereq}}</span>{{/if}}
+          {{#if this.selected}}<span class="selected-flag"><i class="fas fa-check"></i></span>{{/if}}
+        </button>
+        {{/each}}
+      </div>
+      {{else}}
+      <p class="empty-note"><i class="fas fa-circle-info"></i> No Stage {{stage}} modules in the compendium yet.{{#unless mandatory}} This stage is optional — you can continue.{{/unless}} A GM can add <em>Life Module</em> items for this stage.</p>
+      {{/if}}
+    </div>
+    {{/if}}
+
+    {{#if (eq stepId "flexible")}}
+    <div class="wizard-panel">
+      <h2>Flexible XP</h2>
+      <p class="hint">Assign the flexible XP your chosen modules granted. Every slot must be filled before the character is legal.</p>
+      {{#if hasPools}}
+      {{#each pools}}
+      <div class="flex-pool">
+        <div class="flex-pool-head">
+          <span class="flex-note">{{this.note}}</span>
+          <span class="flex-meta">{{this.amount}} XP each{{#if this.moduleName}} · {{this.moduleName}}{{/if}}</span>
+        </div>
+        <div class="flex-slots">
+          {{#each this.slots}}
+          <div class="flex-slot">
+            {{#if ../isAttribute}}
+            <select name="flex::{{../sourceKey}}::{{this.idx}}::key">
+              <option value="">— choose attribute —</option>
+              {{#each ../attrChoices}}
+              <option value="{{this.value}}" {{#if (eq this.value ../key)}}selected{{/if}}>{{this.label}}</option>
+              {{/each}}
+            </select>
+            {{else if ../isAny}}
+            <select name="flex::{{../sourceKey}}::{{this.idx}}::kind">
+              <option value="attribute" {{#if (eq this.kind "attribute")}}selected{{/if}}>Attribute</option>
+              <option value="skill" {{#if (eq this.kind "skill")}}selected{{/if}}>Skill</option>
+              <option value="trait" {{#if (eq this.kind "trait")}}selected{{/if}}>Trait</option>
+            </select>
+            <input type="text" name="flex::{{../sourceKey}}::{{this.idx}}::key" value="{{this.key}}" placeholder="name (e.g. INT, or Small Arms)"/>
+            {{else}}
+            <input type="text" name="flex::{{../sourceKey}}::{{this.idx}}::key" value="{{this.key}}" placeholder="{{#if ../isSkill}}skill name (Root/Subskill){{else}}trait name{{/if}}"/>
+            {{/if}}
+          </div>
+          {{/each}}
+        </div>
+      </div>
+      {{/each}}
+      {{else}}
+      <p class="all-clear"><i class="fas fa-circle-check"></i> No flexible XP to assign — your chosen modules granted only fixed XP.</p>
+      {{/if}}
     </div>
     {{/if}}
 

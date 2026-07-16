@@ -92,6 +92,33 @@ const overspent = CB.createState({ startingXP: 100 });
 CB.applyModule(overspent, { stage: 0, xpCost: 500 });
 ok(CB.validate(overspent).some(i => i.code === 'pool-overspent'), 'validation flags an overspent pool');
 
+/* ---- Flexible-pool stable keys (wizard rebuild relies on these) --------- */
+{
+  const mod = {
+    stage: 1, xpCost: 200,
+    flexibleXP: [
+      { amount: 15, count: 2, targets: 'attributes', choices: ['str', 'bod'] },
+      { amount: 20, count: 1, targets: 'skills' }
+    ]
+  };
+  const a = CB.createState(); CB.applyModule(a, mod, { id: 'MOD1', name: 'M' });
+  const b = CB.createState(); CB.applyModule(b, mod, { id: 'MOD1', name: 'M' });
+  ok(a.flexiblePending[0].sourceKey === 'MOD1#0' && a.flexiblePending[1].sourceKey === 'MOD1#1',
+    'flexible sourceKey is <moduleId>#<index>');
+  ok(a.flexiblePending.map(p => p.sourceKey).join() === b.flexiblePending.map(p => p.sourceKey).join(),
+    'flexible sourceKey is stable across rebuilds');
+  // Re-apply saved assignments keyed by sourceKey.
+  const saved = { 'MOD1#0': [{ key: 'str' }, { key: 'bod' }], 'MOD1#1': [{ key: 'Small Arms' }] };
+  for (const pool of a.flexiblePending) {
+    for (const raw of (saved[pool.sourceKey] || [])) {
+      const kind = raw.kind || (pool.targets === 'attributes' ? 'attribute' : 'skill');
+      CB.assignFlexible(a, pool.id, { kind, key: raw.key });
+    }
+  }
+  ok(CB.flexibleResolved(a) && a.attributes.str === 15 && a.skills['Small Arms'] === 20,
+    'saved flexible assignments re-apply by sourceKey');
+}
+
 /* ---- Seed data integrity ------------------------------------------------ */
 const { LIFE_MODULE_SEED } = await import('../module/data/life-modules.mjs');
 ok(Array.isArray(LIFE_MODULE_SEED) && LIFE_MODULE_SEED.length > 0, 'seed data is a non-empty array');

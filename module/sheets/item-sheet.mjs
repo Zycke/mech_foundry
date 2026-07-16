@@ -189,7 +189,7 @@ export class MechFoundryItemSheet extends HandlebarsApplicationMixin(ItemSheetV2
           csv.split(',').map(s => s.trim()).filter(Boolean));
       }
       // Guarded JSON parse for the structured sub-objects. On malformed input,
-      // drop the field from the update so the stored value is preserved and warn.
+      // restore the previously-stored value so the bad text is not saved, and warn.
       for (const path of ["system.prerequisites", "system.fixedXP", "system.flexibleXP"]) {
         const raw = foundry.utils.getProperty(data, path);
         if (typeof raw !== 'string') continue;

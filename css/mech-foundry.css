@@ -5769,3 +5769,35 @@
 .mech-foundry .footer-nav button:disabled { opacity: 0.4; cursor: default; }
 .mech-foundry .footer-nav button.finish { border-color: var(--mf-ok); color: var(--mf-ok); }
 .mech-foundry .footer-nav button.finish:hover { background: rgba(95,167,98,0.15); }
+
+/* ---- Wizard: stage module cards + flexible XP (M4) --------- */
+.mech-foundry .choice-card.module-card { position: relative; }
+.mech-foundry .choice-card .card-meta { display: flex; gap: 8px; font-family: var(--mf-font-mono); font-size: 0.78em; }
+.mech-foundry .choice-card .card-meta .cost { color: var(--mf-amber); }
+.mech-foundry .choice-card .card-meta .time { color: var(--mf-ink-dim); }
+.mech-foundry .choice-card .choice-prereq { color: var(--mf-hazard); font-size: 0.75em; }
+.mech-foundry .choice-card .selected-flag {
+  position: absolute; top: 6px; right: 6px; color: var(--mf-ok);
+}
+
+.mech-foundry .flex-pool {
+  border: 1px solid var(--mf-line);
+  border-radius: 3px;
+  background: var(--mf-panel);
+  padding: 10px;
+  margin-bottom: 10px;
+}
+.mech-foundry .flex-pool-head { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
+.mech-foundry .flex-pool-head .flex-note { color: var(--mf-ink); font-size: 0.9em; }
+.mech-foundry .flex-pool-head .flex-meta { color: var(--mf-amber); font-family: var(--mf-font-mono); font-size: 0.8em; white-space: nowrap; }
+.mech-foundry .flex-slots { display: flex; flex-direction: column; gap: 6px; }
+.mech-foundry .flex-slot { display: flex; gap: 6px; }
+.mech-foundry .flex-slot select,
+.mech-foundry .flex-slot input[type="text"] {
+  flex: 1 1 auto;
+  background: #0f1317; border: 1px solid var(--mf-line); border-radius: 2px;
+  color: var(--mf-ink); padding: 5px 8px; font-family: var(--mf-font-body);
+}
+.mech-foundry .flex-slot select { flex: 0 0 130px; }
+.mech-foundry .flex-slot select:focus,
+.mech-foundry .flex-slot input:focus { outline: none; border-color: var(--mf-amber); box-shadow: 0 0 0 1px rgba(242,165,58,0.35); }
