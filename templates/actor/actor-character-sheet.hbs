@@ -121,7 +121,7 @@
               </td>
               <td class="attribute-next-cost">{{xpCosts.attributeNext.str}} XP</td>
               <td class="attribute-roll-cell">
-                <button type="button" class="attribute-roll" data-attribute="str" title="Roll STR (Shift+Click for Double)">
+                <button type="button" class="attribute-roll" data-attribute="str" data-tooltip="Roll STR (Shift+Click for Double)">
                   <i class="fas fa-dice-d6"></i>
                 </button>
               </td>
@@ -142,7 +142,7 @@
               </td>
               <td class="attribute-next-cost">{{xpCosts.attributeNext.bod}} XP</td>
               <td class="attribute-roll-cell">
-                <button type="button" class="attribute-roll" data-attribute="bod" title="Roll BOD (Shift+Click for Double)">
+                <button type="button" class="attribute-roll" data-attribute="bod" data-tooltip="Roll BOD (Shift+Click for Double)">
                   <i class="fas fa-dice-d6"></i>
                 </button>
               </td>
@@ -163,7 +163,7 @@
               </td>
               <td class="attribute-next-cost">{{xpCosts.attributeNext.rfl}} XP</td>
               <td class="attribute-roll-cell">
-                <button type="button" class="attribute-roll" data-attribute="rfl" title="Roll RFL (Shift+Click for Double)">
+                <button type="button" class="attribute-roll" data-attribute="rfl" data-tooltip="Roll RFL (Shift+Click for Double)">
                   <i class="fas fa-dice-d6"></i>
                 </button>
               </td>
@@ -184,7 +184,7 @@
               </td>
               <td class="attribute-next-cost">{{xpCosts.attributeNext.dex}} XP</td>
               <td class="attribute-roll-cell">
-                <button type="button" class="attribute-roll" data-attribute="dex" title="Roll DEX (Shift+Click for Double)">
+                <button type="button" class="attribute-roll" data-attribute="dex" data-tooltip="Roll DEX (Shift+Click for Double)">
                   <i class="fas fa-dice-d6"></i>
                 </button>
               </td>
@@ -205,7 +205,7 @@
               </td>
               <td class="attribute-next-cost">{{xpCosts.attributeNext.int}} XP</td>
               <td class="attribute-roll-cell">
-                <button type="button" class="attribute-roll" data-attribute="int" title="Roll INT (Shift+Click for Double)">
+                <button type="button" class="attribute-roll" data-attribute="int" data-tooltip="Roll INT (Shift+Click for Double)">
                   <i class="fas fa-dice-d6"></i>
                 </button>
               </td>
@@ -226,7 +226,7 @@
               </td>
               <td class="attribute-next-cost">{{xpCosts.attributeNext.wil}} XP</td>
               <td class="attribute-roll-cell">
-                <button type="button" class="attribute-roll" data-attribute="wil" title="Roll WIL (Shift+Click for Double)">
+                <button type="button" class="attribute-roll" data-attribute="wil" data-tooltip="Roll WIL (Shift+Click for Double)">
                   <i class="fas fa-dice-d6"></i>
                 </button>
               </td>
@@ -247,7 +247,7 @@
               </td>
               <td class="attribute-next-cost">{{xpCosts.attributeNext.cha}} XP</td>
               <td class="attribute-roll-cell">
-                <button type="button" class="attribute-roll" data-attribute="cha" title="Roll CHA (Shift+Click for Double)">
+                <button type="button" class="attribute-roll" data-attribute="cha" data-tooltip="Roll CHA (Shift+Click for Double)">
                   <i class="fas fa-dice-d6"></i>
                 </button>
               </td>
@@ -302,7 +302,7 @@
             {{#each skills}}
             <tr class="item skill-row" data-item-id="{{this._id}}">
               <td class="skill-name">
-                <a class="skill-roll" title="Click to roll">
+                <a class="skill-roll" data-tooltip="Roll this skill (2d6 + skill level + linked attribute)">
                   <i class="fas fa-dice"></i> {{this.name}}
                 </a>
               </td>
@@ -318,8 +318,8 @@
               </td>
               <td class="skill-next-cost">{{this.nextLevelCost}} XP</td>
               <td class="item-controls">
-                <a class="item-edit" title="Edit"><i class="fas fa-edit"></i></a>
-                <a class="item-delete" title="Delete"><i class="fas fa-trash"></i></a>
+                <a class="item-edit" data-tooltip="Edit item"><i class="fas fa-edit"></i></a>
+                <a class="item-delete" data-tooltip="Delete this item"><i class="fas fa-trash"></i></a>
               </td>
             </tr>
             {{/each}}
@@ -363,8 +363,8 @@
                 {{/if}}
               </td>
               <td class="item-controls">
-                <a class="item-edit" title="Edit"><i class="fas fa-edit"></i></a>
-                <a class="item-delete" title="Delete"><i class="fas fa-trash"></i></a>
+                <a class="item-edit" data-tooltip="Edit item"><i class="fas fa-edit"></i></a>
+                <a class="item-delete" data-tooltip="Delete this item"><i class="fas fa-trash"></i></a>
               </td>
             </tr>
             {{/each}}
@@ -649,7 +649,7 @@
                   <td class="armor-bar {{#if this.isDamaged}}damaged-value{{/if}}" title="{{#if this.isDamaged}}Max: {{this.system.bar.e}}{{/if}}">{{this.currentBar.e}}</td>
                   <td class="armor-bar {{#if this.isDamaged}}damaged-value{{/if}}" title="{{#if this.isDamaged}}Max: {{this.system.bar.x}}{{/if}}">{{this.currentBar.x}}</td>
                   <td class="item-controls">
-                    <a class="item-edit" title="Edit"><i class="fas fa-edit"></i></a>
+                    <a class="item-edit" data-tooltip="Edit item"><i class="fas fa-edit"></i></a>
                   </td>
                 </tr>
                 {{/each}}
@@ -681,7 +681,7 @@
                 {{#each equippedWeapons}}
                 <tr class="item" data-item-id="{{this._id}}">
                   <td class="weapon-name">
-                    <a class="weapon-attack-roll" title="Click to attack">{{this.name}}</a>
+                    <a class="weapon-attack-roll" data-tooltip="Roll an attack with this weapon">{{this.name}}</a>
                   </td>
                   <td class="weapon-skill">{{this.system.skill}}</td>
                   <td class="weapon-apbd {{#if this.hasModifiedStats}}modified-stats{{/if}}">
@@ -716,7 +716,7 @@
                     {{#if (or this.system.ammo.max this.system.pps)}}
                     <a class="weapon-reload" data-item-id="{{this._id}}" title="Load/Swap Ammo"><i class="fas fa-redo"></i></a>
                     {{/if}}
-                    <a class="item-edit" title="Edit"><i class="fas fa-edit"></i></a>
+                    <a class="item-edit" data-tooltip="Edit item"><i class="fas fa-edit"></i></a>
                   </td>
                 </tr>
                 {{/each}}
@@ -795,7 +795,7 @@
             {{#each inventory.armor}}
             <tr class="item {{#if this.isDamaged}}armor-damaged{{/if}}" data-item-id="{{this._id}}">
               <td class="item-status">
-                <a class="carry-status-toggle" data-status="{{this.system.carryStatus}}" title="{{this.system.carryStatus}}">
+                <a class="carry-status-toggle" data-status="{{this.system.carryStatus}}" data-tooltip="Carry status: {{this.system.carryStatus}} — click to cycle carried / equipped / stored">
                   {{#if (eq this.system.carryStatus "equipped")}}<i class="fas fa-shield-alt"></i>{{else if (eq this.system.carryStatus "carried")}}<i class="fas fa-suitcase"></i>{{else}}<i class="fas fa-warehouse"></i>{{/if}}
                 </a>
               </td>
@@ -812,8 +812,8 @@
               <td class="item-mass">{{this.system.mass}}</td>
               <td class="item-controls">
                 {{#if this.isDamaged}}<a class="armor-repair" title="Repair Armor"><i class="fas fa-wrench"></i></a>{{/if}}
-                <a class="item-edit" title="Edit"><i class="fas fa-edit"></i></a>
-                <a class="item-delete" title="Delete"><i class="fas fa-trash"></i></a>
+                <a class="item-edit" data-tooltip="Edit item"><i class="fas fa-edit"></i></a>
+                <a class="item-delete" data-tooltip="Delete this item"><i class="fas fa-trash"></i></a>
               </td>
             </tr>
             {{/each}}
@@ -843,12 +843,12 @@
             {{#each inventory.weapons}}
             <tr class="item" data-item-id="{{this._id}}">
               <td class="item-status">
-                <a class="carry-status-toggle" data-status="{{this.system.carryStatus}}" title="{{this.system.carryStatus}}">
+                <a class="carry-status-toggle" data-status="{{this.system.carryStatus}}" data-tooltip="Carry status: {{this.system.carryStatus}} — click to cycle carried / equipped / stored">
                   {{#if (eq this.system.carryStatus "equipped")}}<i class="fas fa-hand-rock"></i>{{else if (eq this.system.carryStatus "carried")}}<i class="fas fa-suitcase"></i>{{else}}<i class="fas fa-warehouse"></i>{{/if}}
                 </a>
               </td>
               <td class="item-name">
-                {{#if (eq this.system.carryStatus "equipped")}}<a class="weapon-attack-roll" title="Click to attack">{{this.name}}</a>{{else}}{{this.name}}{{/if}}
+                {{#if (eq this.system.carryStatus "equipped")}}<a class="weapon-attack-roll" data-tooltip="Roll an attack with this weapon">{{this.name}}</a>{{else}}{{this.name}}{{/if}}
               </td>
               <td class="weapon-skill">{{this.system.skill}}</td>
               <td class="weapon-apbd">{{this.system.ap}}{{this.system.apFactor}}/{{this.system.bd}}{{this.system.bdFactor}}</td>
@@ -871,8 +871,8 @@
               </td>
               <td class="item-mass">{{this.system.mass}}</td>
               <td class="item-controls">
-                <a class="item-edit" title="Edit"><i class="fas fa-edit"></i></a>
-                <a class="item-delete" title="Delete"><i class="fas fa-trash"></i></a>
+                <a class="item-edit" data-tooltip="Edit item"><i class="fas fa-edit"></i></a>
+                <a class="item-delete" data-tooltip="Delete this item"><i class="fas fa-trash"></i></a>
               </td>
             </tr>
             {{/each}}
@@ -922,9 +922,9 @@
                 {{#unless this.loadedInWeaponName}}
                 <a class="ammo-load-into-weapon" data-item-id="{{this._id}}" title="Load into weapon"><i class="fas fa-arrow-up"></i></a>
                 {{/unless}}
-                <a class="item-edit" title="Edit"><i class="fas fa-edit"></i></a>
+                <a class="item-edit" data-tooltip="Edit item"><i class="fas fa-edit"></i></a>
                 {{#unless this.loadedInWeaponName}}
-                <a class="item-delete" title="Delete"><i class="fas fa-trash"></i></a>
+                <a class="item-delete" data-tooltip="Delete this item"><i class="fas fa-trash"></i></a>
                 {{/unless}}
               </td>
             </tr>
@@ -953,7 +953,7 @@
             {{#each inventory.electronics}}
             <tr class="item" data-item-id="{{this._id}}">
               <td class="item-status">
-                <a class="carry-status-toggle" data-status="{{this.system.carryStatus}}" title="{{this.system.carryStatus}}">
+                <a class="carry-status-toggle" data-status="{{this.system.carryStatus}}" data-tooltip="Carry status: {{this.system.carryStatus}} — click to cycle carried / equipped / stored">
                   {{#if (eq this.system.carryStatus "carried")}}<i class="fas fa-suitcase"></i>{{else}}<i class="fas fa-warehouse"></i>{{/if}}
                 </a>
               </td>
@@ -962,8 +962,8 @@
               <td class="item-power">{{this.system.powerUse}}</td>
               <td class="item-mass">{{this.system.mass}}</td>
               <td class="item-controls">
-                <a class="item-edit" title="Edit"><i class="fas fa-edit"></i></a>
-                <a class="item-delete" title="Delete"><i class="fas fa-trash"></i></a>
+                <a class="item-edit" data-tooltip="Edit item"><i class="fas fa-edit"></i></a>
+                <a class="item-delete" data-tooltip="Delete this item"><i class="fas fa-trash"></i></a>
               </td>
             </tr>
             {{/each}}
@@ -992,7 +992,7 @@
             {{#each inventory.healthcare}}
             <tr class="item" data-item-id="{{this._id}}">
               <td class="item-status">
-                <a class="carry-status-toggle" data-status="{{this.system.carryStatus}}" title="{{this.system.carryStatus}}">
+                <a class="carry-status-toggle" data-status="{{this.system.carryStatus}}" data-tooltip="Carry status: {{this.system.carryStatus}} — click to cycle carried / equipped / stored">
                   {{#if (eq this.system.carryStatus "carried")}}<i class="fas fa-suitcase"></i>{{else}}<i class="fas fa-warehouse"></i>{{/if}}
                 </a>
               </td>
@@ -1002,8 +1002,8 @@
               <td class="item-charges">{{#if this.system.charges.max}}{{this.system.charges.value}}/{{this.system.charges.max}}{{else}}-{{/if}}</td>
               <td class="item-mass">{{this.system.mass}}</td>
               <td class="item-controls">
-                <a class="item-edit" title="Edit"><i class="fas fa-edit"></i></a>
-                <a class="item-delete" title="Delete"><i class="fas fa-trash"></i></a>
+                <a class="item-edit" data-tooltip="Edit item"><i class="fas fa-edit"></i></a>
+                <a class="item-delete" data-tooltip="Delete this item"><i class="fas fa-trash"></i></a>
               </td>
             </tr>
             {{/each}}
@@ -1029,15 +1029,15 @@
             {{#each inventory.prosthetics}}
             <tr class="item" data-item-id="{{this._id}}">
               <td class="item-status">
-                <a class="carry-status-toggle" data-status="{{this.system.carryStatus}}" title="{{this.system.carryStatus}}">
+                <a class="carry-status-toggle" data-status="{{this.system.carryStatus}}" data-tooltip="Carry status: {{this.system.carryStatus}} — click to cycle carried / equipped / stored">
                   {{#if (eq this.system.carryStatus "carried")}}<i class="fas fa-suitcase"></i>{{else}}<i class="fas fa-warehouse"></i>{{/if}}
                 </a>
               </td>
               <td class="item-name">{{this.name}}</td>
               <td class="item-notes">{{this.system.notes}}</td>
               <td class="item-controls">
-                <a class="item-edit" title="Edit"><i class="fas fa-edit"></i></a>
-                <a class="item-delete" title="Delete"><i class="fas fa-trash"></i></a>
+                <a class="item-edit" data-tooltip="Edit item"><i class="fas fa-edit"></i></a>
+                <a class="item-delete" data-tooltip="Delete this item"><i class="fas fa-trash"></i></a>
               </td>
             </tr>
             {{/each}}
@@ -1065,7 +1065,7 @@
             {{#each inventory.drugpoisons}}
             <tr class="item" data-item-id="{{this._id}}">
               <td class="item-status">
-                <a class="carry-status-toggle" data-status="{{this.system.carryStatus}}" title="{{this.system.carryStatus}}">
+                <a class="carry-status-toggle" data-status="{{this.system.carryStatus}}" data-tooltip="Carry status: {{this.system.carryStatus}} — click to cycle carried / equipped / stored">
                   {{#if (eq this.system.carryStatus "carried")}}<i class="fas fa-suitcase"></i>{{else}}<i class="fas fa-warehouse"></i>{{/if}}
                 </a>
               </td>
@@ -1074,8 +1074,8 @@
               <td class="item-duration">{{this.system.duration}}</td>
               <td class="item-mass">{{this.system.mass}}</td>
               <td class="item-controls">
-                <a class="item-edit" title="Edit"><i class="fas fa-edit"></i></a>
-                <a class="item-delete" title="Delete"><i class="fas fa-trash"></i></a>
+                <a class="item-edit" data-tooltip="Edit item"><i class="fas fa-edit"></i></a>
+                <a class="item-delete" data-tooltip="Delete this item"><i class="fas fa-trash"></i></a>
               </td>
             </tr>
             {{/each}}
@@ -1104,7 +1104,7 @@
             {{#each inventory.vehicles}}
             <tr class="item" data-item-id="{{this._id}}">
               <td class="item-status">
-                <a class="carry-status-toggle" data-status="{{this.system.carryStatus}}" title="{{this.system.carryStatus}}">
+                <a class="carry-status-toggle" data-status="{{this.system.carryStatus}}" data-tooltip="Carry status: {{this.system.carryStatus}} — click to cycle carried / equipped / stored">
                   {{#if (eq this.system.carryStatus "carried")}}<i class="fas fa-suitcase"></i>{{else}}<i class="fas fa-warehouse"></i>{{/if}}
                 </a>
               </td>
@@ -1114,8 +1114,8 @@
               <td class="vehicle-range">{{this.system.range}}</td>
               <td class="vehicle-crew">{{this.system.crew}}/{{this.system.passengers}}</td>
               <td class="item-controls">
-                <a class="item-edit" title="Edit"><i class="fas fa-edit"></i></a>
-                <a class="item-delete" title="Delete"><i class="fas fa-trash"></i></a>
+                <a class="item-edit" data-tooltip="Edit item"><i class="fas fa-edit"></i></a>
+                <a class="item-delete" data-tooltip="Delete this item"><i class="fas fa-trash"></i></a>
               </td>
             </tr>
             {{/each}}
@@ -1142,7 +1142,7 @@
             {{#each inventory.fuel}}
             <tr class="item" data-item-id="{{this._id}}">
               <td class="item-status">
-                <a class="carry-status-toggle" data-status="{{this.system.carryStatus}}" title="{{this.system.carryStatus}}">
+                <a class="carry-status-toggle" data-status="{{this.system.carryStatus}}" data-tooltip="Carry status: {{this.system.carryStatus}} — click to cycle carried / equipped / stored">
                   {{#if (eq this.system.carryStatus "carried")}}<i class="fas fa-suitcase"></i>{{else}}<i class="fas fa-warehouse"></i>{{/if}}
                 </a>
               </td>
@@ -1150,8 +1150,8 @@
               <td class="fuel-type">{{this.system.fuelType}}</td>
               <td class="item-mass">{{this.system.mass}}</td>
               <td class="item-controls">
-                <a class="item-edit" title="Edit"><i class="fas fa-edit"></i></a>
-                <a class="item-delete" title="Delete"><i class="fas fa-trash"></i></a>
+                <a class="item-edit" data-tooltip="Edit item"><i class="fas fa-edit"></i></a>
+                <a class="item-delete" data-tooltip="Delete this item"><i class="fas fa-trash"></i></a>
               </td>
             </tr>
             {{/each}}
@@ -1254,8 +1254,8 @@
                   <span class="modifier-count">{{#if this.system.persistentModifiers}}{{this.system.persistentModifiers.length}}{{else}}0{{/if}} modifier(s)</span>
                 </td>
                 <td class="effect-controls">
-                  <a class="item-edit" data-item-id="{{this._id}}" title="Edit"><i class="fas fa-edit"></i></a>
-                  <a class="item-delete" data-item-id="{{this._id}}" title="Delete"><i class="fas fa-trash"></i></a>
+                  <a class="item-edit" data-item-id="{{this._id}}" data-tooltip="Edit item"><i class="fas fa-edit"></i></a>
+                  <a class="item-delete" data-item-id="{{this._id}}" data-tooltip="Delete this item"><i class="fas fa-trash"></i></a>
                 </td>
               </tr>
               {{/each}}
@@ -1302,8 +1302,8 @@
                   </span>
                 </td>
                 <td class="effect-controls">
-                  <a class="item-edit" data-item-id="{{this._id}}" title="Edit"><i class="fas fa-edit"></i></a>
-                  <a class="item-delete" data-item-id="{{this._id}}" title="Delete"><i class="fas fa-trash"></i></a>
+                  <a class="item-edit" data-item-id="{{this._id}}" data-tooltip="Edit item"><i class="fas fa-edit"></i></a>
+                  <a class="item-delete" data-item-id="{{this._id}}" data-tooltip="Delete this item"><i class="fas fa-trash"></i></a>
                 </td>
               </tr>
               {{/each}}

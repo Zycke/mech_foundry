@@ -5117,3 +5117,265 @@
   color: #888;
   font-style: italic;
 }
+
+/* ============================================================= */
+/* v14 / ApplicationV2 layout fixes + BattleTech "gritty HUD"    */
+/* theme. Appended last so it wins the cascade. Reversible.      */
+/* ============================================================= */
+
+:root {
+  --mf-bg:        #14181c;   /* base panel black */
+  --mf-panel:     #1c232a;   /* raised panel */
+  --mf-panel-2:   #232c34;   /* input / row */
+  --mf-ink:       #d7dee4;   /* primary text */
+  --mf-ink-dim:   #8b98a3;   /* labels / muted */
+  --mf-amber:     #f2a53a;   /* readout / accent */
+  --mf-amber-2:   #ffcf7a;   /* bright accent */
+  --mf-steel:     #4d5b68;   /* borders / chrome */
+  --mf-hazard:    #e8b13a;
+  --mf-line:      #313b44;
+  --mf-danger:    #d9483b;
+  --mf-ok:        #5fa762;
+  --mf-font-head: "Roboto Condensed", "Signika", "Roboto", system-ui, sans-serif;
+  --mf-font-body: "Roboto", system-ui, sans-serif;
+  --mf-font-mono: ui-monospace, "Roboto Mono", "Consolas", monospace;
+  --mf-notch:     10px;      /* clipped-corner size */
+}
+
+/* ---- Window frame + V2 content wrapper --------------------- */
+.mech-foundry.sheet .window-content {
+  padding: 0;
+  background: var(--mf-bg);
+  color: var(--mf-ink);
+}
+
+/* The V2 template root wrapper must fill the window and lay the
+   header / tabs / body out as a column (V1 got this from <form>). */
+.mech-foundry .actor-sheet-content,
+.mech-foundry .item-sheet-content {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+  gap: 8px;
+  padding: 8px;
+  background:
+    repeating-linear-gradient(0deg, rgba(255,255,255,0.012) 0 2px, transparent 2px 4px),
+    linear-gradient(180deg, rgba(0,0,0,0.25), transparent 140px),
+    var(--mf-bg);
+  color: var(--mf-ink);
+  font-family: var(--mf-font-body);
+}
+
+.mech-foundry .sheet-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 6px 4px 2px;
+}
+.mech-foundry .sheet-body .tab { display: none; }
+.mech-foundry .sheet-body .tab.active { display: block; }
+
+/* ---- Header: gunmetal panel, amber readout, hazard edge ---- */
+.mech-foundry .sheet-header {
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  background:
+    linear-gradient(135deg, #10151a 0%, #202a33 60%, #171d23 100%);
+  border: 1px solid var(--mf-line);
+  border-bottom: 2px solid var(--mf-amber);
+  border-radius: 3px;
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - var(--mf-notch)),
+                     calc(100% - var(--mf-notch)) 100%, 0 100%);
+}
+.mech-foundry .sheet-header .profile-img {
+  border: 1px solid var(--mf-steel);
+  border-radius: 2px;
+  filter: saturate(0.9) contrast(1.05);
+  cursor: pointer;
+}
+.mech-foundry .sheet-header .charname input,
+.mech-foundry .sheet-header .header-fields h1 input {
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--mf-steel);
+  color: var(--mf-amber-2);
+  font-family: var(--mf-font-head);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* ---- Tabs: angular, amber active with glow ----------------- */
+.mech-foundry .sheet-tabs {
+  gap: 3px;
+  border-bottom: 1px solid var(--mf-line);
+  padding-bottom: 4px;
+  flex: 0 0 auto;
+}
+.mech-foundry .sheet-tabs .item {
+  padding: 5px 14px;
+  background: var(--mf-panel);
+  color: var(--mf-ink-dim);
+  border: 1px solid var(--mf-line);
+  border-bottom: none;
+  border-radius: 2px 2px 0 0;
+  font-family: var(--mf-font-head);
+  font-size: 0.8em;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.mech-foundry .sheet-tabs .item:hover { color: var(--mf-amber-2); background: var(--mf-panel-2); }
+.mech-foundry .sheet-tabs .item.active {
+  color: #16181b;
+  background: var(--mf-amber);
+  border-color: var(--mf-amber);
+  box-shadow: 0 0 8px rgba(242,165,58,0.35);
+}
+
+/* ---- Section headers / list headers ------------------------ */
+.mech-foundry .items-header,
+.mech-foundry .section-title {
+  align-items: center;
+  margin: 10px 0 6px;
+  padding: 4px 8px 4px 10px;
+  background: linear-gradient(90deg, var(--mf-panel-2), var(--mf-panel));
+  border: 1px solid var(--mf-line);
+  border-left: 3px solid var(--mf-amber);
+  border-radius: 2px;
+}
+.mech-foundry .items-header h3,
+.mech-foundry .section-title {
+  margin: 0;
+  color: var(--mf-amber);
+  font-family: var(--mf-font-head);
+  font-size: 0.82em;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+/* ---- Item rows: panel rows, wrap safely, hover ------------- */
+.mech-foundry .items-list { list-style: none; margin: 0; padding: 0; }
+.mech-foundry .items-list .item {
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  background: var(--mf-panel);
+  border: 1px solid var(--mf-line);
+  border-radius: 2px;
+  margin-bottom: 3px;
+  transition: border-color 0.12s, background 0.12s;
+}
+.mech-foundry .items-list .item:hover {
+  background: var(--mf-panel-2);
+  border-color: var(--mf-steel);
+}
+.mech-foundry .item-name {
+  flex: 1 1 auto;
+  min-width: 0;             /* allow shrink so long names don't overflow */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--mf-ink);
+}
+.mech-foundry .weapon-stats,
+.mech-foundry .skill-level { color: var(--mf-ink-dim); font-family: var(--mf-font-mono); font-size: 0.85em; white-space: nowrap; }
+.mech-foundry .item-controls { display: flex; gap: 6px; flex: 0 0 auto; }
+
+/* ---- Icon controls (edit/delete/roll/etc.) ----------------- */
+.mech-foundry .item-controls a,
+.mech-foundry .item-create,
+.mech-foundry .weapon-attack-roll,
+.mech-foundry .skill-roll {
+  color: var(--mf-ink-dim);
+  cursor: pointer;
+  transition: color 0.12s, text-shadow 0.12s;
+}
+.mech-foundry .item-controls a:hover,
+.mech-foundry .item-create:hover,
+.mech-foundry .skill-roll:hover { color: var(--mf-amber-2); text-shadow: 0 0 6px rgba(242,165,58,0.5); }
+.mech-foundry .item-delete:hover { color: var(--mf-danger); text-shadow: 0 0 6px rgba(217,72,59,0.5); }
+.mech-foundry .weapon-attack-roll:hover { color: var(--mf-danger); }
+
+/* ---- Inputs / selects: dark terminal fields ---------------- */
+.mech-foundry input[type="text"],
+.mech-foundry input[type="number"],
+.mech-foundry select,
+.mech-foundry textarea {
+  background: #0f1317;
+  border: 1px solid var(--mf-line);
+  border-radius: 2px;
+  color: var(--mf-ink);
+  font-family: var(--mf-font-body);
+}
+.mech-foundry input[type="number"] { font-family: var(--mf-font-mono); }
+.mech-foundry input:focus,
+.mech-foundry select:focus,
+.mech-foundry textarea:focus {
+  outline: none;
+  border-color: var(--mf-amber);
+  box-shadow: 0 0 0 1px rgba(242,165,58,0.35);
+}
+.mech-foundry label { color: var(--mf-ink-dim); }
+
+/* ---- Buttons ---------------------------------------------- */
+.mech-foundry button {
+  background: var(--mf-panel-2);
+  border: 1px solid var(--mf-steel);
+  border-radius: 2px;
+  color: var(--mf-ink);
+  font-family: var(--mf-font-head);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.mech-foundry button:hover { border-color: var(--mf-amber); color: var(--mf-amber-2); }
+
+/* ---- Attribute cells (readout look) ----------------------- */
+.mech-foundry .attribute-compact,
+.mech-foundry .attribute-box {
+  background: var(--mf-panel);
+  border: 1px solid var(--mf-line);
+  border-radius: 2px;
+}
+.mech-foundry .attr-label { color: var(--mf-amber); font-family: var(--mf-font-head); text-transform: uppercase; letter-spacing: 0.06em; }
+.mech-foundry .link-mod { color: var(--mf-ink-dim); font-family: var(--mf-font-mono); }
+.mech-foundry .attribute-roll {
+  background: transparent;
+  border: 1px solid var(--mf-line);
+  color: var(--mf-amber);
+}
+.mech-foundry .attribute-roll:hover { border-color: var(--mf-amber); box-shadow: 0 0 6px rgba(242,165,58,0.4); }
+
+/* ---- Condition monitor / boxes ---------------------------- */
+.mech-foundry .condition-monitor,
+.mech-foundry .combat-data-section {
+  background: var(--mf-panel);
+  border: 1px solid var(--mf-line);
+  border-left: 3px solid var(--mf-danger);
+  border-radius: 2px;
+}
+.mech-foundry .condition-box {
+  border: 1px solid var(--mf-steel);
+  background: #0f1317;
+}
+.mech-foundry .damage-track .condition-box.filled { background: var(--mf-danger); border-color: var(--mf-danger); }
+.mech-foundry .fatigue-track .condition-box.filled { background: var(--mf-amber); border-color: var(--mf-amber); }
+
+/* ---- Armor BAR / equipped toggle -------------------------- */
+.mech-foundry .armor-toggle { color: var(--mf-ok); flex: 0 0 auto; }
+
+/* ---- Scrollbars ------------------------------------------- */
+.mech-foundry .sheet-body::-webkit-scrollbar { width: 10px; }
+.mech-foundry .sheet-body::-webkit-scrollbar-track { background: #0e1216; }
+.mech-foundry .sheet-body::-webkit-scrollbar-thumb {
+  background: var(--mf-steel); border-radius: 2px; border: 2px solid #0e1216;
+}
+.mech-foundry .sheet-body::-webkit-scrollbar-thumb:hover { background: var(--mf-amber-dim, #b9782a); }
+
+/* ---- Editor / biography ----------------------------------- */
+.mech-foundry .editor-container,
+.mech-foundry .editor { background: var(--mf-panel); border: 1px solid var(--mf-line); border-radius: 2px; color: var(--mf-ink); }
