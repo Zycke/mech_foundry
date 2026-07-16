@@ -5859,3 +5859,44 @@
   border: 1px solid var(--mf-line); border-radius: 2px; padding: 1px 6px;
 }
 .mech-foundry .creation-summary .cs-stage { color: var(--mf-amber); font-family: var(--mf-font-mono); }
+
+/* ---- Wizard M7: legality/prereq badges, gating, spend step - */
+.mech-foundry .choice-card.illegal { opacity: 0.7; border-style: dashed; }
+.mech-foundry .card-meta .badge-illegal { color: var(--mf-danger); font-size: 0.72em; }
+.mech-foundry .card-meta .badge-prereq { font-size: 0.72em; }
+.mech-foundry .card-meta .badge-prereq.met { color: var(--mf-ok); }
+.mech-foundry .card-meta .badge-prereq.unmet { color: var(--mf-hazard); }
+
+.mech-foundry .advance-hint { color: var(--mf-hazard); font-size: 0.8em; margin-right: 8px; align-self: center; }
+
+.mech-foundry .hint-inline { color: var(--mf-ink-dim); font-size: 0.7em; text-transform: none; letter-spacing: 0; }
+.mech-foundry .spend-sub {
+  margin: 12px 0 6px; font-family: var(--mf-font-head); color: var(--mf-amber-2);
+  text-transform: uppercase; letter-spacing: 0.04em; font-size: 0.85em; border-bottom: 1px solid var(--mf-line);
+}
+.mech-foundry .spend-attrs { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; }
+.mech-foundry .spend-attr {
+  display: flex; align-items: center; gap: 6px; padding: 4px 8px;
+  background: var(--mf-panel); border: 1px solid var(--mf-line); border-radius: 2px;
+}
+.mech-foundry .spend-attr .sa-label { font-family: var(--mf-font-head); color: var(--mf-ink); flex: 0 0 34px; }
+.mech-foundry .spend-attr .sa-score { color: var(--mf-amber); font-family: var(--mf-font-mono); font-weight: 700; flex: 0 0 20px; text-align: center; }
+.mech-foundry .spend-attr .sa-controls { display: flex; align-items: center; gap: 4px; margin-left: auto; }
+.mech-foundry .spend-attr .sa-controls button {
+  width: 22px; height: 22px; padding: 0; display: inline-flex; align-items: center; justify-content: center;
+  background: var(--mf-panel-2); border: 1px solid var(--mf-steel); border-radius: 2px; color: var(--mf-ink); cursor: pointer;
+}
+.mech-foundry .spend-attr .sa-controls button:hover:not(:disabled) { border-color: var(--mf-amber); color: var(--mf-amber-2); }
+.mech-foundry .spend-attr .sa-controls button:disabled { opacity: 0.35; cursor: default; }
+.mech-foundry .spend-attr .sa-bought { min-width: 22px; text-align: center; font-family: var(--mf-font-mono); color: var(--mf-ink-dim); }
+.mech-foundry .spend-attr .sa-cap { color: var(--mf-hazard); font-size: 0.72em; }
+.mech-foundry .spend-skills { display: flex; flex-direction: column; gap: 6px; }
+.mech-foundry .spend-skill-row { display: flex; gap: 6px; }
+.mech-foundry .spend-skill-row .value-select { flex: 1 1 auto; }
+.mech-foundry .spend-skill-row input[type="number"] {
+  flex: 0 0 90px; background: #0f1317; border: 1px solid var(--mf-line); border-radius: 2px;
+  color: var(--mf-ink); padding: 5px 8px; font-family: var(--mf-font-mono);
+}
+.mech-foundry .spend-skill-row select {
+  background: #0f1317; border: 1px solid var(--mf-line); border-radius: 2px; color: var(--mf-ink); padding: 5px 8px;
+}

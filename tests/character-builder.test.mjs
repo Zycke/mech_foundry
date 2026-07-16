@@ -119,6 +119,24 @@ ok(CB.validate(overspent).some(i => i.code === 'pool-overspent'), 'validation fl
     'saved flexible assignments re-apply by sourceKey');
 }
 
+/* ---- Module legality + leftover-pool spend (M7) ------------------------ */
+ok(CB.isModuleLegal({ restrictedToAffiliations: [] }, 'capellan'), 'empty restriction is legal for anyone');
+ok(CB.isModuleLegal({ restrictedToAffiliations: ['capellan'] }, 'capellan'), 'listed affiliation is legal');
+ok(!CB.isModuleLegal({ restrictedToAffiliations: ['davion'] }, 'capellan'), 'unlisted affiliation is illegal');
+{
+  const st = CB.createState(); st.affiliationKey = 'capellan';
+  CB.applyModule(st, { stage: 1, xpCost: 0, restrictedToAffiliations: ['davion'] }, { id: 'x', name: 'Davion School' });
+  const iss = CB.validate(st, { modules: { x: { stage: 1, restrictedToAffiliations: ['davion'] } } });
+  ok(iss.some(i => i.code === 'affiliation-illegal'), 'validate flags an affiliation-illegal module');
+
+  const sp = CB.createState();
+  const before = sp.attributes.str;
+  ok(CB.spendPool(sp, { kind: 'attribute', key: 'str', xp: 300 }) && sp.attributes.str === before + 300,
+    'spendPool adds attribute XP within budget');
+  ok(!CB.spendPool(sp, { kind: 'attribute', key: 'str', xp: CB.remaining(sp) + 1 }),
+    'spendPool rejects spending past the pool');
+}
+
 /* ---- Seed data integrity ------------------------------------------------ */
 const { LIFE_MODULE_SEED } = await import('../module/data/life-modules.mjs');
 ok(Array.isArray(LIFE_MODULE_SEED) && LIFE_MODULE_SEED.length > 0, 'seed data is a non-empty array');

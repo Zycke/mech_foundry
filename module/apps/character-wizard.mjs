@@ -1,4 +1,5 @@
 import { CharacterBuilder, ATTRIBUTE_KEYS, SEVERITY } from '../helpers/character-builder.mjs';
+import * as XP from '../helpers/xp-math.mjs';
 import { ATOW_SKILLS, ATOW_TRAITS, ATOW_TRAIT_DESCRIPTIONS } from '../data/atow-lists.mjs';
 import { grantCharacter } from '../helpers/character-grant.mjs';
 
@@ -20,6 +21,7 @@ const STEPS = [
   { id: 'stage3', label: 'Higher Ed', stage: 3, multi: true },
   { id: 'stage4', label: 'Real Life', stage: 4, multi: true },
   { id: 'flexible', label: 'Flexible XP' },
+  { id: 'spend', label: 'Spend XP' },
   { id: 'review', label: 'Review' }
 ];
 
@@ -52,7 +54,8 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     name: '', player: '',
     affiliationId: '', phenotypeKey: '',
     modules: { 1: '', 2: '', 3: [], 4: [] }, // stage -> id | id[]
-    flexible: {}                             // sourceKey -> [{ kind, key }]
+    flexible: {},                            // sourceKey -> [{ kind, key }]
+    freeSpend: { attributes: {}, skills: [] } // leftover-pool spend
   };
   /** @type {Object<number, Item[]>|null} cached modules grouped by stage */
   #modulesCache = null;
@@ -81,6 +84,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       selectPhenotype: CharacterWizard.#onSelectPhenotype,
       selectStageModule: CharacterWizard.#onSelectStageModule,
       toggleStageModule: CharacterWizard.#onToggleStageModule,
+      spendAttr: CharacterWizard.#onSpendAttr,
       finish: CharacterWizard.#onFinish
     }
   };
@@ -146,6 +150,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     if (!aff) return; // no affiliation yet -> nothing else applies
 
     this.#state.affiliation = aff.name;
+    this.#state.affiliationKey = aff.system.affiliationKey || '';
     // A clean primary-language label: an explicit field, else the affiliation
     // key capitalised, else the display name without any "(...)" suffix.
     const langName = aff.system.primaryLanguage
@@ -168,6 +173,22 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
         catch (_e) { /* choice no longer valid after a module change */ }
       }
     }
+
+    // Apply leftover-pool free spend (attributes at 100 XP/point, then skills).
+    const pheno = this.#phenotypeEntry();
+    for (const [key, count] of Object.entries(this.#choices.freeSpend.attributes || {})) {
+      const n = Number(count) || 0;
+      if (n <= 0) continue;
+      const cap = pheno?.maxValues?.[key] ?? Infinity;
+      // Don't buy past the phenotype cap.
+      const currentScore = XP.getAttributeScoreFromXP(this.#state.attributes[key] || 0);
+      const buyable = Math.max(0, Math.min(n, cap - currentScore));
+      if (buyable > 0) CharacterBuilder.spendPool(this.#state, { kind: 'attribute', key, xp: buyable * 100 });
+    }
+    for (const s of (this.#choices.freeSpend.skills || [])) {
+      const xp = Number(s?.xp) || 0;
+      if (s?.key && xp > 0) CharacterBuilder.spendPool(this.#state, { kind: 'skill', key: s.key, xp });
+    }
   }
 
   #phenotypeEntry(key = this.#choices.phenotypeKey) {
@@ -184,12 +205,15 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     const step = STEPS[this.#step];
     const stepId = step.id;
     const remaining = CharacterBuilder.remaining(this.#state);
+    const derived = CharacterBuilder.derive(this.#state, this.#phenotypeEntry());
     const context = {
       steps: STEPS.map((s, i) => ({ ...s, number: i + 1, active: i === this.#step, done: i < this.#step })),
       stepId,
       stepLabel: step.label,
       isFirst: this.#step === 0,
       isLast: this.#step === STEPS.length - 1,
+      canAdvance: this.#canAdvance(stepId, step),
+      advanceHint: this.#advanceHint(stepId, step),
       choices: this.#choices,
       remaining,
       remainingClass: remaining < 0 ? 'over' : '',
@@ -200,7 +224,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     if (stepId === 'affiliation') {
       const affiliations = await this.#getAffiliations();
       context.hasModules = affiliations.length > 0;
-      context.modules = affiliations.map(a => this.#moduleCard(a, a.id === this.#choices.affiliationId));
+      context.modules = affiliations.map(a => this.#moduleCard(a, a.id === this.#choices.affiliationId, derived));
       context.emptyKind = 'affiliation';
     }
 
@@ -213,7 +237,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       context.hasModules = list.length > 0;
       context.mandatory = [1, 2].includes(step.stage);
       context.modules = list.map(m => this.#moduleCard(
-        m, step.multi ? sel.includes(m.id) : sel === m.id
+        m, step.multi ? sel.includes(m.id) : sel === m.id, derived
       ));
       context.emptyKind = 'stage';
     }
@@ -237,6 +261,10 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       context.hasPools = context.pools.length > 0;
     }
 
+    if (stepId === 'spend') {
+      context.spend = this.#buildSpendContext(derived);
+    }
+
     if (stepId === 'review') {
       const pheno = this.#phenotypeEntry();
       const preview = CharacterBuilder.derive(this.#state, pheno);
@@ -258,8 +286,10 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     return context;
   }
 
-  #moduleCard(doc, selected) {
+  #moduleCard(doc, selected, derived) {
     const sys = doc.system;
+    const legal = CharacterBuilder.isModuleLegal(sys, this.#state.affiliationKey);
+    const pre = this.#prereqStatus(sys.prerequisites, derived);
     return {
       id: doc.id,
       name: doc.name,
@@ -269,8 +299,34 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       time: sys.time || 0,
       grants: this.#moduleGrants(sys),
       flexible: this.#flexibleSummaries(sys),
-      prereq: this.#prereqSummary(sys.prerequisites)
+      prereq: this.#prereqSummary(sys.prerequisites),
+      hasPrereq: pre.has,
+      prereqMet: pre.met,
+      legal,
+      restrictedTo: legal ? '' : this._asArray(sys.restrictedToAffiliations).join(', ')
     };
+  }
+
+  /** Small array coercion (module fields may be arrays or objects). */
+  _asArray(v) { return Array.isArray(v) ? v : (v == null ? [] : Object.values(v)); }
+
+  /** Whether a module's prerequisites are currently met by the build. */
+  #prereqStatus(pre, derived) {
+    const has = !!pre && (Object.keys(pre.attributes || {}).length
+      || Object.keys(pre.skills || {}).length || Object.keys(pre.traits || {}).length);
+    if (!has) return { has: false, met: true };
+    let met = true;
+    for (const [k, min] of Object.entries(pre.attributes || {})) {
+      if ((derived.attributes[k]?.total ?? 0) < min) met = false;
+    }
+    for (const [k, min] of Object.entries(pre.skills || {})) {
+      const s = derived.skills.find(x => x.key === k || x.name === k);
+      if ((s?.level ?? -1) < min) met = false;
+    }
+    for (const [k, min] of Object.entries(pre.traits || {})) {
+      if ((this.#state.traits[k] ?? 0) < min) met = false;
+    }
+    return { has: true, met };
   }
 
   /** Structured, human-readable grants for a module card. */
@@ -359,6 +415,45 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     });
   }
 
+  /** Leftover-pool spend step context (attribute steppers + skill rows). */
+  #buildSpendContext(derived) {
+    const pheno = this.#phenotypeEntry();
+    const remaining = CharacterBuilder.remaining(this.#state);
+    const attributes = ATTRIBUTE_KEYS.map(k => {
+      const cap = pheno?.maxValues?.[k] ?? Infinity;
+      const value = derived.attributes[k].value;
+      return {
+        key: k, label: k.toUpperCase(),
+        total: derived.attributes[k].total,
+        bought: this.#choices.freeSpend.attributes[k] || 0,
+        atCap: value >= cap,
+        canBuy: value < cap && remaining >= 100
+      };
+    });
+    const saved = this.#choices.freeSpend.skills || [];
+    const rows = [...saved, { key: '', xp: '' }].map((s, i) => ({ idx: i, key: s.key || '', xp: s.xp || '' }));
+    return { attributes, skillOptions: this.#skillOptions(), skills: rows, remaining };
+  }
+
+  /** Whether the current step is complete enough to advance / finish. */
+  #canAdvance(stepId, step) {
+    if (stepId === 'affiliation') return !!this.#choices.affiliationId;
+    if (step.stage && [1, 2].includes(step.stage)) return !!this.#choices.modules[step.stage];
+    if (stepId === 'flexible') return CharacterBuilder.flexibleResolved(this.#state);
+    return true;
+  }
+
+  #advanceHint(stepId, step) {
+    if (stepId === 'affiliation' && !this.#choices.affiliationId) return 'Choose an affiliation to continue.';
+    if (step.stage && [1, 2].includes(step.stage) && !this.#choices.modules[step.stage]) {
+      return 'Choose a module for this required stage.';
+    }
+    if (stepId === 'flexible' && !CharacterBuilder.flexibleResolved(this.#state)) {
+      return 'Assign all flexible XP to continue.';
+    }
+    return '';
+  }
+
   /* ---------------------------------------------------------------------- */
   /*  Actions                                                                */
   /* ---------------------------------------------------------------------- */
@@ -379,6 +474,17 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       const sourceKey = parts[1], slot = Number(parts[2]), field = parts[3];
       ((collected[sourceKey] ??= [])[slot] ??= { kind: '', key: '' })[field] = v;
     }
+    // Leftover-pool skill spend: name = "spendskill::<slot>::<field>"
+    let spendChanged = false;
+    const spendSkills = [];
+    for (const [k, v] of Object.entries(data)) {
+      if (!k.startsWith('spendskill::')) continue;
+      spendChanged = true;
+      const parts = k.split('::');
+      const slot = Number(parts[1]), field = parts[2];
+      (spendSkills[slot] ??= { key: '', xp: '' })[field] = v;
+    }
+
     if (flexChanged) {
       for (const [sk, slots] of Object.entries(collected)) {
         const prev = this.#choices.flexible[sk] || [];
@@ -390,13 +496,40 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
           return { kind, key };
         });
       }
+    }
+    if (spendChanged) {
+      this.#choices.freeSpend.skills = spendSkills
+        .map(s => ({ key: s?.key || '', xp: Number(s?.xp) || 0 }))
+        .filter(s => s.key && s.xp > 0);
+    }
+    if (flexChanged || spendChanged) {
       await this.#rebuildState();
       this.render();
     }
   }
 
   static async #onBack() { if (this.#step > 0) { this.#step -= 1; this.render(); } }
-  static async #onNext() { if (this.#step < STEPS.length - 1) { this.#step += 1; this.render(); } }
+  static async #onNext() {
+    const step = STEPS[this.#step];
+    if (!this.#canAdvance(step.id, step)) {
+      const hint = this.#advanceHint(step.id, step);
+      if (hint) ui.notifications?.warn(hint);
+      return;
+    }
+    if (this.#step < STEPS.length - 1) { this.#step += 1; this.render(); }
+  }
+
+  /** Buy (+1) or refund (-1) an attribute point with leftover pool XP. */
+  static async #onSpendAttr(event, target) {
+    const key = target.dataset.key;
+    const dir = target.dataset.dir === 'dec' ? -1 : 1;
+    const cur = this.#choices.freeSpend.attributes[key] || 0;
+    const next = Math.max(0, cur + dir);
+    if (next === 0) delete this.#choices.freeSpend.attributes[key];
+    else this.#choices.freeSpend.attributes[key] = next;
+    await this.#rebuildState();
+    this.render();
+  }
 
   static async #onSelectAffiliation(event, target) {
     this.#choices.affiliationId = target.dataset.id || '';

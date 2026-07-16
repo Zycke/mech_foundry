@@ -65,6 +65,7 @@ export class CharacterBuilder {
       isClan,
       // Identity / choices
       affiliation: '',
+      affiliationKey: '',       // machine key used for module legality checks
       subAffiliation: '',
       phenotype: '',
       // Economy
@@ -249,6 +250,20 @@ export class CharacterBuilder {
     return state.flexiblePending.every(p => p.assigned.length >= p.count);
   }
 
+  /**
+   * Is a module legal for the given affiliation key?
+   * A module with an empty `restrictedToAffiliations` list is available to all;
+   * otherwise the affiliation key must be in the list.
+   * @param {object} moduleSystem  a lifeModule's system data
+   * @param {string} affiliationKey
+   * @returns {boolean}
+   */
+  static isModuleLegal(moduleSystem, affiliationKey) {
+    const restricted = asArray(moduleSystem?.restrictedToAffiliations);
+    if (!restricted.length) return true;
+    return restricted.map(String).includes(String(affiliationKey || ''));
+  }
+
   /* ---------------------------------------------------------------------- */
   /*  Free spend (leftover pool / point-buy cleanup)                         */
   /* ---------------------------------------------------------------------- */
@@ -369,6 +384,27 @@ export class CharacterBuilder {
         severity: SEVERITY.ERROR, code: 'missing-universal',
         message: 'The universal Stage 0 allotment has not been applied.'
       });
+    }
+
+    // Stage-3 count guidance (book recommends no more than two).
+    const stage3count = state.modules.filter(m => m.stage === 3).length;
+    if (stage3count > 2) {
+      issues.push({
+        severity: SEVERITY.WARNING, code: 'too-many-stage3',
+        message: `${stage3count} Stage 3 (Higher Education) modules — the book recommends no more than two.`
+      });
+    }
+
+    // Affiliation legality of each selected module.
+    for (const rec of state.modules) {
+      const sys = modules[rec.id];
+      if (sys && !CharacterBuilder.isModuleLegal(sys, state.affiliationKey)) {
+        issues.push({
+          severity: SEVERITY.ERROR, code: 'affiliation-illegal',
+          message: `${rec.name}: not available to ${state.affiliation || 'this affiliation'}.`,
+          moduleId: rec.id
+        });
+      }
     }
 
     // Unresolved flexible XP.

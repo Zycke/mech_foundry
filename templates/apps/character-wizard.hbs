@@ -77,7 +77,7 @@
       {{#if hasModules}}
       <div class="choice-grid">
         {{#each modules}}
-        <button type="button" class="choice-card module-card {{#if this.selected}}selected{{/if}}"
+        <button type="button" class="choice-card module-card {{#if this.selected}}selected{{/if}} {{#unless this.legal}}illegal{{/unless}}"
                 data-action="{{#if ../multi}}toggleStageModule{{else}}selectStageModule{{/if}}"
                 data-stage="{{../stage}}" data-id="{{this.id}}">
           <span class="card-head">
@@ -87,9 +87,14 @@
           <span class="card-meta">
             <span class="cost">{{this.cost}} XP</span>
             {{#if this.time}}<span class="time">{{this.time}} yr</span>{{/if}}
+            {{#unless this.legal}}<span class="badge-illegal" data-tooltip="Restricted to: {{this.restrictedTo}}"><i class="fas fa-ban"></i> Restricted</span>{{/unless}}
+            {{#if this.hasPrereq}}
+              {{#if this.prereqMet}}<span class="badge-prereq met"><i class="fas fa-check"></i> Prereqs met</span>
+              {{else}}<span class="badge-prereq unmet"><i class="fas fa-lock"></i> Prereqs unmet</span>{{/if}}
+            {{/if}}
           </span>
           {{> "systems/mech-foundry/templates/apps/parts/wizard-grants.hbs"}}
-          {{#if this.prereq}}<span class="choice-prereq"><i class="fas fa-lock"></i> {{this.prereq}}</span>{{/if}}
+          {{#if this.prereq}}<span class="choice-prereq"><i class="fas fa-lock"></i> Requires {{this.prereq}}</span>{{/if}}
         </button>
         {{/each}}
       </div>
@@ -134,6 +139,44 @@
       {{else}}
       <p class="all-clear"><i class="fas fa-circle-check"></i> No flexible XP to assign — your chosen modules granted only fixed XP.</p>
       {{/if}}
+    </div>
+    {{/if}}
+
+    {{#if (eq stepId "spend")}}
+    <div class="wizard-panel">
+      <h2>Spend Remaining XP <span class="hint-inline">(optional)</span></h2>
+      <p class="hint">Spend leftover pool XP directly. Attributes cost 100 XP per point (up to the phenotype cap); skills take any amount you enter.</p>
+
+      <h3 class="spend-sub">Attributes</h3>
+      <div class="spend-attrs">
+        {{#each spend.attributes}}
+        <div class="spend-attr">
+          <span class="sa-label">{{this.label}}</span>
+          <span class="sa-score">{{this.total}}</span>
+          <span class="sa-controls">
+            <button type="button" data-action="spendAttr" data-key="{{this.key}}" data-dir="dec" {{#unless this.bought}}disabled{{/unless}}><i class="fas fa-minus"></i></button>
+            <span class="sa-bought">+{{this.bought}}</span>
+            <button type="button" data-action="spendAttr" data-key="{{this.key}}" data-dir="inc" {{#unless this.canBuy}}disabled{{/unless}}><i class="fas fa-plus"></i></button>
+          </span>
+          {{#if this.atCap}}<span class="sa-cap">at cap</span>{{/if}}
+        </div>
+        {{/each}}
+      </div>
+
+      <h3 class="spend-sub">Skills</h3>
+      <div class="spend-skills">
+        {{#each spend.skills}}
+        <div class="spend-skill-row">
+          <select name="spendskill::{{this.idx}}::key" class="value-select">
+            <option value="">— choose skill —</option>
+            {{#each ../spend.skillOptions}}
+            <option value="{{this.value}}" {{#if (eq this.value ../key)}}selected{{/if}}>{{this.label}}</option>
+            {{/each}}
+          </select>
+          <input type="number" name="spendskill::{{this.idx}}::xp" value="{{this.xp}}" min="0" step="10" placeholder="XP"/>
+        </div>
+        {{/each}}
+      </div>
     </div>
     {{/if}}
 
@@ -217,11 +260,12 @@
       <span class="stat"><i class="fas fa-hourglass-half"></i> Age: <strong>{{age}}</strong></span>
     </div>
     <div class="footer-nav">
+      {{#unless canAdvance}}<span class="advance-hint" data-tooltip="{{advanceHint}}"><i class="fas fa-circle-exclamation"></i> {{advanceHint}}</span>{{/unless}}
       <button type="button" data-action="back" {{#if isFirst}}disabled{{/if}}><i class="fas fa-arrow-left"></i> Back</button>
       {{#if isLast}}
       <button type="button" data-action="finish" class="finish"><i class="fas fa-flag-checkered"></i> Finish</button>
       {{else}}
-      <button type="button" data-action="next">Next <i class="fas fa-arrow-right"></i></button>
+      <button type="button" data-action="next" {{#unless canAdvance}}disabled{{/unless}}>Next <i class="fas fa-arrow-right"></i></button>
       {{/if}}
     </div>
   </footer>

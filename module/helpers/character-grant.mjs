@@ -94,6 +94,21 @@ export async function grantCharacter(actor, { state, derived, choices, phenotype
   system.phenotype = phenotypeKey || state.phenotype || '';
   if (choices?.player) system.personalData = { player: choices.player };
 
+  // Languages: mirror any "Language/<name>" skills into system.languages so the
+  // sheet's Languages list is populated (they remain skills too — Language is a
+  // skill in ATOW). English is treated as a secondary tongue, the rest primary.
+  const languages = {};
+  for (const key of Object.keys(state.skills)) {
+    const m = /^language\/(.+)$/i.exec(key);
+    if (!m) continue;
+    const name = m[1].trim();
+    languages[foundry.utils.randomID()] = {
+      name,
+      type: /^english$/i.test(name) ? 'secondary' : 'primary'
+    };
+  }
+  system.languages = languages;
+
   // 2. Wipe previous wizard-created items so re-running does not duplicate.
   const oldWizardItems = actor.items.filter(i => i.getFlag(FLAG_SCOPE, 'fromWizard')).map(i => i.id);
   if (oldWizardItems.length) await actor.deleteEmbeddedDocuments('Item', oldWizardItems);
