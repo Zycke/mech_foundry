@@ -70,7 +70,11 @@ export class CharacterBuilder {
       // Economy
       startingXP: pool,
       spent: 0,                 // XP paid out of the pool for modules & free spend
-      age: isClan ? cfg.clanBaselineAge : cfg.baselineAge,
+      // Age accumulates from each module's `time` (years lived), starting at
+      // birth. The config baseline age (21 human / 18 Clan) is only the XP-pool
+      // reference and the threshold for post-creation aging XP — NOT a starting
+      // offset. A standard 5-module build lands around the baseline.
+      age: 0,
       universalApplied: false,
       // Accumulated stat XP (the character being built)
       attributes: Object.fromEntries(ATTRIBUTE_KEYS.map(k => [k, 0])),

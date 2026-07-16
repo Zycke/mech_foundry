@@ -29,7 +29,7 @@ ok(XP.getLinkModifier(5) === 0 && XP.getLinkModifier(7) === 1 && XP.getLinkModif
 
 /* ---- Builder economy ---------------------------------------------------- */
 const s = CB.createState();
-ok(CB.remaining(s) === 5000 && s.age === 21, 'fresh state: 5000 XP pool, age 21');
+ok(CB.remaining(s) === 5000 && s.age === 0, 'fresh state: 5000 XP pool, age 0 (accumulates from module time)');
 
 CB.applyUniversalFixedXP(s, { primaryLanguageName: 'Capellan' });
 ok(s.spent === 850, 'universal allotment costs 850 XP');

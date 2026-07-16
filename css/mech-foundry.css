@@ -5739,11 +5739,13 @@
   font-size: 0.9em; min-width: 58px;
 }
 .mech-foundry .choice-card .gtag {
+  min-width: 0; max-width: 100%;
   background: var(--mf-panel-2); border: 1px solid var(--mf-line); border-radius: 2px;
-  padding: 0 5px; color: var(--mf-ink); font-family: var(--mf-font-mono); white-space: nowrap;
+  padding: 0 5px; color: var(--mf-ink); font-family: var(--mf-font-mono);
+  white-space: normal; overflow-wrap: anywhere; word-break: break-word;
 }
 .mech-foundry .choice-card .gtag.trait { border-color: var(--mf-steel); color: var(--mf-amber-2); cursor: help; }
-.mech-foundry .choice-card .gtag.isflex { border-style: dashed; color: var(--mf-hazard); white-space: normal; }
+.mech-foundry .choice-card .gtag.isflex { border-style: dashed; color: var(--mf-hazard); }
 .mech-foundry .choice-card .grant-line.flexline .glabel { color: var(--mf-hazard); }
 
 /* ---- Review ----------------------------------------------- */
