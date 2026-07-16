@@ -1,5 +1,5 @@
 import { ATTRIBUTE_KEYS } from './character-builder.mjs';
-import { ATOW_SKILLS, ATOW_TRAITS } from '../data/atow-lists.mjs';
+import { ATOW_SKILLS, ATOW_TRAITS, computeStartingWealth } from '../data/atow-lists.mjs';
 
 /**
  * character-grant.mjs
@@ -95,6 +95,11 @@ export async function grantCharacter(actor, { state, derived, choices, phenotype
   system.phenotype = phenotypeKey || state.phenotype || '';
   if (choices?.player) system.personalData = { player: choices.player };
 
+  // Starting cash from the Wealth Trait (ATOW p.128; default 1,000). The player
+  // buys gear from this via the normal inventory; any unspent C-bills remain.
+  const wealth = computeStartingWealth(state.traits, { isClan: !!state.isClan });
+  system.cbills = wealth.cbills;
+
   // Languages: mirror any "Language/<name>" skills into system.languages so the
   // sheet's Languages list is populated (they remain skills too — Language is a
   // skill in ATOW). English is treated as a secondary tongue, the rest primary.
@@ -139,6 +144,8 @@ export async function grantCharacter(actor, { state, derived, choices, phenotype
     age: derived.age,
     spent: derived.spent,
     remaining: derived.remaining,
+    cbills: wealth.cbills,
+    equipmentRating: wealth.rating,
     modules: state.modules.map(m => ({ stage: m.stage, name: m.name })),
     choices
   });

@@ -1347,6 +1347,7 @@
           {{#if creation.phenotype}}<span><strong>Phenotype:</strong> {{creation.phenotype}}</span>{{/if}}
           <span><strong>Age:</strong> {{creation.age}}</span>
           <span><strong>XP:</strong> {{creation.spent}} spent / {{creation.remaining}} left</span>
+          {{#if creation.equipmentRating}}<span data-tooltip="Max Tech/Availability/Legality of gear buyable at creation (Equipped Trait)"><strong>Gear rating:</strong> {{creation.equipmentRating}}</span>{{/if}}
         </div>
         {{#if creation.modules.length}}
         <ul class="cs-modules">
