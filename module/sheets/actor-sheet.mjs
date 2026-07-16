@@ -19,7 +19,8 @@ export class MechFoundryActorSheet extends HandlebarsApplicationMixin(ActorSheet
   /** Active tab id, preserved across submitOnChange re-renders. */
   #activeTab = null;
   #dragDrop;
-  #listenersBound = false;
+  /** The frame element the delegated listeners are currently bound to. */
+  #boundElement = null;
 
   constructor(options = {}) {
     super(options);
@@ -716,11 +717,12 @@ export class MechFoundryActorSheet extends HandlebarsApplicationMixin(ActorSheet
     super._onRender?.(context, options);
     // Apply the per-type class the CSS targets (.character-sheet / .npc-sheet)
     this.element.classList.add(`${this.actor.type}-sheet`);
-    const root = $(this.element);
-    // Delegated jQuery listeners persist on the (stable) frame — bind once.
-    if (!this.#listenersBound) {
-      this._activateSheetListeners(root);
-      this.#listenersBound = true;
+    // Bind the delegated jQuery listeners once per frame element. The frame is
+    // reused across in-place re-renders but recreated after close/reopen, so
+    // track the element rather than a one-time boolean.
+    if (this.#boundElement !== this.element) {
+      this._activateSheetListeners($(this.element));
+      this.#boundElement = this.element;
     }
     // Tabs and drag/drop must (re)bind against freshly rendered content each render.
     this._applyActiveTab();
