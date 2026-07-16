@@ -27,8 +27,10 @@ Priority things to test in a real v14 world:
 
 ## 1. ApplicationV2 sheet migration (in progress)
 
-- [x] `MechFoundryActorSheetV2` base + Ship/Vehicle stubs (proof-of-pattern) — **needs v14 test**.
-- [ ] **Item sheet** → V2 (next; real interactivity, array-field round-tripping).
+- [x] `MechFoundryActorSheetV2` base + Ship/Vehicle stubs — **tested, loads & works**.
+- [~] **Item sheet** → V2 (class + all 14 templates + effects partial) — **needs per-type
+      v14 test**: tabs switching, array save (tags/effects/modifiers persist on reload),
+      show/hide (weapon burst, ammo category, activeEffect type), the `{{editor}}` bio.
 - [ ] **Company sheet** → V2 (departments/units/ledger, drag-drop zones).
 - [ ] **Character/NPC sheet** → V2 — the big one (~3,200 lines of jQuery
       `activateListeners` → V2 `actions` + `_onRender`; drag/drop; inline dialogs).
