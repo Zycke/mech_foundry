@@ -5739,11 +5739,13 @@
   font-size: 0.9em; min-width: 58px;
 }
 .mech-foundry .choice-card .gtag {
+  min-width: 0; max-width: 100%;
   background: var(--mf-panel-2); border: 1px solid var(--mf-line); border-radius: 2px;
-  padding: 0 5px; color: var(--mf-ink); font-family: var(--mf-font-mono); white-space: nowrap;
+  padding: 0 5px; color: var(--mf-ink); font-family: var(--mf-font-mono);
+  white-space: normal; overflow-wrap: anywhere; word-break: break-word;
 }
 .mech-foundry .choice-card .gtag.trait { border-color: var(--mf-steel); color: var(--mf-amber-2); cursor: help; }
-.mech-foundry .choice-card .gtag.isflex { border-style: dashed; color: var(--mf-hazard); white-space: normal; }
+.mech-foundry .choice-card .gtag.isflex { border-style: dashed; color: var(--mf-hazard); }
 .mech-foundry .choice-card .grant-line.flexline .glabel { color: var(--mf-hazard); }
 
 /* ---- Review ----------------------------------------------- */
@@ -5830,3 +5832,81 @@
 .mech-foundry .review-list .trait { cursor: help; border-bottom: 1px dotted var(--mf-ink-dim); }
 .mech-foundry .flex-slot select:focus,
 .mech-foundry .flex-slot input:focus { outline: none; border-color: var(--mf-amber); box-shadow: 0 0 0 1px rgba(242,165,58,0.35); }
+
+/* ---- Character Builder summary on the sheet (M5) ----------- */
+.mech-foundry .creation-summary {
+  border: 1px solid var(--mf-line);
+  border-left: 3px solid var(--mf-amber);
+  border-radius: 3px;
+  background: var(--mf-panel);
+  padding: 8px 10px;
+  margin-bottom: 12px;
+}
+.mech-foundry .creation-summary .cs-head { display: flex; align-items: center; justify-content: space-between; }
+.mech-foundry .creation-summary h3 {
+  margin: 0; font-family: var(--mf-font-head); color: var(--mf-amber-2);
+  text-transform: uppercase; letter-spacing: 0.04em; font-size: 0.9em;
+}
+.mech-foundry .creation-summary .cs-launch {
+  color: var(--mf-amber); cursor: pointer; font-size: 0.8em; text-transform: uppercase; letter-spacing: 0.03em;
+}
+.mech-foundry .creation-summary .cs-launch:hover { color: var(--mf-amber-2); }
+.mech-foundry .creation-summary .cs-meta { display: flex; flex-wrap: wrap; gap: 12px; margin: 6px 0; color: var(--mf-ink-dim); font-size: 0.82em; }
+.mech-foundry .creation-summary .cs-meta strong { color: var(--mf-ink); }
+.mech-foundry .creation-summary .cs-modules { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.mech-foundry .creation-summary .cs-modules li {
+  font-size: 0.8em; color: var(--mf-ink); background: var(--mf-panel-2);
+  border: 1px solid var(--mf-line); border-radius: 2px; padding: 1px 6px;
+}
+.mech-foundry .creation-summary .cs-stage { color: var(--mf-amber); font-family: var(--mf-font-mono); }
+
+/* ---- Wizard M7: legality/prereq badges, gating, spend step - */
+.mech-foundry .choice-card.illegal { opacity: 0.7; border-style: dashed; }
+.mech-foundry .card-meta .badge-illegal { color: var(--mf-danger); font-size: 0.72em; }
+.mech-foundry .card-meta .badge-prereq { font-size: 0.72em; }
+.mech-foundry .card-meta .badge-prereq.met { color: var(--mf-ok); }
+.mech-foundry .card-meta .badge-prereq.unmet { color: var(--mf-hazard); }
+
+.mech-foundry .advance-hint { color: var(--mf-hazard); font-size: 0.8em; margin-right: 8px; align-self: center; }
+
+.mech-foundry .hint-inline { color: var(--mf-ink-dim); font-size: 0.7em; text-transform: none; letter-spacing: 0; }
+.mech-foundry .spend-sub {
+  margin: 12px 0 6px; font-family: var(--mf-font-head); color: var(--mf-amber-2);
+  text-transform: uppercase; letter-spacing: 0.04em; font-size: 0.85em; border-bottom: 1px solid var(--mf-line);
+}
+.mech-foundry .spend-attrs { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; }
+.mech-foundry .spend-attr {
+  display: flex; align-items: center; gap: 6px; padding: 4px 8px;
+  background: var(--mf-panel); border: 1px solid var(--mf-line); border-radius: 2px;
+}
+.mech-foundry .spend-attr .sa-label { font-family: var(--mf-font-head); color: var(--mf-ink); flex: 0 0 34px; }
+.mech-foundry .spend-attr .sa-score { color: var(--mf-amber); font-family: var(--mf-font-mono); font-weight: 700; flex: 0 0 20px; text-align: center; }
+.mech-foundry .spend-attr .sa-controls { display: flex; align-items: center; gap: 4px; margin-left: auto; }
+.mech-foundry .spend-attr .sa-controls button {
+  width: 22px; height: 22px; padding: 0; display: inline-flex; align-items: center; justify-content: center;
+  background: var(--mf-panel-2); border: 1px solid var(--mf-steel); border-radius: 2px; color: var(--mf-ink); cursor: pointer;
+}
+.mech-foundry .spend-attr .sa-controls button:hover:not(:disabled) { border-color: var(--mf-amber); color: var(--mf-amber-2); }
+.mech-foundry .spend-attr .sa-controls button:disabled { opacity: 0.35; cursor: default; }
+.mech-foundry .spend-attr .sa-bought { min-width: 22px; text-align: center; font-family: var(--mf-font-mono); color: var(--mf-ink-dim); }
+.mech-foundry .spend-attr .sa-cap { color: var(--mf-hazard); font-size: 0.72em; }
+.mech-foundry .spend-skills { display: flex; flex-direction: column; gap: 6px; }
+.mech-foundry .spend-skill-row { display: flex; gap: 6px; }
+.mech-foundry .spend-skill-row .value-select { flex: 1 1 auto; }
+.mech-foundry .spend-skill-row input[type="number"] {
+  flex: 0 0 90px; background: #0f1317; border: 1px solid var(--mf-line); border-radius: 2px;
+  color: var(--mf-ink); padding: 5px 8px; font-family: var(--mf-font-mono);
+}
+.mech-foundry .spend-skill-row select {
+  background: #0f1317; border: 1px solid var(--mf-line); border-radius: 2px; color: var(--mf-ink); padding: 5px 8px;
+}
+
+/* ---- Wizard: subskill resolution rows ---------------------- */
+.mech-foundry .subskill-row { align-items: center; }
+.mech-foundry .subskill-row .subskill-label { flex: 0 0 45%; color: var(--mf-ink); font-size: 0.9em; }
+.mech-foundry .subskill-row .subskill-hint { color: var(--mf-ink-dim); font-size: 0.82em; }
+.mech-foundry .subskill-row input[type="text"] {
+  flex: 1 1 auto; background: #0f1317; border: 1px solid var(--mf-line); border-radius: 2px;
+  color: var(--mf-ink); padding: 5px 8px;
+}
+.mech-foundry .subskill-row input:focus { outline: none; border-color: var(--mf-amber); box-shadow: 0 0 0 1px rgba(242,165,58,0.35); }

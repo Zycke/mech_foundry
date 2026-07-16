@@ -65,12 +65,17 @@ export class CharacterBuilder {
       isClan,
       // Identity / choices
       affiliation: '',
+      affiliationKey: '',       // machine key used for module legality checks
       subAffiliation: '',
       phenotype: '',
       // Economy
       startingXP: pool,
       spent: 0,                 // XP paid out of the pool for modules & free spend
-      age: isClan ? cfg.clanBaselineAge : cfg.baselineAge,
+      // Age accumulates from each module's `time` (years lived), starting at
+      // birth. The config baseline age (21 human / 18 Clan) is only the XP-pool
+      // reference and the threshold for post-creation aging XP — NOT a starting
+      // offset. A standard 5-module build lands around the baseline.
+      age: 0,
       universalApplied: false,
       // Accumulated stat XP (the character being built)
       attributes: Object.fromEntries(ATTRIBUTE_KEYS.map(k => [k, 0])),
@@ -80,6 +85,7 @@ export class CharacterBuilder {
       // Bookkeeping
       modules: [],              // [{ id, stage, name, xpCost, source }]
       flexiblePending: [],      // unresolved flexible-XP pools
+      subskillPending: [],      // fixed "Skill/Any" grants awaiting a subskill
       cbills: 0
     };
   }
@@ -164,10 +170,29 @@ export class CharacterBuilder {
     for (const [k, xp] of Object.entries(fa)) {
       if (ATTRIBUTE_KEYS.includes(k)) CharacterBuilder.addAttributeXP(state, k, xp);
     }
-    // Fixed skill XP (array of {name, subskill, xp}).
-    for (const s of asArray(m.fixedXP?.skills)) {
-      CharacterBuilder.addSkillXP(state, s.name, s.xp, s.subskill);
-    }
+    // Fixed skill XP (array of {name, subskill, xp}). Subskills ending in
+    // "Any" need a player choice (queued); "Affiliation" auto-resolves.
+    asArray(m.fixedXP?.skills).forEach((s, i) => {
+      const sub = String(s.subskill || '');
+      if (/\bany\b/i.test(sub)) {
+        state.subskillPending.push({
+          sourceKey: `${entry.id}#sk${i}`,
+          moduleId: entry.id,
+          name: s.name,
+          xp: Number(s.xp) || 0,
+          hint: sub,
+          resolved: null
+        });
+      } else if (/affiliation/i.test(sub)) {
+        const key = state.affiliationKey;
+        const aff = key
+          ? key.charAt(0).toUpperCase() + key.slice(1)
+          : (state.affiliation || '').replace(/\s*\(.*\)\s*$/, '').trim() || 'Affiliation';
+        CharacterBuilder.addSkillXP(state, s.name, s.xp, aff);
+      } else {
+        CharacterBuilder.addSkillXP(state, s.name, s.xp, s.subskill);
+      }
+    });
     // Fixed trait XP (array of {name, xp}).
     for (const t of asArray(m.fixedXP?.traits)) {
       CharacterBuilder.addTraitXP(state, t.name, t.xp);
@@ -245,6 +270,56 @@ export class CharacterBuilder {
     return state.flexiblePending.every(p => p.assigned.length >= p.count);
   }
 
+  /**
+   * Resolve a pending "Skill/Any" subskill choice: records the choice and adds
+   * the queued XP under the concrete subskill.
+   * @returns {boolean} whether a pending entry was resolved
+   */
+  static resolveSubskill(state, sourceKey, subskill) {
+    const p = state.subskillPending.find(x => x.sourceKey === sourceKey);
+    if (!p || !subskill) return false;
+    p.resolved = subskill;
+    CharacterBuilder.addSkillXP(state, p.name, p.xp, subskill);
+    return true;
+  }
+
+  /** True once every pending subskill grant has a chosen subskill. */
+  static subskillsResolved(state) {
+    return (state.subskillPending || []).every(p => p.resolved);
+  }
+
+  /**
+   * Is a module legal for the given affiliation key?
+   * A module with an empty `restrictedToAffiliations` list is available to all;
+   * otherwise the affiliation key must be in the list.
+   * @param {object} moduleSystem  a lifeModule's system data
+   * @param {string} affiliationKey
+   * @returns {boolean}
+   */
+  static isModuleLegal(moduleSystem, affiliationKey) {
+    const restricted = asArray(moduleSystem?.restrictedToAffiliations);
+    if (!restricted.length) return true;
+    return restricted.map(String).includes(String(affiliationKey || ''));
+  }
+
+  /**
+   * Map attribute key -> extra cap from "Exceptional Attribute/<ATTR>" traits
+   * (each such trait with positive XP raises that attribute's phenotype cap by 1).
+   * @param {object} state
+   * @returns {Object<string, number>}
+   */
+  static exceptionalAttributeBonuses(state) {
+    const bonuses = {};
+    for (const [name, xp] of Object.entries(state.traits || {})) {
+      const m = /^exceptional attribute\/([a-z]{3})/i.exec(name);
+      if (m && (Number(xp) || 0) > 0) {
+        const k = m[1].toLowerCase();
+        if (ATTRIBUTE_KEYS.includes(k)) bonuses[k] = (bonuses[k] || 0) + 1;
+      }
+    }
+    return bonuses;
+  }
+
   /* ---------------------------------------------------------------------- */
   /*  Free spend (leftover pool / point-buy cleanup)                         */
   /* ---------------------------------------------------------------------- */
@@ -278,11 +353,15 @@ export class CharacterBuilder {
    * @returns {object} derived character preview
    */
   static derive(state, phenotype = null) {
+    // "Exceptional Attribute/<ATTR>" traits raise that attribute's cap by 1.
+    const exceptional = CharacterBuilder.exceptionalAttributeBonuses(state);
+
     const attributes = {};
     for (const k of ATTRIBUTE_KEYS) {
       const xp = state.attributes[k] || 0;
       const rawScore = XP.getAttributeScoreFromXP(xp);
-      const cap = phenotype?.maxValues?.[k] ?? Infinity;
+      const baseCap = phenotype?.maxValues?.[k] ?? Infinity;
+      const cap = baseCap === Infinity ? Infinity : baseCap + (exceptional[k] || 0);
       const value = Math.min(rawScore, cap);
       const modifier = phenotype?.modifiers?.[k] ?? 0;
       const total = value + modifier;
@@ -303,7 +382,7 @@ export class CharacterBuilder {
     }).sort((a, b) => a.key.localeCompare(b.key));
 
     const traits = Object.entries(state.traits).map(([name, xp]) => ({
-      name, xp, type: xp < 0 ? 'negative' : 'positive'
+      name, xp, tp: XP.getTraitTP(xp), type: xp < 0 ? 'negative' : 'positive'
     })).sort((a, b) => a.name.localeCompare(b.name));
 
     return {
@@ -367,6 +446,27 @@ export class CharacterBuilder {
       });
     }
 
+    // Stage-3 count guidance (book recommends no more than two).
+    const stage3count = state.modules.filter(m => m.stage === 3).length;
+    if (stage3count > 2) {
+      issues.push({
+        severity: SEVERITY.WARNING, code: 'too-many-stage3',
+        message: `${stage3count} Stage 3 (Higher Education) modules — the book recommends no more than two.`
+      });
+    }
+
+    // Affiliation legality of each selected module.
+    for (const rec of state.modules) {
+      const sys = modules[rec.id];
+      if (sys && !CharacterBuilder.isModuleLegal(sys, state.affiliationKey)) {
+        issues.push({
+          severity: SEVERITY.ERROR, code: 'affiliation-illegal',
+          message: `${rec.name}: not available to ${state.affiliation || 'this affiliation'}.`,
+          moduleId: rec.id
+        });
+      }
+    }
+
     // Unresolved flexible XP.
     for (const pool of state.flexiblePending) {
       const remaining = pool.count - pool.assigned.length;
@@ -375,6 +475,17 @@ export class CharacterBuilder {
           severity: SEVERITY.ERROR, code: 'flexible-unassigned',
           message: `${remaining} unassigned flexible-XP allocation(s)${pool.note ? ` (${pool.note})` : ''}.`,
           moduleId: pool.moduleId
+        });
+      }
+    }
+
+    // Unresolved subskill choices.
+    for (const p of (state.subskillPending || [])) {
+      if (!p.resolved) {
+        issues.push({
+          severity: SEVERITY.ERROR, code: 'subskill-unresolved',
+          message: `Choose a subskill for ${p.name} (${p.hint}).`,
+          moduleId: p.moduleId
         });
       }
     }
@@ -417,13 +528,12 @@ export class CharacterBuilder {
         }
       }
       for (const [name, min] of Object.entries(pre.traits || {})) {
-        // Trait XP -> TP is trait-specific; treat the prereq as an XP floor for
-        // now (a per-trait TP table can refine this later).
-        const have = state.traits[name] ?? 0;
-        if (have < min) {
+        // Prerequisites are in Trait Points; each TP = 100 XP (ATOW p.66).
+        const haveTP = XP.getTraitTP(state.traits[name] ?? 0);
+        if (haveTP < min) {
           issues.push({
             severity: SEVERITY.ERROR, code: 'prereq-trait',
-            message: `${rec.name}: requires ${name} (≥ ${min}).`,
+            message: `${rec.name}: requires ${name} ≥ ${min} TP (have ${haveTP}).`,
             moduleId: rec.id
           });
         }

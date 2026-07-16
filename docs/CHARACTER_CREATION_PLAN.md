@@ -245,9 +245,16 @@ All grants routed through **one helper** (`grantToActor`) so the wizard and any 
    (`<moduleId>#<index>`) added to the engine. Review validates against every selected module's
    prerequisites. Engine + reapply logic covered by regression tests; the template was
    render-validated. Finish still preview-only (commit is M5).
-5. **M5 — Commit path** (`grantToActor`, item creation, actor update) + sheet summary +
-   launch buttons. First fully generated sheet.
-6. **M6 — Point-Buy quick path** (D1) reusing engine.
+5. **M5 — Commit path. ✅ DONE.** `helpers/character-grant.mjs` (`grantCharacter`) writes a
+   finished build to an Actor: attribute value/xp/modifier, xp.value/spent, affiliation,
+   phenotype, player; creates `skill` and `trait` items (linked attributes / TN / complexity /
+   trait type resolved from the master lists), flagged `fromWizard` and de-duped on re-run
+   (manual items untouched); stores a `flags.mech-foundry.creation` snapshot. Wizard Finish
+   validates (blocks in strict mode, warns in permissive), confirms via DialogV2, creates the
+   actor if unbound, grants, then opens the sheet. The character sheet's Biography tab shows a
+   read-only Character Builder summary with a Rebuild button. First fully generated sheet.
+6. **M6 — Point-Buy quick path** (D1) reusing engine. **DEFERRED to the backlog** — may not
+   be needed; revisit on request.
 7. **M7 — Validation polish** (D3 strict/permissive toggle as a world setting) + seed the
    representative Stage 1–4 modules + Master Skills/Traits compendium.
 8. **M8 (data track) — Full catalog transcription** against the schema (optional, ongoing).

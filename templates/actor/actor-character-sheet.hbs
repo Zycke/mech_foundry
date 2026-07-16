@@ -1335,6 +1335,29 @@
 
     {{!-- Biography Tab --}}
     <div class="tab biography" data-group="primary" data-tab="biography">
+      {{!-- Character Builder summary (read-only; present when built via wizard) --}}
+      {{#if creation}}
+      <div class="creation-summary">
+        <div class="cs-head">
+          <h3><i class="fas fa-hat-wizard"></i> Character Builder</h3>
+          <a class="cs-launch" data-action="launchWizard" data-tooltip="Re-open the Character Builder">Rebuild</a>
+        </div>
+        <div class="cs-meta">
+          {{#if creation.affiliation}}<span><strong>Affiliation:</strong> {{creation.affiliation}}</span>{{/if}}
+          {{#if creation.phenotype}}<span><strong>Phenotype:</strong> {{creation.phenotype}}</span>{{/if}}
+          <span><strong>Age:</strong> {{creation.age}}</span>
+          <span><strong>XP:</strong> {{creation.spent}} spent / {{creation.remaining}} left</span>
+        </div>
+        {{#if creation.modules.length}}
+        <ul class="cs-modules">
+          {{#each creation.modules}}
+          <li><span class="cs-stage">S{{this.stage}}</span> {{this.name}}</li>
+          {{/each}}
+        </ul>
+        {{/if}}
+      </div>
+      {{/if}}
+
       {{!-- Phenotype Row --}}
       <div class="bio-header-row">
         <div class="form-group">

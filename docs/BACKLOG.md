@@ -77,6 +77,40 @@ Priority things to test in a real v14 world:
 - [ ] Accessibility: `role="button"` / keyboard handlers / `aria-label`s on clickable
       `<span>`/`<a>` controls; the XP dialog re-renders redundantly.
 
+## 6. Character creation system (see docs/CHARACTER_CREATION_PLAN.md)
+
+Milestones M1–M5 shipped (engine, lifeModule compendium, wizard shell, stage/flex
+steps, commit path). Needs runtime testing on a live v14 world (per §0).
+
+- [x] **M1–M5** — engine + XP math, `lifeModule` type + seeded compendium, ApplicationV2
+      wizard (Concept→Affiliation→Phenotype→Stages 1–4→Flexible→Review), commit path
+      (`grantCharacter`) that writes attributes/XP and creates skill/trait items + sheet
+      summary.
+- [?] **M6 — Point-Buy quick path** — **DEFERRED / may not be needed.** Free-form spend of
+      the XP pool as an alternative to Life Modules. Engine already has `spendPool`; would
+      add a single-screen step. Revisit only if wanted.
+- [~] **M7 — Validation & quality polish** (mostly done; needs live-world testing):
+    - [x] **Affiliation legality**: `restrictedToAffiliations` honoured — `isModuleLegal`,
+          a validation error, and a "Restricted" badge on illegal stage cards.
+    - [x] **Stage rules**: Next is gated until affiliation / Stage 1 / Stage 2 are chosen
+          and all flexible XP is assigned; >2 Stage-3 modules warns.
+    - [x] **Leftover-pool spend**: a "Spend XP" step — attribute steppers (100/pt, capped by
+          phenotype) and skill XP rows, funded from the remaining pool.
+    - [x] **Prerequisites**: live met/unmet badges on module cards; trait prereqs now use
+          real Trait Points (each TP = 100 XP); `Exceptional Attribute/<ATTR>` raises that
+          attribute's cap by 1 in derive.
+    - [x] **Languages**: `system.languages` populated from `Language/*` skills on commit.
+    - [x] **Subskills**: `/Affiliation` grants auto-resolve to the affiliation; `/Any` grants
+          are queued and the player chooses the subskill (gated before continuing).
+    - [x] **Skills/Traits editability**: promoted to editable `mech-foundry.skills` /
+          `mech-foundry.traits` compendia (seeded from the master lists); the runtime config
+          lists are rebuilt FROM the compendia at ready, so GM edits flow to the wizard
+          without breaking dropdowns/tooltips/grant. `game.mechfoundry.reseedReferences()`.
+    - [ ] Aging effects (book pp.332–333) as an optional post-creation pass; starting
+          C-Bills / gear from Wealth/Equipped traits (the last open M7 item).
+- [ ] **M8 (data track)** — transcribe the full A Time of War module/affiliation catalogue
+      against the schema (the seed ships only Capellan + labelled examples).
+
 ---
 
 ## Done this engagement (for reference)

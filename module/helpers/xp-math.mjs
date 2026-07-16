@@ -13,6 +13,19 @@ export const SKILL_XP_COSTS = [20, 30, 50, 80, 120, 170, 230, 300, 380, 470, 570
 /** XP cost per attribute point; attribute scores are linear (ATOW p.60). */
 export const ATTRIBUTE_XP_PER_POINT = 100;
 
+/** XP cost per Trait Point; traits are linear too — "Each TP costs 100 XP" (ATOW p.66). */
+export const TRAIT_XP_PER_TP = 100;
+
+/** Trait Points from accumulated trait XP (may be fractional mid-build). */
+export function getTraitTP(xp) {
+  return (Number(xp) || 0) / TRAIT_XP_PER_TP;
+}
+
+/** XP required for a given Trait Point total. */
+export function getTraitXPForTP(tp) {
+  return (Number(tp) || 0) * TRAIT_XP_PER_TP;
+}
+
 /**
  * Link Attribute Modifier from an attribute total (ATOW Link Modifier table).
  * @param {number} value

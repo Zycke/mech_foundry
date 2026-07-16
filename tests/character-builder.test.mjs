@@ -29,7 +29,7 @@ ok(XP.getLinkModifier(5) === 0 && XP.getLinkModifier(7) === 1 && XP.getLinkModif
 
 /* ---- Builder economy ---------------------------------------------------- */
 const s = CB.createState();
-ok(CB.remaining(s) === 5000 && s.age === 21, 'fresh state: 5000 XP pool, age 21');
+ok(CB.remaining(s) === 5000 && s.age === 0, 'fresh state: 5000 XP pool, age 0 (accumulates from module time)');
 
 CB.applyUniversalFixedXP(s, { primaryLanguageName: 'Capellan' });
 ok(s.spent === 850, 'universal allotment costs 850 XP');
@@ -117,6 +117,56 @@ ok(CB.validate(overspent).some(i => i.code === 'pool-overspent'), 'validation fl
   }
   ok(CB.flexibleResolved(a) && a.attributes.str === 15 && a.skills['Small Arms'] === 20,
     'saved flexible assignments re-apply by sourceKey');
+}
+
+/* ---- Module legality + leftover-pool spend (M7) ------------------------ */
+ok(CB.isModuleLegal({ restrictedToAffiliations: [] }, 'capellan'), 'empty restriction is legal for anyone');
+ok(CB.isModuleLegal({ restrictedToAffiliations: ['capellan'] }, 'capellan'), 'listed affiliation is legal');
+ok(!CB.isModuleLegal({ restrictedToAffiliations: ['davion'] }, 'capellan'), 'unlisted affiliation is illegal');
+{
+  const st = CB.createState(); st.affiliationKey = 'capellan';
+  CB.applyModule(st, { stage: 1, xpCost: 0, restrictedToAffiliations: ['davion'] }, { id: 'x', name: 'Davion School' });
+  const iss = CB.validate(st, { modules: { x: { stage: 1, restrictedToAffiliations: ['davion'] } } });
+  ok(iss.some(i => i.code === 'affiliation-illegal'), 'validate flags an affiliation-illegal module');
+
+  const sp = CB.createState();
+  const before = sp.attributes.str;
+  ok(CB.spendPool(sp, { kind: 'attribute', key: 'str', xp: 300 }) && sp.attributes.str === before + 300,
+    'spendPool adds attribute XP within budget');
+  ok(!CB.spendPool(sp, { kind: 'attribute', key: 'str', xp: CB.remaining(sp) + 1 }),
+    'spendPool rejects spending past the pool');
+}
+
+/* ---- Trait TP, Exceptional Attribute, subskills (M7 Task 2) ------------- */
+ok(XP.getTraitTP(200) === 2 && XP.getTraitTP(50) === 0.5, 'trait TP = XP / 100');
+{
+  const st = CB.createState();
+  CB.addTraitXP(st, 'Connections', 150); // 1.5 TP
+  let iss = CB.validate(st, { modules: { m: { prerequisites: { traits: { Connections: 2 } } } } });
+  // (no module m selected, so no prereq issue yet) — attach a module:
+  CB.applyModule(st, { stage: 3, prerequisites: { traits: { Connections: 2 } } }, { id: 'm', name: 'X' });
+  iss = CB.validate(st, { modules: { m: { prerequisites: { traits: { Connections: 2 } } } } });
+  ok(iss.some(i => i.code === 'prereq-trait'), 'trait prereq (2 TP) unmet at 1.5 TP');
+  CB.addTraitXP(st, 'Connections', 50); // 2.0 TP
+  iss = CB.validate(st, { modules: { m: { prerequisites: { traits: { Connections: 2 } } } } });
+  ok(!iss.some(i => i.code === 'prereq-trait'), 'trait prereq met at 2.0 TP');
+
+  const ex = CB.createState();
+  CB.addAttributeXP(ex, 'dex', 900);
+  CB.addTraitXP(ex, 'Exceptional Attribute/DEX', 200);
+  ok(CB.derive(ex, { maxValues: { dex: 8 } }).attributes.dex.value === 9,
+    'Exceptional Attribute raises the DEX cap 8 -> 9');
+
+  const su = CB.createState(); su.affiliationKey = 'capellan';
+  CB.applyModule(su, { stage: 1, fixedXP: { skills: [
+    { name: 'Survival', subskill: 'Any', xp: 20 },
+    { name: 'Protocol', subskill: 'Affiliation', xp: 10 }
+  ] } }, { id: 's', name: 'Farm' });
+  ok(su.subskillPending.length === 1, '/Any grant is queued as a pending subskill');
+  ok(su.skills['Protocol/Capellan'] === 10, '/Affiliation subskill auto-resolves to the affiliation');
+  ok(!CB.subskillsResolved(su), 'subskills unresolved until chosen');
+  CB.resolveSubskill(su, su.subskillPending[0].sourceKey, 'Wilderness');
+  ok(su.skills['Survival/Wilderness'] === 20 && CB.subskillsResolved(su), 'resolving a subskill adds its XP');
 }
 
 /* ---- Seed data integrity ------------------------------------------------ */
