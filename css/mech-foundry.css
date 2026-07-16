@@ -5558,3 +5558,22 @@
   text-align: center;
   font-size: 1em;
 }
+
+/* ============================================================
+   XP bar readability (review round 3)
+   The original XP bar sat on a light teal/blue gradient with
+   semi-transparent white labels that blended into it. Retune to
+   the gunmetal HUD panel with solid amber labels.
+   ============================================================ */
+.mech-foundry .xp-bar {
+  background: linear-gradient(180deg, #10151a 0%, #202a33 60%, #171d23 100%);
+  border: 1px solid var(--mf-line);
+  border-radius: 3px;
+}
+.mech-foundry .xp-bar-item label {
+  color: var(--mf-amber);
+  font-family: var(--mf-font-head);
+  letter-spacing: 0.05em;
+  opacity: 1;
+}
+.mech-foundry .xp-bar .xp-value { color: var(--mf-ink); }
