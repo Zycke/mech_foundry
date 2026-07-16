@@ -211,8 +211,13 @@ All grants routed through **one helper** (`grantToActor`) so the wizard and any 
 
 ## 8. Milestones (incremental, each shippable)
 
-1. **M1 — Engine + tables.** `character-builder.mjs` + promote attribute XP table to the
-   document; unit checks for XP math, skill/attr derivation, validation. *No UI.*
+1. **M1 — Engine + tables. ✅ DONE.** Shared XP math extracted to a dependency-free
+   `module/helpers/xp-math.mjs` (single source of truth; `MechFoundryActor` and the sheet now
+   delegate to it, including the promoted attribute XP table). Engine implemented in
+   `module/helpers/character-builder.mjs` (state, universal allotment, module apply, flexible-XP
+   resolution, free-spend, derive, validate). Regression suite in
+   `tests/character-builder.test.mjs` (`node tests/character-builder.test.mjs`, all passing).
+   GM-tunable world settings added: `creationStartingXP`, `creationStrictness`. *No UI yet.*
 2. **M2 — `lifeModule` item type + compendium scaffold** + Universal Fixed XP + all Stage 0
    affiliations seeded. Draggable/editable in-app.
 3. **M3 — Wizard shell (ApplicationV2)**: stepper, footer, Concept + Affiliation + Phenotype

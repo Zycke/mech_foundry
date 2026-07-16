@@ -339,6 +339,32 @@ function _registerSystemSettings() {
       "-5": "Extremely Difficult (-5)"
     }
   });
+
+  /* ---- Character creation (GM-tunable) --------------------------------- */
+
+  // Starting XP pool for the character-creation wizard (ATOW default 5000).
+  game.settings.register("mech-foundry", "creationStartingXP", {
+    name: "MECHFOUNDRY.SettingCreationStartingXP",
+    hint: "MECHFOUNDRY.SettingCreationStartingXPHint",
+    scope: "world",
+    config: true,
+    type: Number,
+    default: 5000
+  });
+
+  // How strictly the wizard enforces prerequisites / phenotype caps / stages.
+  game.settings.register("mech-foundry", "creationStrictness", {
+    name: "MECHFOUNDRY.SettingCreationStrictness",
+    hint: "MECHFOUNDRY.SettingCreationStrictnessHint",
+    scope: "world",
+    config: true,
+    type: String,
+    default: "permissive",
+    choices: {
+      permissive: "MECHFOUNDRY.SettingCreationStrictnessPermissive",
+      strict: "MECHFOUNDRY.SettingCreationStrictnessStrict"
+    }
+  });
 }
 
 /* -------------------------------------------- */

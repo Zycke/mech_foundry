@@ -1,3 +1,4 @@
+import { MechFoundryActor } from '../documents/actor.mjs';
 import { OpposedRollHelper } from '../helpers/opposed-rolls.mjs';
 import { ItemEffectsHelper } from '../helpers/effects-helper.mjs';
 
@@ -137,91 +138,29 @@ export class MechFoundryActorSheet extends HandlebarsApplicationMixin(ActorSheet
   /* -------------------------------------------- */
 
   /**
-   * XP cost to raise an attribute to a given score
-   * Based on A Time of War attribute progression (p.60)
-   * Total XP needed for that score (Level × 100)
+   * Attribute / skill XP math is owned by the MechFoundryActor document so the
+   * sheet, the character-creation builder, and roll logic all share one source
+   * of truth (see actor.mjs: ATTRIBUTE_XP_PER_POINT, SKILL_XP_COSTS, and the
+   * get*FromXP / get*NextCost statics). These thin wrappers preserve the sheet's
+   * historical method names for existing call sites and templates.
    */
-  static ATTRIBUTE_XP_COSTS = {
-    1: 100,
-    2: 200,
-    3: 300,
-    4: 400,
-    5: 500,    // Standard starting value
-    6: 600,
-    7: 700,
-    8: 800,
-    9: 900,
-    10: 1000
-  };
 
-  /**
-   * XP cost for Standard skill progression (A Time of War p.60)
-   * Using Standard rate for all skills
-   */
-  static STANDARD_SKILL_XP_COSTS = {
-    0: 20,
-    1: 30,
-    2: 50,
-    3: 80,
-    4: 120,
-    5: 170,
-    6: 230,
-    7: 300,
-    8: 380,
-    9: 470,
-    10: 570
-  };
-
-  /**
-   * Get XP cost for the next attribute level
-   * @param {number} currentScore Current attribute score
-   * @returns {number} XP cost to reach next level
-   */
   static getAttributeNextCost(currentScore) {
-    if (currentScore >= 10) return 0;
-    return this.ATTRIBUTE_XP_COSTS[currentScore + 1] || 0;
+    return MechFoundryActor.getAttributeNextCost(currentScore, 10);
   }
 
-  /**
-   * Get attribute score from total XP invested
-   * @param {number} xp Total XP invested
-   * @returns {number} Attribute score (0 if insufficient XP)
-   */
   static getAttributeScoreFromXP(xp) {
-    if (xp < 100) return 0;  // Need at least 100 XP for level 1
-    for (let i = 10; i >= 1; i--) {
-      if (xp >= this.ATTRIBUTE_XP_COSTS[i]) {
-        return i;
-      }
-    }
-    return 0;
+    return MechFoundryActor.getAttributeScoreFromXP(xp);
   }
 
-  /**
-   * Get skill level from total XP invested
-   * Uses Standard skill progression rate
-   * @param {number} xp Total XP invested
-   * @returns {number} Skill level (-1 if insufficient XP for level 0)
-   */
   static getSkillLevelFromXP(xp) {
-    if (xp < 20) return -1;  // Need at least 20 XP for level 0
-    for (let i = 10; i >= 0; i--) {
-      if (xp >= this.STANDARD_SKILL_XP_COSTS[i]) {
-        return i;
-      }
-    }
-    return -1;
+    return MechFoundryActor.getSkillLevelFromXP(xp);
   }
 
-  /**
-   * Get XP cost for the next skill level
-   * Uses Standard skill progression rate
-   * @param {number} currentLevel Current skill level
-   * @returns {number} Total XP needed for next level
-   */
   static getSkillNextCost(currentLevel) {
-    if (currentLevel >= 10) return 0;
-    return this.STANDARD_SKILL_XP_COSTS[currentLevel + 1] || 0;
+    const lvl = Number(currentLevel);
+    if (!Number.isFinite(lvl) || lvl >= 10) return 0;
+    return MechFoundryActor.SKILL_XP_COSTS[lvl + 1] ?? 0;
   }
 
   /* -------------------------------------------- */

@@ -147,6 +147,12 @@
   "MECHFOUNDRY.SettingShowRollDetailsHint": "Show detailed roll information in chat messages.",
   "MECHFOUNDRY.SettingDefaultDifficulty": "Default Difficulty",
   "MECHFOUNDRY.SettingDefaultDifficultyHint": "The default difficulty modifier for action checks.",
+  "MECHFOUNDRY.SettingCreationStartingXP": "Character Creation: Starting XP",
+  "MECHFOUNDRY.SettingCreationStartingXPHint": "The XP pool a new character begins with in the creation wizard (A Time of War default: 5000).",
+  "MECHFOUNDRY.SettingCreationStrictness": "Character Creation: Rules Enforcement",
+  "MECHFOUNDRY.SettingCreationStrictnessHint": "Permissive surfaces prerequisite, phenotype-cap and stage problems as overridable warnings; Strict blocks finishing until they are resolved.",
+  "MECHFOUNDRY.SettingCreationStrictnessPermissive": "Guided (warnings, GM can override)",
+  "MECHFOUNDRY.SettingCreationStrictnessStrict": "Strict (block illegal characters)",
 
   "MECHFOUNDRY.Conditions": "Conditions",
   "MECHFOUNDRY.ActiveEffects": "Active Effects",
