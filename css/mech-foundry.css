@@ -5502,3 +5502,59 @@
 .mech-foundry .effects-table td,
 .mech-foundry .effects-table th { vertical-align: middle; }
 .mech-foundry .inventory-table td .item-controls { justify-content: flex-end; }
+
+/* ============================================================
+   Table-cell vertical alignment fixes (review round 2)
+   Several control/name cells were authored as `display: flex`
+   directly on a <td>. A flex <td> drops out of table layout, so
+   `vertical-align: middle` on the row is ignored and the cell's
+   content floats to the top — this is why the edit/delete/ammo
+   icons and effect names sat high relative to the rest of the row.
+   Restore table-cell behavior on those <td>s and align their
+   inline contents to the middle; keep flex only where the control
+   group lives inside a non-table (flexrow <li>) row.
+   ============================================================ */
+
+/* All data-table cells in a sheet center vertically. */
+.mech-foundry .actor-sheet-content td,
+.mech-foundry .actor-sheet-content th,
+.mech-foundry .item-sheet-content td,
+.mech-foundry .item-sheet-content th { vertical-align: middle; }
+
+/* Control cells that were flex <td>s -> table-cell again. The
+   effect-* selectors need the .effect-row prefix to out-specify the
+   original `.mech-foundry .effect-row .effect-controls { display:flex }`
+   (0,0,3,0) rules. */
+.mech-foundry td.item-controls,
+.mech-foundry .effect-row td.effect-controls,
+.mech-foundry .effect-row td.effect-name {
+  display: table-cell;
+  vertical-align: middle;
+}
+.mech-foundry td.item-controls a,
+.mech-foundry .effect-row td.effect-controls a {
+  display: inline-flex;
+  align-items: center;
+  vertical-align: middle;
+  line-height: 1;
+}
+/* Preserve the icon/name spacing the old flex `gap` provided. */
+.mech-foundry td.item-controls a + a,
+.mech-foundry .effect-row td.effect-controls a + a { margin-left: 6px; }
+.mech-foundry .effect-row td.effect-name img,
+.mech-foundry .effect-row td.effect-name span { vertical-align: middle; }
+.mech-foundry .effect-row td.effect-name img { margin-right: 8px; }
+
+/* Stacked ammo cell: center the block against single-line cells. */
+.mech-foundry td.weapon-ammo { vertical-align: middle; }
+
+/* EDG link cell: the shared .edge-current rule turns the <td> into a
+   1.5em baseline-aligned flexbox, pushing the value up out of line
+   with the other attribute rows. In the attributes table it holds a
+   single number, so treat it like the other link cells. */
+.mech-foundry .attributes-table td.edge-current {
+  display: table-cell;
+  vertical-align: middle;
+  text-align: center;
+  font-size: 1em;
+}
