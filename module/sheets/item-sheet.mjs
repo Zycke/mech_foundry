@@ -94,9 +94,9 @@ export class MechFoundryItemSheet extends foundry.appv1.sheets.ItemSheet {
     context.isGM = game.user.isGM;
 
     // Enrich description for editor
-    context.enrichedDescription = await TextEditor.enrichHTML(
+    context.enrichedDescription = await foundry.applications.ux.TextEditor.implementation.enrichHTML(
       this.item.system.description,
-      { async: true }
+      { relativeTo: this.item }
     );
 
     return context;
