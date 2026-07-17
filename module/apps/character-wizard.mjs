@@ -1,4 +1,4 @@
-import { CharacterBuilder, ATTRIBUTE_KEYS, SEVERITY, FIELD_SKILL_COST } from '../helpers/character-builder.mjs';
+import { CharacterBuilder, ATTRIBUTE_KEYS, SEVERITY, FIELD_SKILL_COST, affiliationCategory } from '../helpers/character-builder.mjs';
 import * as XP from '../helpers/xp-math.mjs';
 import { ATOW_SKILLS, ATOW_TRAITS, ATOW_TRAIT_DESCRIPTIONS, ATOW_SUBSKILLS, computeStartingWealth } from '../data/atow-lists.mjs';
 import { SKILL_FIELDS } from '../data/skill-fields.mjs';
@@ -25,6 +25,12 @@ const STEPS = [
   { id: 'spend', label: 'Spend XP' },
   { id: 'review', label: 'Review' }
 ];
+
+/** Clan caste variant keys grouped by the caste families Stage-4 prereqs use. */
+const CASTE_GROUPS = {
+  warrior: ['mechwarrior', 'elemental', 'elemental-adv', 'aerospace', 'aerospace-naval', 'warrior-other'],
+  scientist: ['scientist'], technician: ['technician'], merchant: ['merchant'], laborer: ['laborer']
+};
 
 /** Map a flexible pool's `targets` to a concrete builder kind (null = player picks). */
 function kindForTargets(targets) {
@@ -94,6 +100,8 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       selectPhenotype: CharacterWizard.#onSelectPhenotype,
       selectStageModule: CharacterWizard.#onSelectStageModule,
       toggleStageModule: CharacterWizard.#onToggleStageModule,
+      addStageModule: CharacterWizard.#onAddStageModule,
+      removeStageInstance: CharacterWizard.#onRemoveStageInstance,
       selectVariant: CharacterWizard.#onSelectVariant,
       selectFieldBasic: CharacterWizard.#onSelectFieldBasic,
       toggleFieldAdvanced: CharacterWizard.#onToggleField,
@@ -146,7 +154,8 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     return byStage[0].filter(d => d.system.moduleType === 'affiliation');
   }
 
-  /** Every currently-selected module doc, in application order. */
+  /** Every currently-selected module doc (Stages 0-3), in application order.
+   * Stage 4 is applied separately (repeat-aware) — see #applyStageFour. */
   async #selectedModuleDocs() {
     const byStage = await this.#loadModules();
     const find = (st, id) => byStage[st]?.find(m => m.id === id) || null;
@@ -154,7 +163,20 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     const aff = find(0, this.#choices.affiliationId);
     if (aff) docs.push(aff);
     for (const st of [1, 2]) { const m = find(st, this.#choices.modules[st]); if (m) docs.push(m); }
-    for (const st of [3, 4]) for (const id of this.#choices.modules[st]) { const m = find(st, id); if (m) docs.push(m); }
+    for (const id of this.#choices.modules[3]) { const m = find(3, id); if (m) docs.push(m); }
+    return docs;
+  }
+
+  /** Unique Stage-4 module docs currently taken (for review/validation/grant). */
+  async #stageFourDocs() {
+    const byStage = await this.#loadModules();
+    const list = byStage[4] || [];
+    const seen = new Set(), docs = [];
+    for (const id of this.#choices.modules[4]) {
+      if (seen.has(id)) continue;
+      const m = list.find(x => x.id === id);
+      if (m) { seen.add(id); docs.push(m); }
+    }
     return docs;
   }
 
@@ -270,6 +292,10 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       }
     }
 
+    // Stage 4 (Real Life): apply each instance in order. The 2nd+ instance of
+    // the same module is a repeat (Skill + Flexible XP only), still full cost.
+    await this.#applyStageFour();
+
     // Re-apply saved subskill choices (adds the queued XP under the chosen subskill).
     // '__other__' is the "Other…" placeholder before the player has typed a value.
     for (const p of this.#state.subskillPending) {
@@ -348,6 +374,23 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
   /** Total Fields chosen for a school (Basic + Advanced + Special). */
   #fieldCount(fc) {
     return (fc?.basic ? 1 : 0) + this._asArray(fc?.advanced).length + this._asArray(fc?.special).length;
+  }
+
+  /** Apply the Stage-4 instance list. Each entry is one "take" of a module; the
+   * 2nd+ take of the same module is a repeat (attributes/traits granted once). */
+  async #applyStageFour() {
+    const byStage = await this.#loadModules();
+    const list = byStage[4] || [];
+    const count = new Map();
+    this.#choices.modules[4].forEach((id, idx) => {
+      const d = list.find(x => x.id === id);
+      if (!d) return;
+      const n = count.get(id) || 0;
+      count.set(id, n + 1);
+      CharacterBuilder.applyModule(this.#state, d.system,
+        { id: `s4:${idx}:${d.id}`, name: d.name, uuid: d.uuid },
+        { repeat: n > 0, noFlexOnRepeat: !!d.system.noFlexOnRepeat });
+    });
   }
 
   /* ---------------------------------------------------------------------- */
@@ -448,6 +491,29 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
         context.hasSchoolFields = context.schoolFields.length > 0;
         context.tooManyStage3 = selectedIds.length > 2; // GM soft cap (ATOW p.80)
       }
+
+      // Stage 4: repeatable modules taken as an "instance list"; categorical
+      // prerequisites lock a module, attribute/trait minimums only warn.
+      if (step.stage === 4) {
+        const instances = this.#choices.modules[4];
+        const countById = {};
+        for (const id of instances) countById[id] = (countById[id] || 0) + 1;
+        for (const card of context.modules) {
+          const m = list.find(x => x.id === card.id);
+          card.count = countById[card.id] || 0;
+          card.repeatable = m.system.repeatable !== false;
+          card.maxedOut = !card.repeatable && card.count >= 1;
+          const pre = this.#stageFourPrereqStatus(m.system);
+          if (!pre.met && !card.count) { card.locked = true; card.lockReason = pre.reason; }
+        }
+        const seen = {};
+        context.stage4Instances = instances.map((id, idx) => {
+          const m = list.find(x => x.id === id);
+          seen[id] = (seen[id] || 0) + 1;
+          return { index: idx, name: m ? m.name : '(removed)', isRepeat: seen[id] > 1 };
+        });
+        context.hasStage4Instances = context.stage4Instances.length > 0;
+      }
     }
 
     if (stepId === 'phenotype') {
@@ -492,7 +558,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     if (stepId === 'review') {
       const pheno = this.#phenotypeEntry();
       const preview = CharacterBuilder.derive(this.#state, pheno);
-      const docs = await this.#selectedModuleDocs();
+      const docs = [...await this.#selectedModuleDocs(), ...await this.#stageFourDocs()];
       const modulesById = Object.fromEntries(docs.map(d => [d.id, d.system]));
       const issues = CharacterBuilder.validate(this.#state, { phenotype: pheno, modules: modulesById });
       context.preview = {
@@ -960,6 +1026,54 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     return ocs && !this.#ocsPrereqMet();
   }
 
+  /** The character's Clan caste family ('warrior'|'scientist'|…), or '' if none. */
+  #characterCasteGroup() {
+    const casteKey = this.#choices.variants[this.#choices.affiliationId];
+    if (!casteKey) return '';
+    for (const [group, keys] of Object.entries(CASTE_GROUPS)) if (keys.includes(casteKey)) return group;
+    return '';
+  }
+
+  /** Names of every module currently in the build (all stages). */
+  #takenModuleNames() {
+    return new Set(this.#state.modules.map(m => String(m.name || '')));
+  }
+
+  /** Evaluate a Stage-4 module's CATEGORICAL prerequisites (affiliation category,
+   * caste, possessed Field, prior module) — these lock the module. Attribute /
+   * trait minimums are handled separately (warn-only) by #moduleCard. */
+  #stageFourPrereqStatus(sys) {
+    const p = sys.prerequisites || {};
+    const cat = affiliationCategory(this.#state.affiliationKey);
+    const reasons = [];
+    const cats = this._asArray(p.affiliationCategories);
+    if (cats.length && !cats.includes(cat)) reasons.push(`requires a ${cats.join(' or ')} affiliation`);
+    const forbid = this._asArray(p.forbidCategories);
+    if (forbid.length && forbid.includes(cat)) reasons.push(`not available to ${forbid.join('/')} characters`);
+    const castes = this._asArray(p.castes);
+    if (castes.length) {
+      const group = this.#characterCasteGroup();
+      if (!castes.includes(group)) reasons.push(`requires the ${castes.join(' or ')} caste`);
+    }
+    // Training requirement: possessed Field(s) OR prior module(s). If both are
+    // listed, either satisfies; if only one, that one must be satisfied.
+    const reqFields = this._asArray(p.fields), reqModules = this._asArray(p.modules);
+    if (reqFields.length || reqModules.length) {
+      const chosenFields = this.#chosenFieldNames();
+      const names = this.#takenModuleNames();
+      const hasField = reqFields.some(f => chosenFields.has(f));
+      const hasModule = reqModules.some(r => [...names].some(n => n.includes(r) || r.includes(n)));
+      const ok = (reqFields.length && hasField) || (reqModules.length && hasModule);
+      if (!ok) {
+        const bits = [];
+        if (reqFields.length) bits.push(`the ${reqFields.join('/')} Field`);
+        if (reqModules.length) bits.push(`the ${reqModules.join(' or ')} module`);
+        reasons.push(`requires ${bits.join(' or ')}`);
+      }
+    }
+    return { met: reasons.length === 0, reason: reasons.length ? `Locked — ${reasons.join('; ')}.` : '' };
+  }
+
   /** First selected module in a stage that requires a variant but has none chosen. */
   #missingRequiredVariant(stage) {
     const sel = this.#choices.modules[stage];
@@ -1235,6 +1349,37 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     return (this.#choices.fields[moduleId] ??= { basic: '', advanced: [], special: [] });
   }
 
+  /** Stage 4: add an instance of a Real Life module (repeatable → multiple). */
+  static async #onAddStageModule(event, target) {
+    const id = target.dataset.id;
+    const list = (await this.#loadModules())[4] || [];
+    const m = list.find(x => x.id === id);
+    if (!m) return;
+    // Categorical prerequisite gate.
+    if (!this.#stageFourPrereqStatus(m.system).met) {
+      ui.notifications?.warn(this.#stageFourPrereqStatus(m.system).reason.replace(/^Locked — /, ''));
+      return;
+    }
+    // Non-repeatable modules can be taken only once.
+    if (m.system.repeatable === false && this.#choices.modules[4].includes(id)) {
+      ui.notifications?.warn(`${m.name} cannot be repeated.`);
+      return;
+    }
+    this.#choices.modules[4].push(id);
+    await this.#rebuildState();
+    this.render();
+  }
+
+  /** Stage 4: remove one taken instance by its position in the list. */
+  static async #onRemoveStageInstance(event, target) {
+    const idx = Number(target.dataset.index);
+    if (Number.isInteger(idx) && idx >= 0 && idx < this.#choices.modules[4].length) {
+      this.#choices.modules[4].splice(idx, 1);
+      await this.#rebuildState();
+      this.render();
+    }
+  }
+
   /** Choose (or clear) a module's variant (caste/branch sub-option). */
   static async #onSelectVariant(event, target) {
     const moduleId = target.dataset.module;
@@ -1248,7 +1393,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
   static async #onFinish() {
     const pheno = this.#phenotypeEntry();
     const derived = CharacterBuilder.derive(this.#state, pheno);
-    const docs = await this.#selectedModuleDocs();
+    const docs = [...await this.#selectedModuleDocs(), ...await this.#stageFourDocs()];
     const modulesById = Object.fromEntries(docs.map(d => [d.id, d.system]));
     const issues = CharacterBuilder.validate(this.#state, { phenotype: pheno, modules: modulesById });
     const errors = issues.filter(i => i.severity === SEVERITY.ERROR);

@@ -1309,8 +1309,8 @@ export const LIFE_MODULE_SEED = [
   }),
 
   real('Solaris Insider', 825, {
-    time: 4, reqModules: ['Solaris Stable Internship'],
-    reqNote: 'Requires the Solaris Stable Internship module, or 200 XP in Connections.',
+    time: 4, reqModules: ['Solaris Internship'],
+    reqNote: 'Requires the Solaris Internship (Stable Internship) module, or 200 XP in Connections.',
     attrs: { wil: 50, cha: 45, edg: 50 },
     traits: [tr('Compulsion/Gambling', -75), tr('Connections', 150), tr('Enemy', -200), tr('Fit', 50), tr('Property', 75), tr('Reputation', 100), tr('Wealth', 100)],
     skills: [sk('Administration', 30), sk('Computers', 25), sk('Escape Artist', 15), sk('Forgery', 15), sk('Interest', 20, 'Solaris Games'),
@@ -1322,8 +1322,8 @@ export const LIFE_MODULE_SEED = [
   }),
 
   real('Solaris VII Games', 900, {
-    time: 4, reqModules: ['Solaris Stable Internship', 'Tour of Duty'],
-    reqNote: 'Requires Solaris Stable Internship, Tour of Duty, or any module with MechWarrior, Cavalry or Battle Armor training.',
+    time: 4, reqModules: ['Solaris Internship', 'Tour of Duty'], reqFields: ['MechWarrior', 'Cavalry', 'Pilot – Battle Armor'],
+    reqNote: 'Requires Solaris Internship, Tour of Duty, or any module with MechWarrior, Cavalry or Battle Armor training.',
     attrs: { edg: 100 },
     traits: [tr('Bloodmark', -25), tr('Enemy', -250), tr('Reputation', 150)],
     skills: [sk('Acting', 25), sk('Administration', 10), sk('Computers', 10), sk('Escape Artist', 15), sk('Interest', 30, 'Solaris Games'),

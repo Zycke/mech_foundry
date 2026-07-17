@@ -535,7 +535,44 @@ ok(applyOk, 'all seed modules apply through the engine without error');
   ok(s4.find(m => m.name === 'Guerilla Insurgent').system.prerequisites.forbidCategories.includes('clan'), 'Guerilla Insurgent forbids the Clan category');
   ok(s4.find(m => m.name === 'Postgraduate Studies').system.prerequisites.modules.includes('University'), 'Postgraduate Studies requires the University module');
   ok(s4.find(m => m.name === 'To Serve and Protect').system.prerequisites.fields.includes('Detective'), 'To Serve and Protect requires a Police/Detective Field');
+
+  // Wizard-style instance application: two takes of Tour of Duty (the 2nd a
+  // repeat) — Trait once, Skill twice, cost twice. Mirrors #applyStageFour.
+  const tour = s4.find(m => m.name === 'Tour of Duty');
+  const inst = CB.createState();
+  const instances = ['tour', 'tour'];
+  const seen = new Map();
+  const spent0 = inst.spent;
+  instances.forEach((id, idx) => {
+    const n = seen.get(id) || 0; seen.set(id, n + 1);
+    CB.applyModule(inst, tour.system, { id: `s4:${idx}:${id}`, name: tour.name }, { repeat: n > 0 });
+  });
+  ok(inst.traits['Connections'] === 25, 'two Tour-of-Duty instances grant its Trait XP once');
+  ok(inst.skills['Career/Soldier'] === 50 * 2, 'two Tour-of-Duty instances grant Skill XP twice');
+  ok(inst.spent - spent0 === 800 * 2, 'two Tour-of-Duty instances each cost full price');
+
+  // Solaris prior-module references point at the real Stage-3 school name.
+  ok(s4.find(m => m.name === 'Solaris Insider').system.prerequisites.modules.includes('Solaris Internship'),
+    'Solaris Insider references the Solaris Internship module by its real name');
 }
+
+/* ---- Real Life: caste-group prereq mapping (Clan castes) ----------------- */
+{
+  // The caste families Stage-4 prereqs use must cover the ten Clan castes.
+  const CASTE_GROUPS = {
+    warrior: ['mechwarrior', 'elemental', 'elemental-adv', 'aerospace', 'aerospace-naval', 'warrior-other'],
+    scientist: ['scientist'], technician: ['technician'], merchant: ['merchant'], laborer: ['laborer']
+  };
+  const invading = LIFE_MODULE_SEED.find(m => m.name === 'Invading Clan');
+  const allCastes = invading.system.variants.map(v => v.key);
+  const grouped = new Set(Object.values(CASTE_GROUPS).flat());
+  ok(allCastes.every(c => grouped.has(c)), 'every Clan caste maps to a caste family');
+  const groupOf = (k) => Object.entries(CASTE_GROUPS).find(([, ks]) => ks.includes(k))?.[0] || '';
+  ok(groupOf('mechwarrior') === 'warrior' && groupOf('scientist') === 'scientist',
+    'caste family lookup returns warrior / scientist correctly');
+}
+
+/* ---- Result ------------------------------------------------------------- */
 
 /* ---- Result ------------------------------------------------------------- */
 if (failed) { console.error(`\n${failed} check(s) FAILED`); process.exit(1); }

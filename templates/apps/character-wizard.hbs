@@ -154,20 +154,23 @@
     <div class="wizard-panel">
       <h2>{{stepLabel}}</h2>
       <p class="hint">
-        {{#if multi}}Choose any number of modules for this optional stage.{{else}}Choose exactly one module for this required stage.{{/if}}
-        {{#unless multi}}{{#unless mandatory}} This stage is optional.{{/unless}}{{/unless}}
+        {{#if (eq stage 4)}}Add any number of Real Life modules — most may be repeated (click again to add another). A repeat re-awards only Skill &amp; Flexible XP. This stage is optional.
+        {{else}}{{#if multi}}Choose any number of modules for this optional stage.{{else}}Choose exactly one module for this required stage.{{/if}}
+        {{#unless multi}}{{#unless mandatory}} This stage is optional.{{/unless}}{{/unless}}{{/if}}
       </p>
       {{#if hasModules}}
       <div class="choice-grid">
         {{#each modules}}
-        <button type="button" class="choice-card module-card {{#if this.selected}}selected{{/if}} {{#unless this.legal}}illegal{{/unless}} {{#if this.locked}}field-locked is-disabled{{/if}}"
-                data-action="{{#if ../multi}}toggleStageModule{{else}}selectStageModule{{/if}}"
+        <button type="button" class="choice-card module-card {{#if this.selected}}selected{{/if}} {{#unless this.legal}}illegal{{/unless}} {{#if this.locked}}field-locked is-disabled{{/if}} {{#if this.maxedOut}}is-disabled{{/if}}"
+                data-action="{{#if (eq ../stage 4)}}addStageModule{{else}}{{#if ../multi}}toggleStageModule{{else}}selectStageModule{{/if}}{{/if}}"
                 data-stage="{{../stage}}" data-id="{{this.id}}"
-                {{#if this.locked}}disabled data-tooltip="{{this.lockReason}}"{{/if}}>
+                {{#if this.locked}}disabled data-tooltip="{{this.lockReason}}"{{else}}{{#if this.maxedOut}}disabled data-tooltip="Cannot be repeated"{{/if}}{{/if}}>
           <span class="card-head">
             <span class="choice-name">{{this.name}}</span>
-            {{#if this.selected}}<span class="selected-flag"><i class="fas fa-check"></i></span>{{/if}}
+            {{#if this.count}}<span class="instance-count">&times;{{this.count}}</span>{{/if}}
+            {{#if this.selected}}{{#unless (eq ../stage 4)}}<span class="selected-flag"><i class="fas fa-check"></i></span>{{/unless}}{{/if}}
             {{#if this.locked}}<span class="badge-illegal"><i class="fas fa-lock"></i> Locked</span>{{/if}}
+            {{#if (eq ../stage 4)}}{{#unless this.locked}}{{#unless this.maxedOut}}<span class="add-flag" data-tooltip="{{#if this.count}}Add another{{else}}Add{{/if}}"><i class="fas fa-plus"></i></span>{{/unless}}{{/unless}}{{/if}}
           </span>
           <span class="card-meta">
             <span class="cost">{{this.cost}} XP</span>
@@ -200,6 +203,20 @@
       {{#each schoolFields}}
       {{> "systems/mech-foundry/templates/apps/parts/wizard-field-picker.hbs"}}
       {{/each}}
+      {{/if}}
+
+      {{#if hasStage4Instances}}
+      <div class="variant-picker instance-list">
+        <div class="vp-head"><span class="vp-title">Your Real Life (in order)</span></div>
+        <ol class="s4-instances">
+          {{#each stage4Instances}}
+          <li>
+            <span class="s4-name">{{this.name}}{{#if this.isRepeat}} <span class="s4-repeat">repeat — Skills &amp; Flexible XP only</span>{{/if}}</span>
+            <button type="button" class="s4-remove" data-action="removeStageInstance" data-index="{{this.index}}" data-tooltip="Remove"><i class="fas fa-xmark"></i></button>
+          </li>
+          {{/each}}
+        </ol>
+      </div>
       {{/if}}
       {{else}}
       <p class="empty-note"><i class="fas fa-circle-info"></i> No Stage {{stage}} modules in the compendium yet.{{#unless mandatory}} This stage is optional — you can continue.{{/unless}} A GM can add <em>Life Module</em> items for this stage.</p>
