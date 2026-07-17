@@ -129,6 +129,36 @@ export const ATOW_TRAIT_DESCRIPTIONS = Object.fromEntries(
   ATOW_TRAITS.map(t => [t.name, `${t.desc} (${t.type}, ${t.tp} TP)`])
 );
 
+/**
+ * Canonical subskills per root skill (ATOW Skills chapter). Closed lists are
+ * complete; open-ended skills (Interest, Protocol, Streetwise) are left empty
+ * so the wizard offers a free-text field. Semi-open skills carry example
+ * suggestions plus an "Other…" escape hatch in the UI. GM-editable via each
+ * skill Item's `system.subskills`.
+ */
+export const ATOW_SUBSKILLS = {
+  'Acrobatics': ['Free-Fall', 'Gymnastics'],
+  'Animal Handling': ['Herding', 'Riding', 'Training'],
+  'Art': ['Dance', 'Drawing', 'Music', 'Painting', 'Sculpture', 'Writing'],
+  'Career': ['Accountant', 'Clerk', 'Cook', 'Laborer', 'Merchant'],
+  'Communications': ['Black Box', 'Conventional EM', 'Hyperpulse Generator'],
+  'Driving': ['Ground Vehicles', 'Rail Vehicles', 'Sea Vehicles'],
+  'Gunnery': ['Aerospace', 'Air Vehicle', 'Battlesuit', 'Ground Vehicle', "'Mech", 'Spacecraft'],
+  'Language': ['English', 'Chinese', 'Japanese', 'German', 'Russian', 'French', 'Arabic', 'Urdu'],
+  'MedTech': ['General', 'Veterinary'],
+  'Navigation': ['Air', 'Ground', 'K-F Jump', 'Sea', 'Space'],
+  'Piloting': ['Aerospace', 'Air Vehicle', 'Battlesuit', "'Mech", 'Spacecraft'],
+  'Prestidigitation': ['Pick Pocket', 'Quickdraw', 'Sleight of Hand'],
+  'Science': ['Astronomy', 'Biology', 'Chemistry', 'Geology', 'Mathematics', 'Physics'],
+  'Security Systems': ['Electronic', 'Mechanical'],
+  'Support Weapons': ['Air', 'Infantry', 'Land', 'Sea', 'Space'],
+  'Surgery': ['General', 'Veterinary'],
+  'Survival': ['Arctic', 'Desert', 'Forest', 'Jungle', 'Mountain', 'Ocean', 'Plains', 'Urban'],
+  'Technician': ['Aeronautics', 'Cybernetics', 'Electronic', 'Jets', 'Mechanical', 'Myomer', 'Nuclear', 'Weapons'],
+  'Tracking': ['Urban', 'Wilds'],
+  'Melee Weapons': ['Blade', 'Blunt']
+};
+
 /* -------------------------------------------------------------------------- */
 /*  Shared parsers + compendium seed builders                                  */
 /* -------------------------------------------------------------------------- */
@@ -165,7 +195,10 @@ export function skillSeedItems(list = ATOW_SKILLS) {
     return {
       name: s.name,
       type: 'skill',
-      system: { linkedAttribute1, linkedAttribute2, targetNumber, complexity, xp: 0, level: 0 },
+      system: {
+        linkedAttribute1, linkedAttribute2, targetNumber, complexity, xp: 0, level: 0,
+        subskills: ATOW_SUBSKILLS[s.name] || []
+      },
       // Keep the original strings so config can be rebuilt losslessly.
       flags: { 'mech-foundry': { reference: true, links: s.links, tnc: s.tnc } }
     };

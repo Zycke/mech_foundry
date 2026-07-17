@@ -114,7 +114,20 @@
       {{#each subskills}}
       <div class="flex-slot subskill-row">
         <span class="subskill-label">{{this.name}} <span class="subskill-hint">({{this.hint}}, +{{this.xp}})</span></span>
-        <input type="text" name="subskill::{{this.sourceKey}}" value="{{this.value}}" placeholder="e.g. specific language / focus"/>
+        {{#if this.hasOptions}}
+        <select name="subskill::{{this.sourceKey}}" class="value-select">
+          <option value="">— choose —</option>
+          {{#each this.options}}
+          <option value="{{this}}" {{#if (eq this ../value)}}selected{{/if}}>{{this}}</option>
+          {{/each}}
+          <option value="__other__" {{#if this.isOther}}selected{{/if}}>Other…</option>
+        </select>
+        {{#if this.isOther}}
+        <input type="text" name="subskillother::{{this.sourceKey}}" value="{{this.otherText}}" placeholder="specify subskill"/>
+        {{/if}}
+        {{else}}
+        <input type="text" name="subskill::{{this.sourceKey}}" value="{{this.value}}" placeholder="e.g. specific {{this.hint}}"/>
+        {{/if}}
       </div>
       {{/each}}
       {{/if}}

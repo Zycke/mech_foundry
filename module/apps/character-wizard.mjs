@@ -1,6 +1,6 @@
 import { CharacterBuilder, ATTRIBUTE_KEYS, SEVERITY } from '../helpers/character-builder.mjs';
 import * as XP from '../helpers/xp-math.mjs';
-import { ATOW_SKILLS, ATOW_TRAITS, ATOW_TRAIT_DESCRIPTIONS, computeStartingWealth } from '../data/atow-lists.mjs';
+import { ATOW_SKILLS, ATOW_TRAITS, ATOW_TRAIT_DESCRIPTIONS, ATOW_SUBSKILLS, computeStartingWealth } from '../data/atow-lists.mjs';
 import { grantCharacter } from '../helpers/character-grant.mjs';
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
@@ -164,9 +164,10 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     }
 
     // Re-apply saved subskill choices (adds the queued XP under the chosen subskill).
+    // '__other__' is the "Other…" placeholder before the player has typed a value.
     for (const p of this.#state.subskillPending) {
       const chosen = this.#choices.subskills[p.sourceKey];
-      if (chosen) CharacterBuilder.resolveSubskill(this.#state, p.sourceKey, chosen);
+      if (chosen && chosen !== '__other__') CharacterBuilder.resolveSubskill(this.#state, p.sourceKey, chosen);
     }
 
     // Re-apply saved flexible assignments against the freshly-created pools.
@@ -266,13 +267,17 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     if (stepId === 'flexible') {
       context.pools = this.#buildFlexibleContext();
       context.hasPools = context.pools.length > 0;
-      context.subskills = this.#state.subskillPending.map(p => ({
-        sourceKey: p.sourceKey,
-        name: p.name,
-        hint: p.hint,
-        xp: p.xp,
-        value: this.#choices.subskills[p.sourceKey] || ''
-      }));
+      context.subskills = this.#state.subskillPending.map(p => {
+        const value = this.#choices.subskills[p.sourceKey] || '';
+        const options = this.#subskillOptions(p.name);
+        const hasOptions = options.length > 0;
+        const isOther = value === '__other__' || (!!value && hasOptions && !options.includes(value));
+        return {
+          sourceKey: p.sourceKey, name: p.name, hint: p.hint, xp: p.xp,
+          value, options, hasOptions, isOther,
+          otherText: value && value !== '__other__' && !options.includes(value) ? value : ''
+        };
+      });
       context.hasSubskills = context.subskills.length > 0;
       context.nothingToResolve = !context.hasPools && !context.hasSubskills;
     }
@@ -381,6 +386,13 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     const master = (game.mechfoundry?.config?.skillsList || ATOW_SKILLS).map(s => s.name);
     const set = new Set([...master, ...Object.keys(this.#state.skills)]);
     return [...set].sort((a, b) => a.localeCompare(b)).map(n => ({ value: n, label: n }));
+  }
+
+  /** Known subskills for a root skill (GM-edited compendium first, then master). */
+  #subskillOptions(root) {
+    const entry = (game.mechfoundry?.config?.skillsList || []).find(s => s.name === root);
+    if (entry?.subskills?.length) return entry.subskills;
+    return ATOW_SUBSKILLS[root] || [];
   }
 
   /** Trait dropdown options: master list ∪ traits already in the build. */
@@ -505,14 +517,24 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       (spendSkills[slot] ??= { key: '', xp: '' })[field] = v;
     }
 
-    // Subskill choices: name = "subskill::<sourceKey>"
+    // Subskill choices: a "subskill::<key>" select (or text) plus, when the
+    // select is on "Other…", a "subskillother::<key>" free-text field.
     let subChanged = false;
+    const subSel = {}, subOther = {};
     for (const [k, v] of Object.entries(data)) {
-      if (!k.startsWith('subskill::')) continue;
-      subChanged = true;
-      const sourceKey = k.slice('subskill::'.length);
-      if (v) this.#choices.subskills[sourceKey] = v;
-      else delete this.#choices.subskills[sourceKey];
+      if (k.startsWith('subskillother::')) { subChanged = true; subOther[k.slice('subskillother::'.length)] = v; }
+      else if (k.startsWith('subskill::')) { subChanged = true; subSel[k.slice('subskill::'.length)] = v; }
+    }
+    if (subChanged) {
+      for (const key of new Set([...Object.keys(subSel), ...Object.keys(subOther)])) {
+        const sel = subSel[key];
+        let final;
+        if (sel === '__other__') final = (subOther[key] || '').trim() || '__other__'; // keep marker until typed
+        else if (sel !== undefined) final = sel;                                       // known option or plain text
+        else final = (subOther[key] || '').trim();
+        if (final) this.#choices.subskills[key] = final;
+        else delete this.#choices.subskills[key];
+      }
     }
 
     if (flexChanged) {

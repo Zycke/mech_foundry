@@ -102,7 +102,9 @@ steps, commit path). Needs runtime testing on a live v14 world (per §0).
           attribute's cap by 1 in derive.
     - [x] **Languages**: `system.languages` populated from `Language/*` skills on commit.
     - [x] **Subskills**: `/Affiliation` grants auto-resolve to the affiliation; `/Any` grants
-          are queued and the player chooses the subskill (gated before continuing).
+          are queued and the player chooses the subskill via a dropdown of the root skill's
+          canonical subskills (with an "Other…" free-text fallback; open skills use plain
+          text). Subskills live on each skill Item (`system.subskills`), so GM-editable.
     - [x] **Skills/Traits editability**: promoted to editable `mech-foundry.skills` /
           `mech-foundry.traits` compendia (seeded from the master lists); the runtime config
           lists are rebuilt FROM the compendia at ready, so GM edits flow to the wizard
