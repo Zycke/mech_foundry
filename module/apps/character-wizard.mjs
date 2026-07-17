@@ -52,7 +52,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
   #step = 0;
   #choices = {
     name: '', player: '',
-    affiliationId: '', phenotypeKey: '',
+    affiliationId: '', subAffiliationKey: '', phenotypeKey: '',
     modules: { 1: '', 2: '', 3: [], 4: [] }, // stage -> id | id[]
     flexible: {},                            // sourceKey -> [{ kind, key }]
     subskills: {},                           // subskill sourceKey -> chosen text
@@ -82,6 +82,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       back: CharacterWizard.#onBack,
       next: CharacterWizard.#onNext,
       selectAffiliation: CharacterWizard.#onSelectAffiliation,
+      selectSubAffiliation: CharacterWizard.#onSelectSubAffiliation,
       selectPhenotype: CharacterWizard.#onSelectPhenotype,
       selectStageModule: CharacterWizard.#onSelectStageModule,
       toggleStageModule: CharacterWizard.#onToggleStageModule,
@@ -152,6 +153,10 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
 
     this.#state.affiliation = aff.name;
     this.#state.affiliationKey = aff.system.affiliationKey || '';
+    this.#state.affiliationLanguages = {
+      primary: aff.system.primaryLanguage || '',
+      secondary: this._asArray(aff.system.secondaryLanguages)
+    };
     // A clean primary-language label: an explicit field, else the affiliation
     // key capitalised, else the display name without any "(...)" suffix.
     const langName = aff.system.primaryLanguage
@@ -159,7 +164,23 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
         ? aff.system.affiliationKey.charAt(0).toUpperCase() + aff.system.affiliationKey.slice(1)
         : aff.name.replace(/\s*\(.*\)\s*$/, '').trim());
     CharacterBuilder.applyUniversalFixedXP(this.#state, { primaryLanguageName: langName });
+
+    // Main affiliation module.
+    CharacterBuilder.applyModule(this.#state, aff.system, { id: aff.id, name: aff.name, uuid: aff.uuid });
+
+    // Optional sub-affiliation: applied as an extra Stage 0 bundle.
+    const sub = this._asArray(aff.system.subAffiliations)
+      .find(s => s.key === this.#choices.subAffiliationKey);
+    if (sub) {
+      this.#state.subAffiliation = sub.name;
+      CharacterBuilder.applyModule(this.#state, {
+        stage: 0, xpCost: 0, time: 0, fixedXP: sub.fixedXP, flexibleXP: sub.flexibleXP
+      }, { id: `subaff:${sub.key}`, name: `${aff.name} — ${sub.name}` });
+    }
+
+    // Remaining stage modules (everything except the affiliation doc).
     for (const d of docs) {
+      if (d.id === aff.id) continue;
       CharacterBuilder.applyModule(this.#state, d.system, { id: d.id, name: d.name, uuid: d.uuid });
     }
 
@@ -226,7 +247,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       remaining,
       remainingClass: remaining < 0 ? 'over' : '',
       age: this.#state.age,
-      moduleCount: this.#state.modules.length
+      moduleCount: this.#state.modules.filter(m => !String(m.id).startsWith('subaff:')).length
     };
 
     if (stepId === 'affiliation') {
@@ -234,6 +255,20 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       context.hasModules = affiliations.length > 0;
       context.modules = affiliations.map(a => this.#moduleCard(a, a.id === this.#choices.affiliationId, derived));
       context.emptyKind = 'affiliation';
+
+      // Sub-affiliations of the chosen affiliation (optional, each adds its own XP).
+      const chosen = affiliations.find(a => a.id === this.#choices.affiliationId);
+      const subs = this._asArray(chosen?.system.subAffiliations);
+      if (subs.length) {
+        context.subAffiliations = subs.map(s => ({
+          key: s.key,
+          name: s.name,
+          selected: s.key === this.#choices.subAffiliationKey,
+          grants: this.#moduleGrants(s),
+          flexible: this.#flexibleSummaries(s)
+        }));
+        context.hasSubAffiliations = true;
+      }
     }
 
     if (step.stage) {
@@ -390,6 +425,13 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
 
   /** Known subskills for a root skill (GM-edited compendium first, then master). */
   #subskillOptions(root) {
+    // Language subskills: prefer the affiliation's own languages, then common ones.
+    if (root === 'Language') {
+      const langs = this.#state.affiliationLanguages || {};
+      const affLangs = [langs.primary, ...(langs.secondary || [])].filter(Boolean);
+      const generic = ATOW_SUBSKILLS['Language'] || [];
+      return [...new Set([...affLangs, ...generic])];
+    }
     const entry = (game.mechfoundry?.config?.skillsList || []).find(s => s.name === root);
     if (entry?.subskills?.length) return entry.subskills;
     return ATOW_SUBSKILLS[root] || [];
@@ -585,6 +627,14 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
 
   static async #onSelectAffiliation(event, target) {
     this.#choices.affiliationId = target.dataset.id || '';
+    this.#choices.subAffiliationKey = ''; // sub-affiliations are affiliation-specific
+    await this.#rebuildState();
+    this.render();
+  }
+
+  static async #onSelectSubAffiliation(event, target) {
+    const key = target.dataset.key || '';
+    this.#choices.subAffiliationKey = this.#choices.subAffiliationKey === key ? '' : key;
     await this.#rebuildState();
     this.render();
   }

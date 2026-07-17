@@ -58,26 +58,113 @@ export const LIFE_MODULE_SEED = [
       stage: 0,
       moduleType: 'affiliation',
       affiliationKey: 'capellan',
-      xpCost: 0,
+      xpCost: 150,
       time: 0,
+      primaryLanguage: 'Mandarin Chinese',
+      secondaryLanguages: ['Russian', 'Cantonese', 'Vietnamese', 'English'],
       restrictedToAffiliations: [],
       prerequisites: { attributes: {}, skills: {}, traits: {} },
       fixedXP: {
-        attributes: { edg: 100 },
+        attributes: { wil: 50 },
         skills: [
           { name: 'Language', subskill: 'Any Capellan Secondary', xp: 10 },
           { name: 'Protocol', subskill: 'Capellan', xp: 10 },
           { name: 'Martial Arts', xp: 5 }
         ],
         traits: [
+          { name: 'Exceptional Attribute/EDG', xp: 100 },
           { name: 'Compulsion/Paranoia', xp: -100 }
         ]
       },
       flexibleXP: [],
+      subAffiliations: [
+        {
+          key: 'capellan-commonality',
+          name: 'Capellan Commonality',
+          fixedXP: {
+            attributes: { edg: 50 },
+            skills: [
+              { name: 'Language', subskill: 'Any FedSuns', xp: 5 },
+              { name: 'Protocol', subskill: 'FedSuns', xp: 5 }
+            ],
+            traits: [{ name: 'Wealth', xp: 15 }]
+          },
+          flexibleXP: []
+        },
+        {
+          key: 'liao-commonality',
+          name: 'Liao Commonality',
+          fixedXP: {
+            attributes: { int: 50 },
+            skills: [
+              { name: 'Language', subskill: 'Choose Any FedSuns or Lyran', xp: 15 },
+              { name: 'Protocol', subskill: 'Choose either FedSuns or Lyran', xp: 10 },
+              { name: 'Art', subskill: 'Any', xp: 10 },
+              { name: 'Martial Arts', xp: 15 }
+            ],
+            traits: [{ name: 'Reputation', xp: -25 }]
+          },
+          flexibleXP: []
+        },
+        {
+          key: 'sian-commonality',
+          name: 'Sian Commonality',
+          fixedXP: {
+            attributes: { wil: 75 },
+            skills: [
+              { name: 'Interest', subskill: 'Capellan History', xp: 10 },
+              { name: 'Protocol', subskill: 'Capellan', xp: 15 },
+              { name: 'Language', subskill: 'Any Capellan Secondary', xp: 10 }
+            ],
+            traits: [
+              { name: 'Compulsion/Hatred of Federated Suns', xp: -135 },
+              { name: 'Citizenship', xp: 50 },
+              { name: 'Connections', xp: 50 }
+            ]
+          },
+          flexibleXP: []
+        },
+        {
+          key: 'st-ives-commonality',
+          name: 'St. Ives Commonality',
+          fixedXP: {
+            attributes: { wil: 50, edg: 50 },
+            skills: [
+              { name: 'Language', subskill: 'Any FedSuns', xp: 15 },
+              { name: 'Protocol', subskill: 'Capellan', xp: -15 },
+              { name: 'Protocol', subskill: 'FedSuns', xp: 10 },
+              { name: 'Art', subskill: 'Any', xp: 5 },
+              { name: 'Martial Arts', xp: 10 }
+            ],
+            traits: [
+              { name: 'Reputation', xp: -100 },
+              { name: 'Wealth', xp: 50 }
+            ]
+          },
+          flexibleXP: []
+        },
+        {
+          key: 'victoria-commonality',
+          name: 'Victoria Commonality',
+          fixedXP: {
+            attributes: { wil: 35 },
+            skills: [
+              { name: 'Language', subskill: 'Any', xp: 15 },
+              { name: 'Negotiation', xp: 10 },
+              { name: 'Martial Arts', xp: 15 }
+            ],
+            traits: [
+              { name: 'Connections', xp: 50 },
+              { name: 'Wealth', xp: -50 }
+            ]
+          },
+          flexibleXP: []
+        }
+      ],
       grantsFields: [],
-      notes: 'Sub-affiliations (Capellan/Liao/Sian/St. Ives/Victoria Commonality) add further XP — see the rulebook; add them as separate entries or fold into fixedXP. Child labour is legal in the Confederation, so Capellan characters may take the Civilian Job Stage 4 module in place of a Stage 2 module. GM: verify against the book and adjust.',
+      notes: 'Child labour is legal in the Confederation, so Capellan characters may take the Civilian Job Stage 4 module in place of a Stage 2 module (advancing immediately to age 18). Capellan characters may not take the Military School Stage 2 module or any Stage 3 module unless they also purchase the Citizenship Trait.',
       pageRef: 'ATOW p.64',
-      description: '<p>Origins in the Capellan Confederation, a rigid, security-obsessed realm long beset by its neighbours.</p>'
+      description: '<p>Origins in the Capellan Confederation (House Liao), a rigid, security-obsessed realm long beset by its neighbours. Choose a Commonality sub-affiliation for regional flavour and its own XP.</p>'
     }
   },
 

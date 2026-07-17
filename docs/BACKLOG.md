@@ -115,8 +115,14 @@ steps, commit path). Needs runtime testing on a live v14 world (per §0).
           the equipment item schema — no changes needed).
     - [?] Aging effects (book pp.332–333) as an optional post-creation pass — **DEFERRED**
           (not needed for now; revisit on request).
+- [x] **Sub-affiliations**: affiliation lifeModules carry a `subAffiliations` array (each with
+      its own attributes/skills/traits/flexible XP) + `primaryLanguage`/`secondaryLanguages`.
+      The wizard offers an optional sub-affiliation picker (cards showing grants) that stacks
+      on the main affiliation; Language subskill dropdowns prefer the affiliation's languages.
 - [ ] **M8 (data track)** — transcribe the full A Time of War module/affiliation catalogue
-      against the schema (the seed ships only Capellan + labelled examples).
+      against the schema. **Done so far:** Capellan Confederation (accurate main +
+      all 5 Commonality sub-affiliations). Remaining: the other Great Houses, Periphery, Clans,
+      and the Stage 1–4 module catalogue (the seed still ships labelled examples for those).
 
 ---
 

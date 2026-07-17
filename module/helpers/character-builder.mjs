@@ -174,7 +174,7 @@ export class CharacterBuilder {
     // "Any" need a player choice (queued); "Affiliation" auto-resolves.
     asArray(m.fixedXP?.skills).forEach((s, i) => {
       const sub = String(s.subskill || '');
-      if (/\bany\b/i.test(sub)) {
+      if (/\b(any|choose|either|various)\b/i.test(sub)) {
         state.subskillPending.push({
           sourceKey: `${entry.id}#sk${i}`,
           moduleId: entry.id,

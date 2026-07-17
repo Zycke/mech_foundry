@@ -1343,7 +1343,7 @@
           <a class="cs-launch" data-action="launchWizard" data-tooltip="Re-open the Character Builder">Rebuild</a>
         </div>
         <div class="cs-meta">
-          {{#if creation.affiliation}}<span><strong>Affiliation:</strong> {{creation.affiliation}}</span>{{/if}}
+          {{#if creation.affiliation}}<span><strong>Affiliation:</strong> {{creation.affiliation}}{{#if creation.subAffiliation}} / {{creation.subAffiliation}}{{/if}}</span>{{/if}}
           {{#if creation.phenotype}}<span><strong>Phenotype:</strong> {{creation.phenotype}}</span>{{/if}}
           <span><strong>Age:</strong> {{creation.age}}</span>
           <span><strong>XP:</strong> {{creation.spent}} spent / {{creation.remaining}} left</span>

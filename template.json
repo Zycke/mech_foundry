@@ -163,6 +163,9 @@
       "affiliationKey": "",
       "xpCost": 0,
       "time": 0,
+      "primaryLanguage": "",
+      "secondaryLanguages": [],
+      "subAffiliations": [],
       "restrictedToAffiliations": [],
       "prerequisites": {
         "attributes": {},

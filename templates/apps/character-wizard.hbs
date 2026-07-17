@@ -48,6 +48,21 @@
       {{else}}
       <p class="empty-note"><i class="fas fa-triangle-exclamation"></i> No affiliations found in the Life Modules compendium. A GM can add <em>Life Module</em> items (Stage 0, type Affiliation) and reopen the wizard.</p>
       {{/if}}
+
+      {{#if hasSubAffiliations}}
+      <h3 class="spend-sub">Sub-Affiliation <span class="hint-inline">(optional — adds its own XP)</span></h3>
+      <div class="choice-grid">
+        {{#each subAffiliations}}
+        <button type="button" class="choice-card {{#if this.selected}}selected{{/if}}" data-action="selectSubAffiliation" data-key="{{this.key}}">
+          <span class="card-head">
+            <span class="choice-name">{{this.name}}</span>
+            {{#if this.selected}}<span class="selected-flag"><i class="fas fa-check"></i></span>{{/if}}
+          </span>
+          {{> "systems/mech-foundry/templates/apps/parts/wizard-grants.hbs"}}
+        </button>
+        {{/each}}
+      </div>
+      {{/if}}
     </div>
     {{/if}}
 
@@ -228,10 +243,10 @@
       {{/if}}
 
       <div class="review-meta">
-        <span><strong>Affiliation:</strong> {{#if preview.affiliation}}{{preview.affiliation}}{{else}}—{{/if}}</span>
+        <span><strong>Affiliation:</strong> {{#if preview.affiliation}}{{preview.affiliation}}{{#if preview.subAffiliation}} / {{preview.subAffiliation}}{{/if}}{{else}}—{{/if}}</span>
         <span><strong>Phenotype:</strong> {{#if preview.phenotype}}{{preview.phenotype}}{{else}}—{{/if}}</span>
         <span><strong>Age:</strong> {{preview.age}}</span>
-        <span><strong>Modules:</strong> {{preview.moduleCount}}</span>
+        <span><strong>Modules:</strong> {{moduleCount}}</span>
         <span><strong>XP:</strong> {{preview.spent}} spent / {{preview.remaining}} left</span>
         <span data-tooltip="From the Wealth Trait (default 1,000). Unspent C-bills are kept as starting cash."><strong>C-Bills:</strong> {{numberFormat wealth.cbills}}</span>
         <span data-tooltip="From the Equipped Trait: the maximum Tech/Availability/Legality rating of gear you may buy at creation."><strong>Gear rating:</strong> {{wealth.rating}}</span>
