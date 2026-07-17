@@ -753,8 +753,12 @@ export class MechFoundryActor extends Actor {
     // Get effective weapon stats (may be modified by ammo)
     const effectiveStats = this.getWeaponEffectiveStats(weaponId);
 
+    // A weapon's BD Factor may combine several letters (e.g. "BCS" = Burst +
+    // Continuous + Splash on support weapons), so test membership, not equality.
+    const hasFactor = (code, letter) => String(code || '').toUpperCase().includes(letter);
+
     // AOE weapons use the dedicated AOE attack flow
-    if (weaponData.bdFactor === 'A') {
+    if (hasFactor(weaponData.bdFactor, 'A')) {
       return AOEHelper.initiateAOEAttack(this, weapon, options);
     }
 
@@ -764,7 +768,7 @@ export class MechFoundryActor extends Actor {
       return AOEHelper.initiateSuppressionFire(this, weapon, options);
     }
 
-    const hasBurstFire = weaponData.bdFactor === 'B';
+    const hasBurstFire = hasFactor(weaponData.bdFactor, 'B');
     const recoil = weaponData.recoil || 0;
     const burstRating = weaponData.burstRating || 0;
     const currentAmmo = weaponData.ammo?.value || 0;
@@ -808,13 +812,13 @@ export class MechFoundryActor extends Actor {
     }
 
     // Check BD Factor for special attack types
-    if (weaponData.bdFactor === 'A') {
+    if (hasFactor(weaponData.bdFactor, 'A')) {
       attackType = 'Area Effect';
-    } else if (weaponData.bdFactor === 'S') {
+    } else if (hasFactor(weaponData.bdFactor, 'S')) {
       attackType = 'Splash Fire';
       // Splash weapons get +2 to ranged attack rolls
       splashMod = 2;
-    } else if (weaponData.bdFactor === 'D' || weaponData.subduing) {
+    } else if (hasFactor(weaponData.bdFactor, 'D') || weaponData.subduing) {
       attackType = 'Subduing';
     }
 
@@ -952,7 +956,7 @@ export class MechFoundryActor extends Actor {
     const ap = effectiveStats?.ap ?? weaponData.ap ?? 0;
     const apFactor = effectiveStats?.apFactor ?? weaponData.apFactor ?? '';
     const bdFactor = effectiveStats?.bdFactor ?? weaponData.bdFactor ?? '';
-    const isSubduing = weaponData.subduing || bdFactor === 'D';
+    const isSubduing = weaponData.subduing || hasFactor(bdFactor, 'D');
     const ammoSpecialEffects = effectiveStats?.specialEffects || [];
     const str = this.system.attributes.str?.total || 5;
 

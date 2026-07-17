@@ -45,9 +45,15 @@ function toMode(m) {
  */
 export function toWeaponSeed(r) {
   const range = Array.isArray(r.range) ? r.range : [];
-  const notes = r.notes && r.notes !== '—' ? r.notes : '';
+  let notes = r.notes && r.notes !== '—' ? r.notes : '';
   const weaponType = r.weaponType || 'smallarms';
   const isMelee = weaponType === 'melee';
+  // Ordnance weapons (grenade launchers, mortars, missile/recoilless launchers)
+  // have no fixed AP/BD — damage comes from the loaded munition (ordnance class).
+  if (r.ordnanceClass) {
+    const ord = `Fires ordnance type ${r.ordnanceClass} — AP/BD set by the loaded munition.`;
+    notes = notes ? `${ord} ${notes}` : ord;
+  }
   return {
     skill: r.skill || 'Small Arms',
     category: r.subCategory || 'Other',
@@ -101,7 +107,7 @@ export function toWeaponSeed(r) {
       },
       // Skill/category/group are surfaced in flags so the sheet or other tooling
       // can read them; the seeder uses skill+category to build the folder tree.
-      flags: { 'mech-foundry': { skill: r.skill || 'Small Arms', category: r.subCategory || 'Other', group: r.skillGroup || '' } }
+      flags: { 'mech-foundry': { skill: r.skill || 'Small Arms', category: r.subCategory || 'Other', group: r.skillGroup || '', ordnanceClass: r.ordnanceClass || '' } }
     }
   };
 }
@@ -212,7 +218,18 @@ export const SMALL_ARMS = [
   {"name":"Radium Sniper Rifle","subCategory":"Miscellaneous","skillGroup":"Rifles","ar":"E/F-X-F/F","ap":4,"apFactor":"S","bd":5,"bdFactor":"C","range":[95,350,750,1500],"shots":5,"pps":10,"cost":9500,"reloadCost":650,"aff":"TC","massKg":12,"reloadMassG":330,"burst":null,"recoil":null,"notes":"On successful hit that penetrates armor, injects target with 1 dose of radium poison (see Drugs and Poisons, p. 317)"}
 ];
 
+/**
+ * Support Weapons (ATOW pp. 267-270). Heavier man-portable/crew-served weapons.
+ * Skill is per-record (Support Weapons, or Artillery for mortars). Ordnance
+ * weapons (grenade launchers, mortars, missile & recoilless launchers) carry an
+ * `ordnanceClass` instead of a fixed AP/BD. All `support` weaponType.
+ */
+export const SUPPORT_WEAPONS = [
+  // Filled in below.
+];
+
 /** All weapon seed entries (expanded), consumed by the weapon seeder. */
 export const WEAPON_SEED = [
-  ...SMALL_ARMS
-].map(r => toWeaponSeed({ skill: 'Small Arms', weaponType: 'smallarms', ...r }));
+  ...SMALL_ARMS.map(r => ({ skill: 'Small Arms', weaponType: 'smallarms', ...r })),
+  ...SUPPORT_WEAPONS.map(r => ({ weaponType: 'support', ...r }))
+].map(toWeaponSeed);
