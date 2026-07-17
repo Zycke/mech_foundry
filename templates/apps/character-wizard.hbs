@@ -178,6 +178,38 @@
       {{/each}}
       {{/if}}
 
+      {{#if hasLumpPools}}
+      {{#if hasSubskills}}<h3 class="spend-sub">Distribute Flexible XP</h3>{{/if}}
+      {{#each lumpPools}}
+      <div class="flex-pool lump-pool">
+        <div class="flex-pool-head">
+          <span class="flex-note">{{this.note}}{{#if this.moduleName}} · {{this.moduleName}}{{/if}}</span>
+          <span class="flex-meta {{#if this.over}}over{{/if}}">{{this.allocated}} / {{this.amount}} XP</span>
+        </div>
+        <div class="flex-slots">
+          {{#each this.rows}}
+          <div class="flex-slot">
+            {{#if this.isAny}}
+            <select name="lump::{{../sourceKey}}::{{this.idx}}::kind" class="kind-select">
+              <option value="attribute" {{#if (eq this.kind "attribute")}}selected{{/if}}>Attribute</option>
+              <option value="skill" {{#if (eq this.kind "skill")}}selected{{/if}}>Skill</option>
+              <option value="trait" {{#if (eq this.kind "trait")}}selected{{/if}}>Trait</option>
+            </select>
+            {{/if}}
+            <select name="lump::{{../sourceKey}}::{{this.idx}}::key" class="value-select">
+              <option value="">— choose {{this.kind}} —</option>
+              {{#each this.options}}
+              <option value="{{this.value}}" {{#if (eq this.value ../key)}}selected{{/if}}>{{this.label}}</option>
+              {{/each}}
+            </select>
+            <input type="number" name="lump::{{../sourceKey}}::{{this.idx}}::amount" value="{{this.amount}}" min="0" step="5" placeholder="XP" class="lump-amount"/>
+          </div>
+          {{/each}}
+        </div>
+      </div>
+      {{/each}}
+      {{/if}}
+
       {{#if nothingToResolve}}
       <p class="all-clear"><i class="fas fa-circle-check"></i> Nothing to resolve — your chosen modules granted only fixed XP.</p>
       {{/if}}

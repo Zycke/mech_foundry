@@ -119,10 +119,16 @@ steps, commit path). Needs runtime testing on a live v14 world (per §0).
       its own attributes/skills/traits/flexible XP) + `primaryLanguage`/`secondaryLanguages`.
       The wizard offers an optional sub-affiliation picker (cards showing grants) that stacks
       on the main affiliation; Language subskill dropdowns prefer the affiliation's languages.
+- [x] **Lump flexible XP**: pools can be `{lump:true, amount}` (distribute a total freely) in
+      addition to count-based `{amount,count}`; the wizard renders a distribution UI
+      (target + XP-amount rows with a running total) and gates/ validates on full allocation.
 - [ ] **M8 (data track)** — transcribe the full A Time of War module/affiliation catalogue
-      against the schema. **Done so far:** Capellan Confederation (accurate main +
-      all 5 Commonality sub-affiliations). Remaining: the other Great Houses, Periphery, Clans,
-      and the Stage 1–4 module catalogue (the seed still ships labelled examples for those).
+      against the schema. **Done so far:** Capellan Confederation (accurate main + all 5
+      Commonality sub-affiliations); **all 11 Stage 1 (Early Childhood) and all 12 Stage 2
+      (Late Childhood) modules** (Clan branch/caste modules carry base data + notes for the
+      conditional branch XP). Remaining: the other Great Houses, Periphery, Clans, and the
+      Stage 3 (Higher Education) & Stage 4 (Real Life) module catalogues (still labelled
+      examples).
 
 ---
 
