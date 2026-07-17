@@ -18,6 +18,26 @@
 
 const IMG = 'icons/weapons/guns/gun-pistol-flintlock-metal.webp';
 
+/** Convert a raw firing-mode record into a stored mode profile. Ranges are given
+ *  as [short, medium, long, extreme]; only present fields are carried. */
+function toMode(m) {
+  const range = Array.isArray(m.range) ? m.range : null;
+  const out = { name: m.name || 'Mode' };
+  if (m.ap != null) out.ap = m.ap;
+  if (m.apFactor != null) out.apFactor = m.apFactor;
+  if (m.bd != null) out.bd = m.bd;
+  if (m.bdFactor != null) out.bdFactor = m.bdFactor;
+  if (range) out.range = { short: range[0] ?? '', medium: range[1] ?? '', long: range[2] ?? '', extreme: range[3] ?? '' };
+  if (m.shots != null) out.shots = m.shots;
+  if (m.pps != null) out.pps = m.pps;
+  if (m.burst != null) out.burst = m.burst;
+  if (m.recoil != null) out.recoil = m.recoil;
+  if (m.subduing != null) out.subduing = !!m.subduing;
+  if (m.switchAction) out.switchAction = m.switchAction;
+  if (m.notes) out.notes = m.notes;
+  return out;
+}
+
 /**
  * Expand a raw ATOW weapon record into a seed entry.
  * @param {object} r  raw record (see SMALL_ARMS below)
@@ -67,6 +87,10 @@ export function toWeaponSeed(r) {
         loadedAmmoCategory: '',
         pps: r.pps ?? 0,
         ammoCompatibility: r.ammoCompatibility || [],
+        // Multi-mode weapons: one profile per firing mode; the active mode's
+        // stats are overlaid onto the fields above at prepare time.
+        modes: Array.isArray(r.modes) ? r.modes.map(toMode) : [],
+        activeMode: 0,
         animation: '',
         animationDelay: 50,
         animationDuration: 0
@@ -119,7 +143,7 @@ export const SMALL_ARMS = [
   {"name":"Sniper Rifle","subCategory":"Ballistic","skillGroup":"Rifles","ar":"B/C-C-C/D","ap":5,"apFactor":"B","bd":4,"bdFactor":"","range":[45,150,340,700],"shots":5,"cost":350,"reloadCost":4,"aff":"","massKg":10,"reloadMassG":60,"burst":null,"recoil":null,"notes":"Simple Action to chamber next round"},
   {"name":"Sniper Rifle (Minolta 9000)","subCategory":"Ballistic","skillGroup":"Rifles","ar":"D/X-X-E/F","ap":5,"apFactor":"B","bd":4,"bdFactor":"","range":[50,160,360,730],"shots":10,"cost":1000,"reloadCost":5,"aff":"CC","massKg":6,"reloadMassG":120,"burst":null,"recoil":null,"notes":""},
   {"name":"Harpoon Gun (Pequod, Mk. 2)","subCategory":"Ballistic","skillGroup":"Rifles","ar":"C/F-D-B/D","ap":4,"apFactor":"B","bd":4,"bdFactor":"","range":[18,35,65,90],"shots":2,"cost":700,"reloadCost":5,"aff":"TC","massKg":4.1,"reloadMassG":360,"burst":null,"recoil":null,"notes":"Wireless; no modifier to use underwater"},
-  {"name":"Federated-Barrett M42B","subCategory":"Ballistic","skillGroup":"Rifles","ar":"C/X-X-D/E","ap":4,"apFactor":"B","bd":5,"bdFactor":"B","range":[30,75,180,430],"shots":50,"cost":1385,"reloadCost":12,"aff":"FS","massKg":6,"reloadMassG":300,"burst":10,"recoil":-1,"notes":"Multi-mode. STANDARD MODE (shown): Burst 10; Recoil -1; laser sight and 5-shot compact grenade launcher. CLOSE-IN MODE: 3B/4B, range 20/50/120/280, Burst 5, adds sound/flash suppressor. LT. MACHINE GUN MODE: see Support Weapons. 2 Complex Actions and Skill check to reconfigure."},
+  {"name":"Federated-Barrett M42B","subCategory":"Ballistic","skillGroup":"Rifles","ar":"C/X-X-D/E","ap":4,"apFactor":"B","bd":5,"bdFactor":"B","range":[30,75,180,430],"shots":50,"cost":1385,"reloadCost":12,"aff":"FS","massKg":6,"reloadMassG":300,"burst":10,"recoil":-1,"notes":"Reconfigurable battle rifle with an integral 5-shot compact grenade launcher. Its Lt. Machine Gun mode uses the Light Machine Gun support-weapon profile (see Support Weapons).","modes":[{"name":"Standard","ap":4,"apFactor":"B","bd":5,"bdFactor":"B","range":[30,75,180,430],"shots":50,"burst":10,"recoil":-1,"switchAction":"2 Complex Actions + Skill check","notes":"Laser sight; 5-shot compact grenade launcher"},{"name":"Close-In","ap":3,"apFactor":"B","bd":4,"bdFactor":"B","range":[20,50,120,280],"shots":50,"burst":5,"recoil":-1,"switchAction":"2 Complex Actions + Skill check","notes":"Sound/flash suppressor; 5-shot compact grenade launcher"}]},
   {"name":"Laser Pistol","subCategory":"Energy","skillGroup":"Pistols","ar":"D/B-A-A/D","ap":4,"apFactor":"E","bd":3,"bdFactor":"","range":[15,35,80,225],"shots":null,"pps":2,"cost":750,"reloadCost":null,"aff":"","massKg":1,"reloadMassG":null,"burst":null,"recoil":null,"notes":""},
   {"name":"Blazer Pistol","subCategory":"Energy","skillGroup":"Pistols","ar":"D/C-C-D/E","ap":5,"apFactor":"E","bd":3,"bdFactor":"","range":[15,40,90,240],"shots":null,"pps":8,"cost":3000,"reloadCost":null,"aff":"FW","massKg":2,"reloadMassG":null,"burst":null,"recoil":null,"notes":""},
   {"name":"ER Laser Pistol","subCategory":"Energy","skillGroup":"Pistols","ar":"F/X-D-C/D","ap":4,"apFactor":"E","bd":3,"bdFactor":"","range":[20,50,120,300],"shots":null,"pps":3,"cost":1000,"reloadCost":null,"aff":"CLAN","massKg":1,"reloadMassG":null,"burst":null,"recoil":null,"notes":""},
@@ -134,7 +158,7 @@ export const SMALL_ARMS = [
   {"name":"Laser Rifle (Maxell PL-10)","subCategory":"Energy","skillGroup":"Rifles","ar":"D/X-X-C/D","ap":5,"apFactor":"E","bd":3,"bdFactor":"","range":[55,200,460,1050],"shots":null,"pps":5,"cost":2000,"reloadCost":null,"aff":"LA","massKg":6.5,"reloadMassG":null,"burst":null,"recoil":null,"notes":""},
   {"name":"Blazer Rifle","subCategory":"Energy","skillGroup":"Rifles","ar":"D/C-C-D/E","ap":5,"apFactor":"E","bd":4,"bdFactor":"","range":[65,220,485,1180],"shots":null,"pps":10,"cost":2190,"reloadCost":null,"aff":"","massKg":7,"reloadMassG":null,"burst":null,"recoil":null,"notes":""},
   {"name":"Marx XX Laser Rifle","subCategory":"Energy","skillGroup":"Rifles","ar":"D/D-E-D/D","ap":5,"apFactor":"E","bd":3,"bdFactor":"","range":[75,250,500,1150],"shots":null,"pps":6,"cost":1750,"reloadCost":null,"aff":"","massKg":6,"reloadMassG":null,"burst":null,"recoil":null,"notes":""},
-  {"name":"Ebony Assault Rifle","subCategory":"Energy","skillGroup":"Rifles","ar":"F/X-X-E/F","ap":4,"apFactor":"E","bd":3,"bdFactor":"","range":[65,200,475,1000],"shots":null,"pps":8,"cost":8500,"reloadCost":null,"aff":"MC","massKg":10,"reloadMassG":null,"burst":null,"recoil":null,"notes":"Multi-mode (Simple Action to change setting). STANDARD MODE (shown): 4E/3, 8 PPS. HIGH-POWER MODE: 5E/4, range 50/160/350/700, 12 PPS. EXTENDED-RANGE MODE: 3E/2, range 80/260/610/1200, 4 PPS."},
+  {"name":"Ebony Assault Rifle","subCategory":"Energy","skillGroup":"Rifles","ar":"F/X-X-E/F","ap":4,"apFactor":"E","bd":3,"bdFactor":"","range":[65,200,475,1000],"shots":null,"pps":8,"cost":8500,"reloadCost":null,"aff":"MC","massKg":10,"reloadMassG":null,"burst":null,"recoil":null,"notes":"Variable-power laser rifle; a Simple Action switches the beam setting.","modes":[{"name":"Standard","ap":4,"apFactor":"E","bd":3,"range":[65,200,475,1000],"pps":8,"switchAction":"Simple Action"},{"name":"High-Power","ap":5,"apFactor":"E","bd":4,"range":[50,160,350,700],"pps":12,"switchAction":"Simple Action"},{"name":"Extended-Range","ap":3,"apFactor":"E","bd":2,"range":[80,260,610,1200],"pps":4,"switchAction":"Simple Action"}]},
   {"name":"Intek Laser Rifle","subCategory":"Energy","skillGroup":"Rifles","ar":"D/X-D-D/D","ap":4,"apFactor":"E","bd":3,"bdFactor":"","range":[80,275,550,1200],"shots":null,"pps":2,"cost":1250,"reloadCost":null,"aff":"FW","massKg":5,"reloadMassG":null,"burst":null,"recoil":null,"notes":""},
   {"name":"Magna Laser Rifle","subCategory":"Energy","skillGroup":"Rifles","ar":"D/C-C-D/D","ap":3,"apFactor":"E","bd":5,"bdFactor":"","range":[50,190,440,1000],"shots":null,"pps":5,"cost":1500,"reloadCost":null,"aff":"DC","massKg":6,"reloadMassG":null,"burst":null,"recoil":null,"notes":""},
   {"name":"M61A Combat System","subCategory":"Energy","skillGroup":"Rifles","ar":"E/X-X-D/E","ap":4,"apFactor":"E","bd":4,"bdFactor":"","range":[70,225,480,1100],"shots":null,"pps":5,"cost":7150,"reloadCost":null,"aff":"FS","massKg":9,"reloadMassG":null,"burst":null,"recoil":null,"notes":"Includes laser sight and 5-shot compact grenade launcher"},

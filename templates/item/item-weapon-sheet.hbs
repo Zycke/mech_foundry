@@ -48,7 +48,36 @@
         </div>
       </div>
 
-      <h3>Damage</h3>
+      {{#if hasModes}}
+      <h3>Firing Modes</h3>
+      <div class="form-group">
+        <label>Active Mode</label>
+        <select name="system.activeMode">
+          {{#each modeOptions}}
+          <option value="{{this.value}}" {{#if this.selected}}selected{{/if}}>{{this.label}}</option>
+          {{/each}}
+        </select>
+      </div>
+      <p class="hint">Combat stats below reflect the active firing mode — switch modes with the selector above.</p>
+      <table class="weapon-modes">
+        <thead><tr><th>Mode</th><th>AP/BD</th><th>Range</th><th>Shots/PPS</th><th>Burst</th><th>Recoil</th><th>Switch</th></tr></thead>
+        <tbody>
+          {{#each modeOptions}}
+          <tr class="{{#if this.selected}}active{{/if}}">
+            <td>{{this.label}}</td>
+            <td>{{this.ap}}{{this.apFactor}}/{{this.bd}}{{this.bdFactor}}</td>
+            <td>{{this.range.short}}/{{this.range.medium}}/{{this.range.long}}/{{this.range.extreme}}</td>
+            <td>{{#if this.shots}}{{this.shots}}{{else}}{{#if this.pps}}{{this.pps}} PPS{{/if}}{{/if}}</td>
+            <td>{{this.burst}}</td>
+            <td>{{this.recoil}}</td>
+            <td>{{this.switchAction}}</td>
+          </tr>
+          {{/each}}
+        </tbody>
+      </table>
+      {{/if}}
+
+      <h3>Damage{{#if hasModes}} <span class="hint-inline">(active mode: {{system.activeModeName}})</span>{{/if}}</h3>
       <div class="form-row">
         <div class="form-group">
           <label>AP</label>

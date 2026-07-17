@@ -259,6 +259,8 @@
       "loadedAmmoCategory": "",
       "pps": 0,
       "ammoCompatibility": [],
+      "modes": [],
+      "activeMode": 0,
       "animation": "",
       "animationDelay": 50,
       "animationDuration": 0

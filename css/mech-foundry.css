@@ -6011,3 +6011,9 @@
 .mech-foundry .opt-total { color: var(--mf-ok); font-family: var(--mf-font-head); font-size: 0.82em; }
 .mech-foundry .spend-skill-row .buy-xp { color: var(--mf-ok); font-family: var(--mf-font-head); font-size: 0.82em; align-self: center; }
 .mech-foundry .spend-skill-row .buy-note { color: var(--mf-danger); font-size: 0.74em; align-self: center; }
+
+/* ---- Weapon sheet: multi-mode firing modes ---- */
+.mech-foundry .weapon-modes { width: 100%; border-collapse: collapse; font-size: 0.82em; margin: 4px 0 10px; }
+.mech-foundry .weapon-modes th, .mech-foundry .weapon-modes td { border: 1px solid var(--mf-line); padding: 2px 6px; text-align: left; }
+.mech-foundry .weapon-modes th { font-family: var(--mf-font-head); }
+.mech-foundry .weapon-modes tr.active { background: rgba(210, 160, 60, 0.16); font-weight: 600; }

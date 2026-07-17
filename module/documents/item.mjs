@@ -21,6 +21,34 @@ export class MechFoundryItem extends Item {
   /** @override */
   prepareDerivedData() {
     super.prepareDerivedData();
+    if (this.type === 'weapon') this.#applyActiveWeaponMode();
+  }
+
+  /**
+   * Multi-mode weapons (e.g. the Federated-Barrett M42B, Ebony Assault Rifle)
+   * store one profile per firing mode in `system.modes` and a selected index in
+   * `system.activeMode`. Overlay the active mode's combat stats onto the derived
+   * top-level fields so the attack resolver, sheet and chat all use the selected
+   * mode without any further changes. No-op for single-mode weapons.
+   */
+  #applyActiveWeaponMode() {
+    const s = this.system;
+    const modes = Array.isArray(s.modes) ? s.modes : [];
+    if (!modes.length) { s.activeModeName = ''; return; }
+    const i = Math.max(0, Math.min(Number(s.activeMode) || 0, modes.length - 1));
+    const m = modes[i];
+    if (!m) { s.activeModeName = ''; return; }
+    if (m.ap != null) s.ap = m.ap;
+    if (m.apFactor != null) s.apFactor = m.apFactor;
+    if (m.bd != null) s.bd = m.bd;
+    if (m.bdFactor != null) s.bdFactor = m.bdFactor;
+    if (m.range) s.range = { ...s.range, ...m.range };
+    if (m.shots != null) s.ammo = { ...s.ammo, max: m.shots };
+    if (m.pps != null) s.pps = m.pps;
+    if (m.burst != null) s.burstRating = m.burst;
+    if (m.recoil != null) s.recoil = m.recoil;
+    if (m.subduing != null) s.subduing = m.subduing;
+    s.activeModeName = m.name || `Mode ${i + 1}`;
   }
 
   /* -------------------------------------------- */

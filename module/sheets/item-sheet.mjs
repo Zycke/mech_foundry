@@ -74,6 +74,18 @@ export class MechFoundryItemSheet extends HandlebarsApplicationMixin(ItemSheetV2
     }
     if (item.type === 'weapon') {
       context.system.ammoCompatibility = this._asArray(item.system.ammoCompatibility);
+      const modes = this._asArray(item.system.modes);
+      context.system.modes = modes;
+      context.hasModes = modes.length > 0;
+      const active = Math.max(0, Math.min(Number(item.system.activeMode) || 0, modes.length - 1));
+      context.modeOptions = modes.map((m, i) => ({
+        value: i,
+        label: m.name || `Mode ${i + 1}`,
+        selected: i === active,
+        ap: m.ap ?? '', apFactor: m.apFactor ?? '', bd: m.bd ?? '', bdFactor: m.bdFactor ?? '',
+        range: m.range || {}, shots: m.shots ?? '', pps: m.pps ?? '',
+        burst: m.burst ?? '', recoil: m.recoil ?? '', switchAction: m.switchAction || '', notes: m.notes || ''
+      }));
     }
     if (item.type === 'ammo') {
       context.system.weaponCompatibility = this._asArray(item.system.weaponCompatibility);
@@ -137,6 +149,17 @@ export class MechFoundryItemSheet extends HandlebarsApplicationMixin(ItemSheetV2
     // Apply the per-type class the CSS targets (e.g. .ammo-sheet, .activeeffect-sheet)
     this.element.classList.add(`${this.item.type.toLowerCase()}-sheet`);
     this._activateTabs();
+    // Multi-mode weapons drive their combat stats from the active firing mode, so
+    // the base stat inputs are read-only (edit per-mode values instead).
+    if (this.item.type === 'weapon' && this._asArray(this.item.system.modes).length) {
+      const names = ['system.ap', 'system.apFactor', 'system.bd', 'system.bdFactor', 'system.recoil',
+        'system.burstRating', 'system.pps', 'system.ammo.max', 'system.subduing',
+        'system.range.pointBlank', 'system.range.short', 'system.range.medium', 'system.range.long', 'system.range.extreme'];
+      for (const n of names) {
+        const el = this.element.querySelector(`[name="${n}"]`);
+        if (el) el.disabled = true;
+      }
+    }
   }
 
   /* -------------------------------------------- */
