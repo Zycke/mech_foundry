@@ -8,7 +8,7 @@
  *
  * Exits non-zero on failure so it can gate CI later.
  */
-import { CharacterBuilder as CB, FIELD_SKILL_XP, FIELD_SKILL_COST } from '../module/helpers/character-builder.mjs';
+import { CharacterBuilder as CB, FIELD_SKILL_XP, FIELD_SKILL_COST, affiliationCategory } from '../module/helpers/character-builder.mjs';
 import * as XP from '../module/helpers/xp-math.mjs';
 import { SKILL_FIELDS } from '../module/data/skill-fields.mjs';
 
@@ -490,6 +490,51 @@ ok(applyOk, 'all seed modules apply through the engine without error');
     'a military school with only a Basic Field does not satisfy OCS');
   ok(ocsMet([{ type: 'military', fc: { basic: 'Basic Training', advanced: ['MechWarrior'] } }]),
     'a military school with a Basic + Advanced Field satisfies OCS');
+}
+
+/* ---- Stage 4: Real Life (repeat rule & prereqs) ------------------------- */
+{
+  const s4 = LIFE_MODULE_SEED.filter(m => m.system.stage === 4);
+  ok(s4.length === 24, `all 24 Real Life modules present (found ${s4.length})`);
+  ok(!s4.some(m => /\(Example\)/.test(m.name)), 'Stage 4 example placeholder removed');
+  for (const name of ['Tour of Duty', 'Civilian Job', 'Covert Operations', 'Merchant', 'Travel', 'Agitator', 'Dark Caste']) {
+    ok(s4.some(m => m.name === name), `Stage 4 module present: ${name}`);
+  }
+
+  // Affiliation categories (ATOW p.91).
+  ok(affiliationCategory('davion') === 'innerSphere' && affiliationCategory('comstar') === 'innerSphere', 'Houses & ComStar are Inner Sphere');
+  ok(affiliationCategory('periphery-major') === 'periphery' && affiliationCategory('independent') === 'periphery', 'Periphery realms & Independents are Periphery');
+  ok(affiliationCategory('clan') === 'clan', 'Clans are the Clan category');
+
+  // Repeat rule: a repeat re-awards Skill + Flexible XP but NOT Attribute/Trait.
+  const agitator = s4.find(m => m.name === 'Agitator');
+  const st = CB.createState();
+  CB.applyModule(st, agitator.system, { id: 'a1', name: agitator.name });                 // first take
+  const willAfter1 = st.attributes.wil, toughAfter1 = st.traits['Toughness'], actAfter1 = st.skills['Acting'], spent1 = st.spent;
+  CB.applyModule(st, agitator.system, { id: 'a2', name: agitator.name }, { repeat: true }); // repeat
+  ok(st.attributes.wil === willAfter1, 'a repeat does not re-award Attribute XP');
+  ok(st.traits['Toughness'] === toughAfter1, 'a repeat does not re-award Trait XP');
+  ok(st.skills['Acting'] === actAfter1 + 50, 'a repeat DOES re-award Skill XP');
+  ok(st.spent === spent1 + 900, 'a repeat still charges the full module cost');
+  // The flexible pool is re-queued on a repeat (two pools now pending).
+  ok(st.flexiblePending.filter(p => p.moduleId === 'a2').length === 1, 'a repeat re-queues the Flexible XP pool');
+
+  // noFlexOnRepeat: Ne'er-do-well grants no Flexible XP on repeat.
+  const neer = s4.find(m => m.name === "Ne'er-do-well");
+  ok(neer.system.noFlexOnRepeat, "Ne'er-do-well is flagged noFlexOnRepeat");
+  const st2 = CB.createState();
+  CB.applyModule(st2, neer.system, { id: 'n2', name: neer.name }, { repeat: true, noFlexOnRepeat: true });
+  ok(st2.flexiblePending.length === 0, "Ne'er-do-well queues no Flexible pools on a repeat");
+
+  // Non-repeatable modules are flagged.
+  ok(s4.find(m => m.name === 'Postgraduate Studies').system.repeatable === false, 'Postgraduate Studies is not repeatable');
+
+  // Categorical prereq data is captured.
+  const cw = s4.find(m => m.name === 'Clan Watch Operative');
+  ok(cw.system.prerequisites.affiliationCategories.includes('clan'), 'Clan Watch Operative requires the Clan category');
+  ok(s4.find(m => m.name === 'Guerilla Insurgent').system.prerequisites.forbidCategories.includes('clan'), 'Guerilla Insurgent forbids the Clan category');
+  ok(s4.find(m => m.name === 'Postgraduate Studies').system.prerequisites.modules.includes('University'), 'Postgraduate Studies requires the University module');
+  ok(s4.find(m => m.name === 'To Serve and Protect').system.prerequisites.fields.includes('Detective'), 'To Serve and Protect requires a Police/Detective Field');
 }
 
 /* ---- Result ------------------------------------------------------------- */

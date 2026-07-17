@@ -170,6 +170,8 @@
       "variantRequired": false,
       "variants": [],
       "requiresBirthAffiliation": false,
+      "repeatable": true,
+      "noFlexOnRepeat": false,
       "schoolType": "",
       "fieldWaivers": [],
       "conditionalXP": {
@@ -202,7 +204,13 @@
       "prerequisites": {
         "attributes": {},
         "skills": {},
-        "traits": {}
+        "traits": {},
+        "affiliationCategories": [],
+        "forbidCategories": [],
+        "castes": [],
+        "fields": [],
+        "modules": [],
+        "note": ""
       },
       "fixedXP": {
         "attributes": {},

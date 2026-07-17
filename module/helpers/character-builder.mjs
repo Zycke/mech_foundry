@@ -49,6 +49,23 @@ export const SEVERITY = Object.freeze({ ERROR: 'error', WARNING: 'warning' });
 export const FIELD_SKILL_XP = 30;
 export const FIELD_SKILL_COST = 24;
 
+/** Affiliation categories used by Stage-4 modules (ATOW p.91): Inner Sphere
+ * includes the Great Houses, Rasalhague, ComStar/Word of Blake and Terra;
+ * Periphery includes the Periphery realms and Independents; Clan the Clans. */
+export const AFFILIATION_CATEGORIES = Object.freeze({
+  innerSphere: ['capellan', 'kurita', 'davion', 'marik', 'steiner', 'rasalhague', 'comstar', 'terran'],
+  periphery: ['periphery-minor', 'periphery-major', 'periphery-deep', 'independent'],
+  clan: ['clan']
+});
+
+/** The category ('innerSphere' | 'periphery' | 'clan' | '') for an affiliation key. */
+export function affiliationCategory(key) {
+  for (const [cat, keys] of Object.entries(AFFILIATION_CATEGORIES)) {
+    if (keys.includes(key)) return cat;
+  }
+  return '';
+}
+
 export class CharacterBuilder {
   /* ---------------------------------------------------------------------- */
   /*  State construction                                                     */
@@ -157,23 +174,30 @@ export class CharacterBuilder {
    * @param {object} [meta]   { id, name } identifying the source document.
    * @returns {object} state
    */
-  static applyModule(state, module, meta = {}) {
+  static applyModule(state, module, meta = {}, opts = {}) {
     const m = module || {};
     const entry = {
       id: meta.id || foundryRandomId(),
       stage: Number(m.stage) || 0,
       name: meta.name || m.name || '(unnamed module)',
       xpCost: Number(m.xpCost) || 0,
-      source: meta.uuid || null
+      source: meta.uuid || null,
+      repeat: !!opts.repeat
     };
 
-    // Pay the cost.
+    // Pay the cost (unchanged on a repeat).
     state.spent += entry.xpCost;
 
+    // Stage-4 repeat rule (ATOW p.84): a repeated module re-awards only Skill
+    // and Flexible XP — Attribute and Trait XP are granted once only.
+    const skipAttrTrait = !!opts.repeat;
+
     // Fixed attribute XP.
-    const fa = m.fixedXP?.attributes || {};
-    for (const [k, xp] of Object.entries(fa)) {
-      if (ATTRIBUTE_KEYS.includes(k)) CharacterBuilder.addAttributeXP(state, k, xp);
+    if (!skipAttrTrait) {
+      const fa = m.fixedXP?.attributes || {};
+      for (const [k, xp] of Object.entries(fa)) {
+        if (ATTRIBUTE_KEYS.includes(k)) CharacterBuilder.addAttributeXP(state, k, xp);
+      }
     }
     // Fixed skill XP (array of {name, subskill, xp}). Subskills ending in
     // "Any" need a player choice (queued); "Affiliation" auto-resolves.
@@ -199,14 +223,16 @@ export class CharacterBuilder {
       }
     });
     // Fixed trait XP (array of {name, xp}).
-    for (const t of asArray(m.fixedXP?.traits)) {
-      CharacterBuilder.addTraitXP(state, t.name, t.xp);
+    if (!skipAttrTrait) {
+      for (const t of asArray(m.fixedXP?.traits)) {
+        CharacterBuilder.addTraitXP(state, t.name, t.xp);
+      }
     }
 
-    // Queue flexible-XP pools for later resolution. A pool is either
-    // COUNT-based ("+X each to N targets": amount × count) or a LUMP ("+N XP"
-    // distributed freely across targets).
-    asArray(m.flexibleXP).forEach((pool, i) => {
+    // Queue flexible-XP pools. Some Stage-4 modules award no Flexible XP on a
+    // repeat (e.g. Ne'er-do-well); skip them then.
+    const skipFlex = opts.repeat && opts.noFlexOnRepeat;
+    if (!skipFlex) asArray(m.flexibleXP).forEach((pool, i) => {
       state.flexiblePending.push({
         id: foundryRandomId(),
         // Deterministic across rebuilds (moduleId is the source doc id, i is the
