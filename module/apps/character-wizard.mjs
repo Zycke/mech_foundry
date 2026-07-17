@@ -950,6 +950,16 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     return (name) => this.#traitLimit(name);
   }
 
+  /** Trait options limited to negatives — for the Buy Additional XP dropdown. */
+  #negativeTraitOptions() {
+    const list = game.mechfoundry?.config?.traitsList || ATOW_TRAITS;
+    return list
+      .filter(t => t.type === 'negative')
+      .map(t => t.name)
+      .sort((a, b) => a.localeCompare(b))
+      .map(n => ({ value: n, label: n }));
+  }
+
   #prereqSummary(pre) {
     if (!pre) return '';
     const bits = [];
@@ -1053,7 +1063,8 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       traitOptions: this.#traitOptions(), traits: traitRows, remaining,
       optimize: opt, reclaimed,
       reclaimTotal: reclaimed.attributes + reclaimed.traits + reclaimed.skills,
-      buyCap: cap, buyGained: gained, buyLeft: cap - gained, boughtRows
+      buyCap: cap, buyGained: gained, buyLeft: cap - gained, boughtRows,
+      negativeTraitOptions: this.#negativeTraitOptions()
     };
   }
 

@@ -350,7 +350,7 @@
         <div class="spend-skill-row">
           <select name="buytrait::{{this.idx}}::name" class="value-select">
             <option value="">— negative Trait —</option>
-            {{#each ../spend.traitOptions}}
+            {{#each ../spend.negativeTraitOptions}}
             <option value="{{this.value}}" {{#if (eq this.value ../name)}}selected{{/if}}>{{this.label}}</option>
             {{/each}}
           </select>
