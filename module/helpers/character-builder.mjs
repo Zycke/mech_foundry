@@ -198,7 +198,9 @@ export class CharacterBuilder {
       CharacterBuilder.addTraitXP(state, t.name, t.xp);
     }
 
-    // Queue flexible-XP pools for later resolution.
+    // Queue flexible-XP pools for later resolution. A pool is either
+    // COUNT-based ("+X each to N targets": amount × count) or a LUMP ("+N XP"
+    // distributed freely across targets).
     asArray(m.flexibleXP).forEach((pool, i) => {
       state.flexiblePending.push({
         id: foundryRandomId(),
@@ -206,12 +208,14 @@ export class CharacterBuilder {
         // pool's index in the module): lets a caller re-apply saved assignments.
         sourceKey: `${entry.id}#${i}`,
         moduleId: entry.id,
-        amount: Number(pool.amount) || 0,   // XP per assignment
-        count: Number(pool.count) || 1,     // number of assignments allowed
+        lump: !!pool.lump,
+        amount: Number(pool.amount) || 0,   // per-assignment XP (count) or total (lump)
+        count: Number(pool.count) || 1,     // number of assignments (count pools)
         targets: pool.targets || 'any',     // 'attributes' | 'skills' | 'traits' | 'any'
         choices: asArray(pool.choices),     // constrained option list (empty = open)
         note: pool.note || '',
-        assigned: []                        // [{ target, amount }]
+        assigned: [],                       // [{ target, amount }]  (count pools)
+        allocated: 0                        // total XP placed so far (lump pools)
       });
     });
 
@@ -265,9 +269,10 @@ export class CharacterBuilder {
     return state;
   }
 
-  /** True once every queued flexible pool is fully assigned. */
+  /** True once every queued flexible pool is fully assigned/allocated. */
   static flexibleResolved(state) {
-    return state.flexiblePending.every(p => p.assigned.length >= p.count);
+    return state.flexiblePending.every(p =>
+      p.lump ? (p.allocated || 0) >= p.amount : p.assigned.length >= p.count);
   }
 
   /**
@@ -469,13 +474,24 @@ export class CharacterBuilder {
 
     // Unresolved flexible XP.
     for (const pool of state.flexiblePending) {
-      const remaining = pool.count - pool.assigned.length;
-      if (remaining > 0) {
-        issues.push({
-          severity: SEVERITY.ERROR, code: 'flexible-unassigned',
-          message: `${remaining} unassigned flexible-XP allocation(s)${pool.note ? ` (${pool.note})` : ''}.`,
-          moduleId: pool.moduleId
-        });
+      if (pool.lump) {
+        const left = pool.amount - (pool.allocated || 0);
+        if (left > 0) {
+          issues.push({
+            severity: SEVERITY.ERROR, code: 'flexible-unassigned',
+            message: `${left} of ${pool.amount} flexible XP still to distribute${pool.note ? ` (${pool.note})` : ''}.`,
+            moduleId: pool.moduleId
+          });
+        }
+      } else {
+        const remaining = pool.count - pool.assigned.length;
+        if (remaining > 0) {
+          issues.push({
+            severity: SEVERITY.ERROR, code: 'flexible-unassigned',
+            message: `${remaining} unassigned flexible-XP allocation(s)${pool.note ? ` (${pool.note})` : ''}.`,
+            moduleId: pool.moduleId
+          });
+        }
       }
     }
 

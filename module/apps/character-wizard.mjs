@@ -54,7 +54,8 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     name: '', player: '',
     affiliationId: '', subAffiliationKey: '', phenotypeKey: '',
     modules: { 1: '', 2: '', 3: [], 4: [] }, // stage -> id | id[]
-    flexible: {},                            // sourceKey -> [{ kind, key }]
+    flexible: {},                            // sourceKey -> [{ kind, key }]  (count pools)
+    lumpFlexible: {},                        // sourceKey -> [{ kind, key, amount }] (lump pools)
     subskills: {},                           // subskill sourceKey -> chosen text
     freeSpend: { attributes: {}, skills: [] } // leftover-pool spend
   };
@@ -193,6 +194,24 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
 
     // Re-apply saved flexible assignments against the freshly-created pools.
     for (const pool of this.#state.flexiblePending) {
+      if (pool.lump) {
+        // Lump pool: distribute saved {kind,key,amount} rows, never over the total.
+        const allocs = this.#choices.lumpFlexible[pool.sourceKey] || [];
+        let total = 0;
+        for (const a of allocs) {
+          const amt = Math.max(0, Number(a?.amount) || 0);
+          if (!a?.key || amt <= 0 || total + amt > pool.amount) continue;
+          const kind = a.kind || kindForTargets(pool.targets) || 'attribute';
+          try {
+            if (kind === 'attribute') CharacterBuilder.addAttributeXP(this.#state, a.key, amt);
+            else if (kind === 'skill') CharacterBuilder.addSkillXP(this.#state, a.key, amt);
+            else if (kind === 'trait') CharacterBuilder.addTraitXP(this.#state, a.key, amt);
+            total += amt;
+          } catch (_e) { /* invalid target */ }
+        }
+        pool.allocated = total;
+        continue;
+      }
       const saved = this.#choices.flexible[pool.sourceKey] || [];
       for (const raw of saved.slice(0, pool.count)) {
         if (!raw?.key) continue;
@@ -302,6 +321,8 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     if (stepId === 'flexible') {
       context.pools = this.#buildFlexibleContext();
       context.hasPools = context.pools.length > 0;
+      context.lumpPools = this.#buildLumpContext();
+      context.hasLumpPools = context.lumpPools.length > 0;
       context.subskills = this.#state.subskillPending.map(p => {
         const value = this.#choices.subskills[p.sourceKey] || '';
         const options = this.#subskillOptions(p.name);
@@ -314,7 +335,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
         };
       });
       context.hasSubskills = context.subskills.length > 0;
-      context.nothingToResolve = !context.hasPools && !context.hasSubskills;
+      context.nothingToResolve = !context.hasPools && !context.hasLumpPools && !context.hasSubskills;
     }
 
     if (stepId === 'spend') {
@@ -406,7 +427,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
   /** Short descriptions of a module's flexible-XP pools (for the card). */
   #flexibleSummaries(system) {
     return (system.flexibleXP || []).map(p =>
-      p.note || `${p.amount} XP × ${p.count} (${p.targets || 'any'})`);
+      p.note || (p.lump ? `${p.amount} XP flexible` : `${p.amount} XP × ${p.count || 1} (${p.targets || 'any'})`));
   }
 
   /** Tooltip text for a trait, resolved from its base name (before "/subskill"). */
@@ -453,14 +474,14 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     return bits.join(', ');
   }
 
-  /** Build the flexible-XP step context — every slot resolves to a dropdown. */
+  /** Build the count-based flexible-XP pools (fixed-size dropdown slots). */
   #buildFlexibleContext() {
     const skillOptions = this.#skillOptions();
     const traitOptions = this.#traitOptions();
     const attrAll = ATTRIBUTE_KEYS.map(k => ({ value: k, label: k.toUpperCase() }));
     const optionsFor = (kind) => kind === 'skill' ? skillOptions : kind === 'trait' ? traitOptions : attrAll;
 
-    return this.#state.flexiblePending.map(pool => {
+    return this.#state.flexiblePending.filter(p => !p.lump).map(pool => {
       const baseKind = kindForTargets(pool.targets); // null = 'any'
       const attrChoices = (pool.choices.length ? pool.choices : ATTRIBUTE_KEYS)
         .map(k => ({ value: k, label: k.toUpperCase() }));
@@ -469,19 +490,41 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
 
       const slots = Array.from({ length: pool.count }, (_, i) => {
         const s = saved[i] || {};
-        // 'any' pools let the player pick the kind; fixed-kind pools use it.
         const kind = baseKind || s.kind || 'attribute';
         const options = baseKind === 'attribute' ? attrChoices : optionsFor(kind);
         return { idx: i, isAny: baseKind === null, kind, key: s.key || '', options };
       });
 
+      return { sourceKey: pool.sourceKey, note: pool.note || `${pool.amount} XP`, amount: pool.amount, count: pool.count, moduleName, slots };
+    });
+  }
+
+  /** Build the lump flexible-XP pools (distribute a total across free-form rows). */
+  #buildLumpContext() {
+    const skillOptions = this.#skillOptions();
+    const traitOptions = this.#traitOptions();
+    const attrAll = ATTRIBUTE_KEYS.map(k => ({ value: k, label: k.toUpperCase() }));
+    const optionsFor = (kind) => kind === 'skill' ? skillOptions : kind === 'trait' ? traitOptions : attrAll;
+
+    return this.#state.flexiblePending.filter(p => p.lump).map(pool => {
+      const baseKind = kindForTargets(pool.targets); // null = 'any'
+      const saved = this.#choices.lumpFlexible[pool.sourceKey] || [];
+      const moduleName = this.#state.modules.find(m => m.id === pool.moduleId)?.name || '';
+      const allocated = pool.allocated || 0;
+      const rows = [...saved, { kind: '', key: '', amount: '' }].map((a, i) => {
+        const kind = baseKind || a.kind || 'attribute';
+        return {
+          idx: i, isAny: baseKind === null, kind,
+          key: a.key || '', amount: a.amount || '',
+          options: optionsFor(kind)
+        };
+      });
       return {
         sourceKey: pool.sourceKey,
-        note: pool.note || `${pool.amount} XP`,
-        amount: pool.amount,
-        count: pool.count,
-        moduleName,
-        slots
+        note: pool.note || `Distribute ${pool.amount} XP`,
+        amount: pool.amount, allocated, remaining: pool.amount - allocated,
+        over: allocated > pool.amount,
+        moduleName, rows
       };
     });
   }
@@ -548,6 +591,17 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       const sourceKey = parts[1], slot = Number(parts[2]), field = parts[3];
       ((collected[sourceKey] ??= [])[slot] ??= { kind: '', key: '' })[field] = v;
     }
+    // Lump flexible: name = "lump::<sourceKey>::<slot>::<field>"
+    let lumpChanged = false;
+    const lump = {};
+    for (const [k, v] of Object.entries(data)) {
+      if (!k.startsWith('lump::')) continue;
+      lumpChanged = true;
+      const parts = k.split('::');
+      const sourceKey = parts[1], slot = Number(parts[2]), field = parts[3];
+      ((lump[sourceKey] ??= [])[slot] ??= { kind: '', key: '', amount: '' })[field] = v;
+    }
+
     // Leftover-pool skill spend: name = "spendskill::<slot>::<field>"
     let spendChanged = false;
     const spendSkills = [];
@@ -591,12 +645,19 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
         });
       }
     }
+    if (lumpChanged) {
+      for (const [sk, rows] of Object.entries(lump)) {
+        this.#choices.lumpFlexible[sk] = rows
+          .map(r => ({ kind: r?.kind || '', key: r?.key || '', amount: Number(r?.amount) || 0 }))
+          .filter(r => r.key && r.amount > 0);
+      }
+    }
     if (spendChanged) {
       this.#choices.freeSpend.skills = spendSkills
         .map(s => ({ key: s?.key || '', xp: Number(s?.xp) || 0 }))
         .filter(s => s.key && s.xp > 0);
     }
-    if (flexChanged || spendChanged || subChanged) {
+    if (flexChanged || lumpChanged || spendChanged || subChanged) {
       await this.#rebuildState();
       this.render();
     }

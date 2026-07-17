@@ -169,6 +169,33 @@ ok(XP.getTraitTP(200) === 2 && XP.getTraitTP(50) === 0.5, 'trait TP = XP / 100')
   ok(su.skills['Survival/Wilderness'] === 20 && CB.subskillsResolved(su), 'resolving a subskill adds its XP');
 }
 
+/* ---- Lump flexible pools + full Stage 1/2 catalogue -------------------- */
+{
+  const { LIFE_MODULE_SEED } = await import('../module/data/life-modules.mjs');
+  const s1 = LIFE_MODULE_SEED.filter(m => m.system.stage === 1);
+  const s2 = LIFE_MODULE_SEED.filter(m => m.system.stage === 2);
+  ok(s1.length === 11 && s2.length === 12, 'all 11 Stage 1 + 12 Stage 2 modules present');
+  ok(!LIFE_MODULE_SEED.some(m => m.system.stage <= 2 && /\(Example\)/.test(m.name)),
+    'Stage 1/2 example placeholders removed');
+
+  // Lump pool: created, unresolved until fully allocated.
+  const adol = s2.find(m => m.name === 'Adolescent Warfare');
+  const st = CB.createState();
+  CB.applyModule(st, adol.system, { id: 'a', name: 'a' });
+  const pool = st.flexiblePending.find(p => p.lump);
+  ok(pool && pool.amount === 130, 'Adolescent Warfare has a 130-XP lump pool');
+  ok(!CB.flexibleResolved(st), 'lump pool unresolved before allocation');
+  pool.allocated = 130;
+  ok(CB.flexibleResolved(st), 'lump pool resolved once fully allocated');
+
+  // Count "choose one Trait" pool (Fugitives).
+  const fug = s1.find(m => m.name === 'Fugitives');
+  const fs = CB.createState();
+  CB.applyModule(fs, fug.system, { id: 'f', name: 'f' });
+  const choice = fs.flexiblePending.find(p => p.choices.includes('Combat Sense'));
+  ok(choice && choice.count === 1 && choice.amount === 100, 'Fugitives choose-one-Trait pool (100 XP, 6 choices)');
+}
+
 /* ---- Sub-affiliations + broadened subskill detection ------------------- */
 {
   const { LIFE_MODULE_SEED } = await import('../module/data/life-modules.mjs');
