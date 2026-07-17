@@ -21,7 +21,7 @@ export class MechFoundryItem extends Item {
   /** @override */
   prepareDerivedData() {
     super.prepareDerivedData();
-    if (this.type === 'weapon') this.#applyActiveWeaponMode();
+    if (this.type === 'weapon') this._applyActiveWeaponMode();
   }
 
   /**
@@ -30,8 +30,13 @@ export class MechFoundryItem extends Item {
    * `system.activeMode`. Overlay the active mode's combat stats onto the derived
    * top-level fields so the attack resolver, sheet and chat all use the selected
    * mode without any further changes. No-op for single-mode weapons.
+   *
+   * NOTE: this must be a regular (prototype) method, not a `#private` one —
+   * Foundry's DataModel base constructor calls prepareData()/prepareDerivedData()
+   * before a subclass's private methods are installed on the instance, so a
+   * private call here throws "Receiver must be an instance of class".
    */
-  #applyActiveWeaponMode() {
+  _applyActiveWeaponMode() {
     const s = this.system;
     const modes = Array.isArray(s.modes) ? s.modes : [];
     if (!modes.length) { s.activeModeName = ''; return; }
