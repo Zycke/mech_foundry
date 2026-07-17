@@ -372,6 +372,11 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       remaining,
       remainingClass: remaining < 0 ? 'over' : '',
       age: this.#state.age,
+      // Live attribute totals for the top bar (so players can read prereqs).
+      attributeBar: ATTRIBUTE_KEYS.map(k => {
+        const a = derived.attributes[k];
+        return { key: k.toUpperCase(), total: a.total, capped: !!a.cappedBy };
+      }),
       moduleCount: this.#state.modules.filter(m => {
         const id = String(m.id);
         return !id.startsWith('subaff:') && !id.startsWith('variant:')
@@ -385,10 +390,11 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       context.modules = affiliations.map(a => this.#moduleCard(a, a.id === this.#choices.affiliationId, derived));
       context.emptyKind = 'affiliation';
 
-      // Sub-affiliations of the chosen affiliation (optional, each adds its own XP).
+      // Sub-affiliations of the chosen affiliation (required — each adds its own XP).
       const chosen = affiliations.find(a => a.id === this.#choices.affiliationId);
       context.subAffiliations = this.#subAffCards(chosen?.system.subAffiliations, this.#choices.subAffiliationKey);
       context.hasSubAffiliations = context.subAffiliations.length > 0;
+      context.subAffRequired = context.hasSubAffiliations && !this.#choices.subAffiliationKey;
 
       // Affiliation variant (e.g. a Clan Caste) — same picker as the stage steps.
       context.variantPickers = this.#variantPickersFor(chosen ? [chosen] : []);
@@ -439,6 +445,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
         key,
         label: p.label || key,
         selected: key === this.#choices.phenotypeKey,
+        clanOnly: !!p.clanOnly,
         modifiers: ATTRIBUTE_KEYS
           .filter(k => (p.modifiers?.[k] ?? 0) !== 0)
           .map(k => `${k.toUpperCase()} ${p.modifiers[k] > 0 ? '+' : ''}${p.modifiers[k]}`)
@@ -825,6 +832,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
   #canAdvance(stepId, step) {
     if (stepId === 'affiliation') {
       if (!this.#choices.affiliationId) return false;
+      if (this.#affiliationHasSubs() && !this.#choices.subAffiliationKey) return false;
       if (this.#missingRequiredVariantFor(this.#modulesCache?.[0], [this.#choices.affiliationId])) return false;
       if (this.#needsBirthAffiliation()) {
         if (!this.#choices.birthAffiliationId) return false;
@@ -847,6 +855,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
   #advanceHint(stepId, step) {
     if (stepId === 'affiliation') {
       if (!this.#choices.affiliationId) return 'Choose an affiliation to continue.';
+      if (this.#affiliationHasSubs() && !this.#choices.subAffiliationKey) return 'Choose a sub-affiliation to continue.';
       const a = this.#missingRequiredVariantFor(this.#modulesCache?.[0], [this.#choices.affiliationId]);
       if (a) return `Choose a ${a.label.toLowerCase()} for ${a.moduleName} to continue.`;
       if (this.#needsBirthAffiliation()) {
@@ -877,6 +886,12 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
   #needsBirthAffiliation() {
     const aff = this.#modulesCache?.[0]?.find(a => a.id === this.#choices.affiliationId);
     return !!aff?.system.requiresBirthAffiliation;
+  }
+
+  /** Whether the currently-chosen affiliation offers sub-affiliations (one is required). */
+  #affiliationHasSubs() {
+    const aff = this.#modulesCache?.[0]?.find(a => a.id === this.#choices.affiliationId);
+    return !!aff && this._asArray(aff.system.subAffiliations).length > 0;
   }
 
   /** Name of the first selected Stage-3 school that still needs a Basic Field. */
@@ -986,9 +1001,12 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     }
     if (lumpChanged) {
       for (const [sk, rows] of Object.entries(lump)) {
+        // Keep a row once it has EITHER a target or an amount, so a dropdown
+        // choice sticks before the amount is typed (and vice-versa). The amount
+        // is only actually allocated in #rebuildState when key && amount > 0.
         this.#choices.lumpFlexible[sk] = rows
           .map(r => ({ kind: r?.kind || '', key: r?.key || '', amount: Number(r?.amount) || 0 }))
-          .filter(r => r.key && r.amount > 0);
+          .filter(r => r.key || r.amount > 0);
       }
     }
     if (spendChanged) {

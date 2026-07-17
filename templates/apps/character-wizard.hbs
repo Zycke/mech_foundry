@@ -10,6 +10,13 @@
     {{/each}}
   </nav>
 
+  {{!-- Live attribute totals (for reading prerequisites at a glance) --}}
+  <div class="wizard-attrbar" data-tooltip="Current attribute scores as built so far">
+    {{#each attributeBar}}
+    <span class="ab-cell {{#if this.capped}}capped{{/if}}"><span class="ab-key">{{this.key}}</span><span class="ab-val">{{this.total}}</span></span>
+    {{/each}}
+  </div>
+
   {{!-- Body --}}
   <section class="wizard-body">
 
@@ -50,7 +57,10 @@
       {{/if}}
 
       {{#if hasSubAffiliations}}
-      <h3 class="spend-sub">Sub-Affiliation <span class="hint-inline">(optional — adds its own XP)</span></h3>
+      <h3 class="spend-sub">Sub-Affiliation <span class="hint-inline">(required — each adds its own XP)</span></h3>
+      {{#if subAffRequired}}
+      <p class="choice-restricted"><i class="fas fa-circle-exclamation"></i> A sub-affiliation must be selected before you can continue.</p>
+      {{/if}}
       <div class="choice-grid">
         {{#each subAffiliations}}
         <button type="button" class="choice-card {{#if this.selected}}selected{{/if}}" data-action="selectSubAffiliation" data-key="{{this.key}}">
@@ -121,10 +131,14 @@
     <div class="wizard-panel">
       <h2>Phenotype</h2>
       <p class="hint">Sets attribute modifiers, maximum caps, and bonus traits.</p>
+      <p class="choice-restricted"><i class="fas fa-circle-info"></i> All phenotypes except <strong>Normal Human</strong> are for Clan trueborn characters only.</p>
       <div class="choice-grid">
         {{#each phenotypes}}
         <button type="button" class="choice-card {{#if this.selected}}selected{{/if}}" data-action="selectPhenotype" data-key="{{this.key}}">
-          <span class="choice-name">{{this.label}}</span>
+          <span class="card-head">
+            <span class="choice-name">{{this.label}}</span>
+            {{#if this.clanOnly}}<span class="badge-illegal" data-tooltip="Clan trueborn characters only"><i class="fas fa-dna"></i> Clan only</span>{{/if}}
+          </span>
           <span class="choice-summary">{{this.modifiers}}</span>
           {{#if this.bonusTraits}}<span class="choice-traits">Traits: {{this.bonusTraits}}</span>{{/if}}
         </button>

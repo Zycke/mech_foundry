@@ -5673,6 +5673,23 @@
 .mech-foundry .wizard-step.done { color: var(--mf-ok); }
 .mech-foundry .wizard-step.done .step-index { border-color: var(--mf-ok); color: var(--mf-ok); }
 
+/* ---- Live attribute bar ----------------------------------- */
+.mech-foundry .wizard-attrbar {
+  display: flex; gap: 4px; padding: 5px 10px; flex: 0 0 auto;
+  border-bottom: 1px solid var(--mf-line); background: var(--mf-panel);
+}
+.mech-foundry .wizard-attrbar .ab-cell {
+  flex: 1 1 0; display: flex; flex-direction: column; align-items: center;
+  border: 1px solid var(--mf-line); border-radius: 3px; padding: 2px 0; min-width: 0;
+}
+.mech-foundry .wizard-attrbar .ab-key {
+  font-family: var(--mf-font-head); font-size: 0.64em; letter-spacing: 0.05em;
+  color: var(--mf-ink-dim); text-transform: uppercase;
+}
+.mech-foundry .wizard-attrbar .ab-val { font-family: var(--mf-font-head); font-size: 1.05em; color: var(--mf-amber-2); line-height: 1; }
+.mech-foundry .wizard-attrbar .ab-cell.capped { border-color: var(--mf-amber); }
+.mech-foundry .wizard-attrbar .ab-cell.capped .ab-val { color: var(--mf-amber); }
+
 /* ---- Body ------------------------------------------------- */
 .mech-foundry .wizard-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 14px 16px; }
 .mech-foundry .wizard-panel h2 {
