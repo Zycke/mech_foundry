@@ -451,14 +451,17 @@ export class CharacterBuilder {
    * the pool, capped at 10% of starting XP. A `limitOf(name)` lookup returning
    * `{ min, max }` (in TP) caps how negative a Trait may go — the deepening is
    * clamped so the Trait never passes its maximum negative level. Returns the XP
-   * actually gained.
+   * actually gained. If `detail` is an array it is filled with one
+   * `{ name, tp, requestedXP, appliedXP }` row per buy (in input order), so a
+   * caller can show what each purchase actually granted after cap/limit clamping.
    */
-  static applyBoughtTraits(state, bought = [], limitOf = null) {
+  static applyBoughtTraits(state, bought = [], limitOf = null, detail = null) {
     const cap = CharacterBuilder.additionalXPCap(state);
     let gained = 0;
     for (const b of asArray(bought)) {
       if (!b || !b.name) continue;                 // ignore blank rows
-      let tp = Number(b?.tp) || 0;
+      const origTp = Number(b?.tp) || 0;
+      let tp = origTp;
       if (tp >= 0) continue;
       // Clamp against the Trait's minimum (most-negative) level.
       const lim = limitOf ? limitOf(b.name) : null;
@@ -468,11 +471,16 @@ export class CharacterBuilder {
         if (tp < allowed) tp = allowed;                    // don't pass the limit
       }
       const xp = tp * TRAIT_XP;            // negative (0 if fully clamped)
-      if (xp === 0) continue;
-      if (gained + Math.abs(xp) > cap) continue; // would exceed the 10% cap
-      CharacterBuilder.addTraitXP(state, b.name, xp);
-      state.poolBonus += Math.abs(xp);
-      gained += Math.abs(xp);
+      let applied = 0;
+      if (xp !== 0 && gained + Math.abs(xp) <= cap) { // within the 10% cap
+        CharacterBuilder.addTraitXP(state, b.name, xp);
+        state.poolBonus += Math.abs(xp);
+        gained += Math.abs(xp);
+        applied = Math.abs(xp);
+      }
+      if (Array.isArray(detail)) {
+        detail.push({ name: b.name, tp: origTp, requestedXP: Math.abs(origTp * TRAIT_XP), appliedXP: applied });
+      }
     }
     return gained;
   }

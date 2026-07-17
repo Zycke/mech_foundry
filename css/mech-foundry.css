@@ -6010,3 +6010,4 @@
 .mech-foundry .opt-toggle .opt-amt { color: var(--mf-ok); }
 .mech-foundry .opt-total { color: var(--mf-ok); font-family: var(--mf-font-head); font-size: 0.82em; }
 .mech-foundry .spend-skill-row .buy-xp { color: var(--mf-ok); font-family: var(--mf-font-head); font-size: 0.82em; align-self: center; }
+.mech-foundry .spend-skill-row .buy-note { color: var(--mf-danger); font-size: 0.74em; align-self: center; }

@@ -367,7 +367,9 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     // Traits, optimize (reclaim excess XP), then buy additional XP via negatives.
     CharacterBuilder.resolveOpposedTraits(this.#state);
     this.#state.optimizeReclaimed = CharacterBuilder.optimize(this.#state, this.#choices.optimize);
-    this.#state.additionalXPGained = CharacterBuilder.applyBoughtTraits(this.#state, this.#choices.boughtTraits, this.#traitLimitFn());
+    const boughtDetail = [];
+    this.#state.additionalXPGained = CharacterBuilder.applyBoughtTraits(this.#state, this.#choices.boughtTraits, this.#traitLimitFn(), boughtDetail);
+    this.#state.boughtDetail = boughtDetail;
 
     // Apply leftover-pool free spend (attributes at 100 XP/point, skills, traits).
     // Rows the pool can't afford are collected so the UI can flag them rather
@@ -710,6 +712,8 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
         ...CharacterBuilder.validate(this.#state, { phenotype: pheno, modules: modulesById })];
       context.preview = {
         ...preview,
+        // Human-readable phenotype name (preview.phenotype is the raw key).
+        phenotypeLabel: pheno?.label || '',
         attributeRows: ATTRIBUTE_KEYS.map(k => ({ key: k.toUpperCase(), ...preview.attributes[k] })),
         skillRows: preview.skills.map(s => ({ ...s, levelLabel: s.level < 0 ? 'Untrained' : `L${s.level}` })),
         traitRows: preview.traits.map(t => ({ ...t, tooltip: this.#traitTooltip(t.name) }))
@@ -1120,8 +1124,21 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     // Buy Additional XP: negative Traits, capped at 10% of starting XP.
     const cap = CharacterBuilder.additionalXPCap(this.#state);
     const gained = this.#state.additionalXPGained || 0;
+    // Per-row applied XP (after cap/limit clamping) so the display never
+    // overstates a purchase that was reduced or skipped.
+    const detail = this.#state.boughtDetail || [];
     const boughtRows = [...(this.#choices.boughtTraits || []), { name: '', tp: '' }]
-      .map((b, i) => ({ idx: i, name: b.name || '', tp: b.tp || '', xp: Math.abs((Number(b.tp) || 0) * 100) }));
+      .map((b, i) => {
+        const requested = Math.abs((Number(b.tp) || 0) * 100);
+        const d = detail[i];
+        const xp = d ? d.appliedXP : requested;
+        return {
+          idx: i, name: b.name || '', tp: b.tp || '', xp,
+          requestedXp: requested,
+          reduced: !!b.name && xp > 0 && xp < requested,     // partially clamped
+          dropped: !!b.name && xp === 0 && requested > 0     // skipped (cap reached)
+        };
+      });
 
     return {
       attributes, skillOptions: this.#skillOptions(), skills: rows,

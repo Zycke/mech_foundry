@@ -667,6 +667,13 @@ ok(applyOk, 'all seed modules apply through the engine without error');
   CB.applyBoughtTraits(over, [{ name: 'Slow Learner', tp: -4 }, { name: 'Glass Jaw', tp: -3 }]); // 400 + 300 > 500
   ok(over.poolBonus === 400, 'a purchase that would exceed the cap is skipped');
 
+  // The optional detail array reports per-row applied vs requested XP.
+  const det = [];
+  const dstate = CB.createState(); // cap 500
+  CB.applyBoughtTraits(dstate, [{ name: 'Slow Learner', tp: -4 }, { name: 'Glass Jaw', tp: -3 }], null, det);
+  ok(det.length === 2 && det[0].appliedXP === 400 && det[0].requestedXP === 400, 'detail records the first purchase in full');
+  ok(det[1].requestedXP === 300 && det[1].appliedXP === 0, 'detail flags the cap-skipped purchase as applied 0');
+
   // Trait level limits: a limitOf(name) -> { min, max } in TP clamps buys/spends.
   const limitOf = (name) => ({
     'Illiterate': { min: -1, max: 0 },

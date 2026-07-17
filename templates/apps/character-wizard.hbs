@@ -356,6 +356,8 @@
           </select>
           <input type="number" name="buytrait::{{this.idx}}::tp" value="{{this.tp}}" max="0" step="1" placeholder="TP (−)"/>
           {{#if this.xp}}<span class="buy-xp">+{{this.xp}} XP</span>{{/if}}
+          {{#if this.reduced}}<span class="buy-note">reduced from +{{this.requestedXp}} (limit/cap)</span>{{/if}}
+          {{#if this.dropped}}<span class="buy-note">not applied — 10% cap reached</span>{{/if}}
         </div>
         {{/each}}
       </div>
@@ -437,7 +439,7 @@
 
       <div class="review-meta">
         <span><strong>Affiliation:</strong> {{#if preview.affiliation}}{{preview.affiliation}}{{#if preview.subAffiliation}} / {{preview.subAffiliation}}{{/if}}{{else}}—{{/if}}</span>
-        <span><strong>Phenotype:</strong> {{#if preview.phenotype}}{{preview.phenotype}}{{else}}—{{/if}}</span>
+        <span><strong>Phenotype:</strong> {{#if preview.phenotypeLabel}}{{preview.phenotypeLabel}}{{else}}—{{/if}}</span>
         <span><strong>Age:</strong> {{preview.age}}</span>
         <span><strong>Modules:</strong> {{moduleCount}}</span>
         <span><strong>XP:</strong> {{preview.spent}} spent / {{preview.remaining}} left</span>
