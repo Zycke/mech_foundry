@@ -140,6 +140,7 @@ export async function grantCharacter(actor, { state, derived, choices, phenotype
   await actor.setFlag(FLAG_SCOPE, 'creation', {
     created: true,
     affiliation: state.affiliation || '',
+    subAffiliation: state.subAffiliation || '',
     phenotype: phenotypeKey || '',
     age: derived.age,
     spent: derived.spent,

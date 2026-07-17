@@ -169,6 +169,30 @@ ok(XP.getTraitTP(200) === 2 && XP.getTraitTP(50) === 0.5, 'trait TP = XP / 100')
   ok(su.skills['Survival/Wilderness'] === 20 && CB.subskillsResolved(su), 'resolving a subskill adds its XP');
 }
 
+/* ---- Sub-affiliations + broadened subskill detection ------------------- */
+{
+  const { LIFE_MODULE_SEED } = await import('../module/data/life-modules.mjs');
+  const cap = LIFE_MODULE_SEED.find(m => m.system.affiliationKey === 'capellan');
+  ok(cap.system.xpCost === 150 && cap.system.subAffiliations.length === 5,
+    'Capellan seed: 150 XP, 5 sub-affiliations (accurate transcription)');
+  ok(cap.system.fixedXP.traits.some(t => t.name === 'Exceptional Attribute/EDG'),
+    'Capellan main grants Exceptional Attribute/EDG');
+
+  const st = CB.createState(); st.affiliationKey = 'capellan';
+  CB.applyModule(st, cap.system, { id: 'cap', name: cap.name });
+  const sub = cap.system.subAffiliations.find(s => s.key === 'sian-commonality');
+  CB.applyModule(st, { stage: 0, fixedXP: sub.fixedXP, flexibleXP: sub.flexibleXP }, { id: 'subaff:sian', name: 'sub' });
+  ok(st.attributes.wil === 125, 'main WIL +50 and Sian WIL +75 stack to 125');
+  ok(st.traits['Citizenship'] === 50, 'sub-affiliation trait applied');
+
+  // "Choose either FedSuns or Lyran" should queue as a pending subskill.
+  const liao = CB.createState(); liao.affiliationKey = 'capellan';
+  CB.applyModule(liao, { stage: 0, fixedXP: {
+    skills: [{ name: 'Protocol', subskill: 'Choose either FedSuns or Lyran', xp: 10 }]
+  } }, { id: 'x', name: 'x' });
+  ok(liao.subskillPending.length === 1, '"Choose either…" queues as a pending subskill');
+}
+
 /* ---- Wealth -> C-Bills, Equipped -> rating (ATOW p.128/116) ------------- */
 {
   const { computeStartingWealth, wealthCBills, equippedRating } = await import('../module/data/atow-lists.mjs');

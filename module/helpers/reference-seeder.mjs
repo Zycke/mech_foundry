@@ -1,4 +1,4 @@
-import { skillSeedItems, traitSeedItems } from '../data/atow-lists.mjs';
+import { skillSeedItems, traitSeedItems, ATOW_SUBSKILLS } from '../data/atow-lists.mjs';
 
 /**
  * reference-seeder.mjs
@@ -73,7 +73,10 @@ export async function rebuildReferenceConfig() {
         .map(d => ({
           name: d.name,
           links: d.getFlag('mech-foundry', 'links') || reconstructLinks(d.system),
-          tnc: d.getFlag('mech-foundry', 'tnc') || `${d.system.targetNumber}/${d.system.complexity}`
+          tnc: d.getFlag('mech-foundry', 'tnc') || `${d.system.targetNumber}/${d.system.complexity}`,
+          subskills: Array.isArray(d.system.subskills) && d.system.subskills.length
+            ? d.system.subskills
+            : (ATOW_SUBSKILLS[d.name] || [])
         }))
         .sort((a, b) => a.name.localeCompare(b.name));
     }

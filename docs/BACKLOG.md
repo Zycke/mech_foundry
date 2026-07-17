@@ -102,7 +102,9 @@ steps, commit path). Needs runtime testing on a live v14 world (per §0).
           attribute's cap by 1 in derive.
     - [x] **Languages**: `system.languages` populated from `Language/*` skills on commit.
     - [x] **Subskills**: `/Affiliation` grants auto-resolve to the affiliation; `/Any` grants
-          are queued and the player chooses the subskill (gated before continuing).
+          are queued and the player chooses the subskill via a dropdown of the root skill's
+          canonical subskills (with an "Other…" free-text fallback; open skills use plain
+          text). Subskills live on each skill Item (`system.subskills`), so GM-editable.
     - [x] **Skills/Traits editability**: promoted to editable `mech-foundry.skills` /
           `mech-foundry.traits` compendia (seeded from the master lists); the runtime config
           lists are rebuilt FROM the compendia at ready, so GM edits flow to the wizard
@@ -113,8 +115,14 @@ steps, commit path). Needs runtime testing on a live v14 world (per §0).
           the equipment item schema — no changes needed).
     - [?] Aging effects (book pp.332–333) as an optional post-creation pass — **DEFERRED**
           (not needed for now; revisit on request).
+- [x] **Sub-affiliations**: affiliation lifeModules carry a `subAffiliations` array (each with
+      its own attributes/skills/traits/flexible XP) + `primaryLanguage`/`secondaryLanguages`.
+      The wizard offers an optional sub-affiliation picker (cards showing grants) that stacks
+      on the main affiliation; Language subskill dropdowns prefer the affiliation's languages.
 - [ ] **M8 (data track)** — transcribe the full A Time of War module/affiliation catalogue
-      against the schema (the seed ships only Capellan + labelled examples).
+      against the schema. **Done so far:** Capellan Confederation (accurate main +
+      all 5 Commonality sub-affiliations). Remaining: the other Great Houses, Periphery, Clans,
+      and the Stage 1–4 module catalogue (the seed still ships labelled examples for those).
 
 ---
 
