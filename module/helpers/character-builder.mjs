@@ -447,21 +447,47 @@ export class CharacterBuilder {
   /**
    * Buy additional XP by taking negative Traits (ATOW p.97). Each entry is
    * { name, tp } with tp < 0; the Trait gains tp×100 XP and |tp×100| returns to
-   * the pool, capped at 10% of starting XP. Returns the XP actually gained.
+   * the pool, capped at 10% of starting XP. A `limitOf(name)` lookup returning
+   * `{ min, max }` (in TP) caps how negative a Trait may go — the deepening is
+   * clamped so the Trait never passes its maximum negative level. Returns the XP
+   * actually gained.
    */
-  static applyBoughtTraits(state, bought = []) {
+  static applyBoughtTraits(state, bought = [], limitOf = null) {
     const cap = CharacterBuilder.additionalXPCap(state);
     let gained = 0;
     for (const b of asArray(bought)) {
-      const tp = Number(b?.tp) || 0;
+      let tp = Number(b?.tp) || 0;
       if (tp >= 0) continue;
-      const xp = tp * TRAIT_XP;            // negative
+      // Clamp against the Trait's minimum (most-negative) level.
+      const lim = limitOf ? limitOf(b.name) : null;
+      if (lim && Number.isFinite(lim.min)) {
+        const currentTP = XP.getTraitTP(state.traits[b.name] || 0);
+        const allowed = Math.min(0, lim.min - currentTP); // ≤ 0 additional TP
+        if (tp < allowed) tp = allowed;                    // don't pass the limit
+      }
+      const xp = tp * TRAIT_XP;            // negative (0 if fully clamped)
+      if (xp === 0) continue;
       if (gained + Math.abs(xp) > cap) continue; // would exceed the 10% cap
       CharacterBuilder.addTraitXP(state, b.name, xp);
       state.poolBonus += Math.abs(xp);
       gained += Math.abs(xp);
     }
     return gained;
+  }
+
+  /** Cap every Trait to its allowed [min, max] TP range (silent safety net for
+   * over-max grants). `limitOf(name)` → { min, max } in TP; missing = unlimited. */
+  static clampTraits(state, limitOf) {
+    if (typeof limitOf !== 'function') return state;
+    for (const [k, xp] of Object.entries(state.traits)) {
+      const lim = limitOf(k);
+      if (!lim) continue;
+      const hi = Number.isFinite(lim.max) ? lim.max * TRAIT_XP : Infinity;
+      const lo = Number.isFinite(lim.min) ? lim.min * TRAIT_XP : -Infinity;
+      if (xp > hi) state.traits[k] = hi;
+      else if (xp < lo) state.traits[k] = lo;
+    }
+    return state;
   }
 
   /* ---------------------------------------------------------------------- */

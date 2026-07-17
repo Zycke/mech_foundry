@@ -665,6 +665,35 @@ ok(applyOk, 'all seed modules apply through the engine without error');
   const over = CB.createState();
   CB.applyBoughtTraits(over, [{ name: 'Slow Learner', tp: -4 }, { name: 'Glass Jaw', tp: -3 }]); // 400 + 300 > 500
   ok(over.poolBonus === 400, 'a purchase that would exceed the cap is skipped');
+
+  // Trait level limits: a limitOf(name) -> { min, max } in TP clamps buys/spends.
+  const limitOf = (name) => ({
+    'Illiterate': { min: -1, max: 0 },
+    'Enemy': { min: -10, max: 0 },
+    'Fit': { min: 0, max: 2 },
+    'Reputation': { min: -5, max: 5 }
+  })[name] || null;
+
+  // Buying past a Trait's most-negative level is clamped to the limit.
+  const lim = CB.createState();
+  const g = CB.applyBoughtTraits(lim, [{ name: 'Illiterate', tp: -3 }], limitOf); // clamps to -1
+  ok(g === 100 && lim.traits['Illiterate'] === -100, 'buying Illiterate -3 clamps to its -1 maximum (100 XP)');
+
+  // A Trait already at its limit yields nothing further.
+  const lim2 = CB.createState();
+  lim2.traits['Illiterate'] = -100; // already at -1 TP
+  const g2 = CB.applyBoughtTraits(lim2, [{ name: 'Illiterate', tp: -1 }], limitOf);
+  ok(g2 === 0 && lim2.traits['Illiterate'] === -100, 'buying an already-maxed negative Trait adds nothing');
+
+  // clampTraits caps a positive Trait over its max and a negative Trait past its min.
+  const c = CB.createState();
+  c.traits['Fit'] = 300;        // 3 TP, over the +2 cap
+  c.traits['Illiterate'] = -250; // -2.5 TP, past the -1 floor
+  c.traits['Reputation'] = 800;  // 8 TP, over the +5 cap
+  CB.clampTraits(c, limitOf);
+  ok(c.traits['Fit'] === 200, 'clampTraits caps a positive Trait to its maximum');
+  ok(c.traits['Illiterate'] === -100, 'clampTraits caps a negative Trait to its most-negative level');
+  ok(c.traits['Reputation'] === 500, 'clampTraits caps a dual-sign Trait to its positive maximum');
 }
 
 /* ---- Result ------------------------------------------------------------- */

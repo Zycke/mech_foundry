@@ -340,7 +340,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     // Traits, optimize (reclaim excess XP), then buy additional XP via negatives.
     CharacterBuilder.resolveOpposedTraits(this.#state);
     this.#state.optimizeReclaimed = CharacterBuilder.optimize(this.#state, this.#choices.optimize);
-    this.#state.additionalXPGained = CharacterBuilder.applyBoughtTraits(this.#state, this.#choices.boughtTraits);
+    this.#state.additionalXPGained = CharacterBuilder.applyBoughtTraits(this.#state, this.#choices.boughtTraits, this.#traitLimitFn());
 
     // Apply leftover-pool free spend (attributes at 100 XP/point, skills, traits).
     const pheno = this.#phenotypeEntry();
@@ -358,9 +358,20 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       if (s?.key && xp > 0) CharacterBuilder.spendPool(this.#state, { kind: 'skill', key: s.key, xp });
     }
     for (const t of (this.#choices.freeSpend.traits || [])) {
-      const xp = Number(t?.xp) || 0;
-      if (t?.key && xp > 0) CharacterBuilder.spendPool(this.#state, { kind: 'trait', key: t.key, xp });
+      let xp = Number(t?.xp) || 0;
+      if (!t?.key || xp <= 0) continue;
+      // Don't let a spend push a Trait past its maximum (positive) level.
+      const lim = this.#traitLimit(t.key);
+      if (lim && Number.isFinite(lim.max)) {
+        const currentTP = XP.getTraitTP(this.#state.traits[t.key] || 0);
+        const maxAddXP = Math.max(0, (lim.max - currentTP) * 100);
+        if (xp > maxAddXP) xp = maxAddXP;
+      }
+      if (xp > 0) CharacterBuilder.spendPool(this.#state, { kind: 'trait', key: t.key, xp });
     }
+
+    // Safety net: cap any Trait that somehow exceeded its allowed level range.
+    CharacterBuilder.clampTraits(this.#state, this.#traitLimitFn());
   }
 
   #phenotypeEntry(key = this.#choices.phenotypeKey) {
@@ -907,6 +918,36 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     const master = (game.mechfoundry?.config?.traitsList || ATOW_TRAITS).map(t => t.name);
     const set = new Set([...master, ...Object.keys(this.#state.traits)]);
     return [...set].sort((a, b) => a.localeCompare(b)).map(n => ({ value: n, label: n }));
+  }
+
+  /**
+   * Parse a Trait's TP spec into its allowed { min, max } level range (in TP).
+   * Handles single ('2', '-1', '0'), range ('1 to 10', '-5 to -1', '-9 to -2'),
+   * discrete ('3 or 5') and dual-sign flexible ('-5 to 5') specs. Positive Traits
+   * are floored at 0, negative Traits capped at 0; flexible Traits keep both signs.
+   * Returns null when the Trait/spec is unknown (treated as unlimited).
+   */
+  #traitLimit(name) {
+    if (!name) return null;
+    const list = game.mechfoundry?.config?.traitsList || ATOW_TRAITS;
+    let def = list.find(t => t.name === name);
+    if (!def && name.includes('/')) {
+      const base = name.slice(0, name.indexOf('/'));
+      def = list.find(t => t.name === base);
+    }
+    if (!def) return null;
+    const nums = String(def.tp || '').match(/-?\d+/g);
+    if (!nums || !nums.length) return null;
+    const vals = nums.map(Number);
+    let lo = Math.min(...vals), hi = Math.max(...vals);
+    if (def.type === 'positive') lo = Math.min(0, lo);
+    else if (def.type === 'negative') hi = Math.max(0, hi);
+    return { min: lo, max: hi };
+  }
+
+  /** Bound Trait-limit lookup passed into the builder engine. */
+  #traitLimitFn() {
+    return (name) => this.#traitLimit(name);
   }
 
   #prereqSummary(pre) {
