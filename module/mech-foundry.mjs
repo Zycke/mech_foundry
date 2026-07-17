@@ -24,7 +24,8 @@ import { MechFoundryShipSheet } from "./sheets/ship-sheet.mjs";
 // Import helper/utility classes
 import { preloadHandlebarsTemplates } from "./helpers/templates.mjs";
 import { registerSeederSettings, seedLifeModules } from "./helpers/life-module-seeder.mjs";
-import { seedReferenceCompendia, rebuildReferenceConfig } from "./helpers/reference-seeder.mjs";
+import { seedReferenceCompendia, rebuildReferenceConfig, registerReferenceSeederSettings } from "./helpers/reference-seeder.mjs";
+import { seedWeapons } from "./helpers/weapon-seeder.mjs";
 import { CharacterWizard } from "./apps/character-wizard.mjs";
 import { ATOW_SKILLS, ATOW_TRAITS, ATOW_TRAIT_DESCRIPTIONS } from "./data/atow-lists.mjs";
 import { SocketHandler, SOCKET_EVENTS } from "./helpers/socket-handler.mjs";
@@ -54,6 +55,8 @@ Hooks.once('init', function() {
     reseedLifeModules: () => seedLifeModules({ force: true }),
     /** Manually (re)seed the Skills/Traits reference compendia, then refresh config. */
     reseedReferences: () => seedReferenceCompendia({ force: true }).then(rebuildReferenceConfig),
+    /** Manually (re)seed the Weapons compendium, adding any missing entries. */
+    reseedWeapons: () => seedWeapons({ force: true }),
     config: MECHFOUNDRY
   };
 
@@ -112,6 +115,8 @@ Hooks.once('init', function() {
 
   // Register the one-time life-module seed tracking flag
   registerSeederSettings();
+  // Register the reference-compendia version marker (version-change reseeding)
+  registerReferenceSeederSettings();
 });
 
 /* -------------------------------------------- */
@@ -121,11 +126,26 @@ Hooks.once('init', function() {
 Hooks.once('ready', async function() {
   console.log("Mech Foundry | System Ready");
 
-  // Seed the character-creation compendia on first load (GM only, idempotent),
-  // then rebuild the runtime skill/trait reference lists FROM the compendia so
-  // GM edits flow through to the wizard.
-  await seedLifeModules();
-  await seedReferenceCompendia();
+  // Seed the character-creation compendia on first load (GM only, idempotent).
+  // When the system version changes, reconcile the code-generated packs: add any
+  // entries introduced since (by name) without disturbing existing/GM-edited
+  // items. Then rebuild the runtime skill/trait lists FROM the compendia so GM
+  // edits flow through to the wizard.
+  if (game.user?.isGM) {
+    const lastSeeded = game.settings.get('mech-foundry', 'referenceSeedVersion') || '';
+    const current = game.system.version;
+    const reconcile = lastSeeded !== current; // new deploy (or first run)
+    let added = 0;
+    added += await seedLifeModules({ force: reconcile, quiet: reconcile });
+    added += await seedReferenceCompendia({ force: reconcile, quiet: reconcile });
+    added += await seedWeapons({ force: reconcile, quiet: reconcile });
+    if (reconcile) {
+      await game.settings.set('mech-foundry', 'referenceSeedVersion', current);
+      if (added > 0) {
+        ui.notifications?.info(`Mech Foundry: updated compendia for v${current} — added ${added} new entr${added === 1 ? 'y' : 'ies'}.`);
+      }
+    }
+  }
   await rebuildReferenceConfig();
 
   // Initialize socket handler for cross-player communication
