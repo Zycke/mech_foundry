@@ -57,6 +57,9 @@ Hooks.once('init', function() {
     reseedReferences: () => seedReferenceCompendia({ force: true }).then(rebuildReferenceConfig),
     /** Manually (re)seed the Weapons compendium, adding any missing entries. */
     reseedWeapons: () => seedWeapons({ force: true }),
+    /** Overwrite already-seeded weapons with the current seed data (pushes data
+     *  corrections; discards GM edits to those weapons). */
+    refreshWeapons: () => seedWeapons({ refresh: true }),
     config: MECHFOUNDRY
   };
 

@@ -46,6 +46,8 @@ function toMode(m) {
 export function toWeaponSeed(r) {
   const range = Array.isArray(r.range) ? r.range : [];
   const notes = r.notes && r.notes !== '—' ? r.notes : '';
+  const weaponType = r.weaponType || 'smallarms';
+  const isMelee = weaponType === 'melee';
   return {
     skill: r.skill || 'Small Arms',
     category: r.subCategory || 'Other',
@@ -62,7 +64,7 @@ export function toWeaponSeed(r) {
         notes,
         carryStatus: 'carried',
         itemEffects: [],
-        weaponType: r.weaponType || 'ranged',
+        weaponType,
         skill: r.skill || 'Small Arms',
         ap: r.ap ?? 0,
         apFactor: r.apFactor || 'B',
@@ -72,7 +74,9 @@ export function toWeaponSeed(r) {
         recoil: r.recoil ?? 0,
         burstRating: r.burst ?? 0,
         range: {
-          pointBlank: '',
+          // Point-Blank is the universal "within 1 metre" band (ATOW p.190,
+          // +1 to hit); ranged weapons carry it, melee weapons do not.
+          pointBlank: isMelee ? '' : 1,
           short: range[0] ?? '',
           medium: range[1] ?? '',
           long: range[2] ?? '',
@@ -211,4 +215,4 @@ export const SMALL_ARMS = [
 /** All weapon seed entries (expanded), consumed by the weapon seeder. */
 export const WEAPON_SEED = [
   ...SMALL_ARMS
-].map(r => toWeaponSeed({ skill: 'Small Arms', weaponType: 'ranged', ...r }));
+].map(r => toWeaponSeed({ skill: 'Small Arms', weaponType: 'smallarms', ...r }));

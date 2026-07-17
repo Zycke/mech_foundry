@@ -66,7 +66,7 @@ function folderIdFor(entry, { tops, children }) {
  * @param {boolean} [opts.quiet]  Suppress the success/up-to-date notifications.
  * @returns {Promise<number>} how many weapons were created
  */
-export async function seedWeapons({ force = false, quiet = false } = {}) {
+export async function seedWeapons({ force = false, quiet = false, refresh = false } = {}) {
   if (!game.user?.isGM) return 0;
 
   const pack = game.packs?.get(PACK_ID);
@@ -78,13 +78,24 @@ export async function seedWeapons({ force = false, quiet = false } = {}) {
   if (!WEAPON_SEED.length) return 0; // nothing transcribed yet
 
   const index = await pack.getIndex();
-  // Auto-seed only when empty; a populated pack is left alone unless forced.
-  if (index.size > 0 && !force) return 0;
+  // Auto-seed only when empty; a populated pack is left alone unless forced/refreshed.
+  if (index.size > 0 && !force && !refresh) return 0;
 
-  const existingNames = new Set(index.map(e => e.name));
-  const toCreate = WEAPON_SEED.filter(e => !existingNames.has(e.item.name));
-  if (!toCreate.length) {
-    if (force && !quiet) ui.notifications?.info('Mech Foundry: Weapons compendium already up to date.');
+  const existingByName = new Map(index.map(e => [e.name, e._id]));
+  const toCreate = WEAPON_SEED.filter(e => !existingByName.has(e.item.name));
+  // `refresh` re-applies the seed's system data to already-present weapons (used
+  // to push data corrections); it overwrites the stored stats, so GM edits to
+  // those weapons are lost — hence it is a manual, explicit action.
+  const toUpdate = refresh
+    ? WEAPON_SEED.filter(e => existingByName.has(e.item.name)).map(e => ({
+        _id: existingByName.get(e.item.name),
+        img: e.item.img,
+        system: foundry.utils.deepClone(e.item.system)
+      }))
+    : [];
+
+  if (!toCreate.length && !toUpdate.length) {
+    if ((force || refresh) && !quiet) ui.notifications?.info('Mech Foundry: Weapons compendium already up to date.');
     return 0;
   }
 
@@ -92,14 +103,21 @@ export async function seedWeapons({ force = false, quiet = false } = {}) {
     const wasLocked = pack.locked;
     if (wasLocked) await pack.configure({ locked: false });
 
-    const folders = await ensureFolders(WEAPON_SEED);
-    const docs = toCreate.map(e => ({ ...foundry.utils.deepClone(e.item), folder: folderIdFor(e, folders) }));
-    await Item.createDocuments(docs, { pack: PACK_ID });
+    if (toCreate.length) {
+      const folders = await ensureFolders(WEAPON_SEED);
+      const docs = toCreate.map(e => ({ ...foundry.utils.deepClone(e.item), folder: folderIdFor(e, folders) }));
+      await Item.createDocuments(docs, { pack: PACK_ID });
+    }
+    if (toUpdate.length) await Item.updateDocuments(toUpdate, { pack: PACK_ID });
 
     if (wasLocked) await pack.configure({ locked: true });
-    console.log(`mech-foundry | Seeded ${toCreate.length} weapon(s) into ${PACK_ID}.`);
-    if (!quiet) ui.notifications?.info(`Mech Foundry: added ${toCreate.length} weapon(s) to the Weapons compendium.`);
-    return toCreate.length;
+    const msg = [
+      toCreate.length ? `added ${toCreate.length}` : '',
+      toUpdate.length ? `refreshed ${toUpdate.length}` : ''
+    ].filter(Boolean).join(', ');
+    console.log(`mech-foundry | Weapons seed: ${msg}.`);
+    if (!quiet) ui.notifications?.info(`Mech Foundry: ${msg} weapon(s) in the Weapons compendium.`);
+    return toCreate.length + toUpdate.length;
   } catch (err) {
     console.error('mech-foundry | Failed to seed weapons:', err);
     if (!quiet) ui.notifications?.error('Mech Foundry: failed to seed Weapons (see console). The pack may be read-only.');
