@@ -323,9 +323,44 @@
 
     {{#if (eq stepId "spend")}}
     <div class="wizard-panel">
-      <h2>Spend Remaining XP <span class="hint-inline">(optional)</span></h2>
-      <p class="hint">Spend leftover pool XP directly. Attributes cost 100 XP per point (up to the phenotype cap); skills take any amount you enter.</p>
+      <h2>Finalize <span class="hint-inline">(optional)</span></h2>
+      <p class="hint">Optimize leftover XP, buy extra XP with negative Traits, then spend it all on Attributes, Traits and Skills.</p>
 
+      {{!-- 1. Optimize --}}
+      <h3 class="spend-sub">Optimize Leftover XP</h3>
+      <p class="hint">Shave XP each stat holds above its highest fully-attained level back into the pool, to reinvest more efficiently (ATOW p.97).</p>
+      <div class="optimize-row">
+        <button type="button" class="opt-toggle {{#if spend.optimize.attributes}}on{{/if}}" data-action="toggleOptimize" data-cat="attributes">
+          <i class="fas {{#if spend.optimize.attributes}}fa-toggle-on{{else}}fa-toggle-off{{/if}}"></i> Attributes {{#if spend.reclaimed.attributes}}<span class="opt-amt">+{{spend.reclaimed.attributes}}</span>{{/if}}
+        </button>
+        <button type="button" class="opt-toggle {{#if spend.optimize.traits}}on{{/if}}" data-action="toggleOptimize" data-cat="traits">
+          <i class="fas {{#if spend.optimize.traits}}fa-toggle-on{{else}}fa-toggle-off{{/if}}"></i> Traits {{#if spend.reclaimed.traits}}<span class="opt-amt">+{{spend.reclaimed.traits}}</span>{{/if}}
+        </button>
+        <button type="button" class="opt-toggle {{#if spend.optimize.skills}}on{{/if}}" data-action="toggleOptimize" data-cat="skills">
+          <i class="fas {{#if spend.optimize.skills}}fa-toggle-on{{else}}fa-toggle-off{{/if}}"></i> Skills {{#if spend.reclaimed.skills}}<span class="opt-amt">+{{spend.reclaimed.skills}}</span>{{/if}}
+        </button>
+        {{#if spend.reclaimTotal}}<span class="opt-total">{{spend.reclaimTotal}} XP reclaimed</span>{{/if}}
+      </div>
+
+      {{!-- 2. Buy Additional XP --}}
+      <h3 class="spend-sub">Buy Additional XP <span class="hint-inline">(via negative Traits — max {{spend.buyCap}})</span></h3>
+      <p class="hint">Gain up to 10% of your starting XP by taking negative Traits at whole Trait-Point levels (ATOW p.97). <strong>{{spend.buyGained}}</strong> gained, <strong>{{spend.buyLeft}}</strong> available.</p>
+      <div class="spend-skills">
+        {{#each spend.boughtRows}}
+        <div class="spend-skill-row">
+          <select name="buytrait::{{this.idx}}::name" class="value-select">
+            <option value="">— negative Trait —</option>
+            {{#each ../spend.traitOptions}}
+            <option value="{{this.value}}" {{#if (eq this.value ../name)}}selected{{/if}}>{{this.label}}</option>
+            {{/each}}
+          </select>
+          <input type="number" name="buytrait::{{this.idx}}::tp" value="{{this.tp}}" max="0" step="1" placeholder="TP (−)"/>
+          {{#if this.xp}}<span class="buy-xp">+{{this.xp}} XP</span>{{/if}}
+        </div>
+        {{/each}}
+      </div>
+
+      {{!-- 3. Spend --}}
       <h3 class="spend-sub">Attributes</h3>
       <div class="spend-attrs">
         {{#each spend.attributes}}
@@ -353,6 +388,21 @@
             {{/each}}
           </select>
           <input type="number" name="spendskill::{{this.idx}}::xp" value="{{this.xp}}" min="0" step="10" placeholder="XP"/>
+        </div>
+        {{/each}}
+      </div>
+
+      <h3 class="spend-sub">Traits</h3>
+      <div class="spend-skills">
+        {{#each spend.traits}}
+        <div class="spend-skill-row">
+          <select name="spendtrait::{{this.idx}}::key" class="value-select">
+            <option value="">— choose Trait —</option>
+            {{#each ../spend.traitOptions}}
+            <option value="{{this.value}}" {{#if (eq this.value ../key)}}selected{{/if}}>{{this.label}}</option>
+            {{/each}}
+          </select>
+          <input type="number" name="spendtrait::{{this.idx}}::xp" value="{{this.xp}}" min="0" step="10" placeholder="XP"/>
         </div>
         {{/each}}
       </div>
@@ -385,6 +435,8 @@
         <span><strong>Age:</strong> {{preview.age}}</span>
         <span><strong>Modules:</strong> {{moduleCount}}</span>
         <span><strong>XP:</strong> {{preview.spent}} spent / {{preview.remaining}} left</span>
+        {{#if reclaimTotal}}<span data-tooltip="XP reclaimed by optimizing leftover points"><strong>Optimized:</strong> +{{reclaimTotal}} XP</span>{{/if}}
+        {{#if additionalXP}}<span data-tooltip="XP bought via negative Traits (ATOW p.97)"><strong>Bought:</strong> +{{additionalXP}} XP</span>{{/if}}
         <span data-tooltip="From the Wealth Trait (default 1,000). Unspent C-bills are kept as starting cash."><strong>C-Bills:</strong> {{numberFormat wealth.cbills}}</span>
         <span data-tooltip="From the Equipped Trait: the maximum Tech/Availability/Legality rating of gear you may buy at creation."><strong>Gear rating:</strong> {{wealth.rating}}</span>
       </div>

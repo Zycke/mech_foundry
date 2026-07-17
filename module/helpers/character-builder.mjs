@@ -49,6 +49,23 @@ export const SEVERITY = Object.freeze({ ERROR: 'error', WARNING: 'warning' });
 export const FIELD_SKILL_XP = 30;
 export const FIELD_SKILL_COST = 24;
 
+const ATTR_XP = XP.ATTRIBUTE_XP_PER_POINT;   // 100 XP per attribute point
+const TRAIT_XP = XP.TRAIT_XP_PER_TP;         // 100 XP per Trait Point
+
+/** Opposed Trait pairs (ATOW p.96): [positive, negative]. Their XP is merged at
+ * finalization — the net keeps whichever side wins. Illiterate is handled
+ * separately (opposed by Language Skill level, not a Trait). */
+export const OPPOSED_TRAITS = Object.freeze([
+  ['Animal Empathy', 'Animal Antipathy'], ['Attractive', 'Unattractive'],
+  ['Combat Sense', 'Combat Paralysis'], ['Fast Learner', 'Slow Learner'],
+  ['Fit', 'Handicap'], ['Good Hearing', 'Poor Hearing'], ['Good Vision', 'Poor Vision'],
+  ['Gregarious', 'Introvert'], ['Patient', 'Impatient'], ['Tech Empathy', 'Gremlins'],
+  ['Toughness', 'Glass Jaw']
+]);
+
+/** Clearly-negative Trait names, for the "negative Trait with positive XP" cleanup. */
+const NEGATIVE_TRAIT_RE = /^(Enemy|Dark Secret|Compulsion|In For Life|Dependent|Bloodmark|Unlucky|Slow Learner|Glass Jaw|Combat Paralysis|Illiterate|Impatient|Introvert|Gremlins|Poor Hearing|Poor Vision|Handicap|Unattractive|Animal Antipathy|Lost Limb)\b/i;
+
 /** Affiliation categories used by Stage-4 modules (ATOW p.91): Inner Sphere
  * includes the Great Houses, Rasalhague, ComStar/Word of Blake and Terra;
  * Periphery includes the Periphery realms and Independents; Clan the Clans. */
@@ -93,6 +110,8 @@ export class CharacterBuilder {
       // Economy
       startingXP: pool,
       spent: 0,                 // XP paid out of the pool for modules & free spend
+      poolBonus: 0,             // XP returned to the pool: optimization reclaim,
+                                // stripped positive-XP negatives, bought negatives
       // Age accumulates from each module's `time` (years lived), starting at
       // birth. The config baseline age (21 human / 18 Clan) is only the XP-pool
       // reference and the threshold for post-creation aging XP — NOT a starting
@@ -112,9 +131,9 @@ export class CharacterBuilder {
     };
   }
 
-  /** Remaining, unspent XP in the pool. */
+  /** Remaining, unspent XP in the pool (including any reclaimed / bought XP). */
   static remaining(state) {
-    return state.startingXP - state.spent;
+    return state.startingXP - state.spent + (state.poolBonus || 0);
   }
 
   /* ---------------------------------------------------------------------- */
@@ -344,6 +363,105 @@ export class CharacterBuilder {
       if (seen.has(t)) dupes.add(t); else seen.add(t);
     }
     return [...dupes];
+  }
+
+  /* ---------------------------------------------------------------------- */
+  /*  Finalization (post-Stage-4): opposed traits, optimization, buying XP)  */
+  /* ---------------------------------------------------------------------- */
+
+  /**
+   * Resolve opposed Trait pairs, the Illiterate exception, and negative Traits
+   * that ended up with positive XP (ATOW p.96). Mutates state; must run before
+   * optimization. Positive-XP stripped from negative Traits returns to the pool.
+   */
+  static resolveOpposedTraits(state) {
+    // Merge each opposed pair present into a single surviving Trait.
+    for (const [pos, neg] of OPPOSED_TRAITS) {
+      const pKeys = matchingTraitKeys(state, pos);
+      const nKeys = matchingTraitKeys(state, neg);
+      if (!pKeys.length || !nKeys.length) continue;
+      const pXP = pKeys.reduce((s, k) => s + state.traits[k], 0);
+      const nXP = nKeys.reduce((s, k) => s + state.traits[k], 0);
+      const net = pXP + nXP;
+      for (const k of [...pKeys, ...nKeys]) delete state.traits[k];
+      if (net > 0) state.traits[pKeys[0]] = net;
+      else if (net < 0) state.traits[nKeys[0]] = net;
+      // net === 0 → both cancel entirely.
+    }
+    // Illiterate is erased (no XP change) if any Language Skill is level 4+.
+    const literate = Object.entries(state.skills)
+      .some(([k, xp]) => /^language\//i.test(k) && XP.getSkillLevelFromXP(xp) >= 4);
+    if (literate) for (const k of Object.keys(state.traits)) if (/^illiterate/i.test(k)) delete state.traits[k];
+    // A negative Trait left with positive XP is stricken; its XP returns to the pool.
+    for (const [k, xp] of Object.entries(state.traits)) {
+      if (xp > 0 && isNegativeTrait(k)) { state.poolBonus += xp; delete state.traits[k]; }
+    }
+    return state;
+  }
+
+  /**
+   * Optimize leftover points (ATOW p.97): shave XP a stat holds ABOVE its
+   * highest fully-attained level back into the pool. Positive stats only —
+   * negative Traits keep their "free" XP. `categories` selects which groups to
+   * optimize. Returns { attributes, traits, skills } reclaimed totals.
+   */
+  static optimize(state, categories = {}) {
+    const reclaimed = { attributes: 0, traits: 0, skills: 0 };
+    if (categories.attributes) {
+      for (const k of ATTRIBUTE_KEYS) {
+        const xp = state.attributes[k] || 0;
+        const kept = Math.max(0, Math.floor(xp / ATTR_XP)) * ATTR_XP;
+        if (xp > kept) { reclaimed.attributes += xp - kept; state.attributes[k] = kept; }
+      }
+    }
+    if (categories.skills) {
+      for (const [k, xp] of Object.entries(state.skills)) {
+        const lvl = XP.getSkillLevelFromXP(xp);
+        const kept = lvl < 0 ? 0 : (XP.SKILL_XP_COSTS[lvl] || 0);
+        if (xp > kept) {
+          reclaimed.skills += xp - kept;
+          if (kept === 0) delete state.skills[k]; else state.skills[k] = kept;
+        }
+      }
+    }
+    if (categories.traits) {
+      for (const [k, xp] of Object.entries(state.traits)) {
+        if (xp <= 0) continue; // negatives keep their XP; handled by canceling
+        const kept = Math.floor(xp / TRAIT_XP) * TRAIT_XP;
+        if (xp > kept) {
+          reclaimed.traits += xp - kept;
+          if (kept === 0) delete state.traits[k]; else state.traits[k] = kept;
+        }
+      }
+    }
+    const total = reclaimed.attributes + reclaimed.traits + reclaimed.skills;
+    state.poolBonus += total;
+    return reclaimed;
+  }
+
+  /** Max XP a character may buy via negative Traits (10% of starting XP). */
+  static additionalXPCap(state) {
+    return Math.floor((state.startingXP || 0) * 0.1);
+  }
+
+  /**
+   * Buy additional XP by taking negative Traits (ATOW p.97). Each entry is
+   * { name, tp } with tp < 0; the Trait gains tp×100 XP and |tp×100| returns to
+   * the pool, capped at 10% of starting XP. Returns the XP actually gained.
+   */
+  static applyBoughtTraits(state, bought = []) {
+    const cap = CharacterBuilder.additionalXPCap(state);
+    let gained = 0;
+    for (const b of asArray(bought)) {
+      const tp = Number(b?.tp) || 0;
+      if (tp >= 0) continue;
+      const xp = tp * TRAIT_XP;            // negative
+      if (gained + Math.abs(xp) > cap) continue; // would exceed the 10% cap
+      CharacterBuilder.addTraitXP(state, b.name, xp);
+      state.poolBonus += Math.abs(xp);
+      gained += Math.abs(xp);
+    }
+    return gained;
   }
 
   /* ---------------------------------------------------------------------- */
@@ -678,6 +796,17 @@ function asArray(v) {
   if (v == null) return [];
   if (typeof v === 'object') return Object.values(v);
   return [v];
+}
+
+/** Trait keys in state matching an opposed-Trait base name (exact, ignoring case). */
+function matchingTraitKeys(state, base) {
+  const b = base.toLowerCase();
+  return Object.keys(state.traits).filter(k => k.toLowerCase() === b);
+}
+
+/** Whether a Trait name is clearly negative (for the positive-XP strip). */
+function isNegativeTrait(name) {
+  return NEGATIVE_TRAIT_RE.test(String(name));
 }
 
 /** Split a Field Skill spec ("Name" or "Name/Subskill") into {name, subskill}.

@@ -5995,3 +5995,15 @@
   color: var(--mf-danger); cursor: pointer; width: 22px; height: 22px; line-height: 1;
 }
 .mech-foundry .instance-list .s4-remove:hover { border-color: var(--mf-danger); }
+
+/* ---- Wizard: Finalize (optimize + buy additional XP) ---- */
+.mech-foundry .optimize-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 4px 0 8px; }
+.mech-foundry .opt-toggle {
+  display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; cursor: pointer;
+  border: 1px solid var(--mf-line); border-radius: 3px; background: var(--mf-panel); color: var(--mf-ink-dim);
+  font-family: var(--mf-font-head); font-size: 0.82em;
+}
+.mech-foundry .opt-toggle.on { border-color: var(--mf-amber); color: var(--mf-amber-2); }
+.mech-foundry .opt-toggle .opt-amt { color: var(--mf-ok); }
+.mech-foundry .opt-total { color: var(--mf-ok); font-family: var(--mf-font-head); font-size: 0.82em; }
+.mech-foundry .spend-skill-row .buy-xp { color: var(--mf-ok); font-family: var(--mf-font-head); font-size: 0.82em; align-self: center; }

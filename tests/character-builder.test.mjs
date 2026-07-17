@@ -616,7 +616,56 @@ ok(applyOk, 'all seed modules apply through the engine without error');
   ok(fp && fp.fieldTypes.includes('military'), 'the Periphery Tour Military-Field pool is fromFields/military');
 }
 
-/* ---- Result ------------------------------------------------------------- */
+/* ---- Finalization: opposed traits, optimization, buying XP -------------- */
+{
+  // Opposed-trait canceling (Toughness +250 vs Glass Jaw -100 -> Toughness 150).
+  const s = CB.createState();
+  s.traits['Toughness'] = 250; s.traits['Glass Jaw'] = -100;
+  s.traits['Combat Sense'] = 100; s.traits['Combat Paralysis'] = -100; // net 0 -> both cancel
+  CB.resolveOpposedTraits(s);
+  ok(s.traits['Toughness'] === 150 && s.traits['Glass Jaw'] === undefined, 'opposed pair merges to the net positive Trait');
+  ok(s.traits['Combat Sense'] === undefined && s.traits['Combat Paralysis'] === undefined, 'an even opposed pair cancels both Traits');
+
+  // Illiterate erased by a level-4 Language Skill.
+  const s2 = CB.createState();
+  s2.traits['Illiterate'] = -75; s2.skills['Language/English'] = 120; // level 4 (120 XP)
+  CB.resolveOpposedTraits(s2);
+  ok(s2.traits['Illiterate'] === undefined, 'Illiterate is erased once a Language Skill reaches level 4');
+
+  // Negative Trait with positive XP is stricken, XP returned to the pool.
+  const s3 = CB.createState();
+  s3.traits['Enemy'] = 40;
+  CB.resolveOpposedTraits(s3);
+  ok(s3.traits['Enemy'] === undefined && s3.poolBonus === 40, 'a negative Trait left positive is stripped and its XP returned to the pool');
+
+  // Optimization reclaims excess above the highest fully-attained level.
+  const o = CB.createState();
+  o.attributes.str = 325;                 // score 3 (300) + 25 excess
+  o.skills['Career/Soldier'] = 115;       // level 3 (80) + 35 excess
+  o.skills['Strategy'] = 10;              // below level 0 -> drops, reclaim 10
+  o.traits['Fit'] = 15;                   // < 100, can't reach 1 TP -> reclaim 15
+  const r = CB.optimize(o, { attributes: true, traits: true, skills: true });
+  ok(r.attributes === 25 && r.skills === 45 && r.traits === 15, 'optimize reclaims 25 / 45 / 15 by category');
+  ok(o.attributes.str === 300 && o.skills['Career/Soldier'] === 80 && o.skills['Strategy'] === undefined,
+    'optimized stats sit exactly at their fully-attained level');
+  ok(o.poolBonus === 85, 'reclaimed XP is added to the pool');
+
+  // Selective optimization: skills only leaves attributes untouched.
+  const o2 = CB.createState();
+  o2.attributes.str = 325; o2.skills['Career/Soldier'] = 115;
+  CB.optimize(o2, { skills: true });
+  ok(o2.attributes.str === 325 && o2.skills['Career/Soldier'] === 80, 'skills-only optimization leaves attributes alone');
+
+  // Buying additional XP: capped at 10% of starting XP.
+  const b = CB.createState(); // 5000 pool -> cap 500
+  ok(CB.additionalXPCap(b) === 500, 'the additional-XP cap is 10% of the starting pool');
+  const gained = CB.applyBoughtTraits(b, [{ name: 'In For Life', tp: -3 }, { name: 'Dark Secret', tp: -2 }]);
+  ok(gained === 500 && b.traits['In For Life'] === -300, 'buying In For Life -3 and Dark Secret -2 yields 500 XP at the cap');
+  ok(CB.remaining(b) === 5000 + 500, 'bought XP raises the remaining pool');
+  const over = CB.createState();
+  CB.applyBoughtTraits(over, [{ name: 'Slow Learner', tp: -4 }, { name: 'Glass Jaw', tp: -3 }]); // 400 + 300 > 500
+  ok(over.poolBonus === 400, 'a purchase that would exceed the cap is skipped');
+}
 
 /* ---- Result ------------------------------------------------------------- */
 if (failed) { console.error(`\n${failed} check(s) FAILED`); process.exit(1); }

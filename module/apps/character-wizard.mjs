@@ -22,7 +22,7 @@ const STEPS = [
   { id: 'stage3', label: 'Higher Ed', stage: 3, multi: true },
   { id: 'stage4', label: 'Real Life', stage: 4, multi: true },
   { id: 'flexible', label: 'Flexible XP' },
-  { id: 'spend', label: 'Spend XP' },
+  { id: 'spend', label: 'Finalize' },
   { id: 'review', label: 'Review' }
 ];
 
@@ -68,7 +68,9 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     flexible: {},                            // sourceKey -> [{ kind, key }]  (count pools)
     lumpFlexible: {},                        // sourceKey -> [{ kind, key, amount }] (lump pools)
     subskills: {},                           // subskill sourceKey -> chosen text
-    freeSpend: { attributes: {}, skills: [] } // leftover-pool spend
+    optimize: { attributes: false, traits: false, skills: false }, // reclaim excess XP
+    boughtTraits: [],                        // [{ name, tp }] negative traits bought for XP
+    freeSpend: { attributes: {}, skills: [], traits: [] } // leftover-pool spend
   };
   /** @type {Object<number, Item[]>|null} cached modules grouped by stage */
   #modulesCache = null;
@@ -107,6 +109,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       toggleFieldAdvanced: CharacterWizard.#onToggleField,
       toggleFieldSpecial: CharacterWizard.#onToggleField,
       spendAttr: CharacterWizard.#onSpendAttr,
+      toggleOptimize: CharacterWizard.#onToggleOptimize,
       finish: CharacterWizard.#onFinish
     }
   };
@@ -333,7 +336,13 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       }
     }
 
-    // Apply leftover-pool free spend (attributes at 100 XP/point, then skills).
+    // Finalization post-pass (ATOW pp.96-97), in book order: resolve opposed
+    // Traits, optimize (reclaim excess XP), then buy additional XP via negatives.
+    CharacterBuilder.resolveOpposedTraits(this.#state);
+    this.#state.optimizeReclaimed = CharacterBuilder.optimize(this.#state, this.#choices.optimize);
+    this.#state.additionalXPGained = CharacterBuilder.applyBoughtTraits(this.#state, this.#choices.boughtTraits);
+
+    // Apply leftover-pool free spend (attributes at 100 XP/point, skills, traits).
     const pheno = this.#phenotypeEntry();
     for (const [key, count] of Object.entries(this.#choices.freeSpend.attributes || {})) {
       const n = Number(count) || 0;
@@ -347,6 +356,10 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     for (const s of (this.#choices.freeSpend.skills || [])) {
       const xp = Number(s?.xp) || 0;
       if (s?.key && xp > 0) CharacterBuilder.spendPool(this.#state, { kind: 'skill', key: s.key, xp });
+    }
+    for (const t of (this.#choices.freeSpend.traits || [])) {
+      const xp = Number(t?.xp) || 0;
+      if (t?.key && xp > 0) CharacterBuilder.spendPool(this.#state, { kind: 'trait', key: t.key, xp });
     }
   }
 
@@ -632,6 +645,9 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       context.warningCount = issues.filter(i => i.severity === SEVERITY.WARNING).length;
       context.targetName = this.actor?.name || this.#choices.name || 'a new character';
       context.wealth = computeStartingWealth(this.#state.traits, { isClan: !!this.#state.isClan });
+      const rec = this.#state.optimizeReclaimed || {};
+      context.reclaimTotal = (rec.attributes || 0) + (rec.traits || 0) + (rec.skills || 0);
+      context.additionalXP = this.#state.additionalXPGained || 0;
     }
 
     return context;
@@ -978,7 +994,26 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     });
     const saved = this.#choices.freeSpend.skills || [];
     const rows = [...saved, { key: '', xp: '' }].map((s, i) => ({ idx: i, key: s.key || '', xp: s.xp || '' }));
-    return { attributes, skillOptions: this.#skillOptions(), skills: rows, remaining };
+    const savedT = this.#choices.freeSpend.traits || [];
+    const traitRows = [...savedT, { key: '', xp: '' }].map((t, i) => ({ idx: i, key: t.key || '', xp: t.xp || '' }));
+
+    // Optimization: how much would be reclaimed per category (already applied).
+    const opt = this.#choices.optimize;
+    const reclaimed = this.#state.optimizeReclaimed || { attributes: 0, traits: 0, skills: 0 };
+
+    // Buy Additional XP: negative Traits, capped at 10% of starting XP.
+    const cap = CharacterBuilder.additionalXPCap(this.#state);
+    const gained = this.#state.additionalXPGained || 0;
+    const boughtRows = [...(this.#choices.boughtTraits || []), { name: '', tp: '' }]
+      .map((b, i) => ({ idx: i, name: b.name || '', tp: b.tp || '', xp: Math.abs((Number(b.tp) || 0) * 100) }));
+
+    return {
+      attributes, skillOptions: this.#skillOptions(), skills: rows,
+      traitOptions: this.#traitOptions(), traits: traitRows, remaining,
+      optimize: opt, reclaimed,
+      reclaimTotal: reclaimed.attributes + reclaimed.traits + reclaimed.skills,
+      buyCap: cap, buyGained: gained, buyLeft: cap - gained, boughtRows
+    };
   }
 
   /** Whether the current step is complete enough to advance / finish. */
@@ -1198,6 +1233,26 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       const slot = Number(parts[1]), field = parts[2];
       (spendSkills[slot] ??= { key: '', xp: '' })[field] = v;
     }
+    // Leftover-pool trait spend: name = "spendtrait::<slot>::<field>"
+    let spendTraitChanged = false;
+    const spendTraits = [];
+    for (const [k, v] of Object.entries(data)) {
+      if (!k.startsWith('spendtrait::')) continue;
+      spendTraitChanged = true;
+      const parts = k.split('::');
+      const slot = Number(parts[1]), field = parts[2];
+      (spendTraits[slot] ??= { key: '', xp: '' })[field] = v;
+    }
+    // Buy Additional XP via negative Traits: name = "buytrait::<slot>::<field>"
+    let buyChanged = false;
+    const buys = [];
+    for (const [k, v] of Object.entries(data)) {
+      if (!k.startsWith('buytrait::')) continue;
+      buyChanged = true;
+      const parts = k.split('::');
+      const slot = Number(parts[1]), field = parts[2];
+      (buys[slot] ??= { name: '', tp: '' })[field] = v;
+    }
 
     // Subskill choices: a "subskill::<key>" select (or text) plus, when the
     // select is on "Other…", a "subskillother::<key>" free-text field.
@@ -1246,10 +1301,28 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
         .map(s => ({ key: s?.key || '', xp: Number(s?.xp) || 0 }))
         .filter(s => s.key && s.xp > 0);
     }
-    if (flexChanged || lumpChanged || spendChanged || subChanged) {
+    if (spendTraitChanged) {
+      this.#choices.freeSpend.traits = spendTraits
+        .map(t => ({ key: t?.key || '', xp: Number(t?.xp) || 0 }))
+        .filter(t => t.key && t.xp > 0);
+    }
+    if (buyChanged) {
+      this.#choices.boughtTraits = buys
+        .map(b => ({ name: b?.name || '', tp: Number(b?.tp) || 0 }))
+        .filter(b => b.name && b.tp < 0);
+    }
+    if (flexChanged || lumpChanged || spendChanged || spendTraitChanged || buyChanged || subChanged) {
       await this.#rebuildState();
       this.render();
     }
+  }
+
+  /** Toggle optimization for a category (attributes / traits / skills). */
+  static async #onToggleOptimize(event, target) {
+    const cat = target.dataset.cat;
+    if (cat in this.#choices.optimize) this.#choices.optimize[cat] = !this.#choices.optimize[cat];
+    await this.#rebuildState();
+    this.render();
   }
 
   static async #onBack() { if (this.#step > 0) { this.#step -= 1; this.render(); } }
