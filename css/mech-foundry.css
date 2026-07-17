@@ -6017,3 +6017,34 @@
 .mech-foundry .weapon-modes th, .mech-foundry .weapon-modes td { border: 1px solid var(--mf-line); padding: 2px 6px; text-align: left; }
 .mech-foundry .weapon-modes th { font-family: var(--mf-font-head); }
 .mech-foundry .weapon-modes tr.active { background: rgba(210, 160, 60, 0.16); font-weight: 600; }
+
+/* ---- Item sheets: match the actor sheet's light theme ----
+   ApplicationV2 windows default to a dark theme; force the light palette so
+   labels/inputs stay legible and consistent with the character sheet. */
+.mech-foundry.item-sheet .window-content {
+  background: var(--mf-light);
+  color: var(--mf-dark);
+  color-scheme: light;
+}
+.mech-foundry.item-sheet .item-sheet-content,
+.mech-foundry.item-sheet .tab,
+.mech-foundry.item-sheet label,
+.mech-foundry.item-sheet .form-group label {
+  color: var(--mf-dark);
+}
+.mech-foundry.item-sheet .tab input,
+.mech-foundry.item-sheet .tab select,
+.mech-foundry.item-sheet .tab textarea {
+  background: var(--mf-bg-light);
+  color: var(--mf-dark);
+  border: 1px solid var(--mf-border);
+}
+.mech-foundry.item-sheet .tab input:disabled,
+.mech-foundry.item-sheet .tab select:disabled {
+  background: #e4ded4;
+  color: #5a5a5a;
+}
+.mech-foundry.item-sheet .sheet-tabs .item { color: var(--mf-dark); }
+.mech-foundry.item-sheet .sheet-tabs .item.active { color: var(--mf-primary); font-weight: bold; }
+.mech-foundry.item-sheet .hint,
+.mech-foundry.item-sheet .hint-inline { color: var(--mf-secondary); }

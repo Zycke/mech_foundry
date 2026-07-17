@@ -31,14 +31,14 @@
           <label>Skill</label>
           <select name="system.skill">
             <option value="" {{#unless system.skill}}selected{{/unless}}>-- Select --</option>
+            <option value="Small Arms" {{#if (eq system.skill "Small Arms")}}selected{{/if}}>Small Arms</option>
+            <option value="Support Weapons" {{#if (eq system.skill "Support Weapons")}}selected{{/if}}>Support Weapons</option>
             <option value="Melee Weapons" {{#if (eq system.skill "Melee Weapons")}}selected{{/if}}>Melee Weapons</option>
             <option value="Archery" {{#if (eq system.skill "Archery")}}selected{{/if}}>Archery</option>
-            <option value="Small Arms (Pistols)" {{#if (eq system.skill "Small Arms (Pistols)")}}selected{{/if}}>Small Arms (Pistols)</option>
-            <option value="Small Arms (SMGs)" {{#if (eq system.skill "Small Arms (SMGs)")}}selected{{/if}}>Small Arms (SMGs)</option>
-            <option value="Small Arms (Rifles)" {{#if (eq system.skill "Small Arms (Rifles)")}}selected{{/if}}>Small Arms (Rifles)</option>
-            <option value="Support Weapons" {{#if (eq system.skill "Support Weapons")}}selected{{/if}}>Support Weapons</option>
-            <option value="Artillery" {{#if (eq system.skill "Artillery")}}selected{{/if}}>Artillery</option>
             <option value="Thrown Weapons" {{#if (eq system.skill "Thrown Weapons")}}selected{{/if}}>Thrown Weapons</option>
+            <option value="Artillery" {{#if (eq system.skill "Artillery")}}selected{{/if}}>Artillery</option>
+            <option value="Gunnery" {{#if (eq system.skill "Gunnery")}}selected{{/if}}>Gunnery</option>
+            <option value="Martial Arts" {{#if (eq system.skill "Martial Arts")}}selected{{/if}}>Martial Arts</option>
             <option value="Demolitions" {{#if (eq system.skill "Demolitions")}}selected{{/if}}>Demolitions</option>
           </select>
         </div>
