@@ -2208,28 +2208,29 @@ export class MechFoundryActor extends Actor {
   /* -------------------------------------------- */
 
   /**
-   * Check if ammo is compatible with a weapon based on their tags.
+   * Check if ammo is compatible with a weapon.
+   *
+   * Compatibility is a single controlled match: the weapon and ammo must share
+   * the same `ammoType` family (e.g. both "ballistic"), and for ordnance
+   * families (grenade / mortar / missile / recoilless) their ordnance class
+   * (A-E) must also match. Weapon ammoType is auto-derived from the seed, so no
+   * per-item tagging is needed.
    * @param {Item} weapon The weapon item
    * @param {Item} ammo The ammo item
    * @returns {boolean} True if compatible
    */
   _isAmmoCompatible(weapon, ammo) {
-    const weaponTags = weapon.system.ammoCompatibility || [];
-    const ammoTags = ammo.system.weaponCompatibility || [];
-
-    // If weapon has no compatibility tags, it doesn't use ammo
-    if (weaponTags.length === 0) return false;
-
-    // If ammo has no compatibility tags, it's incompatible
-    if (ammoTags.length === 0) return false;
-
-    // Energy ammo only for weapons with PPS > 0
-    if (ammo.system.ammoCategory === 'energy' && !weapon.system.pps) {
+    const wType = weapon.system.ammoType || '';
+    const aType = ammo.system.ammoType || '';
+    // A weapon (or ammo) with no family doesn't take loose ammo (single-use).
+    if (!wType || !aType) return false;
+    if (wType !== aType) return false;
+    // Ordnance families additionally require a matching ordnance class.
+    const ordnance = game.mechfoundry?.config?.ordnanceAmmoTypes || ['grenade', 'mortar', 'missile', 'recoilless'];
+    if (ordnance.includes(wType) && (weapon.system.ordnanceClass || '') !== (ammo.system.ordnanceClass || '')) {
       return false;
     }
-
-    // Check for any matching tag
-    return weaponTags.some(tag => ammoTags.includes(tag));
+    return true;
   }
 
   /**

@@ -165,20 +165,28 @@
       </div>
       <p class="hint">Ballistic/Ordnance weapons use Magazine Capacity. Energy weapons use Power Per Shot (PPS) with power packs.</p>
 
-      {{!-- Ammo Compatibility Tags --}}
-      <div class="form-group full-width">
-        <label>Ammo Compatibility Tags</label>
-        <div class="compatibility-tags">
-          {{#each system.ammoCompatibility}}
-          <div class="tag-item" data-index="{{@index}}">
-            <input type="text" name="system.ammoCompatibility.{{@index}}" value="{{this}}"/>
-            <a class="remove-ammo-tag" data-action="removeAmmoTag" data-index="{{@index}}" title="Remove"><i class="fas fa-times"></i></a>
-          </div>
-          {{/each}}
-          <a class="add-ammo-tag" data-action="addAmmoTag" title="Add Tag"><i class="fas fa-plus"></i> Add Tag</a>
+      {{!-- Ammo Compatibility --}}
+      <div class="form-row">
+        <div class="form-group">
+          <label>Ammo Type <span class="hint-inline">(ammunition family)</span></label>
+          <select name="system.ammoType">
+            {{#each ammoTypeOptions}}
+            <option value="{{this.value}}" {{#if this.selected}}selected{{/if}}>{{this.label}}</option>
+            {{/each}}
+          </select>
         </div>
-        <p class="hint">Tags for compatible ammo types: slug-thrower, rifle, shotgun, energy, laser, grenade-launcher, etc.</p>
+        {{#if isOrdnance}}
+        <div class="form-group">
+          <label>Ordnance Class</label>
+          <select name="system.ordnanceClass">
+            {{#each ordnanceClassOptions}}
+            <option value="{{this.value}}" {{#if this.selected}}selected{{/if}}>{{this.label}}</option>
+            {{/each}}
+          </select>
+        </div>
+        {{/if}}
       </div>
+      <p class="hint">Compatible ammo is matched automatically by this family{{#if isOrdnance}} and ordnance class{{/if}} — no tagging needed.</p>
 
       <h3>Cost & Weight</h3>
       <div class="form-row">

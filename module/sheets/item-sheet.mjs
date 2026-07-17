@@ -29,11 +29,7 @@ export class MechFoundryItemSheet extends HandlebarsApplicationMixin(ItemSheetV2
       addModifier: MechFoundryItemSheet._onAddModifier,
       removeModifier: MechFoundryItemSheet._onRemoveModifier,
       addItemEffect: MechFoundryItemSheet._onAddItemEffect,
-      removeItemEffect: MechFoundryItemSheet._onRemoveItemEffect,
-      addAmmoTag: MechFoundryItemSheet._onAddAmmoTag,
-      removeAmmoTag: MechFoundryItemSheet._onRemoveAmmoTag,
-      addWeaponTag: MechFoundryItemSheet._onAddWeaponTag,
-      removeWeaponTag: MechFoundryItemSheet._onRemoveWeaponTag
+      removeItemEffect: MechFoundryItemSheet._onRemoveItemEffect
     }
   };
 
@@ -73,7 +69,7 @@ export class MechFoundryItemSheet extends HandlebarsApplicationMixin(ItemSheetV2
       context.system.itemEffects = this._asArray(item.system.itemEffects);
     }
     if (item.type === 'weapon') {
-      context.system.ammoCompatibility = this._asArray(item.system.ammoCompatibility);
+      this._addAmmoTypeContext(context, item.system);
       const modes = this._asArray(item.system.modes);
       context.system.modes = modes;
       context.hasModes = modes.length > 0;
@@ -88,7 +84,7 @@ export class MechFoundryItemSheet extends HandlebarsApplicationMixin(ItemSheetV2
       }));
     }
     if (item.type === 'ammo') {
-      context.system.weaponCompatibility = this._asArray(item.system.weaponCompatibility);
+      this._addAmmoTypeContext(context, item.system);
       const special = this._asArray(item.system.specialEffects);
       const allEffects = [
         { value: 'continuous', label: 'MECHFOUNDRY.EffectContinuous' },
@@ -144,6 +140,23 @@ export class MechFoundryItemSheet extends HandlebarsApplicationMixin(ItemSheetV2
     }
   }
 
+  /** Build the ammo-family (ammoType) and ordnance-class dropdown context shared
+   *  by the weapon and ammo sheets. `isOrdnance` gates the class dropdown. */
+  _addAmmoTypeContext(context, sys) {
+    const cfg = game.mechfoundry?.config || {};
+    const types = cfg.ammoTypes || {};
+    const current = sys.ammoType || '';
+    context.ammoTypeOptions = Object.entries(types).map(([value, label]) => ({
+      value, label, selected: value === current
+    }));
+    const ordnance = cfg.ordnanceAmmoTypes || ['grenade', 'mortar', 'missile', 'recoilless'];
+    context.isOrdnance = ordnance.includes(current);
+    const curClass = sys.ordnanceClass || '';
+    context.ordnanceClassOptions = (cfg.ordnanceClasses || ['', 'A', 'B', 'C', 'D', 'E']).map(v => ({
+      value: v, label: v || '—', selected: v === curClass
+    }));
+  }
+
   /** @override */
   _onRender(context, options) {
     // Apply the per-type class the CSS targets (e.g. .ammo-sheet, .activeeffect-sheet)
@@ -196,9 +209,7 @@ export class MechFoundryItemSheet extends HandlebarsApplicationMixin(ItemSheetV2
 
     if (type === 'activeEffect') this._objectToArray(data, "system.persistentModifiers");
     if (ITEM_TYPES_WITH_EFFECTS.includes(type)) this._objectToArray(data, "system.itemEffects");
-    if (type === 'weapon') this._objectToArray(data, "system.ammoCompatibility", true);
     if (type === 'ammo') {
-      this._objectToArray(data, "system.weaponCompatibility", true);
       // Special-effect checkboxes: collect all checked values (empty when none)
       const checked = Array.from(form.querySelectorAll('input[name="system.specialEffects"]:checked'))
         .map(el => el.value);
@@ -294,36 +305,6 @@ export class MechFoundryItemSheet extends HandlebarsApplicationMixin(ItemSheetV2
     if (i >= 0 && i < effects.length) {
       effects.splice(i, 1);
       await this.item.update({ 'system.itemEffects': effects });
-    }
-  }
-
-  static async _onAddAmmoTag(event, target) {
-    const tags = this._asArray(this.item.system.ammoCompatibility).slice();
-    tags.push('');
-    await this.item.update({ 'system.ammoCompatibility': tags });
-  }
-
-  static async _onRemoveAmmoTag(event, target) {
-    const tags = this._asArray(this.item.system.ammoCompatibility).slice();
-    const i = Number(target.dataset.index);
-    if (i >= 0 && i < tags.length) {
-      tags.splice(i, 1);
-      await this.item.update({ 'system.ammoCompatibility': tags });
-    }
-  }
-
-  static async _onAddWeaponTag(event, target) {
-    const tags = this._asArray(this.item.system.weaponCompatibility).slice();
-    tags.push('');
-    await this.item.update({ 'system.weaponCompatibility': tags });
-  }
-
-  static async _onRemoveWeaponTag(event, target) {
-    const tags = this._asArray(this.item.system.weaponCompatibility).slice();
-    const i = Number(target.dataset.index);
-    if (i >= 0 && i < tags.length) {
-      tags.splice(i, 1);
-      await this.item.update({ 'system.weaponCompatibility': tags });
     }
   }
 }

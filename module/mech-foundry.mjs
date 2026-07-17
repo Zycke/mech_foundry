@@ -181,6 +181,25 @@ const MECHFOUNDRY = {
     positive: "MECHFOUNDRY.TraitPositive",
     negative: "MECHFOUNDRY.TraitNegative"
   },
+  // Ammunition families. A weapon and an ammo item are compatible when their
+  // `ammoType` matches (and, for ordnance families, their ordnance class too).
+  // Weapons get their ammoType automatically from the seed; the field is an
+  // editable dropdown so a GM can override it.
+  ammoTypes: {
+    "": "None / single-use",
+    ballistic: "Ballistic (slug rounds)",
+    flechette: "Flechette / shotgun / needler",
+    gauss: "Gauss slugs",
+    gyrojet: "Gyrojet rockets",
+    "power-pack": "Power pack (energy)",
+    grenade: "Grenade (ordnance)",
+    mortar: "Mortar (ordnance)",
+    missile: "Missile (ordnance)",
+    recoilless: "Recoilless (ordnance)"
+  },
+  // Ordnance families require a matching class letter (A-E) between weapon & ammo.
+  ordnanceAmmoTypes: ["grenade", "mortar", "missile", "recoilless"],
+  ordnanceClasses: ["", "A", "B", "C", "D", "E"],
   weaponTypes: {
     melee: "MECHFOUNDRY.WeaponMelee",
     ranged: "MECHFOUNDRY.WeaponRanged",

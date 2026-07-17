@@ -258,7 +258,8 @@
       "loadedAmmoName": "",
       "loadedAmmoCategory": "",
       "pps": 0,
-      "ammoCompatibility": [],
+      "ammoType": "",
+      "ordnanceClass": "",
       "modes": [],
       "activeMode": 0,
       "animation": "",
@@ -372,7 +373,7 @@
       "templates": ["base"],
       "ammoCategory": "ballistics",
       "ammoType": "",
-      "weaponCompatibility": [],
+      "ordnanceClass": "",
       "quantity": {
         "value": 1,
         "max": 1

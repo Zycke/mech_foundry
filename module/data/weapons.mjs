@@ -18,6 +18,24 @@
 
 const IMG = 'icons/weapons/guns/gun-pistol-flintlock-metal.webp';
 
+/** Weapon sub-category → ammunition family (see CONFIG.mechfoundry.ammoTypes).
+ *  Drives ammo compatibility automatically so seeded weapons need no tagging. */
+const AMMO_TYPE_BY_CATEGORY = {
+  Ballistic: 'ballistic',
+  Flechette: 'flechette',
+  Gauss: 'gauss',
+  Gyrojet: 'gyrojet',
+  Energy: 'power-pack',
+  Miscellaneous: '',
+  'Machine Guns': 'ballistic',
+  'Grenade Launchers': 'grenade',
+  Mortars: 'mortar',
+  Missiles: 'missile',
+  'Recoilless Rifles': 'recoilless',
+  'Support Energy': 'power-pack',
+  'Support Gauss': 'gauss'
+};
+
 /** Convert a raw firing-mode record into a stored mode profile. Ranges are given
  *  as [short, medium, long, extreme]; only present fields are carried. */
 function toMode(m) {
@@ -96,7 +114,10 @@ export function toWeaponSeed(r) {
         loadedAmmoName: '',
         loadedAmmoCategory: '',
         pps: r.pps ?? 0,
-        ammoCompatibility: r.ammoCompatibility || [],
+        // Ammo compatibility: the weapon's family (auto-derived from its
+        // sub-category) plus, for ordnance weapons, its ordnance class (A-E).
+        ammoType: isMelee ? '' : (r.ammoType ?? AMMO_TYPE_BY_CATEGORY[r.subCategory] ?? ''),
+        ordnanceClass: r.ordnanceClass || '',
         // Multi-mode weapons: one profile per firing mode; the active mode's
         // stats are overlaid onto the fields above at prepare time.
         modes: Array.isArray(r.modes) ? r.modes.map(toMode) : [],
