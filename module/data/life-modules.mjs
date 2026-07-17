@@ -90,6 +90,34 @@ const CLAN_CASTES = [
     attrs: { bod: 100, str: 125, dex: 50, rfl: 50, int: -50, cha: -50 }, traits: [tr('Reputation', -125)],
     skills: [sk('Career', 15, 'Any'), sk('Interest', 10, 'Any')] })
 ];
+/** A Stage-3 school's Field tier: the years it adds and the Field names offered. */
+const tier = (time, options) => ({ time, options });
+/** A school's conditional penalty XP (applied unless one of `unlessModules` is taken). */
+const cond = (unlessModules, s = {}) => ({
+  unlessModules, fixedXP: { attributes: s.attrs || {}, skills: s.skills || [], traits: s.traits || [] }
+});
+/** A Stage-3 Higher Education school (ATOW pp.82-83). Base xpCost already
+ * includes the automatic + flexible XP; each chosen Field adds 24 XP/Skill. */
+const school = (name, schoolType, xpCost, s = {}) => ({
+  name, img: IMG, type: 'lifeModule',
+  system: {
+    stage: 3, moduleType: 'education', affiliationKey: '', xpCost, time: 0,
+    schoolType,
+    conditionalXP: s.conditional || { unlessModules: [], fixedXP: { attributes: {}, skills: [], traits: [] } },
+    fields: {
+      basic: s.basic || { time: 0, options: [] },
+      advanced: s.advanced || { time: 0, options: [] },
+      special: s.special || { time: 0, options: [] },
+      officer: s.officer || { time: 0, options: [] }
+    },
+    restrictedToAffiliations: [],
+    prerequisites: s.prereq || { attributes: {}, skills: {}, traits: {} },
+    fixedXP: { attributes: s.attrs || {}, skills: s.skills || [], traits: s.traits || [] },
+    flexibleXP: s.flex || [],
+    grantsFields: [], notes: s.notes || '', pageRef: s.pageRef || 'ATOW pp.82-83',
+    description: s.desc || ''
+  }
+});
 const mod = (name, stage, moduleType, xpCost, time, s = {}) => ({
   name, img: IMG, type: 'lifeModule',
   system: {
@@ -911,36 +939,130 @@ export const LIFE_MODULE_SEED = [
     notes: 'Clan trueborn warrior training — 1,600 XP total (1,500 for ProtoMech / Advanced ProtoMech). Choose a branch of service below. Requires the Phenotype and Trueborn Traits. Clan Steel Viper characters reduce final age by 1 year.',
     desc: '<p>The intense trueborn Clan warrior regimen, begun on leaving the crèche.</p>'
   }),
-  {
-    name: 'Military Academy (Example)',
-    img: IMG,
-    type: 'lifeModule',
-    system: {
-      stage: 3,
-      moduleType: 'education',
-      affiliationKey: '',
-      xpCost: 600,
-      time: 4,
-      restrictedToAffiliations: [],
-      prerequisites: { attributes: { int: 3, wil: 3 }, skills: {}, traits: {} },
-      fixedXP: {
-        attributes: { rfl: 50, dex: 50 },
-        skills: [
-          { name: 'Small Arms', xp: 40 },
-          { name: 'Leadership', xp: 20 },
-          { name: 'Tactics', subskill: 'Any', xp: 20 }
-        ],
-        traits: [{ name: 'Rank', xp: 100 }]
-      },
-      flexibleXP: [
-        { amount: 25, count: 2, targets: 'skills', choices: [], note: '+25 each to any two combat Skills' }
-      ],
-      grantsFields: ['Basic Training'],
-      notes: 'EXAMPLE Stage 3 module with a prerequisite and a granted Field.',
-      pageRef: '',
-      description: '<p><em>Example</em> higher-education military module.</p>'
-    }
-  },
+  /* ==== STAGE 3 — HIGHER EDUCATION (ATOW pp.82-83) ====================== */
+  /* Schools grant automatic XP + a flexible pool, then the player selects
+     1-3 Skill Fields (exactly one Basic, an Advanced before any Special, max 3).
+     Field skills/prereqs live in data/skill-fields.mjs. */
+
+  school('Technical College', 'civilian', 600, {
+    attrs: { dex: 100, int: 100 }, traits: [tr('Equipped', 150)],
+    skills: [sk('Computers', 20), sk('Interest', 30, 'Any')],
+    flex: [lump(200)],
+    basic: tier(1, ['Communications', 'Pilot – Aerospace (Civilian)', 'Pilot – Aircraft (Civilian)', 'Pilot – DropShip', 'Pilot – Exoskeleton', 'Technician – Civilian']),
+    advanced: tier(2, ['Cartographer', 'Engineer', 'Merchant Marine', 'Pilot – IndustrialMech', 'Pilot – JumpShip', 'Technician – Aerospace', "Technician – 'Mech", 'Technician – Vehicle']),
+    desc: '<p>The common technical college — training in communications, piloting and the machinery of modern life. Open to any social stratum.</p>'
+  }),
+
+  school('Trade School', 'civilian', 560, {
+    attrs: { int: 50 }, traits: [tr('Connections', 50), tr('Equipped', 100)],
+    flex: [flex(100, 1, 'attributes', '+100 XP to any one other Attribute'),
+      flex(20, 3, 'skills', '+20 XP to any three Skills'), lump(200)],
+    basic: tier(1, ['General Studies', 'Merchant']),
+    advanced: tier(2, ['Analysis', 'Anthropologist', 'Archaeologist', 'Cartographer', 'Communications', 'HPG Technician', 'Journalist', 'Manager', 'Medical Assistant', 'Merchant Marine']),
+    desc: '<p>A generalized equivalent to technical college (from community colleges to correspondence schools) covering non-technical careers. Open to any social stratum.</p>'
+  }),
+
+  school('University', 'civilian', 710, {
+    prereq: { attributes: { int: 4 }, skills: {}, traits: {} },
+    conditional: cond(['Preparatory School', 'Nobility', 'White Collar'], {
+      attrs: { wil: 100, edg: -100 }, traits: [tr('Connections', 200), tr('Reputation', -100), tr('Wealth', -100)]
+    }),
+    attrs: { int: 150, wil: 75, cha: 25, edg: 25 },
+    traits: [tr('Connections', 200), tr('Equipped', 50), tr('Reputation', 75), tr('Wealth', -200)],
+    skills: [sk('Computers', 25), sk('Interest', 20, 'Any'), sk('Perception', 25), sk('Protocol', 20, 'Affiliation')],
+    flex: [lump(220)],
+    basic: tier(1, ['Cartographer', 'Communications', 'General Studies', 'Manager', 'Scientist', 'Technician – Civilian']),
+    advanced: tier(2, ['Analysis', 'Anthropologist', 'Archaeologist', 'Detective', 'Engineer', 'HPG Technician', 'Planetary Surveyor', 'Medical Assistant', 'Politician', 'Technician – Aerospace', 'Technician – Vehicle']),
+    special: tier(2, ['Doctor', 'Lawyer', 'Military Scientist', "Technician – 'Mech", 'Technician – Military']),
+    notes: 'Requires INT 4+. If the character did not take Preparatory School (Stage 2) or Nobility / White Collar (Stage 1), a penalty allotment (WIL +100, EDG -100, Connections +200, Reputation -100, Wealth -100) is applied automatically.',
+    desc: '<p>The upper crust of civilian higher education — science, medicine, law and technology. Expensive, with strict entry requirements.</p>'
+  }),
+
+  school('Solaris Internship', 'civilian', 700, {
+    prereq: { attributes: {}, skills: {}, traits: {} },
+    attrs: { cha: 150, edg: 50 },
+    traits: [tr('Connections', 100), tr('Enemy', -50), tr('Reputation', 100)],
+    skills: [sk('Acting', 25), sk('Interest', 30, 'Solaris Games'), sk('Perception', 20), sk('Streetwise', 25, 'Any')],
+    flex: [flex(50, 1, 'attributes', '+50 XP to any one other Attribute'),
+      flex(100, 1, 'traits', 'choose: Equipped or Vehicle', ['Equipped', 'Vehicle']), lump(100)],
+    basic: tier(2, ['Communications', 'Manager', 'Technician – Military']),
+    advanced: tier(2, ['Cavalry', 'Journalist', 'MechWarrior', 'Pilot – Battle Armor', 'Politician', "Technician – 'Mech"]),
+    notes: 'Requires residency on Solaris VII and Connections +2 TP or higher. Solaris Cavalry and MechWarrior Fields do not require Basic Training; Solaris Battle Armor Pilots do not require the Infantry or Basic Training Fields.',
+    desc: '<p>Solaris VII\'s informal internships — an unconventional path into stable management, arena combat or cutthroat journalism.</p>'
+  }),
+
+  school('Police Academy', 'intelligence', 680, {
+    attrs: { rfl: 100, wil: 100 },
+    traits: [tr('Connections', 50), tr('Rank', 100), tr('Reputation', 100)],
+    skills: [sk('Computers', 15), sk('Driving', 20, 'Any'), sk('Protocol', 25, 'Affiliation'), sk('Streetwise', 30, 'Affiliation')],
+    flex: [lump(140)],
+    basic: tier(0.5, ['Police Officer']),
+    advanced: tier(1, ['Analysis', 'Communications', 'Detective', 'Intelligence', 'Technician – Military']),
+    special: tier(2, ['Covert Operations', 'Police Tactical Officer', 'Special Forces', 'Technician – Aerospace', 'Technician – Vehicle']),
+    desc: '<p>Standard law-enforcement training — open to any social stratum, fostering community stability and respect.</p>'
+  }),
+
+  school('Intelligence Operative Training', 'intelligence', 760, {
+    prereq: { attributes: { int: 4, wil: 5 }, skills: {}, traits: {} },
+    attrs: { int: 100, wil: 150 },
+    traits: [tr('Alternate ID', 50), tr('Connections', 200), tr('In For Life', -300), tr('Rank', 250), tr('Wealth', 50)],
+    skills: [sk('Acting', 20), sk('Computers', 20), sk('Protocol', 20, 'Affiliation')],
+    flex: [flex(50, 1, 'attributes', '+50 XP to any one other Attribute'), lump(150)],
+    basic: tier(1, ['Basic Training']),
+    advanced: tier(1, ['Analysis', 'Covert Operations', 'Detective', 'Intelligence', 'Police Officer', 'Scout']),
+    special: tier(2, ['Police Tactical Officer', 'Special Forces']),
+    notes: 'Requires INT 4+, WIL 5+, and Connections +2 TP or higher.',
+    desc: '<p>Secretive, selective training for a civilian or military intelligence service.</p>'
+  }),
+
+  school('Military Academy', 'military', 830, {
+    conditional: cond(['Preparatory School', 'Military School'], {
+      attrs: { wil: 100, edg: -100 }, traits: [tr('Connections', 200), tr('Reputation', -100), tr('Wealth', -100)]
+    }),
+    attrs: { str: 50, bod: 100, rfl: 125, wil: 100 },
+    traits: [tr('Equipped', 100), tr('Rank', 200)],
+    skills: [sk('Interest', 15, 'Military History'), sk('Leadership', 10), sk('Protocol', 15, 'Affiliation'), sk('Swimming', 15)],
+    flex: [lump(100)],
+    basic: tier(1, ['Basic Training', 'Basic Training (Naval)']),
+    advanced: tier(1, ['Analysis', 'Cavalry', 'Infantry', 'Marine', 'MechWarrior', 'Pilot – Aerospace (Combat)', 'Pilot – Aircraft (Combat)', 'Pilot – DropShip', 'Scientist', 'Scout', "Ship's Crew"]),
+    special: tier(2, ['Doctor', "Infantry – Anti-'Mech", 'Military Scientist', 'Pilot – Battle Armor', 'Pilot – JumpShip', 'Pilot – WarShip', 'Special Forces']),
+    notes: 'The finest career military training, where MechWarriors are made. If the character did not take Preparatory School or Military School (Stage 2), a penalty allotment (WIL +100, EDG -100, Connections +200, Reputation -100, Wealth -100) is applied automatically.',
+    desc: '<p>An interstellar-grade military academy (Nagelring, Sun Zhang, etc.). Stricter entry than simple enlistment; all recruits are officer candidates.</p>'
+  }),
+
+  school('Military Enlistment', 'military', 720, {
+    attrs: { str: 125, bod: 125, rfl: 100, wil: 100, cha: -100 },
+    traits: [tr('Equipped', 50), tr('Rank', 100)],
+    skills: [sk('Swimming', 20)],
+    flex: [lump(200)],
+    basic: tier(0.5, ['Basic Training', 'Basic Training (Naval)']),
+    advanced: tier(1.5, ['Cavalry', 'Infantry', 'Marine', 'Medical Assistant', 'Police Officer', 'Scout', "Ship's Crew", 'Technician – Military']),
+    special: tier(1, ['Detective', 'Police Tactical Officer', "Infantry – Anti-'Mech", 'Special Forces', 'Technician – Aerospace', "Technician – 'Mech", 'Technician – Vehicle']),
+    desc: '<p>The common standard of military training — conventional infantry and cavalry support troops rather than MechWarriors.</p>'
+  }),
+
+  school('Family Training', 'military', 570, {
+    prereq: { attributes: {}, skills: {}, traits: {} },
+    attrs: { str: 75, bod: 75, rfl: 50, wil: 50 },
+    traits: [tr('Equipped', 50), tr('Rank', 100)],
+    skills: [sk('Driving', 15, 'Any'), sk('Interest', 20, 'Homeworld History'), sk('Protocol', 15, 'Affiliation'), sk('Survival', 20, 'Any')],
+    flex: [lump(100)],
+    basic: tier(0.5, ['Basic Training', 'Basic Training (Naval)']),
+    advanced: tier(1.5, ['Cavalry', 'Infantry', 'Marine', 'MechWarrior', 'Pilot – Aerospace (Combat)', 'Pilot – Aircraft (Combat)', 'Pilot – DropShip', 'Scout', "Ship's Crew"]),
+    special: tier(2, ["Infantry – Anti-'Mech", 'Pilot – Battle Armor', 'Pilot – JumpShip']),
+    notes: 'Requires Preparatory School or Military School (Stage 2), or Connections +1 TP or higher. A watered-down academy experience common among minor noble houses.',
+    desc: '<p>Military training performed "in-house" by a noble house or affluent family, common on far-flung worlds.</p>'
+  }),
+
+  school('Officer Candidate School', 'officer', 550, {
+    attrs: { cha: 100, edg: -200 },
+    traits: [tr('Connections', 50), tr('Equipped', 50), tr('Rank', 250), tr('Reputation', 50), tr('Wealth', 100)],
+    skills: [sk('Leadership', 10), sk('Protocol', 25, 'Affiliation')],
+    flex: [lump(115)],
+    basic: tier(1, ['Officer']),
+    notes: 'A bolt-on to an Intelligence, Police or Military school (requires at least one Basic and one Advanced Field there). Grants only the Officer Field and access to the officer (O-grade) ranks. Does not count against the same-type repeat rule.',
+    desc: '<p>Officer Candidate School — technically a branch of the character\'s academy, taken after all other Fields, unlocking the officer ranks.</p>'
+  }),
   {
     name: 'Soldier (Example)',
     img: IMG,

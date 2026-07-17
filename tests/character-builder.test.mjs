@@ -8,8 +8,9 @@
  *
  * Exits non-zero on failure so it can gate CI later.
  */
-import { CharacterBuilder as CB } from '../module/helpers/character-builder.mjs';
+import { CharacterBuilder as CB, FIELD_SKILL_XP, FIELD_SKILL_COST } from '../module/helpers/character-builder.mjs';
 import * as XP from '../module/helpers/xp-math.mjs';
+import { SKILL_FIELDS } from '../module/data/skill-fields.mjs';
 
 let failed = 0;
 const ok = (cond, msg) => {
@@ -383,6 +384,69 @@ ok(applyOk, 'all seed modules apply through the engine without error');
   // Universal grants +100 to each attribute; the MechWarrior caste adds +75 DEX/RFL.
   ok(stK.attributes.dex === 100 + 75 && stK.attributes.rfl === 100 + 75,
     'ComStar born into a Clan applies the MechWarrior caste (DEX +75, RFL +75) alongside ComStar');
+}
+
+/* ---- Stage 3: Higher Education (schools & Skill Fields) ------------------ */
+{
+  const schools = LIFE_MODULE_SEED.filter(m => m.system.stage === 3);
+  ok(schools.length === 10, `all 10 Higher Education schools present (found ${schools.length})`);
+  ok(!schools.some(s => /\(Example\)/.test(s.name)), 'Stage 3 example placeholder removed');
+
+  // Every Field a school offers must be defined in the Master Skill Fields List.
+  let allFieldsDefined = true;
+  for (const s of schools)
+    for (const tier of ['basic', 'advanced', 'special', 'officer'])
+      for (const fn of s.system.fields[tier].options)
+        if (!SKILL_FIELDS[fn]) allFieldsDefined = false;
+  ok(allFieldsDefined, 'every school Field resolves to a Master Skill Fields List entry');
+
+  // Field economics: pay 24/skill, gain 30/skill.
+  const st = CB.createState();
+  const mw = SKILL_FIELDS['MechWarrior'];
+  const before = st.spent;
+  CB.applyField(st, mw.skills, 1, { id: 'f1', name: 'MechWarrior' });
+  ok(st.spent - before === FIELD_SKILL_COST * mw.skills.length, `MechWarrior Field costs ${FIELD_SKILL_COST}×${mw.skills.length} XP`);
+  ok(st.skills["Gunnery/'Mech"] === FIELD_SKILL_XP, 'each Field Skill gains +30 XP');
+  ok(st.age === CB.createState().age + 1, 'a Field adds its tier time to age');
+
+  // Field-selection constraints.
+  ok(CB.validateFieldSelection({ basic: 'Basic Training', advanced: [], special: [] }).length === 0,
+    'one Basic Field is a valid selection');
+  ok(CB.validateFieldSelection({ basic: '', advanced: ['Infantry'], special: [] }).some(m => /one Basic/.test(m)),
+    'selection without a Basic Field is rejected');
+  ok(CB.validateFieldSelection({ basic: 'Basic Training', advanced: [], special: ['Special Forces'] }).some(m => /Special Field requires/.test(m)),
+    'a Special Field without an Advanced Field is rejected');
+  ok(CB.validateFieldSelection({ basic: 'Basic Training', advanced: ['Infantry', 'MechWarrior'], special: ['Special Forces'] }).some(m => /at most three/.test(m)),
+    'more than three Fields is rejected');
+
+  // Same-type repeat rule (Officer is exempt).
+  ok(CB.duplicateSchoolTypes(['military', 'military']).includes('military'), 'two Military schools is a duplicate');
+  ok(CB.duplicateSchoolTypes(['military', 'civilian']).length === 0, 'different school types are allowed');
+  ok(CB.duplicateSchoolTypes(['military', 'officer', 'officer']).length === 0, 'Officer schooling is exempt from the repeat rule');
+
+  // Conditional penalty: applies only when none of the "unless" modules are present.
+  const uni = schools.find(s => s.name === 'University');
+  const p1 = CB.createState();
+  CB.applyConditionalXP(p1, uni.system.conditionalXP); // no Prep School -> penalty applies
+  ok(p1.attributes.wil === 100 && p1.traits['Connections'] === 200, 'University penalty applies when Prep School was skipped');
+  const p2 = CB.createState();
+  p2.modules.push({ id: 'x', name: 'Preparatory School', stage: 2 });
+  CB.applyConditionalXP(p2, uni.system.conditionalXP);
+  ok(!p2.attributes.wil && !p2.traits['Connections'], 'University penalty is waived when Prep School was taken');
+
+  // Base cost already nets the automatics + flexible (ATOW "base + Field Costs").
+  const tc = schools.find(s => s.name === 'Technical College');
+  ok(tc.system.xpCost === 600, 'Technical College base cost is 600 XP (automatics + flexible)');
+
+  // A full enrolment: school + one Basic + one Advanced Field.
+  const full = CB.createState();
+  const before2 = full.spent;
+  CB.applyModule(full, tc.system, { id: 'tc', name: tc.name });
+  CB.applyField(full, SKILL_FIELDS['Communications'].skills, tc.system.fields.basic.time, { id: 'tc-b', name: 'Communications' });
+  CB.applyField(full, SKILL_FIELDS['Engineer'].skills, tc.system.fields.advanced.time, { id: 'tc-a', name: 'Engineer' });
+  const fieldCost = FIELD_SKILL_COST * (SKILL_FIELDS['Communications'].skills.length + SKILL_FIELDS['Engineer'].skills.length);
+  ok(full.spent - before2 === 600 + fieldCost, 'total cost = school base + 24×(field skills)');
+  ok(full.age === CB.createState().age + tc.system.fields.basic.time + tc.system.fields.advanced.time, 'age = sum of chosen Field tier times');
 }
 
 /* ---- Result ------------------------------------------------------------- */

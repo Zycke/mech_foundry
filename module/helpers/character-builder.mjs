@@ -44,6 +44,11 @@ export const MANDATORY_STAGES = Object.freeze([0, 1, 2]);
 /** Severity levels for validation issues. */
 export const SEVERITY = Object.freeze({ ERROR: 'error', WARNING: 'warning' });
 
+/** Higher-Education Skill Field economics (ATOW p.82): each Field Skill grants
+ * +30 XP but is bought at a reduced 24 XP. */
+export const FIELD_SKILL_XP = 30;
+export const FIELD_SKILL_COST = 24;
+
 export class CharacterBuilder {
   /* ---------------------------------------------------------------------- */
   /*  State construction                                                     */
@@ -236,6 +241,83 @@ export class CharacterBuilder {
     state.flexiblePending = state.flexiblePending.filter(p => p.moduleId !== moduleId);
     state.modules.splice(idx, 1);
     return state;
+  }
+
+  /* ---------------------------------------------------------------------- */
+  /*  Stage 3: Higher Education (schools & Skill Fields)                      */
+  /* ---------------------------------------------------------------------- */
+
+  /**
+   * Apply one Higher-Education Skill Field (ATOW p.82): the character gains
+   * +FIELD_SKILL_XP to each of the Field's Skills, bought at the reduced
+   * FIELD_SKILL_COST per Skill, and ages by the Field's `time`.
+   * @param {object} state
+   * @param {string[]} skills  Field Skill specs ("Name" or "Name/Subskill").
+   * @param {number} time      Years this Field adds (from the school's tier).
+   * @param {object} [meta]    { id, name } for the module record.
+   */
+  static applyField(state, skills, time, meta = {}) {
+    const parsed = asArray(skills).map(parseFieldSkill);
+    CharacterBuilder.applyModule(state, {
+      stage: 3,
+      xpCost: FIELD_SKILL_COST * parsed.length,
+      time: Number(time) || 0,
+      fixedXP: { skills: parsed.map(p => ({ name: p.name, subskill: p.subskill, xp: FIELD_SKILL_XP })) }
+    }, meta);
+    return state;
+  }
+
+  /**
+   * Apply a school's conditional penalty XP (e.g. University's surcharge when
+   * the character skipped Prep School). The penalty applies only when NONE of
+   * `unlessModules` is already in the build. These are forced fixed-XP grants
+   * (an opportunity cost), not a pool charge — the school's base xpCost stands.
+   */
+  static applyConditionalXP(state, conditional) {
+    if (!conditional) return state;
+    const unless = asArray(conditional.unlessModules);
+    if (unless.length) {
+      const names = state.modules.map(m => String(m.name || ''));
+      if (unless.some(want => names.some(have => have.includes(want)))) return state; // satisfied
+    }
+    const fx = conditional.fixedXP || {};
+    for (const [k, xp] of Object.entries(fx.attributes || {})) {
+      if (ATTRIBUTE_KEYS.includes(k)) CharacterBuilder.addAttributeXP(state, k, xp);
+    }
+    for (const s of asArray(fx.skills)) CharacterBuilder.addSkillXP(state, s.name, s.xp, s.subskill);
+    for (const t of asArray(fx.traits)) CharacterBuilder.addTraitXP(state, t.name, t.xp);
+    return state;
+  }
+
+  /**
+   * Validate a single school's Field selection against the ATOW rules:
+   *   • exactly one Basic Field,
+   *   • at least one Advanced Field before any Special Field,
+   *   • at most three Fields total.
+   * @param {object} selection  { basic, advanced: string[], special: string[] }
+   * @returns {string[]} human-readable problems (empty = valid)
+   */
+  static validateFieldSelection(selection = {}) {
+    const issues = [];
+    const basic = selection.basic ? 1 : 0;
+    const advanced = asArray(selection.advanced).filter(Boolean);
+    const special = asArray(selection.special).filter(Boolean);
+    if (basic !== 1) issues.push('Choose exactly one Basic Training Field.');
+    if (special.length && !advanced.length) issues.push('A Special Field requires at least one Advanced Field.');
+    const total = basic + advanced.length + special.length;
+    if (total > 3) issues.push(`A school may grant at most three Fields (you chose ${total}).`);
+    return issues;
+  }
+
+  /** School types (Civilian / Intelligence / Military) taken more than once —
+   * repeating a type is illegal (Officer Training is exempt). */
+  static duplicateSchoolTypes(schoolTypes) {
+    const seen = new Set(), dupes = new Set();
+    for (const t of asArray(schoolTypes)) {
+      if (!t || t === 'officer') continue;
+      if (seen.has(t)) dupes.add(t); else seen.add(t);
+    }
+    return [...dupes];
   }
 
   /* ---------------------------------------------------------------------- */
@@ -570,6 +652,15 @@ function asArray(v) {
   if (v == null) return [];
   if (typeof v === 'object') return Object.values(v);
   return [v];
+}
+
+/** Split a Field Skill spec ("Name" or "Name/Subskill") into {name, subskill}.
+ * Only the first "/" separates the root skill from its subskill. */
+function parseFieldSkill(spec) {
+  if (spec && typeof spec === 'object') return { name: spec.name, subskill: spec.subskill };
+  const str = String(spec);
+  const i = str.indexOf('/');
+  return i === -1 ? { name: str.trim() } : { name: str.slice(0, i).trim(), subskill: str.slice(i + 1).trim() };
 }
 
 /** Use Foundry's randomID when present; fall back to a simple id otherwise. */
