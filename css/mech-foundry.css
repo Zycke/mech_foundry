@@ -5969,3 +5969,7 @@
 .mech-foundry .field-card .field-skillcount { color: var(--mf-ink-dim); font-size: 0.72em; }
 .mech-foundry .field-card.selected { border-color: var(--mf-amber); }
 .mech-foundry .field-card.is-disabled { opacity: 0.4; cursor: not-allowed; pointer-events: none; }
+/* Field-prereq locked: a touch more visible than a plain cap-disable, so the
+   "Locked / Requires …" reason stays readable. */
+.mech-foundry .field-card.field-locked { opacity: 0.6; border-style: dashed; }
+.mech-foundry .field-card.field-locked .badge-illegal { color: var(--mf-danger); }

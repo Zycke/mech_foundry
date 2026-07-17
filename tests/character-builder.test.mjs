@@ -462,6 +462,21 @@ ok(applyOk, 'all seed modules apply through the engine without error');
   ok(w.traits['Rank'] === 200, 'Military Academy grants Rank +200');
   ok(w.traits['Connections'] === 200, 'the skip-Prep penalty adds Connections +200');
   ok(w.skills["Piloting/'Mech"] === 30, 'the MechWarrior Field grants +30 to Piloting/’Mech');
+
+  // Field-prerequisite data that drives the wizard grey-out.
+  const metWith = (req, chosen) => {
+    const rf = req?.fields || [];
+    return !rf.length || rf.some(f => chosen.has(f));
+  };
+  ok(SKILL_FIELDS['Doctor'].req.fields.includes('Scientist'), 'Doctor Field requires Medical Assistant / Scientist');
+  ok(!metWith(SKILL_FIELDS['Doctor'].req, new Set()), 'Doctor is locked with no prerequisite Field chosen');
+  ok(metWith(SKILL_FIELDS['Doctor'].req, new Set(['Scientist'])), 'Doctor unlocks once Scientist is chosen');
+  // Basic Training vs Basic Training (Naval) gate different Advanced Fields.
+  ok(!metWith(SKILL_FIELDS['MechWarrior'].req, new Set(['Basic Training (Naval)'])), 'MechWarrior stays locked under a Naval Basic Field');
+  ok(metWith(SKILL_FIELDS['Marine'].req, new Set(['Basic Training (Naval)'])), 'Marine unlocks under a Naval Basic Field');
+  // Solaris waives Basic Training for its Cavalry / MechWarrior / Battle Armor Fields.
+  const solaris = schools.find(s => s.name === 'Solaris Internship');
+  ok(solaris.system.fieldWaivers.includes('MechWarrior'), 'Solaris waives the Basic-Training prereq for MechWarrior');
 }
 
 /* ---- Result ------------------------------------------------------------- */

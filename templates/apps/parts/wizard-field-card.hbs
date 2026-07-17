@@ -1,20 +1,22 @@
 {{!-- One selectable Skill Field. Context = a field card view model. --}}
 <button type="button"
-        class="choice-card field-card {{#if this.selected}}selected{{/if}} {{#if this.disabled}}is-disabled{{/if}}"
+        class="choice-card field-card {{#if this.selected}}selected{{/if}} {{#if this.disabled}}is-disabled{{/if}} {{#if this.fieldLocked}}field-locked{{/if}}"
         data-action="{{#if (eq this.kind "basic")}}selectFieldBasic{{else}}{{#if (eq this.kind "advanced")}}toggleFieldAdvanced{{else}}toggleFieldSpecial{{/if}}{{/if}}"
         data-module="{{this.moduleId}}" data-field="{{this.name}}" data-kind="{{this.kind}}"
-        {{#if this.disabled}}disabled{{/if}}>
+        {{#if this.disabled}}disabled{{/if}}
+        {{#if this.fieldLocked}}data-tooltip="Requires {{this.prereq}}"{{/if}}>
   <span class="card-head">
     <span class="choice-name">{{this.name}}</span>
     {{#if this.selected}}<span class="selected-flag"><i class="fas fa-check"></i></span>{{/if}}
+    {{#if this.fieldLocked}}<span class="badge-illegal"><i class="fas fa-lock"></i> Locked</span>{{/if}}
   </span>
   <span class="card-meta">
     <span class="cost">{{this.cost}} XP</span>
     <span class="field-skillcount">{{this.skillCount}} skills &times; +30</span>
-    {{#if this.hasPrereq}}
+    {{#unless this.fieldLocked}}{{#if this.hasPrereq}}
       {{#if this.prereqMet}}<span class="badge-prereq met"><i class="fas fa-check"></i> Prereqs met</span>
       {{else}}<span class="badge-prereq unmet"><i class="fas fa-lock"></i> Prereqs unmet</span>{{/if}}
-    {{/if}}
+    {{/if}}{{/unless}}
   </span>
   <span class="field-skills">{{this.skills}}</span>
   {{#if this.prereq}}<span class="choice-prereq"><i class="fas fa-lock"></i> Requires {{this.prereq}}</span>{{/if}}

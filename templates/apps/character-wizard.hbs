@@ -102,7 +102,10 @@
         </div>
 
         {{#if hasBirthSubAffiliations}}
-        <h3 class="spend-sub">Birth Sub-Affiliation <span class="hint-inline">(optional — adds its own XP)</span></h3>
+        <h3 class="spend-sub">Birth Sub-Affiliation <span class="hint-inline">(required — each adds its own XP)</span></h3>
+        {{#if birthSubAffRequired}}
+        <p class="choice-restricted"><i class="fas fa-circle-exclamation"></i> A birth sub-affiliation must be selected before you can continue.</p>
+        {{/if}}
         <div class="choice-grid">
           {{#each birthSubAffiliations}}
           <button type="button" class="choice-card {{#if this.selected}}selected{{/if}}" data-action="selectBirthSubAffiliation" data-key="{{this.key}}">

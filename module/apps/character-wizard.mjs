@@ -409,6 +409,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
         const birth = options.find(a => a.id === this.#choices.birthAffiliationId);
         context.birthSubAffiliations = this.#subAffCards(birth?.system.subAffiliations, this.#choices.birthSubAffiliationKey);
         context.hasBirthSubAffiliations = context.birthSubAffiliations.length > 0;
+        context.birthSubAffRequired = context.hasBirthSubAffiliations && !this.#choices.birthSubAffiliationKey;
         // Birth caste picker (e.g. a ComStar acolyte born into a Clan).
         context.birthVariantPickers = this.#variantPickersFor(birth ? [birth] : []);
         context.hasBirthVariantPickers = context.birthVariantPickers.length > 0;
@@ -534,11 +535,16 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     const count = this.#fieldCount(fc);
     const atMax = count >= 3;
     const hasAdvanced = this._asArray(fc.advanced).length > 0;
+    const chosen = this.#chosenFieldNames();
+    const waivers = new Set(this._asArray(sys.fieldWaivers)); // school-specific prereq waivers
     const tierCards = (tierObj, kind) => this._asArray(tierObj?.options).map(name => {
       const selected = kind === 'basic' ? fc.basic === name : this._asArray(fc[kind]).includes(name);
-      // Can't add a new field once at the cap; Specials also need an Advanced first.
-      const disabled = !selected && (atMax || (kind === 'special' && !hasAdvanced));
-      return this.#fieldCard(name, kind, school.id, selected, disabled, derived);
+      // A Field prerequisite (needs another Field first) locks the option unless
+      // the school waives it (e.g. Solaris MechWarrior needs no Basic Training).
+      const fieldsMet = waivers.has(name) || this.#requiredFieldsMet(SKILL_FIELDS[name]?.req, chosen);
+      // Can't add once at the cap; Specials need an Advanced first; locked = prereq unmet.
+      const disabled = !selected && (atMax || (kind === 'special' && !hasAdvanced) || !fieldsMet);
+      return this.#fieldCard(name, kind, school.id, selected, disabled, derived, fieldsMet);
     });
     // Does this school's conditional penalty currently apply to the build?
     const cx = sys.conditionalXP;
@@ -562,7 +568,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   /** One selectable Skill-Field card (skills, cost, prereqs). */
-  #fieldCard(name, kind, moduleId, selected, disabled, derived) {
+  #fieldCard(name, kind, moduleId, selected, disabled, derived, fieldsMet = true) {
     const def = SKILL_FIELDS[name] || { skills: [], req: {} };
     const pre = this.#fieldPrereqStatus(def.req, derived);
     return {
@@ -572,7 +578,11 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       cost: FIELD_SKILL_COST * def.skills.length,
       prereq: this.#fieldPrereqText(def.req),
       hasPrereq: pre.has,
-      prereqMet: pre.met
+      prereqMet: pre.met,
+      // A field is "locked" (greyed) when a *Field* prerequisite is unmet — e.g.
+      // Doctor needs the Medical Assistant or Scientist Field first. Attribute
+      // prereqs never lock (they only warn), per design.
+      fieldLocked: !selected && !fieldsMet
     };
   }
 
@@ -589,7 +599,24 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     return s;
   }
 
-  /** Whether a Field's attribute/Field prereqs are currently met (warn-only). */
+  /** Every Skill Field currently selected across all schools. */
+  #chosenFieldNames() {
+    const chosen = new Set();
+    for (const fcv of Object.values(this.#choices.fields || {})) {
+      if (fcv.basic) chosen.add(fcv.basic);
+      for (const n of this._asArray(fcv.advanced)) chosen.add(n);
+      for (const n of this._asArray(fcv.special)) chosen.add(n);
+    }
+    return chosen;
+  }
+
+  /** Whether a Field's "requires one of these Fields" prereq is satisfied. */
+  #requiredFieldsMet(req, chosen = this.#chosenFieldNames()) {
+    const reqFields = this._asArray(req?.fields);
+    return !reqFields.length || reqFields.some(f => chosen.has(f));
+  }
+
+  /** Whether a Field's attribute + Field prereqs are currently met (for the badge). */
   #fieldPrereqStatus(req, derived) {
     if (!req) return { has: false, met: true };
     const hasReq = Object.keys(req.attrs || {}).length || this._asArray(req.fields).length
@@ -599,17 +626,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     for (const [k, min] of Object.entries(req.attrs || {})) {
       if ((derived.attributes[k]?.total ?? 0) < min) met = false;
     }
-    // "Requires one of these Fields": met if any listed Field is selected anywhere.
-    const reqFields = this._asArray(req.fields);
-    if (reqFields.length) {
-      const chosen = new Set();
-      for (const fcv of Object.values(this.#choices.fields || {})) {
-        if (fcv.basic) chosen.add(fcv.basic);
-        for (const n of this._asArray(fcv.advanced)) chosen.add(n);
-        for (const n of this._asArray(fcv.special)) chosen.add(n);
-      }
-      if (!reqFields.some(f => chosen.has(f))) met = false;
-    }
+    if (!this.#requiredFieldsMet(req)) met = false;
     return { has: true, met };
   }
 
@@ -836,6 +853,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       if (this.#missingRequiredVariantFor(this.#modulesCache?.[0], [this.#choices.affiliationId])) return false;
       if (this.#needsBirthAffiliation()) {
         if (!this.#choices.birthAffiliationId) return false;
+        if (this.#birthAffiliationHasSubs() && !this.#choices.birthSubAffiliationKey) return false;
         // A birth affiliation that itself requires a variant (a Clan caste).
         if (this.#missingRequiredVariantFor(this.#modulesCache?.[0], [this.#choices.birthAffiliationId])) return false;
       }
@@ -860,6 +878,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       if (a) return `Choose a ${a.label.toLowerCase()} for ${a.moduleName} to continue.`;
       if (this.#needsBirthAffiliation()) {
         if (!this.#choices.birthAffiliationId) return 'Choose a birth affiliation for ComStar / Word of Blake to continue.';
+        if (this.#birthAffiliationHasSubs() && !this.#choices.birthSubAffiliationKey) return 'Choose a birth sub-affiliation to continue.';
         const b = this.#missingRequiredVariantFor(this.#modulesCache?.[0], [this.#choices.birthAffiliationId]);
         if (b) return `Choose a ${b.label.toLowerCase()} for your birth affiliation (${b.moduleName}) to continue.`;
       }
@@ -892,6 +911,12 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
   #affiliationHasSubs() {
     const aff = this.#modulesCache?.[0]?.find(a => a.id === this.#choices.affiliationId);
     return !!aff && this._asArray(aff.system.subAffiliations).length > 0;
+  }
+
+  /** Whether the chosen ComStar "birth" affiliation offers sub-affiliations (one is required). */
+  #birthAffiliationHasSubs() {
+    const b = this.#modulesCache?.[0]?.find(a => a.id === this.#choices.birthAffiliationId);
+    return !!b && this._asArray(b.system.subAffiliations).length > 0;
   }
 
   /** Name of the first selected Stage-3 school that still needs a Basic Field. */

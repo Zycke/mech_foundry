@@ -103,6 +103,7 @@ const school = (name, schoolType, xpCost, s = {}) => ({
   system: {
     stage: 3, moduleType: 'education', affiliationKey: '', xpCost, time: 0,
     schoolType,
+    fieldWaivers: s.fieldWaivers || [],
     conditionalXP: s.conditional || { unlessModules: [], fixedXP: { attributes: {}, skills: [], traits: [] } },
     fields: {
       basic: s.basic || { time: 0, options: [] },
@@ -980,6 +981,7 @@ export const LIFE_MODULE_SEED = [
 
   school('Solaris Internship', 'civilian', 700, {
     prereq: { attributes: {}, skills: {}, traits: {} },
+    fieldWaivers: ['Cavalry', 'MechWarrior', 'Pilot – Battle Armor'],
     attrs: { cha: 150, edg: 50 },
     traits: [tr('Connections', 100), tr('Enemy', -50), tr('Reputation', 100)],
     skills: [sk('Acting', 25), sk('Interest', 30, 'Solaris Games'), sk('Perception', 20), sk('Streetwise', 25, 'Any')],

@@ -171,6 +171,7 @@
       "variants": [],
       "requiresBirthAffiliation": false,
       "schoolType": "",
+      "fieldWaivers": [],
       "conditionalXP": {
         "unlessModules": [],
         "fixedXP": {
