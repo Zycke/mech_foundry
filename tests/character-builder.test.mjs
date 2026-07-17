@@ -270,8 +270,17 @@ ok(applyOk, 'all seed modules apply through the engine without error');
 
   const free = LIFE_MODULE_SEED.find(m => m.name === 'Freeborn Sibko');
   ok(free?.system.variants.length === 5, 'Freeborn Sibko has 5 branches');
+  // Freeborn is a flat 950 XP for every branch.
+  ok(free.system.variants.every(v => free.system.xpCost + v.xpCost === 950),
+    'every Freeborn Sibko branch totals 950 XP (book value)');
+
   const tb = LIFE_MODULE_SEED.find(m => m.name === 'Trueborn Sibko');
   ok(tb?.system.variants.some(v => v.key === 'protomech'), 'Trueborn Sibko includes ProtoMech branch');
+  // Trueborn is 1,600 XP except ProtoMech, which is 1,500.
+  ok(tb.system.variants.every(v => {
+    const total = tb.system.xpCost + v.xpCost;
+    return v.key === 'protomech' ? total === 1500 : total === 1600;
+  }), 'Trueborn Sibko branches total 1,600 XP (1,500 for ProtoMech)');
 
   // A branch bundle applies cleanly on top of its parent, carrying its own cost + grants.
   const st = CB.createState();

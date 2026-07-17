@@ -364,38 +364,38 @@ export const LIFE_MODULE_SEED = [
       ...field(30, ['Martial Arts', ['MedTech', 'General'], 'Melee Weapons', ['Navigation', 'Ground'], ['Protocol', 'Affiliation'], 'Small Arms'])],
     variantLabel: 'Branch', variantRequired: true,
     variants: [
-      vr('aerospace', 'Aerospace', 500, {
+      vr('aerospace', 'Aerospace', 586, {
         traits: [tr('Vehicle', 100)],
         skills: field(50, [['Gunnery', 'Aerospace'], ['Navigation', 'Space'], ['Piloting', 'Aerospace'], 'Sensor Operations', ['Tactics', 'Space']]),
         flex: [lump(200)],
         notes: 'Clan Aerospace Warrior Field. May apply flexible XP to Pilot – DropShip/JumpShip/WarShip Fields (min 20 XP each); if so, +2 years age and begin with +300 XP Rank.'
       }),
-      vr('cavalry', 'Cavalry', 500, {
+      vr('cavalry', 'Cavalry', 586, {
         traits: [tr('Vehicle', 100)],
         skills: field(50, ['Artillery', ['Driving', 'Any'], ['Gunnery', 'Vehicle'], 'Sensor Operations', ['Tactics', 'Land']]),
         flex: [lump(200)],
         notes: 'Clan Cavalry Field.'
       }),
-      vr('elemental', 'Elemental', 480, {
+      vr('elemental', 'Elemental', 586, {
         traits: [tr('Vehicle', 100)],
         skills: field(50, ['Climbing', ['Gunnery', 'Battlesuit'], 'Melee Weapons', ['Piloting', 'Battlesuit'], 'Sensor Operations', 'Small Arms', ['Tactics', 'Infantry']]),
         flex: [lump(100)],
         notes: 'Clan Elemental Field.'
       }),
-      vr('infantry', 'Infantry (non-Elemental)', 490, {
+      vr('infantry', 'Infantry (non-Elemental)', 586, {
         traits: [tr('Equipped', 100)],
         skills: field(50, [['Acrobatics', 'Free-Fall'], 'Artillery', 'Climbing', ['Communications', 'Conventional'], 'Support Weapons', ['Tactics', 'Infantry']]),
         flex: [lump(150)],
         notes: 'Infantry Field.'
       }),
-      vr('mechwarrior', 'MechWarrior', 490, {
+      vr('mechwarrior', 'MechWarrior', 586, {
         traits: [tr('Vehicle', 100)],
         skills: field(50, [['Gunnery', "'Mech"], 'Leadership', ['Navigation', 'Ground'], ['Piloting', "'Mech"], 'Sensor Operations', ['Tactics', 'Land']]),
         flex: [lump(150)],
         notes: 'Clan MechWarrior Field.'
       })
     ],
-    notes: 'Clan freeborn warrior training. Choose a branch of service below. Freeborn warriors may ignore Phenotype prerequisites. Must select a Clan-affiliated Stage 4 module next.',
+    notes: 'Clan freeborn warrior training (950 XP total, all branches). Choose a branch of service below. Freeborn warriors may ignore Phenotype prerequisites. Must select a Clan-affiliated Stage 4 module next.',
     desc: '<p>Brutal training for Clan warriors born outside the iron wombs.</p>'
   }),
   mod('High School', 2, 'childhood', 400, 6, {
@@ -466,36 +466,36 @@ export const LIFE_MODULE_SEED = [
       ...field(50, ['Martial Arts', ['MedTech', 'General'], 'Melee Weapons', ['Navigation', 'Ground'], ['Protocol', 'Affiliation'], 'Small Arms'])],
     variantLabel: 'Branch', variantRequired: true,
     variants: [
-      vr('aerospace', 'Aerospace', 750, {
+      vr('aerospace', 'Aerospace', 890, {
         traits: [tr('Custom Vehicle', 200)],
         skills: [sk('Gunnery', 20, 'Spacecraft'), sk('Piloting', 20, 'Spacecraft'), sk('Navigation', 40, 'Air'),
           ...field(80, [['Gunnery', 'Aerospace'], ['Navigation', 'Space'], ['Piloting', 'Aerospace'], 'Sensor Operations', ['Tactics', 'Space']])],
         flex: [lump(150)],
-        notes: 'Requires Aerospace Phenotype. May apply flexible XP to Pilot – DropShip/JumpShip/WarShip Fields (min 20 XP each); if so, +2 years age and begin with +300 XP Rank.'
+        notes: '1,600 XP total. Requires Aerospace Phenotype. May apply flexible XP to Pilot – DropShip/JumpShip/WarShip Fields (min 20 XP each); if so, +2 years age and begin with +300 XP Rank.'
       }),
-      vr('elemental', 'Elemental', 718, {
+      vr('elemental', 'Elemental', 890, {
         traits: [tr('Vehicle', 120)],
         skills: field(80, ['Climbing', ['Gunnery', 'Battlesuit'], 'Melee Weapons', ['Piloting', 'Battlesuit'], 'Sensor Operations', 'Small Arms', ['Tactics', 'Infantry']]),
         flex: [lump(150)],
-        notes: 'Requires Elemental Phenotype. Ghost Bear / Hell\'s Horses Elementals may instead take Advanced Training (see ATOW p.78).'
+        notes: '1,600 XP total. Requires Elemental Phenotype. Ghost Bear / Hell\'s Horses Elementals may instead take Advanced Training (see ATOW p.78).'
       }),
-      vr('mechwarrior', 'MechWarrior', 734, {
+      vr('mechwarrior', 'MechWarrior', 890, {
         traits: [tr('Custom Vehicle', 200), tr('Vehicle', 70)],
         skills: [sk('Gunnery', 15, "'Mech"), sk('Piloting', 15, 'BattleMech'),
           ...field(80, [['Gunnery', "'Mech"], 'Leadership', ['Navigation', 'Ground'], ['Piloting', "'Mech"], 'Sensor Operations', ['Tactics', 'Land']])],
         flex: [lump(50)],
-        notes: 'Requires MechWarrior Phenotype.'
+        notes: '1,600 XP total. Requires MechWarrior Phenotype.'
       }),
-      vr('protomech', 'ProtoMech', 680, {
+      vr('protomech', 'ProtoMech', 790, {
         traits: [tr('Compulsion/Chemical Addiction', -100), tr('Implant/EI Neural Implant', 200),
           tr('Reputation', -100), tr('Toughness', 100), tr('Vehicle', 100)],
         skills: [sk('Navigation', 30, 'Ground'), sk('Tactics', 30, 'Infantry'), sk('Tactics', 30, 'Land'),
           ...field(50, [['Gunnery', 'ProtoMech'], ['Navigation', 'Ground'], ['Piloting', 'ProtoMech'], 'Sensor Operations', ['Tactics', 'Land']])],
         flex: [lump(190)],
-        notes: 'ProtoMech warriors pay 1,500 XP total (base module cost is lower for them) and may not have Combat Paralysis, Glass Jaw, Lost Limb, Poor Hearing or Poor Vision. Requires Implant/EI Neural Implant.'
+        notes: '1,500 XP total (ProtoMech and Advanced ProtoMech Warriors cost 100 XP less than other branches). May not have Combat Paralysis, Glass Jaw, Lost Limb, Poor Hearing or Poor Vision. Requires Implant/EI Neural Implant.'
       })
     ],
-    notes: 'Clan trueborn warrior training. Choose a branch of service below. Requires the Phenotype and Trueborn Traits. Clan Steel Viper characters reduce final age by 1 year.',
+    notes: 'Clan trueborn warrior training — 1,600 XP total (1,500 for ProtoMech / Advanced ProtoMech). Choose a branch of service below. Requires the Phenotype and Trueborn Traits. Clan Steel Viper characters reduce final age by 1 year.',
     desc: '<p>The intense trueborn Clan warrior regimen, begun on leaving the crèche.</p>'
   }),
   {
