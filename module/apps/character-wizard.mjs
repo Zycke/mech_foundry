@@ -161,13 +161,22 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     this.#state.affiliation = aff.name;
     this.#state.affiliationKey = aff.system.affiliationKey || '';
     this.#state.isClan = this.#state.affiliationKey === 'clan';
-    this.#state.affiliationLanguages = {
-      primary: aff.system.primaryLanguage || '',
-      secondary: this._asArray(aff.system.secondaryLanguages)
-    };
-    // A clean primary-language label: an explicit field, else the affiliation
+
+    // Resolve the chosen sub-affiliation up front: for realms whose primary or
+    // secondary languages are listed as "See sub-affiliation" (e.g. the Deep
+    // Periphery, Independent), the sub overrides the affiliation's languages,
+    // and the override must be known before the universal language grant.
+    const sub = this._asArray(aff.system.subAffiliations)
+      .find(s => s.key === this.#choices.subAffiliationKey);
+    const primaryLang = sub?.primaryLanguage || aff.system.primaryLanguage || '';
+    const secondaryLang = (sub && this._asArray(sub.secondaryLanguages).length)
+      ? this._asArray(sub.secondaryLanguages)
+      : this._asArray(aff.system.secondaryLanguages);
+    this.#state.affiliationLanguages = { primary: primaryLang, secondary: secondaryLang };
+
+    // A clean primary-language label: the resolved language, else the affiliation
     // key capitalised, else the display name without any "(...)" suffix.
-    const langName = aff.system.primaryLanguage
+    const langName = primaryLang
       || (aff.system.affiliationKey && aff.system.affiliationKey !== 'universal'
         ? aff.system.affiliationKey.charAt(0).toUpperCase() + aff.system.affiliationKey.slice(1)
         : aff.name.replace(/\s*\(.*\)\s*$/, '').trim());
@@ -186,9 +195,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       }, { id: `variant:${aff.id}:${affVariant.key}`, name: `${aff.name} — ${affVariant.name}` });
     }
 
-    // Optional sub-affiliation: applied as an extra Stage 0 bundle.
-    const sub = this._asArray(aff.system.subAffiliations)
-      .find(s => s.key === this.#choices.subAffiliationKey);
+    // Optional sub-affiliation: applied as an extra Stage 0 bundle (resolved above).
     if (sub) {
       this.#state.subAffiliation = sub.name;
       CharacterBuilder.applyModule(this.#state, {

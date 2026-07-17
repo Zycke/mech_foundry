@@ -337,6 +337,15 @@ ok(applyOk, 'all seed modules apply through the engine without error');
   const azami = draconis.system.subAffiliations.find(s => s.key === 'azami');
   CB.applyModule(st, { stage: 0, xpCost: 0, fixedXP: azami.fixedXP, flexibleXP: azami.flexibleXP }, { id: 'azami', name: 'Azami' });
   ok(st.attributes.wil === 50 + 190, 'Draconis WIL +50 and Azami WIL +190 stack to 240');
+
+  // Language override: a sub-affiliation's own primary language wins over the
+  // main affiliation's (mirrors CharacterWizard#rebuildState resolution).
+  const resolvePrimary = (a, sub) => sub?.primaryLanguage || a.system.primaryLanguage || '';
+  const deep = affs.find(a => a.name === 'Deep Periphery');
+  const hanse = deep.system.subAffiliations.find(s => s.key === 'hanseatic-league');
+  ok(resolvePrimary(deep, hanse) === 'German', 'Deep Periphery + Hanseatic resolves primary language to German');
+  ok(resolvePrimary(draconis, null) === 'Japanese', 'Draconis with no sub keeps its Japanese primary language');
+  ok(deep.system.subAffiliations.every(s => s.primaryLanguage), 'every Deep Periphery sub defines its own primary language');
 }
 
 /* ---- Result ------------------------------------------------------------- */

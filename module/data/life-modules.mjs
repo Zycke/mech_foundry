@@ -32,9 +32,12 @@ const vr = (key, name, xpCost, s = {}) => ({
 });
 /** Expand a skill "Field" into per-skill grants: each entry gets +xp. */
 const field = (xp, skills) => skills.map(spec => Array.isArray(spec) ? sk(spec[0], xp, spec[1]) : sk(spec, xp));
-/** A Stage 0 sub-affiliation bundle (regional/cultural sub-sect). */
+/** A Stage 0 sub-affiliation bundle (regional/cultural sub-sect). A sub may
+ * override the affiliation's languages (for "See sub-affiliation" realms). */
 const saff = (key, name, s = {}) => ({
   key, name,
+  primaryLanguage: s.primary || '',
+  secondaryLanguages: s.secondary || [],
   fixedXP: { attributes: s.attrs || {}, skills: s.skills || [], traits: s.traits || [] },
   flexibleXP: s.flex || [],
   notes: s.notes || ''
@@ -403,27 +406,30 @@ export const LIFE_MODULE_SEED = [
     flex: [flex(15, 3, 'any', '+15 XP each to any three Attributes, Traits or Skills')],
     subs: [
       saff('circinus-federation', 'Circinus Federation', {
+        secondary: ['German', 'Spanish'],
         attrs: { str: 100, bod: 75, int: -100, wil: 70 }, traits: [tr('Illiterate', -75), tr('Reputation', -200), tr('Toughness', 300), tr('Wealth', -125)],
-        flex: [flex(20, 3, 'skills', 'choose three: Animal Handling/Any, Martial Arts, MedTech/Any, Small Arms, Streetwise/Periphery, Survival/Any or Tracking/Any', ['Animal Handling/Any', 'Martial Arts', 'MedTech/Any', 'Small Arms', 'Streetwise/Periphery', 'Survival/Any', 'Tracking/Any'])],
-        notes: 'Secondary Languages: German, Spanish.' }),
+        flex: [flex(20, 3, 'skills', 'choose three: Animal Handling/Any, Martial Arts, MedTech/Any, Small Arms, Streetwise/Periphery, Survival/Any or Tracking/Any', ['Animal Handling/Any', 'Martial Arts', 'MedTech/Any', 'Small Arms', 'Streetwise/Periphery', 'Survival/Any', 'Tracking/Any'])] }),
       saff('magistracy-of-canopus', 'Magistracy of Canopus', {
+        secondary: ['Greek', 'Romanian', 'Spanish', 'Urdu'],
         attrs: { cha: 100, edg: 50 }, traits: [tr('Gregarious', 50), tr('Illiterate', -25), tr('Reputation', -125), tr('Wealth', 25)],
         skills: [sk('Streetwise', 15, 'Magistracy')],
         flex: [flex(15, 1, 'skills', 'choose one: Acting or MedTech/General', ['Acting', 'MedTech/General'])],
-        notes: 'Secondary Languages: Greek, Romanian, Spanish, Urdu. Includes the Fronc Reaches.' }),
+        notes: 'Includes the Fronc Reaches.' }),
       saff('marian-hegemony', 'Marian Hegemony', {
+        primary: 'Latin', secondary: ['French', 'German', 'Greek', 'Spanish', 'Swedish'],
         attrs: { wil: 100 }, traits: [tr('Compulsion/Paranoid', -50), tr('Connections', 25), tr('Reputation', -150), tr('Toughness', 125)],
         skills: [sk('Interest', 15, 'Marian History'), sk('Interest', 10, 'Roman History'), sk('Language', 15, 'Latin'), sk('Protocol', 10, 'Marian'), sk('Strategy', 5)],
-        notes: 'Primary Language: Latin. Secondary: French, German, Greek, Spanish, Swedish. Marian characters must purchase the Citizen Trait or take the Slave Stage 1 module.' }),
+        notes: 'Marian characters must purchase the Citizen Trait or take the Slave Stage 1 module.' }),
       saff('outworlds-alliance', 'Outworlds Alliance', {
+        secondary: ['French', 'Japanese'],
         attrs: { edg: 75 }, traits: [tr('Equipped', -55), tr('G-Tolerance', 125), tr('Wealth', -75)],
         skills: [sk('Streetwise', 10, 'Outworlds'), sk('Survival', 10, 'Any')],
-        flex: [flex(15, 1, 'skills', 'choose one: Martial Arts, MedTech/Any or Small Arms', ['Martial Arts', 'MedTech/Any', 'Small Arms'])],
-        notes: 'Secondary Languages: French, Japanese.' }),
+        flex: [flex(15, 1, 'skills', 'choose one: Martial Arts, MedTech/Any or Small Arms', ['Martial Arts', 'MedTech/Any', 'Small Arms'])] }),
       saff('taurian-concordat', 'Taurian Concordat', {
+        secondary: ['French', 'Spanish'],
         attrs: { wil: 150, edg: 50 }, traits: [tr('Compulsion/Distrust FedSuns', -75), tr('Compulsion/Stubborn', -75)],
         skills: [sk('Martial Arts', 10), sk('Negotiation', 10), sk('Small Arms', 15), sk('Streetwise', 15, 'Taurian'), sk('Survival', 5, 'Any')],
-        notes: 'Secondary Languages: French, Spanish. Includes the Calderon Protectorate.' })
+        notes: 'Includes the Calderon Protectorate.' })
     ],
     notes: 'Primary language is English; each sub-affiliation lists its own secondary (or primary) languages. The four major Periphery realms are miniature Successor States.',
     desc: '<p>Origins in one of the major Periphery nations — Magistracy of Canopus, Marian Hegemony, Outworlds Alliance, Taurian Concordat or Circinus Federation.</p>'
@@ -435,22 +441,26 @@ export const LIFE_MODULE_SEED = [
     flex: [flex(10, 2, 'any', '+10 XP each to any two Attributes, Traits or Skills')],
     subs: [
       saff('hanseatic-league', 'Hanseatic League', {
+        primary: 'German', secondary: ['English'],
         traits: [tr('Citizenship', 30), tr('Compulsion/Distrust Lyrans', -20)],
         skills: [sk('Appraisal', 10), sk('Negotiation', 20), sk('Protocol', 10, 'Hanseatic')],
-        notes: 'Primary Language: German. Secondary: English. If the Wealth Trait drops to 0 or less, lose Citizenship and gain Reputation (-20) and In For Life (-40).' }),
+        notes: 'If the Wealth Trait drops to 0 or less, lose Citizenship and gain Reputation (-20) and In For Life (-40).' }),
       saff('castilian-principalities', 'Castilian Principalities', {
+        primary: 'Spanish', secondary: ['German'],
         attrs: { dex: 25 }, traits: [tr('Compulsion/Castilian Honor Code', -20), tr('Compulsion/Hatred of Umayyads', -20)],
         skills: [sk('Martial Arts', 15), sk('Melee Weapons', 15), sk('Negotiation', 10), sk('Protocol', 25, 'Castilian')],
-        notes: 'Primary Language: Spanish. Secondary: German. Rank may not exceed Title level; may not take University modules.' }),
+        notes: 'Rank may not exceed Title level; may not take University modules.' }),
       saff('umayyad-caliphate', 'Umayyad Caliphate', {
+        primary: 'Arabic', secondary: ['English'],
         attrs: { dex: 20 }, traits: [tr('Compulsion/Xenophobic', -10)],
         skills: [sk('Art', 10, 'Any'), sk('Interest', 10, 'Any'), sk('Protocol', 20, 'Umayyad')],
-        notes: 'Primary Language: Arabic. Secondary: English. Warriors must take the Nobility Stage 1 module and need a Title Trait for Officer/MechWarrior Fields.' }),
+        notes: 'Warriors must take the Nobility Stage 1 module and need a Title Trait for Officer/MechWarrior Fields.' }),
       saff('jarnfolk', 'JàrnFòlk', {
+        primary: 'JàrnFòlk Norse', secondary: ['Danish', 'English', 'German', 'Swedish'],
         attrs: { rfl: 20 }, traits: [tr('Compulsion/Xenophobic', -10), tr('Natural Aptitude/Martial Arts', 10), tr('Wealth', -10)],
         skills: [sk('Negotiation', 15), sk('Protocol', 15, 'JàrnFòlk Families')],
         flex: [flex(10, 1, 'skills', 'choose one: Art/Any, Interest/Any or Technician/Any', ['Art/Any', 'Interest/Any', 'Technician/Any'])],
-        notes: 'Primary Language: JàrnFòlk Norse. Secondary: Danish, English, German, Swedish. May not take White Collar/Preparatory School/Military School/Undergraduate Studies, nor any Stage 3 except Family Training; may not become MechWarriors or use battle armor.' })
+        notes: 'May not take White Collar/Preparatory School/Military School/Undergraduate Studies, nor any Stage 3 except Family Training; may not become MechWarriors or use battle armor.' })
     ],
     notes: 'Each sub-affiliation defines its own primary and secondary languages (see the sub notes).',
     desc: '<p>Origins in one of the four realms of the Deep Periphery — the Hanseatic League, Castilian Principalities, Umayyad Caliphate or JàrnFòlk.</p>'
@@ -540,40 +550,42 @@ export const LIFE_MODULE_SEED = [
     attrs: { wil: 20, edg: 20 }, traits: [tr('Equipped', -20), tr('Reputation', -10), tr('Wealth', -10)],
     subs: [
       saff('antallos', 'Antallos (Port Krin)', {
+        primary: 'English', secondary: ['Any'],
         attrs: { bod: 20, wil: 10, cha: -10 }, traits: [tr('Illiterate', -20), tr('Pain Resistance', 10), tr('Reputation', -20), tr('Toughness', 10)],
         skills: [sk('Language', 10, 'Japanese'), sk('Perception', 10), sk('Streetwise', 10, 'Periphery')],
-        flex: [flex(10, 2, 'skills', 'choose two: Acting, Escape Artist, Martial Arts, Melee Weapons, Small Arms or Survival/Desert', ['Acting', 'Escape Artist', 'Martial Arts', 'Melee Weapons', 'Small Arms', 'Survival/Desert'])],
-        notes: 'Primary Language: English. Secondary: Any.' }),
+        flex: [flex(10, 2, 'skills', 'choose two: Acting, Escape Artist, Martial Arts, Melee Weapons, Small Arms or Survival/Desert', ['Acting', 'Escape Artist', 'Martial Arts', 'Melee Weapons', 'Small Arms', 'Survival/Desert'])] }),
       saff('astrokaszy', 'Astrokaszy', {
+        primary: 'Arabic', secondary: ['English', 'German', 'Greek'],
         attrs: { bod: 15, wil: 25, cha: -10, edg: -10 }, traits: [tr('Fit', 20), tr('Compulsion/Xenophobic', -20), tr('Illiterate', -20), tr('Reputation', -10)],
         skills: [sk('Perception', 10), sk('Protocol', 10, 'Astrokaszy'), sk('Streetwise', 10, 'Periphery')],
-        flex: [flex(15, 2, 'skills', 'choose two: Acting, Martial Arts, Melee Weapons, Small Arms, Survival/Desert or Thrown Weapons/Any', ['Acting', 'Martial Arts', 'Melee Weapons', 'Small Arms', 'Survival/Desert', 'Thrown Weapons/Any'])],
-        notes: 'Primary Language: Arabic. Secondary: English, German, Greek.' }),
+        flex: [flex(15, 2, 'skills', 'choose two: Acting, Martial Arts, Melee Weapons, Small Arms, Survival/Desert or Thrown Weapons/Any', ['Acting', 'Martial Arts', 'Melee Weapons', 'Small Arms', 'Survival/Desert', 'Thrown Weapons/Any'])] }),
       saff('generic', 'Generic', {
+        primary: 'Any', secondary: ['Any from nearest state'],
         traits: [tr('Introvert', -10)],
         skills: [sk('Interest', 10, 'Any'), sk('Negotiation', 10)],
-        flex: [flex(10, 4, 'skills', '+10 XP to any four other Skills')],
-        notes: 'Primary Language: Any. Secondary: Any from nearest state.' }),
+        flex: [flex(10, 4, 'skills', '+10 XP to any four other Skills')] }),
       saff('mercenary', 'Mercenary', {
+        primary: 'English', secondary: ['Any'],
         attrs: { cha: -20 }, traits: [tr('Equipped', 20), tr('Rank', 20)],
         skills: [sk('Negotiation', 10), sk('Protocol', 10, 'Mercenary')],
         flex: [flex(10, 1, 'skills', '+10 XP to any one other Skill')],
-        notes: 'Primary Language: English. Secondary: Any. Only for characters born to the mercenary life.' }),
+        notes: 'Only for characters born to the mercenary life.' }),
       saff('pirate', 'Pirate', {
+        primary: 'Any', secondary: ['Any from nearest state'],
         attrs: { bod: 20, wil: 10, cha: -30 }, traits: [tr('Pain Resistance', 10), tr('Reputation', -30), tr('Toughness', 10)],
         skills: [sk('Language', 10, 'Any'), sk('Negotiation', 5), sk('Perception', 15)],
-        flex: [flex(10, 3, 'skills', 'choose three: Acting, Escape Artist, Martial Arts, Melee Weapons, Small Arms or Survival/Any', ['Acting', 'Escape Artist', 'Martial Arts', 'Melee Weapons', 'Small Arms', 'Survival/Any'])],
-        notes: 'Primary Language: Any. Secondary: Any from nearest state.' }),
+        flex: [flex(10, 3, 'skills', 'choose three: Acting, Escape Artist, Martial Arts, Melee Weapons, Small Arms or Survival/Any', ['Acting', 'Escape Artist', 'Martial Arts', 'Melee Weapons', 'Small Arms', 'Survival/Any'])] }),
       saff('spacer', 'Spacer', {
+        primary: 'English', secondary: ['Any from nearest state'],
         attrs: { bod: -20, str: -10, dex: 10, rfl: 10 }, traits: [tr('Equipped', 10), tr('G-Tolerance', 20), tr('Introvert', -20), tr('Natural Aptitude/Zero-G Operations', 20)],
         skills: [sk('Career', 10, "Ship's Crew"), sk('Zero-G Operations', 10)],
         flex: [flex(10, 1, 'skills', 'choose one: Appraisal, Interest/Any, Navigation/Space, Negotiation or Sensor Operations', ['Appraisal', 'Interest/Any', 'Navigation/Space', 'Negotiation', 'Sensor Operations'])],
-        notes: 'Primary Language: English. Secondary: Any from nearest state. Cannot take the TDS Trait.' }),
+        notes: 'Cannot take the TDS Trait.' }),
       saff('tortuga', 'Tortuga', {
+        primary: 'English', secondary: ['Any Taurian or FedSuns language'],
         attrs: { bod: 10, str: 10, wil: 20, cha: -40 }, traits: [tr('Pain Resistance', 10), tr('Reputation', -50), tr('Toughness', 10)],
         skills: [sk('Language', 10, 'Any'), sk('Martial Arts', 10), sk('Negotiation', 10), sk('Perception', 10), sk('Streetwise', 10, 'Periphery')],
-        flex: [flex(10, 3, 'skills', 'choose three: Acting, Escape Artist, Melee Weapons, Small Arms or Survival/Any', ['Acting', 'Escape Artist', 'Melee Weapons', 'Small Arms', 'Survival/Any'])],
-        notes: 'Primary Language: English. Secondary: Any Taurian or FedSuns language.' })
+        flex: [flex(10, 3, 'skills', 'choose three: Acting, Escape Artist, Melee Weapons, Small Arms or Survival/Any', ['Acting', 'Escape Artist', 'Melee Weapons', 'Small Arms', 'Survival/Any'])] })
     ],
     notes: 'Independents belong to no realm. Antallos, Mercenary, Pirate, Spacer or Tortuga characters may not take Title Traits; Antallos, Pirate or Tortuga characters may not take Nobility, Preparatory School or Military School. A Dark Caste Clan character must take the Pirate sub-affiliation here.',
     desc: '<p>Origins outside the great realms — pirates, mercenaries, spacers and the lawless worlds of the deep dark.</p>'
