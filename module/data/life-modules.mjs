@@ -50,6 +50,7 @@ const aff = (name, key, xpCost, s = {}) => ({
     primaryLanguage: s.primary || '', secondaryLanguages: s.secondary || [],
     subAffiliations: s.subs || [],
     variantLabel: s.variantLabel || '', variantRequired: !!s.variantRequired, variants: s.variants || [],
+    requiresBirthAffiliation: !!s.requiresBirthAffiliation,
     restrictedToAffiliations: [],
     prerequisites: s.prereq || { attributes: {}, skills: {}, traits: {} },
     fixedXP: { attributes: s.attrs || {}, skills: s.skills || [], traits: s.traits || [] },
@@ -149,6 +150,7 @@ export const LIFE_MODULE_SEED = [
       primaryLanguage: 'Mandarin Chinese',
       secondaryLanguages: ['Russian', 'Cantonese', 'Vietnamese', 'English'],
       variantLabel: '', variantRequired: false, variants: [],
+      requiresBirthAffiliation: false,
       restrictedToAffiliations: [],
       prerequisites: { attributes: {}, skills: {}, traits: {} },
       fixedXP: {
@@ -592,6 +594,7 @@ export const LIFE_MODULE_SEED = [
   }),
 
   aff('ComStar / Word of Blake', 'comstar', 50, {
+    requiresBirthAffiliation: true,
     primary: 'English', secondary: ['Any from nearest state'],
     traits: [tr('Enemy', -100), tr('Equipped', 100), tr('Rank', 50), tr('Reputation', -50)],
     skills: [sk('Communications', 10, 'Conventional'), sk('Interest', 10, 'Writings of Jerome Blake'), sk('Negotiation', 10)],

@@ -88,6 +88,44 @@
       </div>
       {{/each}}
       {{/if}}
+
+      {{#if needsBirthAffiliation}}
+      <div class="variant-picker birth-picker">
+        <div class="vp-head">
+          <span class="vp-title">Birth Affiliation <span class="hint-inline">(where you were born before joining the order)</span></span>
+          <span class="vp-required">required</span>
+        </div>
+        <div class="choice-grid">
+          {{#each birthAffiliations}}
+          <button type="button" class="choice-card affiliation-card {{#if this.selected}}selected{{/if}}" data-action="selectBirthAffiliation" data-id="{{this.id}}">
+            <span class="card-head">
+              <img src="{{this.img}}" alt=""/>
+              <span class="choice-name">{{this.name}}</span>
+              {{#if this.selected}}<span class="selected-flag"><i class="fas fa-check"></i></span>{{/if}}
+            </span>
+            <span class="card-meta"><span class="cost">{{this.cost}} XP</span></span>
+            {{> "systems/mech-foundry/templates/apps/parts/wizard-grants.hbs"}}
+          </button>
+          {{/each}}
+        </div>
+
+        {{#if hasBirthSubAffiliations}}
+        <h3 class="spend-sub">Birth Sub-Affiliation <span class="hint-inline">(optional — adds its own XP)</span></h3>
+        <div class="choice-grid">
+          {{#each birthSubAffiliations}}
+          <button type="button" class="choice-card {{#if this.selected}}selected{{/if}}" data-action="selectBirthSubAffiliation" data-key="{{this.key}}">
+            <span class="card-head">
+              <span class="choice-name">{{this.name}}</span>
+              {{#if this.selected}}<span class="selected-flag"><i class="fas fa-check"></i></span>{{/if}}
+            </span>
+            {{> "systems/mech-foundry/templates/apps/parts/wizard-grants.hbs"}}
+            {{#if this.notes}}<span class="choice-prereq"><i class="fas fa-circle-info"></i> {{this.notes}}</span>{{/if}}
+          </button>
+          {{/each}}
+        </div>
+        {{/if}}
+      </div>
+      {{/if}}
     </div>
     {{/if}}
 

@@ -52,7 +52,9 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
   #step = 0;
   #choices = {
     name: '', player: '',
-    affiliationId: '', subAffiliationKey: '', phenotypeKey: '',
+    affiliationId: '', subAffiliationKey: '',
+    birthAffiliationId: '', birthSubAffiliationKey: '', // ComStar/WoB "birth" affiliation
+    phenotypeKey: '',
     modules: { 1: '', 2: '', 3: [], 4: [] }, // stage -> id | id[]
     variants: {},                            // moduleId -> chosen variant key
     flexible: {},                            // sourceKey -> [{ kind, key }]  (count pools)
@@ -85,6 +87,8 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       next: CharacterWizard.#onNext,
       selectAffiliation: CharacterWizard.#onSelectAffiliation,
       selectSubAffiliation: CharacterWizard.#onSelectSubAffiliation,
+      selectBirthAffiliation: CharacterWizard.#onSelectBirthAffiliation,
+      selectBirthSubAffiliation: CharacterWizard.#onSelectBirthSubAffiliation,
       selectPhenotype: CharacterWizard.#onSelectPhenotype,
       selectStageModule: CharacterWizard.#onSelectStageModule,
       toggleStageModule: CharacterWizard.#onToggleStageModule,
@@ -158,29 +162,61 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     const aff = docs.find(d => Number(d.system.stage) === 0);
     if (!aff) return; // no affiliation yet -> nothing else applies
 
-    this.#state.affiliation = aff.name;
-    this.#state.affiliationKey = aff.system.affiliationKey || '';
-    this.#state.isClan = this.#state.affiliationKey === 'clan';
+    // ComStar / Word of Blake stacks a second "birth" affiliation (ATOW p.74):
+    // the character is born elsewhere, then joins the order. The birth affiliation
+    // is the cultural origin (drives the primary language and module legality);
+    // ComStar's own grants and 50-XP cost apply on top, at full price.
+    const byStage = await this.#loadModules();
+    const birthAff = aff.system.requiresBirthAffiliation
+      ? (byStage[0] || []).find(a => a.id === this.#choices.birthAffiliationId && !a.system.requiresBirthAffiliation)
+      : null;
+    const birthSub = birthAff
+      ? this._asArray(birthAff.system.subAffiliations).find(s => s.key === this.#choices.birthSubAffiliationKey)
+      : null;
 
-    // Resolve the chosen sub-affiliation up front: for realms whose primary or
-    // secondary languages are listed as "See sub-affiliation" (e.g. the Deep
-    // Periphery, Independent), the sub overrides the affiliation's languages,
-    // and the override must be known before the universal language grant.
+    // The chosen sub-affiliation of the primary (ComStar / non-ComStar) affiliation.
     const sub = this._asArray(aff.system.subAffiliations)
       .find(s => s.key === this.#choices.subAffiliationKey);
-    const primaryLang = sub?.primaryLanguage || aff.system.primaryLanguage || '';
-    const secondaryLang = (sub && this._asArray(sub.secondaryLanguages).length)
-      ? this._asArray(sub.secondaryLanguages)
-      : this._asArray(aff.system.secondaryLanguages);
+
+    // Cultural origin: the birth affiliation when present, else the affiliation
+    // itself. This drives module legality, Clan status, and the primary language.
+    const origin = birthAff || aff;
+    const originSub = birthAff ? birthSub : sub;
+    this.#state.affiliation = birthAff ? `${aff.name} (${birthAff.name})` : aff.name;
+    this.#state.affiliationKey = origin.system.affiliationKey || '';
+    this.#state.isClan = this.#state.affiliationKey === 'clan';
+
+    // Resolve languages before the universal grant. A sub-affiliation's own
+    // languages override its affiliation's ("See sub-affiliation" realms). For a
+    // ComStar character the birth affiliation supplies the primary language and
+    // ComStar's own primary (English) is folded in as an extra secondary.
+    const pairs = birthAff ? [{ a: birthAff, s: birthSub }, { a: aff, s: sub }] : [{ a: aff, s: sub }];
+    const primaryOf = ({ a, s }) => s?.primaryLanguage || a.system.primaryLanguage || '';
+    const primaryLang = pairs.map(primaryOf).find(Boolean) || '';
+    const secondaryLang = [...new Set(pairs.flatMap(p => {
+      const own = (p.s && this._asArray(p.s.secondaryLanguages).length)
+        ? this._asArray(p.s.secondaryLanguages)
+        : this._asArray(p.a.system.secondaryLanguages);
+      const prim = primaryOf(p);
+      return prim && prim !== primaryLang ? [...own, prim] : own; // e.g. ComStar's English
+    }).filter(Boolean))];
     this.#state.affiliationLanguages = { primary: primaryLang, secondary: secondaryLang };
 
-    // A clean primary-language label: the resolved language, else the affiliation
+    // A clean primary-language label: the resolved language, else the origin
     // key capitalised, else the display name without any "(...)" suffix.
     const langName = primaryLang
-      || (aff.system.affiliationKey && aff.system.affiliationKey !== 'universal'
-        ? aff.system.affiliationKey.charAt(0).toUpperCase() + aff.system.affiliationKey.slice(1)
-        : aff.name.replace(/\s*\(.*\)\s*$/, '').trim());
+      || (origin.system.affiliationKey && origin.system.affiliationKey !== 'universal'
+        ? origin.system.affiliationKey.charAt(0).toUpperCase() + origin.system.affiliationKey.slice(1)
+        : origin.name.replace(/\s*\(.*\)\s*$/, '').trim());
     CharacterBuilder.applyUniversalFixedXP(this.#state, { primaryLanguageName: langName });
+
+    // Birth affiliation (ComStar only): full XP and full cost, applied first.
+    if (birthAff) {
+      CharacterBuilder.applyModule(this.#state, birthAff.system, { id: birthAff.id, name: birthAff.name, uuid: birthAff.uuid });
+      if (birthSub) CharacterBuilder.applyModule(this.#state, {
+        stage: 0, xpCost: 0, time: 0, fixedXP: birthSub.fixedXP, flexibleXP: birthSub.flexibleXP
+      }, { id: `birthsub:${birthSub.key}`, name: `${birthAff.name} — ${birthSub.name}` });
+    }
 
     // Main affiliation module.
     CharacterBuilder.applyModule(this.#state, aff.system, { id: aff.id, name: aff.name, uuid: aff.uuid });
@@ -300,7 +336,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       age: this.#state.age,
       moduleCount: this.#state.modules.filter(m => {
         const id = String(m.id);
-        return !id.startsWith('subaff:') && !id.startsWith('variant:');
+        return !id.startsWith('subaff:') && !id.startsWith('variant:') && !id.startsWith('birthsub:');
       }).length
     };
 
@@ -312,22 +348,23 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
 
       // Sub-affiliations of the chosen affiliation (optional, each adds its own XP).
       const chosen = affiliations.find(a => a.id === this.#choices.affiliationId);
-      const subs = this._asArray(chosen?.system.subAffiliations);
-      if (subs.length) {
-        context.subAffiliations = subs.map(s => ({
-          key: s.key,
-          name: s.name,
-          selected: s.key === this.#choices.subAffiliationKey,
-          grants: this.#moduleGrants(s),
-          flexible: this.#flexibleSummaries(s),
-          notes: s.notes || ''
-        }));
-        context.hasSubAffiliations = true;
-      }
+      context.subAffiliations = this.#subAffCards(chosen?.system.subAffiliations, this.#choices.subAffiliationKey);
+      context.hasSubAffiliations = context.subAffiliations.length > 0;
 
       // Affiliation variant (e.g. a Clan Caste) — same picker as the stage steps.
       context.variantPickers = this.#variantPickersFor(chosen ? [chosen] : []);
       context.hasVariantPickers = context.variantPickers.length > 0;
+
+      // ComStar / Word of Blake: a second "birth" affiliation, chosen from every
+      // other (non-ComStar) affiliation, plus its own sub-affiliations.
+      if (chosen?.system.requiresBirthAffiliation) {
+        context.needsBirthAffiliation = true;
+        const options = affiliations.filter(a => !a.system.requiresBirthAffiliation);
+        context.birthAffiliations = options.map(a => this.#moduleCard(a, a.id === this.#choices.birthAffiliationId, derived));
+        const birth = options.find(a => a.id === this.#choices.birthAffiliationId);
+        context.birthSubAffiliations = this.#subAffCards(birth?.system.subAffiliations, this.#choices.birthSubAffiliationKey);
+        context.hasBirthSubAffiliations = context.birthSubAffiliations.length > 0;
+      }
     }
 
     if (step.stage) {
@@ -431,6 +468,18 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       restrictionText: legal ? ''
         : `Available only to ${affNames || 'certain'} affiliation(s) — your affiliation (${this.#state.affiliation || 'none'}) cannot take it.${sys.notes ? ' ' + sys.notes : ''}`
     };
+  }
+
+  /** View models for a list of sub-affiliation bundles (main or birth). */
+  #subAffCards(subs, selectedKey) {
+    return this._asArray(subs).map(s => ({
+      key: s.key,
+      name: s.name,
+      selected: s.key === selectedKey,
+      grants: this.#moduleGrants(s),
+      flexible: this.#flexibleSummaries(s),
+      notes: s.notes || ''
+    }));
   }
 
   /** Build variant-picker view models for any of the given module docs that
@@ -631,7 +680,9 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
   #canAdvance(stepId, step) {
     if (stepId === 'affiliation') {
       if (!this.#choices.affiliationId) return false;
-      return !this.#missingRequiredVariantFor(this.#modulesCache?.[0], [this.#choices.affiliationId]);
+      if (this.#missingRequiredVariantFor(this.#modulesCache?.[0], [this.#choices.affiliationId])) return false;
+      if (this.#needsBirthAffiliation() && !this.#choices.birthAffiliationId) return false;
+      return true;
     }
     if (step.stage && [1, 2].includes(step.stage)) {
       return !!this.#choices.modules[step.stage] && !this.#missingRequiredVariant(step.stage);
@@ -648,6 +699,9 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       if (!this.#choices.affiliationId) return 'Choose an affiliation to continue.';
       const a = this.#missingRequiredVariantFor(this.#modulesCache?.[0], [this.#choices.affiliationId]);
       if (a) return `Choose a ${a.label.toLowerCase()} for ${a.moduleName} to continue.`;
+      if (this.#needsBirthAffiliation() && !this.#choices.birthAffiliationId) {
+        return 'Choose a birth affiliation for ComStar / Word of Blake to continue.';
+      }
     }
     if (step.stage && [1, 2].includes(step.stage) && !this.#choices.modules[step.stage]) {
       return 'Choose a module for this required stage.';
@@ -661,6 +715,12 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       if (!CharacterBuilder.flexibleResolved(this.#state)) return 'Assign all flexible XP to continue.';
     }
     return '';
+  }
+
+  /** Whether the currently-chosen affiliation demands a "birth" affiliation (ComStar). */
+  #needsBirthAffiliation() {
+    const aff = this.#modulesCache?.[0]?.find(a => a.id === this.#choices.affiliationId);
+    return !!aff?.system.requiresBirthAffiliation;
   }
 
   /** First selected module in a stage that requires a variant but has none chosen. */
@@ -803,6 +863,8 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     const prev = this.#choices.affiliationId;
     this.#choices.affiliationId = target.dataset.id || '';
     this.#choices.subAffiliationKey = ''; // sub-affiliations are affiliation-specific
+    this.#choices.birthAffiliationId = '';       // ComStar birth is ComStar-specific
+    this.#choices.birthSubAffiliationKey = '';
     if (prev) delete this.#choices.variants[prev]; // caste is affiliation-specific
     await this.#rebuildState();
     this.render();
@@ -811,6 +873,22 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
   static async #onSelectSubAffiliation(event, target) {
     const key = target.dataset.key || '';
     this.#choices.subAffiliationKey = this.#choices.subAffiliationKey === key ? '' : key;
+    await this.#rebuildState();
+    this.render();
+  }
+
+  /** ComStar / Word of Blake: choose (or clear) the "birth" affiliation. */
+  static async #onSelectBirthAffiliation(event, target) {
+    const id = target.dataset.id || '';
+    this.#choices.birthAffiliationId = this.#choices.birthAffiliationId === id ? '' : id;
+    this.#choices.birthSubAffiliationKey = ''; // birth sub is birth-affiliation-specific
+    await this.#rebuildState();
+    this.render();
+  }
+
+  static async #onSelectBirthSubAffiliation(event, target) {
+    const key = target.dataset.key || '';
+    this.#choices.birthSubAffiliationKey = this.#choices.birthSubAffiliationKey === key ? '' : key;
     await this.#rebuildState();
     this.render();
   }

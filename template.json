@@ -169,6 +169,7 @@
       "variantLabel": "",
       "variantRequired": false,
       "variants": [],
+      "requiresBirthAffiliation": false,
       "restrictedToAffiliations": [],
       "prerequisites": {
         "attributes": {},

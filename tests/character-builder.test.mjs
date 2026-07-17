@@ -346,6 +346,28 @@ ok(applyOk, 'all seed modules apply through the engine without error');
   ok(resolvePrimary(deep, hanse) === 'German', 'Deep Periphery + Hanseatic resolves primary language to German');
   ok(resolvePrimary(draconis, null) === 'Japanese', 'Draconis with no sub keeps its Japanese primary language');
   ok(deep.system.subAffiliations.every(s => s.primaryLanguage), 'every Deep Periphery sub defines its own primary language');
+
+  // ComStar / Word of Blake stacks a second "birth" affiliation at full cost.
+  const comstar = affs.find(a => a.system.affiliationKey === 'comstar');
+  ok(comstar.system.requiresBirthAffiliation, 'ComStar requires a birth affiliation');
+  const davion = affs.find(a => a.name.includes('Federated Suns'));
+  const stC = CB.createState();
+  stC.affiliationKey = 'davion';
+  CB.applyUniversalFixedXP(stC, { primaryLanguageName: 'English' });
+  const afterUniversal = stC.spent;
+  CB.applyModule(stC, davion.system, { id: 'd', name: davion.name });
+  CB.applyModule(stC, comstar.system, { id: 'c', name: comstar.name });
+  ok(stC.spent === afterUniversal + 150 + 50, 'birth (Davion 150) + ComStar (50) both charged at full cost');
+  ok(stC.traits['Rank'] === 50, 'ComStar Rank +50 stacks on top of the birth affiliation');
+  ok(Object.keys(stC.skills).some(k => /protocol\/fedsuns/i.test(k)),
+    'birth affiliation grants (Protocol/FedSuns) survive alongside ComStar');
+  // Birth affiliation drives the primary language; ComStar's English is secondary.
+  const resolveLangs = (birth, order) => {
+    const primary = order.map(x => x.a.system.primaryLanguage).find(Boolean) || '';
+    return { primary };
+  };
+  ok(resolveLangs(davion, [{ a: davion }, { a: comstar }]).primary === 'English',
+    'ComStar born in the Federated Suns takes English (birth) as primary language');
 }
 
 /* ---- Result ------------------------------------------------------------- */
