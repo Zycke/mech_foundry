@@ -5918,3 +5918,21 @@
   color: var(--mf-ink); padding: 5px 8px; font-family: var(--mf-font-mono);
 }
 .mech-foundry .flex-slot .lump-amount:focus { outline: none; border-color: var(--mf-amber); box-shadow: 0 0 0 1px rgba(242,165,58,0.35); }
+
+/* ---- Wizard: card notes + restriction reason + variants --- */
+.mech-foundry .card-meta .card-note { color: var(--mf-ink-dim); font-size: 0.72em; cursor: help; }
+.mech-foundry .choice-card .choice-restricted { color: var(--mf-danger); font-size: 0.74em; }
+.mech-foundry .variant-picker {
+  border: 1px solid var(--mf-line); border-left: 3px solid var(--mf-amber);
+  border-radius: 3px; background: var(--mf-panel); padding: 8px 10px; margin: 8px 0;
+}
+.mech-foundry .variant-picker > .vp-head {
+  display: flex; align-items: center; gap: 8px;
+  font-family: var(--mf-font-head); color: var(--mf-amber-2); text-transform: uppercase;
+  letter-spacing: 0.04em; font-size: 0.82em; margin-bottom: 6px;
+}
+.mech-foundry .variant-picker .vp-required {
+  color: var(--mf-danger); font-size: 0.82em; border: 1px solid var(--mf-danger);
+  border-radius: 3px; padding: 0 4px; text-transform: none; letter-spacing: 0;
+}
+.mech-foundry .variant-picker .variant-card.selected { border-color: var(--mf-amber); }

@@ -23,6 +23,15 @@ const sk = (name, xp, subskill) => (subskill ? { name, subskill, xp } : { name, 
 const tr = (name, xp) => ({ name, xp });
 const lump = (amount, targets = 'any', note = '') => ({ lump: true, amount, targets, note });
 const flex = (amount, count, targets = 'any', note = '', choices = []) => ({ amount, count, targets, note, choices });
+/** A branch/caste sub-option bundle applied on top of its parent module. */
+const vr = (key, name, xpCost, s = {}) => ({
+  key, name, xpCost,
+  fixedXP: { attributes: s.attrs || {}, skills: s.skills || [], traits: s.traits || [] },
+  flexibleXP: s.flex || [],
+  notes: s.notes || ''
+});
+/** Expand a skill "Field" into per-skill grants: each entry gets +xp. */
+const field = (xp, skills) => skills.map(spec => Array.isArray(spec) ? sk(spec[0], xp, spec[1]) : sk(spec, xp));
 const mod = (name, stage, moduleType, xpCost, time, s = {}) => ({
   name, img: IMG, type: 'lifeModule',
   system: {
@@ -30,6 +39,7 @@ const mod = (name, stage, moduleType, xpCost, time, s = {}) => ({
     primaryLanguage: '', secondaryLanguages: [], subAffiliations: [],
     restrictedToAffiliations: s.restricted || [],
     prerequisites: s.prereq || { attributes: {}, skills: {}, traits: {} },
+    variantLabel: s.variantLabel || '', variantRequired: !!s.variantRequired, variants: s.variants || [],
     fixedXP: { attributes: s.attrs || {}, skills: s.skills || [], traits: s.traits || [] },
     flexibleXP: s.flex || [],
     grantsFields: [], notes: s.notes || '', pageRef: s.pageRef || 'ATOW pp.75-78',
@@ -306,12 +316,34 @@ export const LIFE_MODULE_SEED = [
     flex: [lump(125)],
     desc: '<p>A survivalist teenage life far from modern society.</p>'
   }),
-  mod('Clan Apprenticeship', 2, 'childhood', 500, 6, {
+  mod('Clan Apprenticeship', 2, 'childhood', 360, 6, {
     restricted: ['clan'],
-    prereq: { attributes: {}, skills: {}, traits: {} },
     skills: [sk('Administration', 35), sk('Computers', 50), sk('Interest', 30, 'Any'), sk('Interest', 80, 'Clan History')],
     flex: [lump(165)],
-    notes: 'Clan lower-caste apprenticeship. Add the caste-specific XP (Laborer: BOD +30, Career/Any +50, Computers +40, Driving/Ground +20; Merchant: CHA +30, Administration +50, Appraisal +40, Negotiation +20; Scientist: INT +30, Computers +30, Interest/Any +10, MedTech/Any +20, Science/Any +50; Technician: DEX +30, Computers +30, Perception +20, Technician/Any +30/+15/+15). Prereq varies by caste (BOD 4 Laborer / CHA 4 Merchant / INT 4 Scientist / DEX 4 Technician). Must proceed to a matching Stage 3 civilian school.',
+    variantLabel: 'Caste', variantRequired: true,
+    variants: [
+      vr('laborer', 'Laborer', 140, {
+        attrs: { bod: 30 },
+        skills: [sk('Career', 50, 'Any'), sk('Computers', 40), sk('Driving', 20, 'Ground Vehicle')],
+        notes: 'Requires BOD 4+. Proceed to a matching Stage 3 civilian trade school.'
+      }),
+      vr('merchant', 'Merchant', 140, {
+        attrs: { cha: 30 },
+        skills: [sk('Administration', 50), sk('Appraisal', 40), sk('Negotiation', 20)],
+        notes: 'Requires CHA 4+. Proceed to a matching Stage 3 civilian trade school.'
+      }),
+      vr('scientist', 'Scientist', 140, {
+        attrs: { int: 30 },
+        skills: [sk('Computers', 30), sk('Interest', 10, 'Any'), sk('MedTech', 20, 'Any'), sk('Science', 50, 'Any')],
+        notes: 'Requires INT 4+. Proceed to a matching Stage 3 civilian trade school.'
+      }),
+      vr('technician', 'Technician', 140, {
+        attrs: { dex: 30 },
+        skills: [sk('Computers', 30), sk('Perception', 20), sk('Technician', 30, 'Any'), sk('Technician', 15, 'Any'), sk('Technician', 15, 'Any')],
+        notes: 'Requires DEX 4+. Proceed to a matching Stage 3 civilian trade school.'
+      })
+    ],
+    notes: 'Clan lower-caste apprenticeship. Choose the caste (trade) below — each adds its own attributes/skills and has its own prerequisite. Must proceed to a matching Stage 3 civilian school.',
     desc: '<p>Clan lower-caste teens apprenticed to masters of their designated trade.</p>'
   }),
   mod('Farm', 2, 'childhood', 400, 6, {
@@ -322,10 +354,48 @@ export const LIFE_MODULE_SEED = [
     flex: [lump(115)],
     desc: '<p>Teenage years working the land of a vaunted civilian profession.</p>'
   }),
-  mod('Freeborn Sibko', 2, 'childhood', 950, 6, {
+  mod('Freeborn Sibko', 2, 'childhood', 364, 6, {
     restricted: ['clan'],
     prereq: { attributes: { bod: 3, dex: 4, rfl: 3, wil: 4 }, skills: {}, traits: {} },
-    notes: 'Clan freeborn warrior training. Branch-specific (aerospace / cavalry / Elemental / infantry / MechWarrior) — add the chosen branch\'s attributes/skills per the rulebook (ATOW pp.77-78). Must select a Clan-affiliated Stage 4 module next.',
+    attrs: { bod: 50, wil: 50, cha: -30 },
+    traits: [tr('Compulsion/Clan Honor', -30), tr('Rank', 100), tr('Reputation', -40)],
+    // Clan Basic Training Field (+30 each; pay only 144).
+    skills: [sk('Career', 50, 'Soldier'), sk('Interest', 20, 'Clan Remembrance'), sk('Negotiation', 50),
+      ...field(30, ['Martial Arts', ['MedTech', 'General'], 'Melee Weapons', ['Navigation', 'Ground'], ['Protocol', 'Affiliation'], 'Small Arms'])],
+    variantLabel: 'Branch', variantRequired: true,
+    variants: [
+      vr('aerospace', 'Aerospace', 500, {
+        traits: [tr('Vehicle', 100)],
+        skills: field(50, [['Gunnery', 'Aerospace'], ['Navigation', 'Space'], ['Piloting', 'Aerospace'], 'Sensor Operations', ['Tactics', 'Space']]),
+        flex: [lump(200)],
+        notes: 'Clan Aerospace Warrior Field. May apply flexible XP to Pilot – DropShip/JumpShip/WarShip Fields (min 20 XP each); if so, +2 years age and begin with +300 XP Rank.'
+      }),
+      vr('cavalry', 'Cavalry', 500, {
+        traits: [tr('Vehicle', 100)],
+        skills: field(50, ['Artillery', ['Driving', 'Any'], ['Gunnery', 'Vehicle'], 'Sensor Operations', ['Tactics', 'Land']]),
+        flex: [lump(200)],
+        notes: 'Clan Cavalry Field.'
+      }),
+      vr('elemental', 'Elemental', 480, {
+        traits: [tr('Vehicle', 100)],
+        skills: field(50, ['Climbing', ['Gunnery', 'Battlesuit'], 'Melee Weapons', ['Piloting', 'Battlesuit'], 'Sensor Operations', 'Small Arms', ['Tactics', 'Infantry']]),
+        flex: [lump(100)],
+        notes: 'Clan Elemental Field.'
+      }),
+      vr('infantry', 'Infantry (non-Elemental)', 490, {
+        traits: [tr('Equipped', 100)],
+        skills: field(50, [['Acrobatics', 'Free-Fall'], 'Artillery', 'Climbing', ['Communications', 'Conventional'], 'Support Weapons', ['Tactics', 'Infantry']]),
+        flex: [lump(150)],
+        notes: 'Infantry Field.'
+      }),
+      vr('mechwarrior', 'MechWarrior', 490, {
+        traits: [tr('Vehicle', 100)],
+        skills: field(50, [['Gunnery', "'Mech"], 'Leadership', ['Navigation', 'Ground'], ['Piloting', "'Mech"], 'Sensor Operations', ['Tactics', 'Land']]),
+        flex: [lump(150)],
+        notes: 'Clan MechWarrior Field.'
+      })
+    ],
+    notes: 'Clan freeborn warrior training. Choose a branch of service below. Freeborn warriors may ignore Phenotype prerequisites. Must select a Clan-affiliated Stage 4 module next.',
     desc: '<p>Brutal training for Clan warriors born outside the iron wombs.</p>'
   }),
   mod('High School', 2, 'childhood', 400, 6, {
@@ -386,9 +456,46 @@ export const LIFE_MODULE_SEED = [
     flex: [lump(60)],
     desc: '<p>Dangerous teenage years surviving the streets.</p>'
   }),
-  mod('Trueborn Sibko', 2, 'childhood', 1600, 6, {
+  mod('Trueborn Sibko', 2, 'childhood', 710, 6, {
     restricted: ['clan'],
-    notes: 'Clan trueborn warrior training (1,600 XP; 1,500 for ProtoMech/Advanced ProtoMech Warriors). Branch-specific — add the chosen branch\'s attributes/skills/traits per the rulebook (ATOW pp.77-78). Requires the Phenotype and Trueborn Traits.',
+    prereq: { attributes: { bod: 3, dex: 4, rfl: 3, wil: 3 }, skills: {}, traits: {} },
+    attrs: { bod: 40, dex: 60, rfl: 50, wil: 20, cha: -30 },
+    traits: [tr('Compulsion/Clan Honor', -50), tr('Rank', 200)],
+    // Clan Basic Training Field (+50 each; pay only 240).
+    skills: [sk('Career', 80, 'Soldier'), sk('Interest', 50, 'Clan Remembrance'), sk('Negotiation', 50),
+      ...field(50, ['Martial Arts', ['MedTech', 'General'], 'Melee Weapons', ['Navigation', 'Ground'], ['Protocol', 'Affiliation'], 'Small Arms'])],
+    variantLabel: 'Branch', variantRequired: true,
+    variants: [
+      vr('aerospace', 'Aerospace', 750, {
+        traits: [tr('Custom Vehicle', 200)],
+        skills: [sk('Gunnery', 20, 'Spacecraft'), sk('Piloting', 20, 'Spacecraft'), sk('Navigation', 40, 'Air'),
+          ...field(80, [['Gunnery', 'Aerospace'], ['Navigation', 'Space'], ['Piloting', 'Aerospace'], 'Sensor Operations', ['Tactics', 'Space']])],
+        flex: [lump(150)],
+        notes: 'Requires Aerospace Phenotype. May apply flexible XP to Pilot – DropShip/JumpShip/WarShip Fields (min 20 XP each); if so, +2 years age and begin with +300 XP Rank.'
+      }),
+      vr('elemental', 'Elemental', 718, {
+        traits: [tr('Vehicle', 120)],
+        skills: field(80, ['Climbing', ['Gunnery', 'Battlesuit'], 'Melee Weapons', ['Piloting', 'Battlesuit'], 'Sensor Operations', 'Small Arms', ['Tactics', 'Infantry']]),
+        flex: [lump(150)],
+        notes: 'Requires Elemental Phenotype. Ghost Bear / Hell\'s Horses Elementals may instead take Advanced Training (see ATOW p.78).'
+      }),
+      vr('mechwarrior', 'MechWarrior', 734, {
+        traits: [tr('Custom Vehicle', 200), tr('Vehicle', 70)],
+        skills: [sk('Gunnery', 15, "'Mech"), sk('Piloting', 15, 'BattleMech'),
+          ...field(80, [['Gunnery', "'Mech"], 'Leadership', ['Navigation', 'Ground'], ['Piloting', "'Mech"], 'Sensor Operations', ['Tactics', 'Land']])],
+        flex: [lump(50)],
+        notes: 'Requires MechWarrior Phenotype.'
+      }),
+      vr('protomech', 'ProtoMech', 680, {
+        traits: [tr('Compulsion/Chemical Addiction', -100), tr('Implant/EI Neural Implant', 200),
+          tr('Reputation', -100), tr('Toughness', 100), tr('Vehicle', 100)],
+        skills: [sk('Navigation', 30, 'Ground'), sk('Tactics', 30, 'Infantry'), sk('Tactics', 30, 'Land'),
+          ...field(50, [['Gunnery', 'ProtoMech'], ['Navigation', 'Ground'], ['Piloting', 'ProtoMech'], 'Sensor Operations', ['Tactics', 'Land']])],
+        flex: [lump(190)],
+        notes: 'ProtoMech warriors pay 1,500 XP total (base module cost is lower for them) and may not have Combat Paralysis, Glass Jaw, Lost Limb, Poor Hearing or Poor Vision. Requires Implant/EI Neural Implant.'
+      })
+    ],
+    notes: 'Clan trueborn warrior training. Choose a branch of service below. Requires the Phenotype and Trueborn Traits. Clan Steel Viper characters reduce final age by 1 year.',
     desc: '<p>The intense trueborn Clan warrior regimen, begun on leaving the crèche.</p>'
   }),
   {

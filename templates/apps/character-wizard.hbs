@@ -102,17 +102,43 @@
           <span class="card-meta">
             <span class="cost">{{this.cost}} XP</span>
             {{#if this.time}}<span class="time">{{this.time}} yr</span>{{/if}}
-            {{#unless this.legal}}<span class="badge-illegal" data-tooltip="Restricted to: {{this.restrictedTo}}"><i class="fas fa-ban"></i> Restricted</span>{{/unless}}
+            {{#unless this.legal}}<span class="badge-illegal" data-tooltip="{{this.restrictionText}}"><i class="fas fa-ban"></i> Restricted</span>{{/unless}}
             {{#if this.hasPrereq}}
               {{#if this.prereqMet}}<span class="badge-prereq met"><i class="fas fa-check"></i> Prereqs met</span>
               {{else}}<span class="badge-prereq unmet"><i class="fas fa-lock"></i> Prereqs unmet</span>{{/if}}
             {{/if}}
+            {{#if this.notes}}<span class="card-note" data-tooltip="{{this.notes}}"><i class="fas fa-circle-info"></i> Notes</span>{{/if}}
           </span>
           {{> "systems/mech-foundry/templates/apps/parts/wizard-grants.hbs"}}
           {{#if this.prereq}}<span class="choice-prereq"><i class="fas fa-lock"></i> Requires {{this.prereq}}</span>{{/if}}
+          {{#unless this.legal}}<span class="choice-restricted"><i class="fas fa-ban"></i> {{this.restrictionText}}</span>{{/unless}}
         </button>
         {{/each}}
       </div>
+
+      {{#if hasVariantPickers}}
+      {{#each variantPickers}}
+      <div class="variant-picker">
+        <div class="vp-head">
+          <span class="vp-title">{{this.label}} — {{this.moduleName}}</span>
+          {{#if this.required}}<span class="vp-required">required</span>{{/if}}
+        </div>
+        <div class="choice-grid">
+          {{#each this.variants}}
+          <button type="button" class="choice-card variant-card {{#if this.selected}}selected{{/if}}"
+                  data-action="selectVariant" data-module="{{../moduleId}}" data-key="{{this.key}}">
+            <span class="card-head">
+              <span class="choice-name">{{this.name}}</span>
+              {{#if this.selected}}<span class="selected-flag"><i class="fas fa-check"></i></span>{{/if}}
+            </span>
+            {{> "systems/mech-foundry/templates/apps/parts/wizard-grants.hbs"}}
+            {{#if this.notes}}<span class="choice-prereq"><i class="fas fa-circle-info"></i> {{this.notes}}</span>{{/if}}
+          </button>
+          {{/each}}
+        </div>
+      </div>
+      {{/each}}
+      {{/if}}
       {{else}}
       <p class="empty-note"><i class="fas fa-circle-info"></i> No Stage {{stage}} modules in the compendium yet.{{#unless mandatory}} This stage is optional — you can continue.{{/unless}} A GM can add <em>Life Module</em> items for this stage.</p>
       {{/if}}

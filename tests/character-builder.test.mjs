@@ -259,6 +259,32 @@ try {
 } catch (_e) { applyOk = false; }
 ok(applyOk, 'all seed modules apply through the engine without error');
 
+/* ---- Module variants (branch/caste sub-options) ------------------------- */
+{
+  const appr = LIFE_MODULE_SEED.find(m => m.name === 'Clan Apprenticeship');
+  ok(appr?.system.variantRequired && appr.system.variants.length === 4,
+    'Clan Apprenticeship requires one of 4 castes');
+  // base grants (360) + one caste (140) reproduces the book Module Cost of 500.
+  ok(appr.system.xpCost + appr.system.variants[0].xpCost === 500,
+    'Clan Apprenticeship base + caste = 500 XP (book value)');
+
+  const free = LIFE_MODULE_SEED.find(m => m.name === 'Freeborn Sibko');
+  ok(free?.system.variants.length === 5, 'Freeborn Sibko has 5 branches');
+  const tb = LIFE_MODULE_SEED.find(m => m.name === 'Trueborn Sibko');
+  ok(tb?.system.variants.some(v => v.key === 'protomech'), 'Trueborn Sibko includes ProtoMech branch');
+
+  // A branch bundle applies cleanly on top of its parent, carrying its own cost + grants.
+  const st = CB.createState();
+  st.affiliationKey = 'clan';
+  CB.applyModule(st, appr.system, { id: 'appr', name: appr.name });
+  const before = st.spent;
+  const tech = appr.system.variants.find(v => v.key === 'technician');
+  CB.applyModule(st, { stage: 2, xpCost: tech.xpCost, fixedXP: tech.fixedXP, flexibleXP: tech.flexibleXP },
+    { id: 'appr:technician', name: tech.name });
+  ok(st.spent - before === 140, 'applying the Technician caste spends its 140 XP');
+  ok(st.attributes.dex === 30, 'Technician caste added +30 DEX XP');
+}
+
 /* ---- Result ------------------------------------------------------------- */
 if (failed) { console.error(`\n${failed} check(s) FAILED`); process.exit(1); }
 console.log('\nAll character-builder checks passed.');

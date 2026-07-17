@@ -54,6 +54,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     name: '', player: '',
     affiliationId: '', subAffiliationKey: '', phenotypeKey: '',
     modules: { 1: '', 2: '', 3: [], 4: [] }, // stage -> id | id[]
+    variants: {},                            // moduleId -> chosen variant key
     flexible: {},                            // sourceKey -> [{ kind, key }]  (count pools)
     lumpFlexible: {},                        // sourceKey -> [{ kind, key, amount }] (lump pools)
     subskills: {},                           // subskill sourceKey -> chosen text
@@ -87,14 +88,19 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       selectPhenotype: CharacterWizard.#onSelectPhenotype,
       selectStageModule: CharacterWizard.#onSelectStageModule,
       toggleStageModule: CharacterWizard.#onToggleStageModule,
+      selectVariant: CharacterWizard.#onSelectVariant,
       spendAttr: CharacterWizard.#onSpendAttr,
       finish: CharacterWizard.#onFinish
     }
   };
 
-  /** @override */
+  /** @override — `scrollable` keeps the body's scroll position across re-renders
+   * (selecting an option re-renders the part, which would otherwise jump to top). */
   static PARTS = {
-    body: { template: 'systems/mech-foundry/templates/apps/character-wizard.hbs' }
+    body: {
+      template: 'systems/mech-foundry/templates/apps/character-wizard.hbs',
+      scrollable: ['.wizard-body']
+    }
   };
 
   /* ---------------------------------------------------------------------- */
@@ -179,10 +185,18 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       }, { id: `subaff:${sub.key}`, name: `${aff.name} — ${sub.name}` });
     }
 
-    // Remaining stage modules (everything except the affiliation doc).
+    // Remaining stage modules (everything except the affiliation doc), each
+    // followed by its chosen variant (caste/branch) bundle, if any.
     for (const d of docs) {
       if (d.id === aff.id) continue;
       CharacterBuilder.applyModule(this.#state, d.system, { id: d.id, name: d.name, uuid: d.uuid });
+      const variant = this._asArray(d.system.variants).find(v => v.key === this.#choices.variants[d.id]);
+      if (variant) {
+        CharacterBuilder.applyModule(this.#state, {
+          stage: d.system.stage, xpCost: Number(variant.xpCost) || 0, time: 0,
+          fixedXP: variant.fixedXP, flexibleXP: variant.flexibleXP
+        }, { id: `variant:${d.id}:${variant.key}`, name: `${d.name} — ${variant.name}` });
+      }
     }
 
     // Re-apply saved subskill choices (adds the queued XP under the chosen subskill).
@@ -266,7 +280,10 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       remaining,
       remainingClass: remaining < 0 ? 'over' : '',
       age: this.#state.age,
-      moduleCount: this.#state.modules.filter(m => !String(m.id).startsWith('subaff:')).length
+      moduleCount: this.#state.modules.filter(m => {
+        const id = String(m.id);
+        return !id.startsWith('subaff:') && !id.startsWith('variant:');
+      }).length
     };
 
     if (stepId === 'affiliation') {
@@ -294,13 +311,31 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       const byStage = await this.#loadModules();
       const list = byStage[step.stage] || [];
       const sel = this.#choices.modules[step.stage];
+      const selectedIds = step.multi ? sel : (sel ? [sel] : []);
       context.stage = step.stage;
       context.multi = !!step.multi;
       context.hasModules = list.length > 0;
       context.mandatory = [1, 2].includes(step.stage);
-      context.modules = list.map(m => this.#moduleCard(
-        m, step.multi ? sel.includes(m.id) : sel === m.id, derived
-      ));
+      context.modules = list.map(m => this.#moduleCard(m, selectedIds.includes(m.id), derived));
+      // Variant (caste/branch) pickers for any selected module that has variants.
+      context.variantPickers = selectedIds
+        .map(id => list.find(m => m.id === id))
+        .filter(m => m && this._asArray(m.system.variants).length)
+        .map(m => ({
+          moduleId: m.id,
+          moduleName: m.name,
+          label: m.system.variantLabel || 'Variant',
+          required: !!m.system.variantRequired,
+          variants: this._asArray(m.system.variants).map(v => ({
+            key: v.key,
+            name: v.name,
+            selected: this.#choices.variants[m.id] === v.key,
+            grants: this.#moduleGrants({ fixedXP: v.fixedXP }),
+            flexible: this.#flexibleSummaries({ flexibleXP: v.flexibleXP }),
+            notes: v.notes || ''
+          }))
+        }));
+      context.hasVariantPickers = context.variantPickers.length > 0;
       context.emptyKind = 'stage';
     }
 
@@ -368,6 +403,8 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     const sys = doc.system;
     const legal = CharacterBuilder.isModuleLegal(sys, this.#state.affiliationKey);
     const pre = this.#prereqStatus(sys.prerequisites, derived);
+    const affNames = this._asArray(sys.restrictedToAffiliations)
+      .map(k => k.charAt(0).toUpperCase() + k.slice(1)).join(', ');
     return {
       id: doc.id,
       name: doc.name,
@@ -380,8 +417,12 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       prereq: this.#prereqSummary(sys.prerequisites),
       hasPrereq: pre.has,
       prereqMet: pre.met,
+      notes: sys.notes || '',
+      hasVariants: this._asArray(sys.variants).length > 0,
       legal,
-      restrictedTo: legal ? '' : this._asArray(sys.restrictedToAffiliations).join(', ')
+      // Human-readable reason the module is unavailable to this character.
+      restrictionText: legal ? ''
+        : `Available only to ${affNames || 'certain'} affiliation(s) — your affiliation (${this.#state.affiliation || 'none'}) cannot take it.${sys.notes ? ' ' + sys.notes : ''}`
     };
   }
 
@@ -424,10 +465,15 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     };
   }
 
-  /** Short descriptions of a module's flexible-XP pools (for the card). */
+  /** Short descriptions of a module's flexible-XP pools (for the card). Always
+   * shows the XP amount, then the constraint note (a lump note like "may only
+   * be applied to Skills" doesn't itself state the amount). */
   #flexibleSummaries(system) {
-    return (system.flexibleXP || []).map(p =>
-      p.note || (p.lump ? `${p.amount} XP flexible` : `${p.amount} XP × ${p.count || 1} (${p.targets || 'any'})`));
+    return (system.flexibleXP || []).map(p => {
+      if (p.lump) return `${p.amount} XP flexible${p.note ? ` — ${p.note}` : ''}`;
+      const base = `${p.amount} XP × ${p.count || 1}`;
+      return p.note ? `${base} — ${p.note}` : `${base} (${p.targets || 'any'})`;
+    });
   }
 
   /** Tooltip text for a trait, resolved from its base name (before "/subskill"). */
@@ -552,7 +598,10 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
   /** Whether the current step is complete enough to advance / finish. */
   #canAdvance(stepId, step) {
     if (stepId === 'affiliation') return !!this.#choices.affiliationId;
-    if (step.stage && [1, 2].includes(step.stage)) return !!this.#choices.modules[step.stage];
+    if (step.stage && [1, 2].includes(step.stage)) {
+      return !!this.#choices.modules[step.stage] && !this.#missingRequiredVariant(step.stage);
+    }
+    if (step.stage) return !this.#missingRequiredVariant(step.stage);
     if (stepId === 'flexible') {
       return CharacterBuilder.flexibleResolved(this.#state) && CharacterBuilder.subskillsResolved(this.#state);
     }
@@ -564,11 +613,31 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     if (step.stage && [1, 2].includes(step.stage) && !this.#choices.modules[step.stage]) {
       return 'Choose a module for this required stage.';
     }
+    if (step.stage) {
+      const m = this.#missingRequiredVariant(step.stage);
+      if (m) return `Choose a ${m.label.toLowerCase()} for ${m.moduleName} to continue.`;
+    }
     if (stepId === 'flexible') {
       if (!CharacterBuilder.subskillsResolved(this.#state)) return 'Choose all subskills to continue.';
       if (!CharacterBuilder.flexibleResolved(this.#state)) return 'Assign all flexible XP to continue.';
     }
     return '';
+  }
+
+  /** First selected module in a stage that requires a variant but has none chosen. */
+  #missingRequiredVariant(stage) {
+    const byStage = this.#modulesCache?.[stage] || [];
+    const sel = this.#choices.modules[stage];
+    const ids = Array.isArray(sel) ? sel : (sel ? [sel] : []);
+    for (const id of ids) {
+      const m = byStage.find(x => x.id === id);
+      if (!m) continue;
+      const variants = this._asArray(m.system.variants);
+      if (variants.length && m.system.variantRequired && !this.#choices.variants[id]) {
+        return { moduleId: id, moduleName: m.name, label: m.system.variantLabel || 'Variant' };
+      }
+    }
+    return null;
   }
 
   /* ---------------------------------------------------------------------- */
@@ -710,7 +779,10 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
   static async #onSelectStageModule(event, target) {
     const stage = Number(target.dataset.stage);
     const id = target.dataset.id;
-    this.#choices.modules[stage] = this.#choices.modules[stage] === id ? '' : id;
+    const prev = this.#choices.modules[stage];
+    this.#choices.modules[stage] = prev === id ? '' : id;
+    // Clear any variant choice tied to a module that is no longer selected.
+    if (prev && prev !== this.#choices.modules[stage]) delete this.#choices.variants[prev];
     await this.#rebuildState();
     this.render();
   }
@@ -721,7 +793,18 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     const id = target.dataset.id;
     const list = this.#choices.modules[stage];
     const i = list.indexOf(id);
-    if (i === -1) list.push(id); else list.splice(i, 1);
+    if (i === -1) list.push(id);
+    else { list.splice(i, 1); delete this.#choices.variants[id]; } // drop variant on deselect
+    await this.#rebuildState();
+    this.render();
+  }
+
+  /** Choose (or clear) a module's variant (caste/branch sub-option). */
+  static async #onSelectVariant(event, target) {
+    const moduleId = target.dataset.module;
+    const key = target.dataset.key || '';
+    this.#choices.variants[moduleId] = this.#choices.variants[moduleId] === key ? '' : key;
+    if (!this.#choices.variants[moduleId]) delete this.#choices.variants[moduleId];
     await this.#rebuildState();
     this.render();
   }

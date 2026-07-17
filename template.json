@@ -166,6 +166,9 @@
       "primaryLanguage": "",
       "secondaryLanguages": [],
       "subAffiliations": [],
+      "variantLabel": "",
+      "variantRequired": false,
+      "variants": [],
       "restrictedToAffiliations": [],
       "prerequisites": {
         "attributes": {},
