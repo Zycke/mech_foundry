@@ -294,6 +294,51 @@ ok(applyOk, 'all seed modules apply through the engine without error');
   ok(st.attributes.dex === 30, 'Technician caste added +30 DEX XP');
 }
 
+/* ---- Full affiliation catalogue ----------------------------------------- */
+{
+  const affs = LIFE_MODULE_SEED.filter(m => m.system.stage === 0 && m.system.moduleType === 'affiliation'
+    && m.system.affiliationKey !== 'universal');
+  ok(affs.length >= 13, `all Stage 0 affiliations present (found ${affs.length})`);
+
+  // Every named realm from ATOW pp.64-74 should be there.
+  for (const name of ['Capellan Confederation', 'Draconis Combine', 'Federated Suns', 'Free Worlds League',
+    'Lyran Alliance', 'Free Rasalhague Republic', 'Minor Periphery State', 'Major Periphery State',
+    'Deep Periphery', 'Invading Clan', 'Homeworld Clan', 'Independent', 'ComStar']) {
+    ok(affs.some(a => a.name.includes(name)), `affiliation present: ${name}`);
+  }
+
+  // Every affiliation applies cleanly, including all of its sub-affiliations.
+  let affApplyOk = true;
+  for (const a of affs) {
+    try {
+      const st = CB.createState();
+      st.affiliationKey = a.system.affiliationKey;
+      CB.applyModule(st, a.system, { id: a.name, name: a.name });
+      for (const sub of (a.system.subAffiliations || [])) {
+        CB.applyModule(st, { stage: 0, xpCost: 0, fixedXP: sub.fixedXP, flexibleXP: sub.flexibleXP },
+          { id: `${a.name}:${sub.key}`, name: sub.name });
+      }
+      CB.derive(st);
+    } catch (_e) { affApplyOk = false; }
+  }
+  ok(affApplyOk, 'every affiliation + all its sub-affiliations apply without error');
+
+  // Both Clan affiliations expose the 10 castes as required variants.
+  const clanAffs = affs.filter(a => a.system.affiliationKey === 'clan');
+  ok(clanAffs.length === 2, 'Invading Clan + Homeworld Clan both use affiliationKey "clan"');
+  ok(clanAffs.every(a => a.system.variantRequired && a.system.variants.length === 10),
+    'each Clan affiliation requires one of 10 castes');
+
+  // Sub-affiliation XP stacks on top of the main affiliation.
+  const draconis = affs.find(a => a.name.includes('Draconis Combine'));
+  const st = CB.createState();
+  st.affiliationKey = 'kurita';
+  CB.applyModule(st, draconis.system, { id: 'drac', name: draconis.name });
+  const azami = draconis.system.subAffiliations.find(s => s.key === 'azami');
+  CB.applyModule(st, { stage: 0, xpCost: 0, fixedXP: azami.fixedXP, flexibleXP: azami.flexibleXP }, { id: 'azami', name: 'Azami' });
+  ok(st.attributes.wil === 50 + 190, 'Draconis WIL +50 and Azami WIL +190 stack to 240');
+}
+
 /* ---- Result ------------------------------------------------------------- */
 if (failed) { console.error(`\n${failed} check(s) FAILED`); process.exit(1); }
 console.log('\nAll character-builder checks passed.');

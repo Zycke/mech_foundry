@@ -160,6 +160,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
 
     this.#state.affiliation = aff.name;
     this.#state.affiliationKey = aff.system.affiliationKey || '';
+    this.#state.isClan = this.#state.affiliationKey === 'clan';
     this.#state.affiliationLanguages = {
       primary: aff.system.primaryLanguage || '',
       secondary: this._asArray(aff.system.secondaryLanguages)
@@ -174,6 +175,16 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
 
     // Main affiliation module.
     CharacterBuilder.applyModule(this.#state, aff.system, { id: aff.id, name: aff.name, uuid: aff.uuid });
+
+    // Optional affiliation variant (e.g. a Clan Caste), picked alongside the
+    // sub-affiliation in the Affiliation step.
+    const affVariant = this._asArray(aff.system.variants).find(v => v.key === this.#choices.variants[aff.id]);
+    if (affVariant) {
+      CharacterBuilder.applyModule(this.#state, {
+        stage: 0, xpCost: Number(affVariant.xpCost) || 0, time: 0,
+        fixedXP: affVariant.fixedXP, flexibleXP: affVariant.flexibleXP
+      }, { id: `variant:${aff.id}:${affVariant.key}`, name: `${aff.name} — ${affVariant.name}` });
+    }
 
     // Optional sub-affiliation: applied as an extra Stage 0 bundle.
     const sub = this._asArray(aff.system.subAffiliations)
@@ -301,10 +312,15 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
           name: s.name,
           selected: s.key === this.#choices.subAffiliationKey,
           grants: this.#moduleGrants(s),
-          flexible: this.#flexibleSummaries(s)
+          flexible: this.#flexibleSummaries(s),
+          notes: s.notes || ''
         }));
         context.hasSubAffiliations = true;
       }
+
+      // Affiliation variant (e.g. a Clan Caste) — same picker as the stage steps.
+      context.variantPickers = this.#variantPickersFor(chosen ? [chosen] : []);
+      context.hasVariantPickers = context.variantPickers.length > 0;
     }
 
     if (step.stage) {
@@ -318,23 +334,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       context.mandatory = [1, 2].includes(step.stage);
       context.modules = list.map(m => this.#moduleCard(m, selectedIds.includes(m.id), derived));
       // Variant (caste/branch) pickers for any selected module that has variants.
-      context.variantPickers = selectedIds
-        .map(id => list.find(m => m.id === id))
-        .filter(m => m && this._asArray(m.system.variants).length)
-        .map(m => ({
-          moduleId: m.id,
-          moduleName: m.name,
-          label: m.system.variantLabel || 'Variant',
-          required: !!m.system.variantRequired,
-          variants: this._asArray(m.system.variants).map(v => ({
-            key: v.key,
-            name: v.name,
-            selected: this.#choices.variants[m.id] === v.key,
-            grants: this.#moduleGrants({ fixedXP: v.fixedXP }),
-            flexible: this.#flexibleSummaries({ flexibleXP: v.flexibleXP }),
-            notes: v.notes || ''
-          }))
-        }));
+      context.variantPickers = this.#variantPickersFor(selectedIds.map(id => list.find(m => m.id === id)));
       context.hasVariantPickers = context.variantPickers.length > 0;
       context.emptyKind = 'stage';
     }
@@ -424,6 +424,27 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       restrictionText: legal ? ''
         : `Available only to ${affNames || 'certain'} affiliation(s) — your affiliation (${this.#state.affiliation || 'none'}) cannot take it.${sys.notes ? ' ' + sys.notes : ''}`
     };
+  }
+
+  /** Build variant-picker view models for any of the given module docs that
+   * declare variants (shared by the affiliation and stage steps). */
+  #variantPickersFor(docs) {
+    return (docs || [])
+      .filter(m => m && this._asArray(m.system.variants).length)
+      .map(m => ({
+        moduleId: m.id,
+        moduleName: m.name,
+        label: m.system.variantLabel || 'Variant',
+        required: !!m.system.variantRequired,
+        variants: this._asArray(m.system.variants).map(v => ({
+          key: v.key,
+          name: v.name,
+          selected: this.#choices.variants[m.id] === v.key,
+          grants: this.#moduleGrants({ fixedXP: v.fixedXP }),
+          flexible: this.#flexibleSummaries({ flexibleXP: v.flexibleXP }),
+          notes: v.notes || ''
+        }))
+      }));
   }
 
   /** Small array coercion (module fields may be arrays or objects). */
@@ -534,10 +555,14 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       const saved = this.#choices.flexible[pool.sourceKey] || [];
       const moduleName = this.#state.modules.find(m => m.id === pool.moduleId)?.name || '';
 
+      // A constrained choice list (e.g. "choose one: Combat Sense or Pain
+      // Resistance") drives the dropdown directly for skills/traits.
+      const constrained = pool.choices.length && baseKind && baseKind !== 'attribute'
+        ? pool.choices.map(c => ({ value: c, label: c })) : null;
       const slots = Array.from({ length: pool.count }, (_, i) => {
         const s = saved[i] || {};
         const kind = baseKind || s.kind || 'attribute';
-        const options = baseKind === 'attribute' ? attrChoices : optionsFor(kind);
+        const options = baseKind === 'attribute' ? attrChoices : (constrained || optionsFor(kind));
         return { idx: i, isAny: baseKind === null, kind, key: s.key || '', options };
       });
 
@@ -597,7 +622,10 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
 
   /** Whether the current step is complete enough to advance / finish. */
   #canAdvance(stepId, step) {
-    if (stepId === 'affiliation') return !!this.#choices.affiliationId;
+    if (stepId === 'affiliation') {
+      if (!this.#choices.affiliationId) return false;
+      return !this.#missingRequiredVariantFor(this.#modulesCache?.[0], [this.#choices.affiliationId]);
+    }
     if (step.stage && [1, 2].includes(step.stage)) {
       return !!this.#choices.modules[step.stage] && !this.#missingRequiredVariant(step.stage);
     }
@@ -609,7 +637,11 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   #advanceHint(stepId, step) {
-    if (stepId === 'affiliation' && !this.#choices.affiliationId) return 'Choose an affiliation to continue.';
+    if (stepId === 'affiliation') {
+      if (!this.#choices.affiliationId) return 'Choose an affiliation to continue.';
+      const a = this.#missingRequiredVariantFor(this.#modulesCache?.[0], [this.#choices.affiliationId]);
+      if (a) return `Choose a ${a.label.toLowerCase()} for ${a.moduleName} to continue.`;
+    }
     if (step.stage && [1, 2].includes(step.stage) && !this.#choices.modules[step.stage]) {
       return 'Choose a module for this required stage.';
     }
@@ -626,11 +658,16 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
 
   /** First selected module in a stage that requires a variant but has none chosen. */
   #missingRequiredVariant(stage) {
-    const byStage = this.#modulesCache?.[stage] || [];
     const sel = this.#choices.modules[stage];
     const ids = Array.isArray(sel) ? sel : (sel ? [sel] : []);
-    for (const id of ids) {
-      const m = byStage.find(x => x.id === id);
+    return this.#missingRequiredVariantFor(this.#modulesCache?.[stage], ids);
+  }
+
+  /** First module in `ids` (looked up in `list`) that requires a variant but has none chosen. */
+  #missingRequiredVariantFor(list, ids) {
+    const byId = list || [];
+    for (const id of ids || []) {
+      const m = byId.find(x => x.id === id);
       if (!m) continue;
       const variants = this._asArray(m.system.variants);
       if (variants.length && m.system.variantRequired && !this.#choices.variants[id]) {
@@ -756,8 +793,10 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   static async #onSelectAffiliation(event, target) {
+    const prev = this.#choices.affiliationId;
     this.#choices.affiliationId = target.dataset.id || '';
     this.#choices.subAffiliationKey = ''; // sub-affiliations are affiliation-specific
+    if (prev) delete this.#choices.variants[prev]; // caste is affiliation-specific
     await this.#rebuildState();
     this.render();
   }

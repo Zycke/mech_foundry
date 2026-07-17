@@ -59,9 +59,34 @@
             {{#if this.selected}}<span class="selected-flag"><i class="fas fa-check"></i></span>{{/if}}
           </span>
           {{> "systems/mech-foundry/templates/apps/parts/wizard-grants.hbs"}}
+          {{#if this.notes}}<span class="choice-prereq"><i class="fas fa-circle-info"></i> {{this.notes}}</span>{{/if}}
         </button>
         {{/each}}
       </div>
+      {{/if}}
+
+      {{#if hasVariantPickers}}
+      {{#each variantPickers}}
+      <div class="variant-picker">
+        <div class="vp-head">
+          <span class="vp-title">{{this.label}} — {{this.moduleName}}</span>
+          {{#if this.required}}<span class="vp-required">required</span>{{/if}}
+        </div>
+        <div class="choice-grid">
+          {{#each this.variants}}
+          <button type="button" class="choice-card variant-card {{#if this.selected}}selected{{/if}}"
+                  data-action="selectVariant" data-module="{{../moduleId}}" data-key="{{this.key}}">
+            <span class="card-head">
+              <span class="choice-name">{{this.name}}</span>
+              {{#if this.selected}}<span class="selected-flag"><i class="fas fa-check"></i></span>{{/if}}
+            </span>
+            {{> "systems/mech-foundry/templates/apps/parts/wizard-grants.hbs"}}
+            {{#if this.notes}}<span class="choice-prereq"><i class="fas fa-circle-info"></i> {{this.notes}}</span>{{/if}}
+          </button>
+          {{/each}}
+        </div>
+      </div>
+      {{/each}}
       {{/if}}
     </div>
     {{/if}}

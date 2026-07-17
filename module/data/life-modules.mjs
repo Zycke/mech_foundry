@@ -32,6 +32,60 @@ const vr = (key, name, xpCost, s = {}) => ({
 });
 /** Expand a skill "Field" into per-skill grants: each entry gets +xp. */
 const field = (xp, skills) => skills.map(spec => Array.isArray(spec) ? sk(spec[0], xp, spec[1]) : sk(spec, xp));
+/** A Stage 0 sub-affiliation bundle (regional/cultural sub-sect). */
+const saff = (key, name, s = {}) => ({
+  key, name,
+  fixedXP: { attributes: s.attrs || {}, skills: s.skills || [], traits: s.traits || [] },
+  flexibleXP: s.flex || [],
+  notes: s.notes || ''
+});
+/** A Stage 0 affiliation module (with optional sub-affiliations & caste variants). */
+const aff = (name, key, xpCost, s = {}) => ({
+  name, img: IMG, type: 'lifeModule',
+  system: {
+    stage: 0, moduleType: 'affiliation', affiliationKey: key, xpCost, time: 0,
+    primaryLanguage: s.primary || '', secondaryLanguages: s.secondary || [],
+    subAffiliations: s.subs || [],
+    variantLabel: s.variantLabel || '', variantRequired: !!s.variantRequired, variants: s.variants || [],
+    restrictedToAffiliations: [],
+    prerequisites: s.prereq || { attributes: {}, skills: {}, traits: {} },
+    fixedXP: { attributes: s.attrs || {}, skills: s.skills || [], traits: s.traits || [] },
+    flexibleXP: s.flex || [],
+    grantsFields: [], notes: s.notes || '', pageRef: s.pageRef || 'ATOW pp.64-74',
+    description: s.desc || ''
+  }
+});
+/** The ten Clan castes/sub-castes (ATOW p.71) — applied as a variant on the
+ * Invading/Homeworld Clan affiliations (picked alongside the specific Clan). */
+const CLAN_CASTES = [
+  vr('mechwarrior', 'Warrior — MechWarrior', 0, {
+    attrs: { dex: 75, rfl: 75, wil: 75, cha: -25, edg: -50 }, traits: [tr('Fit', 25), tr('Impatient', -50)] }),
+  vr('elemental', 'Warrior — Elemental', 0, {
+    attrs: { bod: 125, str: 125, dex: -75, cha: -75 }, skills: [sk('Martial Arts', 25)] }),
+  vr('elemental-adv', 'Warrior — Elemental (Advanced)', 0, {
+    attrs: { bod: 200, str: 175, dex: -100, rfl: -75, cha: -100, edg: -100 }, traits: [tr('Patient', 25), tr('Reputation', 100)],
+    notes: 'Ghost Bear / Hell\'s Horses only.' }),
+  vr('aerospace', 'Warrior — Aerospace / ProtoMech', 0, {
+    attrs: { bod: -50, str: -50, dex: 150, rfl: 150, cha: -25, edg: -25 }, traits: [tr('Fit', 25), tr('Impatient', -50)] }),
+  vr('aerospace-naval', 'Warrior — Aerospace-Naval', 0, {
+    attrs: { bod: -50, str: -50, dex: 125, rfl: 125, int: 50, cha: -25, edg: -100 },
+    traits: [tr('Compulsion/Arrogance', -100), tr('Patient', 75), tr('Reputation', 75)],
+    notes: 'Snow Raven (Aerospace Phenotype) only.' }),
+  vr('warrior-other', 'Warrior (Other)', 0, {
+    attrs: { bod: 75, str: 50, dex: 50, rfl: 50, cha: -25 }, traits: [tr('Reputation', -75)] }),
+  vr('scientist', 'Scientist', 0, {
+    attrs: { str: -50, int: 100 }, traits: [tr('Compulsion/Arrogance', -25), tr('Patient', 100), tr('Reputation', -25)],
+    skills: [sk('Interest', 10, 'Any'), sk('Science', 15, 'Any')] }),
+  vr('technician', 'Technician', 0, {
+    attrs: { dex: 100, int: 20, cha: -50 }, traits: [tr('Patient', 100), tr('Reputation', -75)],
+    skills: [sk('Interest', 15, 'Any'), sk('Technician', 15, 'Any')] }),
+  vr('merchant', 'Merchant', 0, {
+    attrs: { bod: -50, int: 25, cha: 75 }, traits: [tr('Gregarious', 100), tr('Reputation', -75)],
+    skills: [sk('Appraisal', 10), sk('Negotiation', 15), sk('Protocol', 10, 'Any'), sk('Streetwise', 15, 'Clan')] }),
+  vr('laborer', 'Laborer', 0, {
+    attrs: { bod: 100, str: 125, dex: 50, rfl: 50, int: -50, cha: -50 }, traits: [tr('Reputation', -125)],
+    skills: [sk('Career', 15, 'Any'), sk('Interest', 10, 'Any')] })
+];
 const mod = (name, stage, moduleType, xpCost, time, s = {}) => ({
   name, img: IMG, type: 'lifeModule',
   system: {
@@ -91,6 +145,7 @@ export const LIFE_MODULE_SEED = [
       time: 0,
       primaryLanguage: 'Mandarin Chinese',
       secondaryLanguages: ['Russian', 'Cantonese', 'Vietnamese', 'English'],
+      variantLabel: '', variantRequired: false, variants: [],
       restrictedToAffiliations: [],
       prerequisites: { attributes: {}, skills: {}, traits: {} },
       fixedXP: {
@@ -196,6 +251,349 @@ export const LIFE_MODULE_SEED = [
       description: '<p>Origins in the Capellan Confederation (House Liao), a rigid, security-obsessed realm long beset by its neighbours. Choose a Commonality sub-affiliation for regional flavour and its own XP.</p>'
     }
   },
+
+  /* ==== STAGE 0 — AFFILIATIONS (ATOW pp.64-74) ========================== */
+  aff('Draconis Combine (House Kurita)', 'kurita', 150, {
+    primary: 'Japanese', secondary: ['Arabic', 'English', 'Swedenese'],
+    attrs: { wil: 50 },
+    traits: [tr('Compulsion/Xenophobia', -100), tr('Wealth', -50)],
+    skills: [sk('Art', 15, 'Oral Tradition'), sk('Martial Arts', 10), sk('Protocol', 15, 'Combine')],
+    flex: [flex(100, 1, 'traits', 'choose one: Pain Resistance or Combat Sense', ['Pain Resistance', 'Combat Sense']),
+      flex(10, 1, 'skills', 'choose one: Archery, Melee Weapons or Thrown Weapons/Blade', ['Archery', 'Melee Weapons', 'Thrown Weapons/Blade'])],
+    subs: [
+      saff('azami', 'Azami', {
+        attrs: { wil: 190 }, traits: [tr('Compulsion/Xenophobia', -50), tr('Equipped', -50), tr('Wealth', -25)],
+        skills: [sk('Language', 10, 'Arabic'), sk('Language', -10, 'Japanese'), sk('Martial Arts', 10), sk('Melee Weapons', 10), sk('Animal Handling', 5, 'Riding'), sk('Survival', 10, 'Any')] }),
+      saff('benjamin', 'Benjamin District', {
+        traits: [tr('Compulsion/Paranoid of Combine Government', -50), tr('Connections', 50), tr('Patient', 25), tr('Wealth', 35)],
+        skills: [sk('Art', 5, 'Oral Tradition'), sk('Martial Arts', 10), sk('Protocol', 15, 'Combine'), sk('Streetwise', 10, 'Combine')] }),
+      saff('dieron', 'Dieron District', {
+        attrs: { int: 50, wil: -50 }, traits: [tr('Compulsion/Xenophobia', 50), tr('Connections', 60), tr('Enemy', -100), tr('Wealth', 50)],
+        skills: [sk('Interest', 5, 'Star League History'), sk('Language', 15, 'Any'), sk('Negotiation', 5), sk('Art', 15, 'Any')] }),
+      saff('new-samarkand', 'New Samarkand (Galedon) District', {
+        attrs: { wil: 100, cha: -50 }, traits: [tr('Compulsion/Hatred of Federated Suns', -50), tr('Connections', 50)],
+        skills: [sk('Interest', 10, 'Combine History'), sk('Melee Weapons', 15), sk('Negotiation', 5), sk('Protocol', 10, 'Combine'), sk('Streetwise', 10, 'Combine')] }),
+      saff('pesht', 'Pesht District', {
+        attrs: { wil: 100, edg: -25 }, traits: [tr('Compulsion/Hatred of Clans', -100), tr('Connections', 20), tr('Wealth', 50)],
+        skills: [sk('Martial Arts', 10), sk('Melee Weapons', 15), sk('Protocol', 20, 'Combine'), sk('Streetwise', 10, 'Combine')] })
+    ],
+    notes: 'Child labour is legal in the Draconis Combine, so Combine characters may take the Civilian Job Stage 4 module in place of a Stage 2 module (advancing immediately to age 18).',
+    desc: '<p>Origins in the Draconis Combine (House Kurita), a harsh, honour-bound realm patterned on feudal Japan.</p>'
+  }),
+
+  aff('Federated Suns (House Davion)', 'davion', 150, {
+    primary: 'English', secondary: ['French', 'German', 'Hindi', 'Russian'],
+    skills: [sk('Protocol', 10, 'FedSuns')],
+    flex: [flex(100, 1, 'traits', 'choose Natural Aptitude/Protocol or Natural Aptitude/Strategy (requires INT 4)', ['Natural Aptitude/Protocol', 'Natural Aptitude/Strategy'])],
+    subs: [
+      saff('crucis-march', 'Crucis March', {
+        attrs: { wil: 50, edg: -50 },
+        skills: [sk('Art', 10, 'Any'), sk('Interest', 15, 'FedSuns History'), sk('Protocol', 15, 'FedSuns')] }),
+      saff('draconis-march', 'Draconis March', {
+        attrs: { edg: 25 }, traits: [tr('Connections', 20), tr('Compulsion/Hatred of Draconis Combine', -30)],
+        skills: [sk('Art', 10, 'Any'), sk('Interest', 10, 'FedSuns History'), sk('Protocol', 5, 'FedSuns')] }),
+      saff('capellan-march', 'Capellan March', {
+        attrs: { wil: 40 }, traits: [tr('Connections', 25), tr('Compulsion/Hatred of Capellan Confederation', -50)],
+        skills: [sk('Protocol', 10, 'FedSuns'), sk('Interest', 10, 'FedSuns History'), sk('Language', 5, 'Choose one from Cantonese, German, Mandarin, Spanish or Russian')] }),
+      saff('outback', 'Outback', {
+        attrs: { str: 50, bod: 150, wil: 100, int: -100 }, traits: [tr('Illiterate', -50), tr('Reputation', -50), tr('Wealth', -100)],
+        skills: [sk('Art', 10, 'Any or Interest/Any'), sk('Streetwise', 10, 'FedSuns'), sk('Survival', 20, 'Any')] })
+    ],
+    notes: 'A minimum INT score of 4 is required for FedSuns characters that select Natural Aptitude/Protocol or Natural Aptitude/Strategy in Stage 0.',
+    desc: '<p>Origins in the Federated Suns (House Davion), a realm of border marches patterned on feudal England.</p>'
+  }),
+
+  aff('Free Worlds League (House Marik)', 'marik', 150, {
+    primary: 'English', secondary: ['Greek', 'Hindi', 'Italian', 'Mandarin', 'Mongolian', 'Romanian', 'Slovak', 'Spanish', 'Urdu'],
+    skills: [sk('Language', 15, 'Any Secondary'), sk('Art', 10, 'Any')],
+    subs: [
+      saff('marik-commonwealth', 'Marik Commonwealth', {
+        traits: [tr('Wealth', 100), tr('Equipped', 100), tr('Reputation', -100)],
+        skills: [sk('Appraisal', 5), sk('Negotiation', 10), sk('Protocol', 10, 'Free Worlds')] }),
+      saff('regulus', 'Principality of Regulus', {
+        attrs: { wil: 75 }, traits: [tr('Gregarious', 75), tr('Compulsion/Atrean Opponent', -50), tr('Reputation', -50)],
+        skills: [sk('Interest', 20, 'Regulan History'), sk('Negotiation', 25), sk('Perception', 15), sk('Protocol', 15, 'Free Worlds')] }),
+      saff('oriente', 'Duchy of Oriente', {
+        traits: [tr('Reputation', 100)],
+        skills: [sk('Appraisal', 5), sk('Negotiation', 15), sk('Technician', 5, 'Any')] }),
+      saff('andurien', 'Duchy of Andurien', {
+        attrs: { wil: 50 }, traits: [tr('Combat Sense', 215), tr('Compulsion/Hatred of House Liao', -100), tr('Compulsion/Atrean Opponent', -50), tr('Reputation', -30)],
+        skills: [sk('Negotiation', 15), sk('Perception', 10), sk('Protocol', 15, 'Free Worlds')] }),
+      saff('other-fwl', 'Other FWL Worlds', {
+        skills: [sk('Appraisal', 15), sk('Language', 20, 'Any'), sk('Protocol', 10, 'Free Worlds')],
+        flex: [flex(35, 1, 'traits', 'any one Trait'), flex(10, 2, 'skills', 'any two other Skills'), flex(25, 1, 'any', '+25 to any one Attribute, Trait or Language Skill')] })
+    ],
+    notes: 'Free Worlds characters that receive an Implant/Prosthetics Trait automatically receive -100 XP in the Reputation Trait as well.',
+    desc: '<p>Origins in the Free Worlds League (House Marik), an open-minded but divided confederation of smaller states.</p>'
+  }),
+
+  aff('Lyran Alliance (House Steiner)', 'steiner', 150, {
+    primary: 'German', secondary: ['English', 'Italian', 'Scots Gaelic', 'Swedish'],
+    attrs: { wil: -50, edg: -50 },
+    traits: [tr('Equipped', 100), tr('Extra Income', 50), tr('Wealth', 100)],
+    skills: [sk('Negotiation', 15), sk('Appraisal', 10), sk('Protocol', 15, 'Lyran')],
+    flex: [flex(100, 1, 'traits', 'choose either Combat Paralysis or Glass Jaw (penalty)', ['Combat Paralysis', 'Glass Jaw'])],
+    subs: [
+      saff('alarion', 'Alarion Province', {
+        attrs: { cha: -50 }, traits: [tr('Wealth', 70)],
+        skills: [sk('Administration', 10), sk('Interest', 10, 'Any'), sk('Language', 10, 'Any'), sk('Negotiation', 10)] }),
+      saff('bolan', 'Bolan Province', {
+        traits: [tr('Compulsion/Hatred of House Marik', -50), tr('Connections', 50), tr('Wealth', 25)],
+        skills: [sk('Administration', 5), sk('Negotiation', 15), sk('Protocol', 10, 'Lyran'), sk('Streetwise', 5, 'Lyran')] }),
+      saff('coventry', 'Coventry Province', {
+        attrs: { wil: 100 }, traits: [tr('Compulsion/Hatred of Clans', -95), tr('Wealth', 25)],
+        skills: [sk('Administration', 10), sk('Negotiation', 10), sk('Protocol', 10, 'Lyran')] }),
+      saff('donegal', 'Donegal Province', {
+        attrs: { wil: 50 }, traits: [tr('Compulsion/Greedy', -75), tr('Connections', 50), tr('Reputation', -50), tr('Wealth', 50)],
+        skills: [sk('Appraisal', 10), sk('Negotiation', 10), sk('Protocol', 15, 'Lyran')] }),
+      saff('skye', 'Skye Province', {
+        attrs: { wil: 100 }, traits: [tr('Connections', 85), tr('Reputation', -150)],
+        skills: [sk('Language', 10, 'Scots Gaelic'), sk('Negotiation', 15), sk('Protocol', -15, 'Lyran'), sk('Streetwise', 15, 'Lyran')] })
+    ],
+    desc: '<p>Origins in the Lyran Alliance (House Steiner), a heavily industrialised, mercantile realm patterned on feudal Germany.</p>'
+  }),
+
+  aff('Free Rasalhague Republic', 'rasalhague', 100, {
+    primary: 'Swedish', secondary: ['English', 'Japanese', 'Swedenese', 'German'],
+    attrs: { wil: 25, edg: -25 },
+    skills: [sk('Negotiation', 15), sk('Interest', 10, 'Any')],
+    subs: [
+      saff('clan-war-expatriate', 'Clan War Expatriate', {
+        attrs: { wil: 125, edg: 100 }, traits: [tr('Compulsion/Hatred of Clans', -150), tr('Wealth', -50)],
+        skills: [sk('Language', 15, 'Choose Any Lyran or Draconis'), sk('Martial Arts', 10), sk('Protocol', 10, 'Choose either Lyran or Draconis'), sk('Small Arms', 15)] }),
+      saff('ghost-bear-dominion', 'Ghost Bear Dominion', {
+        traits: [tr('Equipped', 50), tr('Introvert', -25), tr('Reputation', -25)],
+        skills: [sk('Protocol', 20, 'Clan (Ghost Bear)'), sk('Interest', 10, 'Any'), sk('Interest', 10, 'Remembrance'), sk('Negotiation', 10), sk('Martial Arts', 15), sk('Melee Weapons', 10)] })
+    ],
+    notes: 'Rasalhague-born characters that join a mercenary command automatically receive -100 XP in the Reputation Trait. Characters with the Ghost Bear Dominion sub-affiliation reflect native (non-Clan) Rasalhagians and must take only Stage 1 and 2 modules permitted to Clan freeborns.',
+    desc: '<p>Origins in the Free Rasalhague Republic, a Scandinavian realm long caught between the Combine and the Clans.</p>'
+  }),
+
+  aff('Minor Periphery State', 'periphery-minor', 75, {
+    primary: 'English', secondary: ['Any'],
+    traits: [tr('Equipped', -150)],
+    skills: [sk('Perception', 15), sk('Survival', 20, 'Any')],
+    flex: [flex(25, 3, 'any', '+25 XP each to any three Attributes or Traits')],
+    subs: [
+      saff('fiefdom-of-randis', 'Fiefdom of Randis', {
+        attrs: { bod: 125, edg: 50 }, traits: [tr('Illiterate', -75), tr('Wealth', -50)],
+        skills: [sk('Martial Arts', 10), sk('Melee Weapons', 10), sk('Negotiation', 10), sk('Streetwise', 15, 'Periphery'), sk('Survival', 20, 'Any')] }),
+      saff('franklin-fiefs', 'Franklin Fiefs', {
+        attrs: { bod: 150, int: -100, wil: 50 }, traits: [tr('Equipped', -60), tr('Illiterate', -90), tr('Toughness', 100)],
+        skills: [sk('Martial Arts', 15), sk('MedTech', 10, 'Any'), sk('Protocol', 10, 'Novo Franklin'), sk('Streetwise', 10, 'Periphery'), sk('Survival', 10, 'Any')],
+        flex: [flex(10, 1, 'skills', 'choose one: Archery, Melee Weapons or Negotiation', ['Archery', 'Melee Weapons', 'Negotiation'])] }),
+      saff('mica-majority', 'Mica Majority', {
+        attrs: { bod: 100, rfl: 100, edg: -100 }, traits: [tr('Equipped', -25), tr('Toughness', 100), tr('Wealth', -100)],
+        skills: [sk('Career', 10, 'Mining'), sk('Language', 10, 'Japanese'), sk('Negotiation', 10), sk('Survival', 10, 'Arctic')] }),
+      saff('niops-association', 'Niops Association', {
+        attrs: { int: 125, wil: -110 }, traits: [tr('Equipped', 200), tr('Introvert', -125)],
+        skills: [sk('Interest', 10, 'Any'), sk('Technician', 15, 'Any')] }),
+      saff('rim-collection', 'Rim Collection', {
+        attrs: { cha: -50, edg: 100 }, traits: [tr('Fit', 75), tr('Wealth', -50)],
+        skills: [sk('Negotiation', 15), sk('Small Arms', 5)],
+        flex: [flex(10, 2, 'skills', 'choose two: Animal Handling/Any, Archery, Martial Arts, Melee Weapons, Streetwise/Rim Collection or Survival/Any', ['Animal Handling/Any', 'Archery', 'Martial Arts', 'Melee Weapons', 'Streetwise/Rim Collection', 'Survival/Any'])] })
+    ],
+    notes: 'Periphery characters may not take: High School or Military School (Stage 2); University or Military Academy (Stage 3); Postgraduate Study (Stage 4). Franklin Fiefs characters without the Citizen Trait may not receive the Title or Property Trait and may only take Basic Training, Infantry or Cavalry. Mica Majority and Rim Collection characters may not take the Nobility Life Modules nor hold titles.',
+    desc: '<p>Origins in one of the small, well-armed statelets of the Periphery.</p>'
+  }),
+
+  aff('Major Periphery State', 'periphery-major', 100, {
+    primary: 'English', secondary: [],
+    traits: [tr('Equipped', -50)],
+    flex: [flex(15, 3, 'any', '+15 XP each to any three Attributes, Traits or Skills')],
+    subs: [
+      saff('circinus-federation', 'Circinus Federation', {
+        attrs: { str: 100, bod: 75, int: -100, wil: 70 }, traits: [tr('Illiterate', -75), tr('Reputation', -200), tr('Toughness', 300), tr('Wealth', -125)],
+        flex: [flex(20, 3, 'skills', 'choose three: Animal Handling/Any, Martial Arts, MedTech/Any, Small Arms, Streetwise/Periphery, Survival/Any or Tracking/Any', ['Animal Handling/Any', 'Martial Arts', 'MedTech/Any', 'Small Arms', 'Streetwise/Periphery', 'Survival/Any', 'Tracking/Any'])],
+        notes: 'Secondary Languages: German, Spanish.' }),
+      saff('magistracy-of-canopus', 'Magistracy of Canopus', {
+        attrs: { cha: 100, edg: 50 }, traits: [tr('Gregarious', 50), tr('Illiterate', -25), tr('Reputation', -125), tr('Wealth', 25)],
+        skills: [sk('Streetwise', 15, 'Magistracy')],
+        flex: [flex(15, 1, 'skills', 'choose one: Acting or MedTech/General', ['Acting', 'MedTech/General'])],
+        notes: 'Secondary Languages: Greek, Romanian, Spanish, Urdu. Includes the Fronc Reaches.' }),
+      saff('marian-hegemony', 'Marian Hegemony', {
+        attrs: { wil: 100 }, traits: [tr('Compulsion/Paranoid', -50), tr('Connections', 25), tr('Reputation', -150), tr('Toughness', 125)],
+        skills: [sk('Interest', 15, 'Marian History'), sk('Interest', 10, 'Roman History'), sk('Language', 15, 'Latin'), sk('Protocol', 10, 'Marian'), sk('Strategy', 5)],
+        notes: 'Primary Language: Latin. Secondary: French, German, Greek, Spanish, Swedish. Marian characters must purchase the Citizen Trait or take the Slave Stage 1 module.' }),
+      saff('outworlds-alliance', 'Outworlds Alliance', {
+        attrs: { edg: 75 }, traits: [tr('Equipped', -55), tr('G-Tolerance', 125), tr('Wealth', -75)],
+        skills: [sk('Streetwise', 10, 'Outworlds'), sk('Survival', 10, 'Any')],
+        flex: [flex(15, 1, 'skills', 'choose one: Martial Arts, MedTech/Any or Small Arms', ['Martial Arts', 'MedTech/Any', 'Small Arms'])],
+        notes: 'Secondary Languages: French, Japanese.' }),
+      saff('taurian-concordat', 'Taurian Concordat', {
+        attrs: { wil: 150, edg: 50 }, traits: [tr('Compulsion/Distrust FedSuns', -75), tr('Compulsion/Stubborn', -75)],
+        skills: [sk('Martial Arts', 10), sk('Negotiation', 10), sk('Small Arms', 15), sk('Streetwise', 15, 'Taurian'), sk('Survival', 5, 'Any')],
+        notes: 'Secondary Languages: French, Spanish. Includes the Calderon Protectorate.' })
+    ],
+    notes: 'Primary language is English; each sub-affiliation lists its own secondary (or primary) languages. The four major Periphery realms are miniature Successor States.',
+    desc: '<p>Origins in one of the major Periphery nations — Magistracy of Canopus, Marian Hegemony, Outworlds Alliance, Taurian Concordat or Circinus Federation.</p>'
+  }),
+
+  aff('Deep Periphery', 'periphery-deep', 50, {
+    primary: '', secondary: [],
+    attrs: { wil: 60 }, traits: [tr('Equipped', -80)],
+    flex: [flex(10, 2, 'any', '+10 XP each to any two Attributes, Traits or Skills')],
+    subs: [
+      saff('hanseatic-league', 'Hanseatic League', {
+        traits: [tr('Citizenship', 30), tr('Compulsion/Distrust Lyrans', -20)],
+        skills: [sk('Appraisal', 10), sk('Negotiation', 20), sk('Protocol', 10, 'Hanseatic')],
+        notes: 'Primary Language: German. Secondary: English. If the Wealth Trait drops to 0 or less, lose Citizenship and gain Reputation (-20) and In For Life (-40).' }),
+      saff('castilian-principalities', 'Castilian Principalities', {
+        attrs: { dex: 25 }, traits: [tr('Compulsion/Castilian Honor Code', -20), tr('Compulsion/Hatred of Umayyads', -20)],
+        skills: [sk('Martial Arts', 15), sk('Melee Weapons', 15), sk('Negotiation', 10), sk('Protocol', 25, 'Castilian')],
+        notes: 'Primary Language: Spanish. Secondary: German. Rank may not exceed Title level; may not take University modules.' }),
+      saff('umayyad-caliphate', 'Umayyad Caliphate', {
+        attrs: { dex: 20 }, traits: [tr('Compulsion/Xenophobic', -10)],
+        skills: [sk('Art', 10, 'Any'), sk('Interest', 10, 'Any'), sk('Protocol', 20, 'Umayyad')],
+        notes: 'Primary Language: Arabic. Secondary: English. Warriors must take the Nobility Stage 1 module and need a Title Trait for Officer/MechWarrior Fields.' }),
+      saff('jarnfolk', 'JàrnFòlk', {
+        attrs: { rfl: 20 }, traits: [tr('Compulsion/Xenophobic', -10), tr('Natural Aptitude/Martial Arts', 10), tr('Wealth', -10)],
+        skills: [sk('Negotiation', 15), sk('Protocol', 15, 'JàrnFòlk Families')],
+        flex: [flex(10, 1, 'skills', 'choose one: Art/Any, Interest/Any or Technician/Any', ['Art/Any', 'Interest/Any', 'Technician/Any'])],
+        notes: 'Primary Language: JàrnFòlk Norse. Secondary: Danish, English, German, Swedish. May not take White Collar/Preparatory School/Military School/Undergraduate Studies, nor any Stage 3 except Family Training; may not become MechWarriors or use battle armor.' })
+    ],
+    notes: 'Each sub-affiliation defines its own primary and secondary languages (see the sub notes).',
+    desc: '<p>Origins in one of the four realms of the Deep Periphery — the Hanseatic League, Castilian Principalities, Umayyad Caliphate or JàrnFòlk.</p>'
+  }),
+
+  aff('Invading Clan', 'clan', 75, {
+    primary: 'English', secondary: [],
+    traits: [tr('Compulsion/Arrogance', -50), tr('Compulsion/Distrust of Inner Sphere', -100)],
+    skills: [sk('Interest', 25, 'Clan Remembrance'), sk('Protocol', 25, 'Clan')],
+    variantLabel: 'Caste', variantRequired: true, variants: CLAN_CASTES,
+    subs: [
+      saff('diamond-shark', 'Diamond Shark', {
+        attrs: { str: -45, int: 25, edg: -50 }, traits: [tr('Connections', 25), tr('Equipped', 25), tr('Wealth', 30)],
+        skills: [sk('Negotiation', 20), sk('Perception', 10), sk('Protocol', 10, 'Diamond Shark')] }),
+      saff('ghost-bear', 'Ghost Bear', {
+        attrs: { str: 25, bod: 25 }, traits: [tr("Compulsion/Hate Hell's Horses", -25), tr('Exceptional Attribute/Strength', 50), tr('Slow Learner', -50)],
+        skills: [sk('Art', 10, 'Any'), sk('Protocol', 10, 'Ghost Bear'), sk('Streetwise', 5, 'Rasalhague')],
+        notes: 'Cannot choose the Aerospace Phenotype; must select MechWarrior Phenotype (substituting one Fighter Pilot Field Skill).' }),
+      saff('hells-horses', "Hell's Horses", {
+        attrs: { str: 25, bod: 25 }, traits: [tr('Compulsion/Hate Ghost Bears', -25), tr('Introvert', -30)],
+        skills: [sk('Melee Weapons', 10), sk('Navigation', 15, 'Ground'), sk('Protocol', 15, "Hell's Horses"), sk('Survival', 15, 'Desert')] }),
+      saff('jade-falcon', 'Jade Falcon', {
+        attrs: { wil: 25 }, traits: [tr('Compulsion/Falcon Pride', -75), tr('Compulsion/Hate Steel Vipers', -50), tr('Reputation', 100)],
+        skills: [sk('Acting', 10), sk('Martial Arts', 15), sk('Protocol', 15, 'Jade Falcon'), sk('Survival', 10, 'Forests')] }),
+      saff('nova-cat', 'Nova Cat', {
+        attrs: { edg: 120 }, traits: [tr('Enemy/The Clans', -100), tr('Enemy/Draconis Combine', -50), tr('Equipped', 50), tr('Reputation', -100), tr('Sixth Sense', 100)],
+        skills: [sk('Interest', 10, 'Nova Cat Vision Quest'), sk('Language', 5, 'Japanese'), sk('Protocol', 5, 'Draconis Combine'), sk('Protocol', 10, 'Nova Cat')] }),
+      saff('snow-raven', 'Snow Raven', {
+        attrs: { int: 20 }, traits: [tr('Compulsion/Raven Pride', -50), tr('Connections', 50)],
+        skills: [sk('Negotiation', 10), sk('Protocol', 10, 'Snow Raven'), sk('Zero-G Operations', 10)] }),
+      saff('wolf', 'Wolf', {
+        attrs: { int: 25, wil: 25 }, traits: [tr('Compulsion/Wolf Pride', -50), tr('Equipped', 50), tr('Enemy', -100), tr('Reputation', 70)],
+        skills: [sk('Protocol', 10, 'Wolf')],
+        flex: [flex(10, 2, 'skills', 'choose two: Interest/Any, Leadership, Negotiation, Perception or Strategy', ['Interest/Any', 'Leadership', 'Negotiation', 'Perception', 'Strategy'])],
+        notes: 'Includes Clan Wolf (in-Exile).' })
+    ],
+    notes: 'Clan characters may not take the Property or Extra Income Traits; the Title Trait (a Bloodname) is unavailable unless the character also takes the Trueborn Trait. Choose both a Clan (sub-affiliation) and a Caste. Freeborn Clan characters do not require a Phenotype Trait.',
+    desc: '<p>Origins in one of the seven warrior Clans that invaded the Inner Sphere. Pick your Clan and your caste.</p>'
+  }),
+
+  aff('Homeworld Clan', 'clan', 50, {
+    primary: 'English', secondary: [],
+    traits: [tr('Compulsion/Distrust of Inner Sphere', -100), tr('Compulsion/Hate Invading Clans', -100)],
+    skills: [sk('Interest', 25, 'Clan Remembrance'), sk('Protocol', 25, 'Clan')],
+    variantLabel: 'Caste', variantRequired: true, variants: CLAN_CASTES,
+    subs: [
+      saff('blood-spirit', 'Blood Spirit', {
+        attrs: { bod: 25, wil: 100, cha: -50 }, traits: [tr('Combat Sense', 100), tr('Compulsion/Blood Spirit Fanaticism', -100), tr('Compulsion/Hate Star Adder', -100), tr('Equipped', -65), tr('Exceptional Attribute/WIL', 200), tr('Introvert', -50), tr('Reputation', -50)],
+        skills: [sk('Interest', 25, 'Clan History'), sk('Martial Arts', 15), sk('Small Arms', 15), sk('Protocol', 10, 'Blood Spirit')] }),
+      saff('cloud-cobra', 'Cloud Cobra', {
+        attrs: { int: 50, wil: 50 }, traits: [tr('Compulsion/Religious Faith', -75), tr('Equipped', -25), tr('Patient', 100), tr('Reputation', -75)],
+        skills: [sk('Interest', 20, 'Theology/Any'), sk('Protocol', 20, 'Cloud Cobra')],
+        flex: [flex(10, 1, 'skills', '+10 XP to any one other Skill')] }),
+      saff('coyote', 'Coyote', {
+        attrs: { int: 100, wil: -60, edg: 25 }, traits: [tr('Equipped', 25), tr('Reputation', -60)],
+        skills: [sk('Interest', 15, 'Coyote Rituals'), sk('Protocol', 10, 'Coyote'), sk('Survival', 10, 'Any')],
+        flex: [flex(10, 1, 'traits', 'choose one: Custom Vehicle, Natural Aptitude/Computers, Natural Aptitude/Technician/Any or Vehicle Level', ['Custom Vehicle', 'Natural Aptitude/Computers', 'Natural Aptitude/Technician/Any', 'Vehicle Level'])] }),
+      saff('fire-mandrill', 'Fire Mandrill', {
+        attrs: { wil: 25 }, traits: [tr('Compulsion/Fire Mandrill Fanaticism', -100), tr('Compulsion/Kindraa Fanaticism', -100), tr('Enemy/Rival Kindraa', -25), tr('Reputation', -25)],
+        skills: [sk('Language', 20, 'Secondary'), sk('Martial Arts', 15), sk('Protocol', 15, 'Fire Mandrill'), sk('Protocol', 25, 'Kindraa')],
+        flex: [flex(75, 1, 'attributes', '+75 XP to any one other Attribute'),
+          flex(150, 1, 'traits', 'choose one: Combat Sense, Exceptional Attribute/Any, Fast Learner, Natural Aptitude/Any or Sixth Sense', ['Combat Sense', 'Exceptional Attribute/Any', 'Fast Learner', 'Natural Aptitude/Any', 'Sixth Sense']),
+          flex(10, 2, 'skills', 'choose two: Leadership, Melee Weapons, Negotiation, Perception or Tactics/Any', ['Leadership', 'Melee Weapons', 'Negotiation', 'Perception', 'Tactics/Any'])],
+        notes: 'Secondary Languages: Chinese, French, German, Japanese, Russian, Spanish. Also -20 XP to any one other Attribute.' }),
+      saff('goliath-scorpion', 'Goliath Scorpion', {
+        attrs: { dex: 50, int: 50, wil: -50, edg: -50 }, traits: [tr('Compulsion/Necrosia Addiction', -50), tr('Compulsion/Nostalgic', -50), tr('Fit', 55), tr('Reputation', -25)],
+        skills: [sk('Interest', 20, 'Star League History'), sk('Melee Weapons', 15), sk('Protocol', 10, 'Goliath Scorpion')],
+        flex: [flex(100, 1, 'traits', 'choose one: Exceptional Attribute/INT, Natural Aptitude/Gunnery/Any, Natural Aptitude/Melee Weapons or Natural Aptitude/Interest/Any', ['Exceptional Attribute/INT', 'Natural Aptitude/Gunnery/Any', 'Natural Aptitude/Melee Weapons', 'Natural Aptitude/Interest/Any'])],
+        notes: 'Secondary Languages: Goliath Scorpion Battle Language (warrior caste only), Russian.' }),
+      saff('ice-hellion', 'Ice Hellion', {
+        attrs: { dex: 75, rfl: 100, wil: 50, cha: -75 }, traits: [tr('Combat Sense', 50), tr('Impatient', -100), tr('Reputation', -95)],
+        skills: [sk('Interest', 15, 'Clan Remembrance'), sk('Martial Arts', 10), sk('Negotiation', 15), sk('Protocol', 10, 'Ice Hellion'), sk('Swimming', 10), sk('Survival', 10, 'Arctic')] }),
+      saff('star-adder', 'Star Adder', {
+        attrs: { int: 50, wil: 75, cha: -70 }, traits: [tr('Combat Sense', 50), tr('Compulsion/Clan Honor', -50), tr('Equipped', 25), tr('Reputation', 25)],
+        skills: [sk('Leadership', 10), sk('Perception', 10), sk('Protocol', 10, 'Star Adder')],
+        flex: [flex(60, 1, 'traits', 'choose one: Compulsion/Adder Arrogance or Compulsion/Burrock Forever! (penalty)', ['Compulsion/Adder Arrogance', 'Compulsion/Burrock Forever!'])] }),
+      saff('steel-viper', 'Steel Viper', {
+        attrs: { int: 75, wil: 100, cha: -50 }, traits: [tr('Compulsion/Clan Honor', -100), tr('Compulsion/Hate Jade Falcons', -100), tr('Compulsion/Hate Snow Ravens', -50), tr('Connections', 50), tr('Equipped', 50), tr('Reputation', 50)],
+        skills: [sk('Negotiation', 15), sk('Protocol', 15, 'Steel Viper'), sk('Survival', 20, 'Any')] })
+    ],
+    notes: 'See notes for the Invading Clan affiliation. Choose both a Clan (sub-affiliation) and a Caste.',
+    desc: '<p>Origins in one of the eight Clans that remained in the Clan Homeworlds. Pick your Clan and your caste.</p>'
+  }),
+
+  aff('Independent', 'independent', 50, {
+    primary: '', secondary: [],
+    attrs: { wil: 20, edg: 20 }, traits: [tr('Equipped', -20), tr('Reputation', -10), tr('Wealth', -10)],
+    subs: [
+      saff('antallos', 'Antallos (Port Krin)', {
+        attrs: { bod: 20, wil: 10, cha: -10 }, traits: [tr('Illiterate', -20), tr('Pain Resistance', 10), tr('Reputation', -20), tr('Toughness', 10)],
+        skills: [sk('Language', 10, 'Japanese'), sk('Perception', 10), sk('Streetwise', 10, 'Periphery')],
+        flex: [flex(10, 2, 'skills', 'choose two: Acting, Escape Artist, Martial Arts, Melee Weapons, Small Arms or Survival/Desert', ['Acting', 'Escape Artist', 'Martial Arts', 'Melee Weapons', 'Small Arms', 'Survival/Desert'])],
+        notes: 'Primary Language: English. Secondary: Any.' }),
+      saff('astrokaszy', 'Astrokaszy', {
+        attrs: { bod: 15, wil: 25, cha: -10, edg: -10 }, traits: [tr('Fit', 20), tr('Compulsion/Xenophobic', -20), tr('Illiterate', -20), tr('Reputation', -10)],
+        skills: [sk('Perception', 10), sk('Protocol', 10, 'Astrokaszy'), sk('Streetwise', 10, 'Periphery')],
+        flex: [flex(15, 2, 'skills', 'choose two: Acting, Martial Arts, Melee Weapons, Small Arms, Survival/Desert or Thrown Weapons/Any', ['Acting', 'Martial Arts', 'Melee Weapons', 'Small Arms', 'Survival/Desert', 'Thrown Weapons/Any'])],
+        notes: 'Primary Language: Arabic. Secondary: English, German, Greek.' }),
+      saff('generic', 'Generic', {
+        traits: [tr('Introvert', -10)],
+        skills: [sk('Interest', 10, 'Any'), sk('Negotiation', 10)],
+        flex: [flex(10, 4, 'skills', '+10 XP to any four other Skills')],
+        notes: 'Primary Language: Any. Secondary: Any from nearest state.' }),
+      saff('mercenary', 'Mercenary', {
+        attrs: { cha: -20 }, traits: [tr('Equipped', 20), tr('Rank', 20)],
+        skills: [sk('Negotiation', 10), sk('Protocol', 10, 'Mercenary')],
+        flex: [flex(10, 1, 'skills', '+10 XP to any one other Skill')],
+        notes: 'Primary Language: English. Secondary: Any. Only for characters born to the mercenary life.' }),
+      saff('pirate', 'Pirate', {
+        attrs: { bod: 20, wil: 10, cha: -30 }, traits: [tr('Pain Resistance', 10), tr('Reputation', -30), tr('Toughness', 10)],
+        skills: [sk('Language', 10, 'Any'), sk('Negotiation', 5), sk('Perception', 15)],
+        flex: [flex(10, 3, 'skills', 'choose three: Acting, Escape Artist, Martial Arts, Melee Weapons, Small Arms or Survival/Any', ['Acting', 'Escape Artist', 'Martial Arts', 'Melee Weapons', 'Small Arms', 'Survival/Any'])],
+        notes: 'Primary Language: Any. Secondary: Any from nearest state.' }),
+      saff('spacer', 'Spacer', {
+        attrs: { bod: -20, str: -10, dex: 10, rfl: 10 }, traits: [tr('Equipped', 10), tr('G-Tolerance', 20), tr('Introvert', -20), tr('Natural Aptitude/Zero-G Operations', 20)],
+        skills: [sk('Career', 10, "Ship's Crew"), sk('Zero-G Operations', 10)],
+        flex: [flex(10, 1, 'skills', 'choose one: Appraisal, Interest/Any, Navigation/Space, Negotiation or Sensor Operations', ['Appraisal', 'Interest/Any', 'Navigation/Space', 'Negotiation', 'Sensor Operations'])],
+        notes: 'Primary Language: English. Secondary: Any from nearest state. Cannot take the TDS Trait.' }),
+      saff('tortuga', 'Tortuga', {
+        attrs: { bod: 10, str: 10, wil: 20, cha: -40 }, traits: [tr('Pain Resistance', 10), tr('Reputation', -50), tr('Toughness', 10)],
+        skills: [sk('Language', 10, 'Any'), sk('Martial Arts', 10), sk('Negotiation', 10), sk('Perception', 10), sk('Streetwise', 10, 'Periphery')],
+        flex: [flex(10, 3, 'skills', 'choose three: Acting, Escape Artist, Melee Weapons, Small Arms or Survival/Any', ['Acting', 'Escape Artist', 'Melee Weapons', 'Small Arms', 'Survival/Any'])],
+        notes: 'Primary Language: English. Secondary: Any Taurian or FedSuns language.' })
+    ],
+    notes: 'Independents belong to no realm. Antallos, Mercenary, Pirate, Spacer or Tortuga characters may not take Title Traits; Antallos, Pirate or Tortuga characters may not take Nobility, Preparatory School or Military School. A Dark Caste Clan character must take the Pirate sub-affiliation here.',
+    desc: '<p>Origins outside the great realms — pirates, mercenaries, spacers and the lawless worlds of the deep dark.</p>'
+  }),
+
+  aff('ComStar / Word of Blake', 'comstar', 50, {
+    primary: 'English', secondary: ['Any from nearest state'],
+    traits: [tr('Enemy', -100), tr('Equipped', 100), tr('Rank', 50), tr('Reputation', -50)],
+    skills: [sk('Communications', 10, 'Conventional'), sk('Interest', 10, 'Writings of Jerome Blake'), sk('Negotiation', 10)],
+    subs: [
+      saff('comstar', 'ComStar', {
+        attrs: { int: 25, wil: -15 }, traits: [tr('Connections', 50), tr('Enemy/Word of Blake', -100), tr('Reputation', 20)],
+        skills: [sk('Protocol', 15, 'Nearest state'), sk('Protocol', 15, 'ComStar'), sk('Technician', 10, 'Any')] }),
+      saff('word-of-blake', 'Word of Blake', {
+        attrs: { wil: 50, cha: -50 }, traits: [tr('Compulsion/Paranoid', -50), tr('Connections', 75), tr('Enemy/ComStar', -100), tr('Equipped', 30)],
+        skills: [sk('Interest', 15, 'Writings of Jerome Blake'), sk('Interest', 15, 'Writings of the Master'), sk('Negotiation', 10), sk('Protocol', 5, 'Nearest state'), sk('Technician', 10, 'Any')] })
+    ],
+    notes: 'Module cost is 50 XP PLUS the cost of a second "birth" affiliation (selecting ComStar/Word of Blake does not reduce the birth affiliation\'s XP costs). May not possess the Extra Income or Property Traits.',
+    desc: '<p>Origins in the quasi-religious order of ComStar or the fanatical Word of Blake. Requires a separate "birth" affiliation.</p>'
+  }),
 
   /* ==== STAGE 1 — EARLY CHILDHOOD (ATOW p.75) — all end at age 10 ======== */
   mod('Back Woods', 1, 'childhood', 290, 10, {
