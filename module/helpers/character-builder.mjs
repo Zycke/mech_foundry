@@ -284,6 +284,7 @@ export class CharacterBuilder {
     // Here we only drop the record and its pending flexible pools; callers that
     // need exact XP reversal should re-derive from the surviving module list.
     state.flexiblePending = state.flexiblePending.filter(p => p.moduleId !== moduleId);
+    state.subskillPending = (state.subskillPending || []).filter(p => p.moduleId !== moduleId);
     state.modules.splice(idx, 1);
     return state;
   }
@@ -456,6 +457,7 @@ export class CharacterBuilder {
     const cap = CharacterBuilder.additionalXPCap(state);
     let gained = 0;
     for (const b of asArray(bought)) {
+      if (!b || !b.name) continue;                 // ignore blank rows
       let tp = Number(b?.tp) || 0;
       if (tp >= 0) continue;
       // Clamp against the Trait's minimum (most-negative) level.
@@ -535,6 +537,10 @@ export class CharacterBuilder {
   static resolveSubskill(state, sourceKey, subskill) {
     const p = state.subskillPending.find(x => x.sourceKey === sourceKey);
     if (!p || !subskill) return false;
+    if (p.resolved === subskill) return true;                              // idempotent
+    // Re-selection: reverse the XP granted under the previously-chosen subskill
+    // before applying the new one, so a changed choice never double-counts.
+    if (p.resolved) CharacterBuilder.addSkillXP(state, p.name, -p.xp, p.resolved);
     p.resolved = subskill;
     CharacterBuilder.addSkillXP(state, p.name, p.xp, subskill);
     return true;
@@ -587,6 +593,8 @@ export class CharacterBuilder {
    */
   static spendPool(state, { kind, key, subskill, xp }) {
     const cost = Number(xp) || 0;
+    if (!key) return false;
+    if (kind === 'attribute' && !ATTRIBUTE_KEYS.includes(key)) return false;
     if (cost > CharacterBuilder.remaining(state)) return false;
     switch (kind) {
       case 'attribute': CharacterBuilder.addAttributeXP(state, key, cost); break;

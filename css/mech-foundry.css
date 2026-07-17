@@ -5995,6 +5995,9 @@
   color: var(--mf-danger); cursor: pointer; width: 22px; height: 22px; line-height: 1;
 }
 .mech-foundry .instance-list .s4-remove:hover { border-color: var(--mf-danger); }
+.mech-foundry .instance-list li.s4-unmet .s4-name { color: var(--mf-danger); }
+.mech-foundry .instance-list .s4-warn { color: var(--mf-danger); font-size: 0.76em; }
+.mech-foundry .over-row { color: var(--mf-danger); }
 
 /* ---- Wizard: Finalize (optimize + buy additional XP) ---- */
 .mech-foundry .optimize-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 4px 0 8px; }

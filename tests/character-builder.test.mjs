@@ -11,6 +11,7 @@
 import { CharacterBuilder as CB, FIELD_SKILL_XP, FIELD_SKILL_COST, affiliationCategory } from '../module/helpers/character-builder.mjs';
 import * as XP from '../module/helpers/xp-math.mjs';
 import { SKILL_FIELDS } from '../module/data/skill-fields.mjs';
+import { ATOW_TRAITS } from '../module/data/atow-lists.mjs';
 
 let failed = 0;
 const ok = (cond, msg) => {
@@ -694,6 +695,53 @@ ok(applyOk, 'all seed modules apply through the engine without error');
   ok(c.traits['Fit'] === 200, 'clampTraits caps a positive Trait to its maximum');
   ok(c.traits['Illiterate'] === -100, 'clampTraits caps a negative Trait to its most-negative level');
   ok(c.traits['Reputation'] === 500, 'clampTraits caps a dual-sign Trait to its positive maximum');
+}
+
+/* ---- Engine robustness (Tier C hardening) ------------------------------- */
+{
+  // resolveSubskill: re-selecting a different subskill reverses the prior grant
+  // instead of double-counting, and re-selecting the same one is idempotent.
+  const s = CB.createState();
+  CB.applyModule(s, { stage: 1, xpCost: 0, fixedXP: { skills: [{ name: 'Survival', subskill: 'Any', xp: 20 }] } },
+    { id: 'mod-a' });
+  const sourceKey = s.subskillPending[0].sourceKey;
+  CB.resolveSubskill(s, sourceKey, 'Wilderness');
+  ok(s.skills['Survival/Wilderness'] === 20, 'subskill choice grants XP under the chosen subskill');
+  CB.resolveSubskill(s, sourceKey, 'Wilderness'); // idempotent
+  ok(s.skills['Survival/Wilderness'] === 20, 're-selecting the same subskill does not double-count');
+  CB.resolveSubskill(s, sourceKey, 'Urban');       // change of mind
+  ok(s.skills['Survival/Urban'] === 20 && (s.skills['Survival/Wilderness'] || 0) === 0,
+    'changing the subskill reverses the previous grant');
+
+  // removeModule clears the module's pending subskill grants.
+  const s2 = CB.createState();
+  CB.applyModule(s2, { stage: 1, xpCost: 0, fixedXP: { skills: [{ name: 'Career', subskill: 'Any', xp: 10 }] } },
+    { id: 'mod-b' });
+  ok(s2.subskillPending.length === 1, 'a Skill/Any grant queues a pending subskill');
+  CB.removeModule(s2, 'mod-b');
+  ok(s2.subskillPending.length === 0, 'removeModule also clears orphaned subskillPending entries');
+
+  // spendPool guards: unknown attribute key and empty key both return false.
+  const s3 = CB.createState();
+  ok(CB.spendPool(s3, { kind: 'attribute', key: 'zzz', xp: 100 }) === false, 'spendPool rejects an unknown attribute key');
+  ok(CB.spendPool(s3, { kind: 'skill', key: '', xp: 20 }) === false, 'spendPool rejects an empty key');
+  ok(s3.spent === 0, 'a rejected spend does not touch the pool');
+
+  // applyBoughtTraits ignores a nameless row instead of creating an "undefined" Trait.
+  const s4 = CB.createState();
+  CB.applyBoughtTraits(s4, [{ tp: -2 }]);
+  ok(s4.traits['undefined'] === undefined && s4.poolBonus === 0, 'a nameless bought Trait row is ignored');
+}
+
+/* ---- Data cross-reference integrity ------------------------------------- */
+{
+  const badComms = Object.entries(SKILL_FIELDS)
+    .flatMap(([name, def]) => def.skills.filter(s => /^Comms\//.test(s)).map(s => `${name}:${s}`));
+  ok(badComms.length === 0, `no Skill Field references a non-existent "Comms" skill (found: ${badComms.join(', ')})`);
+
+  const traitNames = new Set(ATOW_TRAITS.map(t => t.name));
+  ok(['Vehicle', 'Custom Vehicle', 'Bloodname', 'Prosthetic', 'Design Quirk'].every(n => traitNames.has(n)),
+    'previously-missing granted Traits are now defined in ATOW_TRAITS');
 }
 
 /* ---- Result ------------------------------------------------------------- */

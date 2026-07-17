@@ -175,12 +175,39 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     const byStage = await this.#loadModules();
     const list = byStage[4] || [];
     const seen = new Set(), docs = [];
-    for (const id of this.#choices.modules[4]) {
+    for (const entry of this.#choices.modules[4]) {
+      const id = entry.id;
       if (seen.has(id)) continue;
       const m = list.find(x => x.id === id);
       if (m) { seen.add(id); docs.push(m); }
     }
     return docs;
+  }
+
+  /** Map every applied module *record id* to its source system data, so
+   *  validate() can look up legality even for Stage-4 records whose ids are
+   *  `s4:<iid>:<docId>[:sub|:var|:rep]` rather than a raw document id. */
+  async #modulesByRecordId() {
+    const docs = [...await this.#selectedModuleDocs(), ...await this.#stageFourDocs()];
+    const byDocId = Object.fromEntries(docs.map(d => [d.id, d.system]));
+    const map = { ...byDocId };
+    for (const rec of this.#state.modules) {
+      const id = String(rec.id);
+      if (id.startsWith('s4:')) {
+        const docId = id.split(':')[2];       // s4 : iid : docId : [sub|var|rep]
+        if (byDocId[docId]) map[id] = byDocId[docId];
+      }
+    }
+    return map;
+  }
+
+  /** Stage-4 instances whose categorical prerequisite broke after they were
+   *  added (their XP is not applied) — surfaced as errors on Review/Finish. */
+  async #stageFourUnmetIssues() {
+    return (this.#state.stage4Unmet || []).map(u => ({
+      severity: SEVERITY.ERROR, code: 'stage4-prereq-unmet',
+      message: `${u.name}: its prerequisite is no longer met — remove it or restore the requirement.`
+    }));
   }
 
   /** Rebuild the builder state from the current choices. */
@@ -343,19 +370,27 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     this.#state.additionalXPGained = CharacterBuilder.applyBoughtTraits(this.#state, this.#choices.boughtTraits, this.#traitLimitFn());
 
     // Apply leftover-pool free spend (attributes at 100 XP/point, skills, traits).
+    // Rows the pool can't afford are collected so the UI can flag them rather
+    // than silently displaying a spend that never happened.
     const pheno = this.#phenotypeEntry();
+    const excCaps = CharacterBuilder.exceptionalAttributeBonuses(this.#state);
+    const overspent = [];
     for (const [key, count] of Object.entries(this.#choices.freeSpend.attributes || {})) {
       const n = Number(count) || 0;
       if (n <= 0) continue;
-      const cap = pheno?.maxValues?.[key] ?? Infinity;
-      // Don't buy past the phenotype cap.
+      // Cap includes any Exceptional-Attribute bonus that raised the maximum.
+      const cap = (pheno?.maxValues?.[key] ?? Infinity) + (excCaps[key] || 0);
       const currentScore = XP.getAttributeScoreFromXP(this.#state.attributes[key] || 0);
       const buyable = Math.max(0, Math.min(n, cap - currentScore));
-      if (buyable > 0) CharacterBuilder.spendPool(this.#state, { kind: 'attribute', key, xp: buyable * 100 });
+      if (buyable > 0 && !CharacterBuilder.spendPool(this.#state, { kind: 'attribute', key, xp: buyable * 100 })) {
+        overspent.push({ kind: 'attribute', key: key.toUpperCase(), xp: buyable * 100 });
+      }
     }
     for (const s of (this.#choices.freeSpend.skills || [])) {
       const xp = Number(s?.xp) || 0;
-      if (s?.key && xp > 0) CharacterBuilder.spendPool(this.#state, { kind: 'skill', key: s.key, xp });
+      if (s?.key && xp > 0 && !CharacterBuilder.spendPool(this.#state, { kind: 'skill', key: s.key, xp })) {
+        overspent.push({ kind: 'skill', key: s.key, xp });
+      }
     }
     for (const t of (this.#choices.freeSpend.traits || [])) {
       let xp = Number(t?.xp) || 0;
@@ -367,8 +402,11 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
         const maxAddXP = Math.max(0, (lim.max - currentTP) * 100);
         if (xp > maxAddXP) xp = maxAddXP;
       }
-      if (xp > 0) CharacterBuilder.spendPool(this.#state, { kind: 'trait', key: t.key, xp });
+      if (xp > 0 && !CharacterBuilder.spendPool(this.#state, { kind: 'trait', key: t.key, xp })) {
+        overspent.push({ kind: 'trait', key: t.key, xp });
+      }
     }
+    this.#state.freeSpendOverspent = overspent;
 
     // Safety net: cap any Trait that somehow exceeded its allowed level range.
     CharacterBuilder.clampTraits(this.#state, this.#traitLimitFn());
@@ -409,31 +447,43 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     const cat = affiliationCategory(this.#state.affiliationKey);
     const casteGroup = this.#characterCasteGroup();
     const count = new Map();
-    this.#choices.modules[4].forEach((id, idx) => {
+    const unmet = [];
+    this.#choices.modules[4].forEach((entry) => {
+      const { iid, id } = entry;
       const d = list.find(x => x.id === id);
       if (!d) return;
       const sys = d.system;
+      // A categorical prerequisite that an earlier choice has since broken:
+      // do NOT apply this instance's XP, and flag it for the Review step.
+      if (!this.#stageFourPrereqStatus(sys).met) { unmet.push({ id, name: d.name }); return; }
       const n = count.get(id) || 0;
       count.set(id, n + 1);
       const repeat = n > 0;
       // Affiliation-tiered cost (e.g. Tour of Duty 700/800/1,000).
       const cost = sys.costByCategory?.[cat] ?? sys.xpCost;
       CharacterBuilder.applyModule(this.#state, this.#prepareStage4Module(sys, cost),
-        { id: `s4:${idx}:${d.id}`, name: d.name, uuid: d.uuid },
+        { id: `s4:${iid}:${d.id}`, name: d.name, uuid: d.uuid },
         { repeat, noFlexOnRepeat: !!sys.noFlexOnRepeat });
       // Auto sub-module matching the character's affiliation / caste.
       if (sys.variantAuto) {
         const v = this.#matchAutoVariant(sys, cat, casteGroup);
         if (v) CharacterBuilder.applyModule(this.#state,
           this.#prepareStage4Module({ stage: 4, xpCost: Number(v.xpCost) || 0, fixedXP: v.fixedXP, flexibleXP: v.flexibleXP }, Number(v.xpCost) || 0),
-          { id: `s4:${idx}:${d.id}:sub`, name: `${d.name} — ${v.name}` }, { repeat });
+          { id: `s4:${iid}:${d.id}:sub`, name: `${d.name} — ${v.name}` }, { repeat });
+      } else if (this._asArray(sys.variants).length) {
+        // Player-selected variant (e.g. Clan Warrior Washout's new caste).
+        const v = this._asArray(sys.variants).find(x => x.key === this.#choices.variants[id]);
+        if (v) CharacterBuilder.applyModule(this.#state,
+          this.#prepareStage4Module({ stage: 4, xpCost: Number(v.xpCost) || 0, fixedXP: v.fixedXP, flexibleXP: v.flexibleXP }, Number(v.xpCost) || 0),
+          { id: `s4:${iid}:${d.id}:var`, name: `${d.name} — ${v.name}` }, { repeat });
       }
       // Repeat effect (e.g. Solaris modules' In For Life penalty) — repeats only.
       if (repeat && this.#hasRepeatEffect(sys.repeatEffect)) {
         CharacterBuilder.applyModule(this.#state, { stage: 4, xpCost: 0, fixedXP: sys.repeatEffect },
-          { id: `s4:${idx}:${d.id}:rep`, name: `${d.name} (repeat effect)` });
+          { id: `s4:${iid}:${d.id}:rep`, name: `${d.name} (repeat effect)` });
       }
     });
+    this.#state.stage4Unmet = unmet;
   }
 
   #hasRepeatEffect(re) {
@@ -507,7 +557,10 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       moduleCount: this.#state.modules.filter(m => {
         const id = String(m.id);
         return !id.startsWith('subaff:') && !id.startsWith('variant:')
-          && !id.startsWith('birthsub:') && !id.startsWith('field:');
+          && !id.startsWith('birthsub:') && !id.startsWith('field:')
+          // Stage-4 auto sub-modules, player variants and repeat effects are not
+          // separate "modules" for the count shown in Review.
+          && !/^s4:[^:]+:[^:]+:(sub|var|rep)$/.test(id);
       }).length
     };
 
@@ -547,14 +600,18 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       const byStage = await this.#loadModules();
       const list = byStage[step.stage] || [];
       const sel = this.#choices.modules[step.stage];
-      const selectedIds = step.multi ? sel : (sel ? [sel] : []);
+      // Stage 4's selections are an instance list of { iid, id } objects.
+      const selectedIds = step.stage === 4
+        ? this.#choices.modules[4].map(e => e.id)
+        : (step.multi ? sel : (sel ? [sel] : []));
       context.stage = step.stage;
       context.multi = !!step.multi;
       context.hasModules = list.length > 0;
       context.mandatory = [1, 2].includes(step.stage);
       context.modules = list.map(m => this.#moduleCard(m, selectedIds.includes(m.id), derived));
       // Variant (caste/branch) pickers for any selected module that has variants.
-      context.variantPickers = this.#variantPickersFor(selectedIds.map(id => list.find(m => m.id === id)));
+      const uniqueSelected = [...new Set(selectedIds)].map(id => list.find(m => m.id === id));
+      context.variantPickers = this.#variantPickersFor(uniqueSelected);
       context.hasVariantPickers = context.variantPickers.length > 0;
       context.emptyKind = 'stage';
 
@@ -581,7 +638,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       if (step.stage === 4) {
         const instances = this.#choices.modules[4];
         const countById = {};
-        for (const id of instances) countById[id] = (countById[id] || 0) + 1;
+        for (const e of instances) countById[e.id] = (countById[e.id] || 0) + 1;
         for (const card of context.modules) {
           const m = list.find(x => x.id === card.id);
           card.count = countById[card.id] || 0;
@@ -590,11 +647,17 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
           const pre = this.#stageFourPrereqStatus(m.system);
           if (!pre.met && !card.count) { card.locked = true; card.lockReason = pre.reason; }
         }
+        // An instance whose prereq broke after it was added is flagged (not applied).
+        const unmetIds = new Set((this.#state.stage4Unmet || []).map(u => u.id));
         const seen = {};
-        context.stage4Instances = instances.map((id, idx) => {
-          const m = list.find(x => x.id === id);
-          seen[id] = (seen[id] || 0) + 1;
-          return { index: idx, name: m ? m.name : '(removed)', isRepeat: seen[id] > 1 };
+        context.stage4Instances = instances.map((e, idx) => {
+          const m = list.find(x => x.id === e.id);
+          seen[e.id] = (seen[e.id] || 0) + 1;
+          return {
+            index: idx, name: m ? m.name : '(removed)', isRepeat: seen[e.id] > 1,
+            unmet: unmetIds.has(e.id),
+            unmetReason: unmetIds.has(e.id) ? this.#stageFourPrereqStatus(m.system).reason : ''
+          };
         });
         context.hasStage4Instances = context.stage4Instances.length > 0;
       }
@@ -642,9 +705,9 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     if (stepId === 'review') {
       const pheno = this.#phenotypeEntry();
       const preview = CharacterBuilder.derive(this.#state, pheno);
-      const docs = [...await this.#selectedModuleDocs(), ...await this.#stageFourDocs()];
-      const modulesById = Object.fromEntries(docs.map(d => [d.id, d.system]));
-      const issues = CharacterBuilder.validate(this.#state, { phenotype: pheno, modules: modulesById });
+      const modulesById = await this.#modulesByRecordId();
+      const issues = [...await this.#stageFourUnmetIssues(),
+        ...CharacterBuilder.validate(this.#state, { phenotype: pheno, modules: modulesById })];
       context.preview = {
         ...preview,
         attributeRows: ATTRIBUTE_KEYS.map(k => ({ key: k.toUpperCase(), ...preview.attributes[k] })),
@@ -1032,8 +1095,10 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
   #buildSpendContext(derived) {
     const pheno = this.#phenotypeEntry();
     const remaining = CharacterBuilder.remaining(this.#state);
+    const excCaps = CharacterBuilder.exceptionalAttributeBonuses(this.#state);
     const attributes = ATTRIBUTE_KEYS.map(k => {
-      const cap = pheno?.maxValues?.[k] ?? Infinity;
+      // Effective cap includes any Exceptional-Attribute bonus (matches rebuild).
+      const cap = (pheno?.maxValues?.[k] ?? Infinity) + (excCaps[k] || 0);
       const value = derived.attributes[k].value;
       return {
         key: k, label: k.toUpperCase(),
@@ -1064,7 +1129,9 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       optimize: opt, reclaimed,
       reclaimTotal: reclaimed.attributes + reclaimed.traits + reclaimed.skills,
       buyCap: cap, buyGained: gained, buyLeft: cap - gained, boughtRows,
-      negativeTraitOptions: this.#negativeTraitOptions()
+      negativeTraitOptions: this.#negativeTraitOptions(),
+      overspent: this.#state.freeSpendOverspent || [],
+      hasOverspent: (this.#state.freeSpendOverspent || []).length > 0
     };
   }
 
@@ -1226,7 +1293,9 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
   /** First selected module in a stage that requires a variant but has none chosen. */
   #missingRequiredVariant(stage) {
     const sel = this.#choices.modules[stage];
-    const ids = Array.isArray(sel) ? sel : (sel ? [sel] : []);
+    let ids = Array.isArray(sel) ? sel : (sel ? [sel] : []);
+    // Stage 4 stores { iid, id } instance objects; other stages store id strings.
+    ids = ids.map(x => (x && typeof x === 'object') ? x.id : x);
     return this.#missingRequiredVariantFor(this.#modulesCache?.[stage], ids);
   }
 
@@ -1441,6 +1510,9 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
   static async #onSelectPhenotype(event, target) {
     this.#choices.phenotypeKey = target.dataset.key || '';
     this.#state.phenotype = this.#choices.phenotypeKey;
+    // Rebuild so the phenotype's attribute caps are re-applied to any leftover
+    // free-spend (otherwise earlier spends stay clamped to the old caps).
+    await this.#rebuildState();
     this.render();
   }
 
@@ -1548,11 +1620,13 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       return;
     }
     // Non-repeatable modules can be taken only once.
-    if (m.system.repeatable === false && this.#choices.modules[4].includes(id)) {
+    if (m.system.repeatable === false && this.#choices.modules[4].some(e => e.id === id)) {
       ui.notifications?.warn(`${m.name} cannot be repeated.`);
       return;
     }
-    this.#choices.modules[4].push(id);
+    // Each instance carries a stable instance id (iid) so that removing one
+    // instance never renumbers the others' derived pool/subskill sourceKeys.
+    this.#choices.modules[4].push({ iid: foundry.utils.randomID(), id });
     await this.#rebuildState();
     this.render();
   }
@@ -1580,9 +1654,9 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
   static async #onFinish() {
     const pheno = this.#phenotypeEntry();
     const derived = CharacterBuilder.derive(this.#state, pheno);
-    const docs = [...await this.#selectedModuleDocs(), ...await this.#stageFourDocs()];
-    const modulesById = Object.fromEntries(docs.map(d => [d.id, d.system]));
-    const issues = CharacterBuilder.validate(this.#state, { phenotype: pheno, modules: modulesById });
+    const modulesById = await this.#modulesByRecordId();
+    const issues = [...await this.#stageFourUnmetIssues(),
+      ...CharacterBuilder.validate(this.#state, { phenotype: pheno, modules: modulesById })];
     const errors = issues.filter(i => i.severity === SEVERITY.ERROR);
 
     let strict = false;

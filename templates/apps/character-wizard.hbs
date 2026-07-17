@@ -210,8 +210,8 @@
         <div class="vp-head"><span class="vp-title">Your Real Life (in order)</span></div>
         <ol class="s4-instances">
           {{#each stage4Instances}}
-          <li>
-            <span class="s4-name">{{this.name}}{{#if this.isRepeat}} <span class="s4-repeat">repeat — Skills &amp; Flexible XP only</span>{{/if}}</span>
+          <li class="{{#if this.unmet}}s4-unmet{{/if}}">
+            <span class="s4-name">{{this.name}}{{#if this.isRepeat}} <span class="s4-repeat">repeat — Skills &amp; Flexible XP only</span>{{/if}}{{#if this.unmet}} <span class="s4-warn"><i class="fas fa-triangle-exclamation"></i> prerequisite no longer met — not applied</span>{{/if}}</span>
             <button type="button" class="s4-remove" data-action="removeStageInstance" data-index="{{this.index}}" data-tooltip="Remove"><i class="fas fa-xmark"></i></button>
           </li>
           {{/each}}
@@ -406,6 +406,12 @@
         </div>
         {{/each}}
       </div>
+
+      {{#if spend.hasOverspent}}
+      <p class="choice-restricted"><i class="fas fa-triangle-exclamation"></i> Not enough XP for the following — they were <strong>not applied</strong>:
+        {{#each spend.overspent}}<span class="over-row">{{this.key}} ({{this.xp}} XP){{#unless @last}}, {{/unless}}</span>{{/each}}
+      </p>
+      {{/if}}
     </div>
     {{/if}}
 

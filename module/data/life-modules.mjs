@@ -585,7 +585,7 @@ export const LIFE_MODULE_SEED = [
       saff('coyote', 'Coyote', {
         attrs: { int: 100, wil: -60, edg: 25 }, traits: [tr('Equipped', 25), tr('Reputation', -60)],
         skills: [sk('Interest', 15, 'Coyote Rituals'), sk('Protocol', 10, 'Coyote'), sk('Survival', 10, 'Any')],
-        flex: [flex(10, 1, 'traits', 'choose one: Custom Vehicle, Natural Aptitude/Computers, Natural Aptitude/Technician/Any or Vehicle Level', ['Custom Vehicle', 'Natural Aptitude/Computers', 'Natural Aptitude/Technician/Any', 'Vehicle Level'])] }),
+        flex: [flex(10, 1, 'traits', 'choose one: Custom Vehicle, Natural Aptitude/Computers, Natural Aptitude/Technician/Any or Vehicle', ['Custom Vehicle', 'Natural Aptitude/Computers', 'Natural Aptitude/Technician/Any', 'Vehicle'])] }),
       saff('fire-mandrill', 'Fire Mandrill', {
         attrs: { wil: 25 }, traits: [tr('Compulsion/Fire Mandrill Fanaticism', -100), tr('Compulsion/Kindraa Fanaticism', -100), tr('Enemy/Rival Kindraa', -25), tr('Reputation', -25)],
         skills: [sk('Language', 20, 'Secondary'), sk('Martial Arts', 15), sk('Protocol', 15, 'Fire Mandrill'), sk('Protocol', 25, 'Kindraa')],
@@ -752,7 +752,7 @@ export const LIFE_MODULE_SEED = [
   mod('Trueborn Crèche', 1, 'childhood', 300, 10, {
     restricted: ['clan'],
     attrs: { str: 100, bod: 125, rfl: 125, wil: 100, cha: -75 },
-    traits: [tr('Compulsion/Clan Honor', -100), tr('Phenotype', 0), tr('Slow Learner', -300), tr('Trueborn', 200)],
+    traits: [tr('Compulsion/Clan Honor', -100), tr('Phenotype', 0), tr('Slow Learner', -300), tr('Citizenship/Trueborn', 200)],
     skills: [sk('Interest', 10, 'Clan Remembrance'), sk('Martial Arts', 10), sk('Melee Weapons', 5),
       sk('Protocol', 10, 'Clan'), sk('Small Arms', 5), sk('Swimming', 10)],
     flex: [flex(15, 5, 'any', '+15 XP each to any five Attributes, Traits or Skills')],
@@ -1158,26 +1158,26 @@ export const LIFE_MODULE_SEED = [
     traits: [tr('Compulsion/Any', -25), tr('Reputation', -150)],
     skills: [sk('Career', -30, 'Soldier'), sk('Computers', 25), sk('Protocol', 80, 'Affiliation'), sk('Survival', 75, 'Any')],
     flex: [lump(185)],
-    variantAuto: true,
+    variantLabel: 'New Caste', variantRequired: true,
     variants: [
-      vsub('scientist', 'Scientist Caste', { castes: ['scientist'] }, {
+      vr('scientist', 'Scientist Caste', 0, {
         attrs: { int: 50, rfl: 25 }, traits: [tr('Dark Secret', -50)],
         skills: [sk('Administration', 75), sk('Interest', 50, 'Any'), sk('Investigation', 75), sk('MedTech', 50, 'Any'), sk('Science', 75, 'Any'), sk('Surgery', 25)]
       }),
-      vsub('technician', 'Technician Caste', { castes: ['technician'] }, {
+      vr('technician', 'Technician Caste', 0, {
         attrs: { rfl: 25, str: 50 }, traits: [tr('Impatient', -50)],
         skills: [sk('Communications', 75, 'Any'), sk('Interest', 50, 'Any'), sk('Perception', 75), sk('Technician', 75, 'Any'), sk('Technician', 50, 'Any'), sk('Technician', 25, 'Any')]
       }),
-      vsub('merchant', 'Merchant Caste', { castes: ['merchant'] }, {
+      vr('merchant', 'Merchant Caste', 0, {
         attrs: { wil: 70 },
         skills: [sk('Acting', 45), sk('Administration', 40), sk('Appraisal', 70), sk('Interest', 35, 'Any'), sk('Leadership', 40), sk('Negotiation', 50), sk('Streetwise', 25, 'Affiliation')]
       }),
-      vsub('laborer', 'Laborer Caste', { castes: ['laborer'] }, {
+      vr('laborer', 'Laborer Caste', 0, {
         attrs: { bod: 75 }, traits: [tr('Dependent', -50)],
         skills: [sk('Career', 75, 'Any'), sk('Computers', 50), sk('Driving', 75, 'Any'), sk('Interest', 75, 'Any'), sk('Interest', 50, 'Any'), sk('Streetwise', 25, 'Affiliation')]
       })
     ],
-    notes: 'Cannot be repeated. The washed-out warrior joins a new caste (auto-applied from your Stage-0 caste). Also -60 XP (-30 to two Clan Warrior Field Skills). Requires a prior Freeborn or Trueborn Sibko.',
+    notes: 'Cannot be repeated. Choose the new (lesser) caste the washed-out warrior is assigned to — a required choice. Also -60 XP (-30 to two Clan Warrior Field Skills). Requires a prior Freeborn or Trueborn Sibko.',
     desc: '<p>Washed out of warrior training and consigned to a lesser caste.</p>'
   }),
 
@@ -1275,15 +1275,18 @@ export const LIFE_MODULE_SEED = [
         skills: [sk('Acting', 30), sk('Computers', 50), sk('Cryptography', 35), sk('Driving', 35, 'Any'), sk('Forgery', 20), sk('Investigation', 50),
           sk('Martial Arts', 40), sk('Negotiation', 50), sk('Strategy', 25), sk('Support Weapons', 25), sk('Tactics', 25, 'Any'), sk('Training', 40)]
       }),
-      vsub('periphery', 'Periphery', { categories: ['periphery'] }, {
-        attrs: { bod: 25, wil: 50 }, traits: [tr('Alternate ID', 50), tr('Compulsion/Gambling', -35), tr('Connections', 25), tr('Introvert', -35)],
-        skills: [sk('Administration', 50), sk('Driving', 50, 'Any'), sk('Disguise', 35), sk('Interrogation', 65), sk('Melee Weapons', 25), sk('Negotiation', 25),
-          sk('Security Systems', 25, 'Any'), sk('Small Arms', 60), sk('Survival', 50, 'Any'), sk('Thrown Weapons', 35, 'Any')]
-      }),
+      // Independent is a member of the `periphery` category, so its specific
+      // sub-module must precede the generic Periphery one for #matchAutoVariant
+      // (first-match-wins) to reach it.
       vsub('independent', 'Independent', { affiliationKeys: ['independent'] }, {
         attrs: { rfl: 75, cha: -50 }, traits: [tr('Bloodmark', -50), tr('Connections', 75), tr('Extra Income', 25), tr('Reputation', -75), tr('Wealth', -50)],
         skills: [sk('Acting', 50), sk('Climbing', 35), sk('Cryptography', 40), sk('Escape Artist', 75), sk('Interest', 50, 'Any'), sk('Language', 75, 'Any'), sk('Martial Arts', 35),
           sk('Navigation', 25, 'Any'), sk('Protocol', 45, 'Any'), sk('Science', 25, 'Chemistry'), sk('Small Arms', 25), sk('Streetwise', 35, 'Any'), sk('Tactics', 35, 'Any')]
+      }),
+      vsub('periphery', 'Periphery', { categories: ['periphery'] }, {
+        attrs: { bod: 25, wil: 50 }, traits: [tr('Alternate ID', 50), tr('Compulsion/Gambling', -35), tr('Connections', 25), tr('Introvert', -35)],
+        skills: [sk('Administration', 50), sk('Driving', 50, 'Any'), sk('Disguise', 35), sk('Interrogation', 65), sk('Melee Weapons', 25), sk('Negotiation', 25),
+          sk('Security Systems', 25, 'Any'), sk('Small Arms', 60), sk('Survival', 50, 'Any'), sk('Thrown Weapons', 35, 'Any')]
       })
     ],
     notes: 'The affiliation sub-module applies automatically. Inner Sphere or Periphery only (for Clan covert ops, see Clan Watch Operative). Some sub-modules also carry a paired negative Trait — see the flexible choices.',
