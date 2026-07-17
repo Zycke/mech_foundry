@@ -1,0 +1,36 @@
+{{!-- Skill-Field picker for one Stage-3 school. Context = a schoolFields entry. --}}
+<div class="variant-picker field-picker">
+  <div class="vp-head">
+    <span class="vp-title">Fields — {{this.moduleName}} <span class="hint-inline">({{this.schoolType}})</span></span>
+    <span class="field-count {{#if this.atMax}}full{{/if}}">{{this.count}} / 3 Fields</span>
+  </div>
+
+  {{#if this.penaltyApplies}}
+  <p class="choice-restricted"><i class="fas fa-triangle-exclamation"></i> {{this.penaltyText}}</p>
+  {{/if}}
+
+  <h4 class="field-tier">Basic <span class="hint-inline">(choose one, +{{this.basicTime}} yr)</span></h4>
+  <div class="choice-grid">
+    {{#each this.basicOptions}}
+    {{> "systems/mech-foundry/templates/apps/parts/wizard-field-card.hbs"}}
+    {{/each}}
+  </div>
+
+  {{#if this.hasAdvanced}}
+  <h4 class="field-tier">Advanced <span class="hint-inline">(optional, +{{this.advancedTime}} yr each)</span></h4>
+  <div class="choice-grid">
+    {{#each this.advancedOptions}}
+    {{> "systems/mech-foundry/templates/apps/parts/wizard-field-card.hbs"}}
+    {{/each}}
+  </div>
+  {{/if}}
+
+  {{#if this.hasSpecial}}
+  <h4 class="field-tier">Special <span class="hint-inline">(needs an Advanced Field first, +{{this.specialTime}} yr each)</span></h4>
+  <div class="choice-grid">
+    {{#each this.specialOptions}}
+    {{> "systems/mech-foundry/templates/apps/parts/wizard-field-card.hbs"}}
+    {{/each}}
+  </div>
+  {{/if}}
+</div>

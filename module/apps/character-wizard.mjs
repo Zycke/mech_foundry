@@ -1,6 +1,7 @@
-import { CharacterBuilder, ATTRIBUTE_KEYS, SEVERITY } from '../helpers/character-builder.mjs';
+import { CharacterBuilder, ATTRIBUTE_KEYS, SEVERITY, FIELD_SKILL_COST } from '../helpers/character-builder.mjs';
 import * as XP from '../helpers/xp-math.mjs';
 import { ATOW_SKILLS, ATOW_TRAITS, ATOW_TRAIT_DESCRIPTIONS, ATOW_SUBSKILLS, computeStartingWealth } from '../data/atow-lists.mjs';
+import { SKILL_FIELDS } from '../data/skill-fields.mjs';
 import { grantCharacter } from '../helpers/character-grant.mjs';
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
@@ -52,8 +53,12 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
   #step = 0;
   #choices = {
     name: '', player: '',
-    affiliationId: '', subAffiliationKey: '', phenotypeKey: '',
+    affiliationId: '', subAffiliationKey: '',
+    birthAffiliationId: '', birthSubAffiliationKey: '', // ComStar/WoB "birth" affiliation
+    phenotypeKey: '',
     modules: { 1: '', 2: '', 3: [], 4: [] }, // stage -> id | id[]
+    variants: {},                            // moduleId -> chosen variant key
+    fields: {},                              // stage-3 schoolId -> { basic, advanced[], special[] }
     flexible: {},                            // sourceKey -> [{ kind, key }]  (count pools)
     lumpFlexible: {},                        // sourceKey -> [{ kind, key, amount }] (lump pools)
     subskills: {},                           // subskill sourceKey -> chosen text
@@ -84,17 +89,27 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       next: CharacterWizard.#onNext,
       selectAffiliation: CharacterWizard.#onSelectAffiliation,
       selectSubAffiliation: CharacterWizard.#onSelectSubAffiliation,
+      selectBirthAffiliation: CharacterWizard.#onSelectBirthAffiliation,
+      selectBirthSubAffiliation: CharacterWizard.#onSelectBirthSubAffiliation,
       selectPhenotype: CharacterWizard.#onSelectPhenotype,
       selectStageModule: CharacterWizard.#onSelectStageModule,
       toggleStageModule: CharacterWizard.#onToggleStageModule,
+      selectVariant: CharacterWizard.#onSelectVariant,
+      selectFieldBasic: CharacterWizard.#onSelectFieldBasic,
+      toggleFieldAdvanced: CharacterWizard.#onToggleField,
+      toggleFieldSpecial: CharacterWizard.#onToggleField,
       spendAttr: CharacterWizard.#onSpendAttr,
       finish: CharacterWizard.#onFinish
     }
   };
 
-  /** @override */
+  /** @override — `scrollable` keeps the body's scroll position across re-renders
+   * (selecting an option re-renders the part, which would otherwise jump to top). */
   static PARTS = {
-    body: { template: 'systems/mech-foundry/templates/apps/character-wizard.hbs' }
+    body: {
+      template: 'systems/mech-foundry/templates/apps/character-wizard.hbs',
+      scrollable: ['.wizard-body']
+    }
   };
 
   /* ---------------------------------------------------------------------- */
@@ -152,26 +167,82 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     const aff = docs.find(d => Number(d.system.stage) === 0);
     if (!aff) return; // no affiliation yet -> nothing else applies
 
-    this.#state.affiliation = aff.name;
-    this.#state.affiliationKey = aff.system.affiliationKey || '';
-    this.#state.affiliationLanguages = {
-      primary: aff.system.primaryLanguage || '',
-      secondary: this._asArray(aff.system.secondaryLanguages)
-    };
-    // A clean primary-language label: an explicit field, else the affiliation
+    // ComStar / Word of Blake stacks a second "birth" affiliation (ATOW p.74):
+    // the character is born elsewhere, then joins the order. The birth affiliation
+    // is the cultural origin (drives the primary language and module legality);
+    // ComStar's own grants and 50-XP cost apply on top, at full price.
+    const byStage = await this.#loadModules();
+    const birthAff = aff.system.requiresBirthAffiliation
+      ? (byStage[0] || []).find(a => a.id === this.#choices.birthAffiliationId && !a.system.requiresBirthAffiliation)
+      : null;
+    const birthSub = birthAff
+      ? this._asArray(birthAff.system.subAffiliations).find(s => s.key === this.#choices.birthSubAffiliationKey)
+      : null;
+
+    // The chosen sub-affiliation of the primary (ComStar / non-ComStar) affiliation.
+    const sub = this._asArray(aff.system.subAffiliations)
+      .find(s => s.key === this.#choices.subAffiliationKey);
+
+    // Cultural origin: the birth affiliation when present, else the affiliation
+    // itself. This drives module legality, Clan status, and the primary language.
+    const origin = birthAff || aff;
+    const originSub = birthAff ? birthSub : sub;
+    this.#state.affiliation = birthAff ? `${aff.name} (${birthAff.name})` : aff.name;
+    this.#state.affiliationKey = origin.system.affiliationKey || '';
+    this.#state.isClan = this.#state.affiliationKey === 'clan';
+
+    // Resolve languages before the universal grant. A sub-affiliation's own
+    // languages override its affiliation's ("See sub-affiliation" realms). For a
+    // ComStar character the birth affiliation supplies the primary language and
+    // ComStar's own primary (English) is folded in as an extra secondary.
+    const pairs = birthAff ? [{ a: birthAff, s: birthSub }, { a: aff, s: sub }] : [{ a: aff, s: sub }];
+    const primaryOf = ({ a, s }) => s?.primaryLanguage || a.system.primaryLanguage || '';
+    const primaryLang = pairs.map(primaryOf).find(Boolean) || '';
+    const secondaryLang = [...new Set(pairs.flatMap(p => {
+      const own = (p.s && this._asArray(p.s.secondaryLanguages).length)
+        ? this._asArray(p.s.secondaryLanguages)
+        : this._asArray(p.a.system.secondaryLanguages);
+      const prim = primaryOf(p);
+      return prim && prim !== primaryLang ? [...own, prim] : own; // e.g. ComStar's English
+    }).filter(Boolean))];
+    this.#state.affiliationLanguages = { primary: primaryLang, secondary: secondaryLang };
+
+    // A clean primary-language label: the resolved language, else the origin
     // key capitalised, else the display name without any "(...)" suffix.
-    const langName = aff.system.primaryLanguage
-      || (aff.system.affiliationKey && aff.system.affiliationKey !== 'universal'
-        ? aff.system.affiliationKey.charAt(0).toUpperCase() + aff.system.affiliationKey.slice(1)
-        : aff.name.replace(/\s*\(.*\)\s*$/, '').trim());
+    const langName = primaryLang
+      || (origin.system.affiliationKey && origin.system.affiliationKey !== 'universal'
+        ? origin.system.affiliationKey.charAt(0).toUpperCase() + origin.system.affiliationKey.slice(1)
+        : origin.name.replace(/\s*\(.*\)\s*$/, '').trim());
     CharacterBuilder.applyUniversalFixedXP(this.#state, { primaryLanguageName: langName });
+
+    // Birth affiliation (ComStar only): full XP and full cost, applied first.
+    if (birthAff) {
+      CharacterBuilder.applyModule(this.#state, birthAff.system, { id: birthAff.id, name: birthAff.name, uuid: birthAff.uuid });
+      // Birth caste/variant (e.g. a ComStar acolyte born into a Clan).
+      const birthVariant = this._asArray(birthAff.system.variants).find(v => v.key === this.#choices.variants[birthAff.id]);
+      if (birthVariant) CharacterBuilder.applyModule(this.#state, {
+        stage: 0, xpCost: Number(birthVariant.xpCost) || 0, time: 0,
+        fixedXP: birthVariant.fixedXP, flexibleXP: birthVariant.flexibleXP
+      }, { id: `variant:${birthAff.id}:${birthVariant.key}`, name: `${birthAff.name} — ${birthVariant.name}` });
+      if (birthSub) CharacterBuilder.applyModule(this.#state, {
+        stage: 0, xpCost: 0, time: 0, fixedXP: birthSub.fixedXP, flexibleXP: birthSub.flexibleXP
+      }, { id: `birthsub:${birthSub.key}`, name: `${birthAff.name} — ${birthSub.name}` });
+    }
 
     // Main affiliation module.
     CharacterBuilder.applyModule(this.#state, aff.system, { id: aff.id, name: aff.name, uuid: aff.uuid });
 
-    // Optional sub-affiliation: applied as an extra Stage 0 bundle.
-    const sub = this._asArray(aff.system.subAffiliations)
-      .find(s => s.key === this.#choices.subAffiliationKey);
+    // Optional affiliation variant (e.g. a Clan Caste), picked alongside the
+    // sub-affiliation in the Affiliation step.
+    const affVariant = this._asArray(aff.system.variants).find(v => v.key === this.#choices.variants[aff.id]);
+    if (affVariant) {
+      CharacterBuilder.applyModule(this.#state, {
+        stage: 0, xpCost: Number(affVariant.xpCost) || 0, time: 0,
+        fixedXP: affVariant.fixedXP, flexibleXP: affVariant.flexibleXP
+      }, { id: `variant:${aff.id}:${affVariant.key}`, name: `${aff.name} — ${affVariant.name}` });
+    }
+
+    // Optional sub-affiliation: applied as an extra Stage 0 bundle (resolved above).
     if (sub) {
       this.#state.subAffiliation = sub.name;
       CharacterBuilder.applyModule(this.#state, {
@@ -179,10 +250,24 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       }, { id: `subaff:${sub.key}`, name: `${aff.name} — ${sub.name}` });
     }
 
-    // Remaining stage modules (everything except the affiliation doc).
+    // Remaining stage modules (everything except the affiliation doc), each
+    // followed by its chosen variant (caste/branch) bundle, if any.
     for (const d of docs) {
       if (d.id === aff.id) continue;
       CharacterBuilder.applyModule(this.#state, d.system, { id: d.id, name: d.name, uuid: d.uuid });
+      const variant = this._asArray(d.system.variants).find(v => v.key === this.#choices.variants[d.id]);
+      if (variant) {
+        CharacterBuilder.applyModule(this.#state, {
+          stage: d.system.stage, xpCost: Number(variant.xpCost) || 0, time: 0,
+          fixedXP: variant.fixedXP, flexibleXP: variant.flexibleXP
+        }, { id: `variant:${d.id}:${variant.key}`, name: `${d.name} — ${variant.name}` });
+      }
+      // Stage 3 schools: conditional penalty (if earlier modules were skipped)
+      // and the player's chosen Skill Fields (each grants +30/skill at 24/skill).
+      if (Number(d.system.stage) === 3) {
+        CharacterBuilder.applyConditionalXP(this.#state, d.system.conditionalXP);
+        this.#applyChosenFields(d);
+      }
     }
 
     // Re-apply saved subskill choices (adds the queued XP under the chosen subskill).
@@ -244,6 +329,27 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     return key ? phenotypes[key] || null : null;
   }
 
+  /** Apply a Stage-3 school's chosen Skill Fields (Basic + Advanced + Special). */
+  #applyChosenFields(school) {
+    const fc = this.#choices.fields[school.id];
+    if (!fc) return;
+    const f = school.system.fields || {};
+    const apply = (name, tier, kind) => {
+      const def = SKILL_FIELDS[name];
+      if (!def) return;
+      CharacterBuilder.applyField(this.#state, def.skills, tier?.time || 0,
+        { id: `field:${school.id}:${kind}:${name}`, name: `${school.name} — ${name}` });
+    };
+    if (fc.basic) apply(fc.basic, f.basic, 'basic');
+    for (const n of this._asArray(fc.advanced)) apply(n, f.advanced, 'advanced');
+    for (const n of this._asArray(fc.special)) apply(n, f.special, 'special');
+  }
+
+  /** Total Fields chosen for a school (Basic + Advanced + Special). */
+  #fieldCount(fc) {
+    return (fc?.basic ? 1 : 0) + this._asArray(fc?.advanced).length + this._asArray(fc?.special).length;
+  }
+
   /* ---------------------------------------------------------------------- */
   /*  Context                                                                */
   /* ---------------------------------------------------------------------- */
@@ -266,7 +372,11 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       remaining,
       remainingClass: remaining < 0 ? 'over' : '',
       age: this.#state.age,
-      moduleCount: this.#state.modules.filter(m => !String(m.id).startsWith('subaff:')).length
+      moduleCount: this.#state.modules.filter(m => {
+        const id = String(m.id);
+        return !id.startsWith('subaff:') && !id.startsWith('variant:')
+          && !id.startsWith('birthsub:') && !id.startsWith('field:');
+      }).length
     };
 
     if (stepId === 'affiliation') {
@@ -277,16 +387,25 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
 
       // Sub-affiliations of the chosen affiliation (optional, each adds its own XP).
       const chosen = affiliations.find(a => a.id === this.#choices.affiliationId);
-      const subs = this._asArray(chosen?.system.subAffiliations);
-      if (subs.length) {
-        context.subAffiliations = subs.map(s => ({
-          key: s.key,
-          name: s.name,
-          selected: s.key === this.#choices.subAffiliationKey,
-          grants: this.#moduleGrants(s),
-          flexible: this.#flexibleSummaries(s)
-        }));
-        context.hasSubAffiliations = true;
+      context.subAffiliations = this.#subAffCards(chosen?.system.subAffiliations, this.#choices.subAffiliationKey);
+      context.hasSubAffiliations = context.subAffiliations.length > 0;
+
+      // Affiliation variant (e.g. a Clan Caste) — same picker as the stage steps.
+      context.variantPickers = this.#variantPickersFor(chosen ? [chosen] : []);
+      context.hasVariantPickers = context.variantPickers.length > 0;
+
+      // ComStar / Word of Blake: a second "birth" affiliation, chosen from every
+      // other (non-ComStar) affiliation, plus its own sub-affiliations.
+      if (chosen?.system.requiresBirthAffiliation) {
+        context.needsBirthAffiliation = true;
+        const options = affiliations.filter(a => !a.system.requiresBirthAffiliation);
+        context.birthAffiliations = options.map(a => this.#moduleCard(a, a.id === this.#choices.birthAffiliationId, derived));
+        const birth = options.find(a => a.id === this.#choices.birthAffiliationId);
+        context.birthSubAffiliations = this.#subAffCards(birth?.system.subAffiliations, this.#choices.birthSubAffiliationKey);
+        context.hasBirthSubAffiliations = context.birthSubAffiliations.length > 0;
+        // Birth caste picker (e.g. a ComStar acolyte born into a Clan).
+        context.birthVariantPickers = this.#variantPickersFor(birth ? [birth] : []);
+        context.hasBirthVariantPickers = context.birthVariantPickers.length > 0;
       }
     }
 
@@ -294,14 +413,24 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       const byStage = await this.#loadModules();
       const list = byStage[step.stage] || [];
       const sel = this.#choices.modules[step.stage];
+      const selectedIds = step.multi ? sel : (sel ? [sel] : []);
       context.stage = step.stage;
       context.multi = !!step.multi;
       context.hasModules = list.length > 0;
       context.mandatory = [1, 2].includes(step.stage);
-      context.modules = list.map(m => this.#moduleCard(
-        m, step.multi ? sel.includes(m.id) : sel === m.id, derived
-      ));
+      context.modules = list.map(m => this.#moduleCard(m, selectedIds.includes(m.id), derived));
+      // Variant (caste/branch) pickers for any selected module that has variants.
+      context.variantPickers = this.#variantPickersFor(selectedIds.map(id => list.find(m => m.id === id)));
+      context.hasVariantPickers = context.variantPickers.length > 0;
       context.emptyKind = 'stage';
+
+      // Stage 3: Skill-Field pickers for each selected school + repeat advisory.
+      if (step.stage === 3) {
+        const schools = selectedIds.map(id => list.find(m => m.id === id)).filter(Boolean);
+        context.schoolFields = schools.map(m => this.#schoolFieldContext(m, derived));
+        context.hasSchoolFields = context.schoolFields.length > 0;
+        context.tooManyStage3 = selectedIds.length > 2; // GM soft cap (ATOW p.80)
+      }
     }
 
     if (stepId === 'phenotype') {
@@ -368,6 +497,8 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     const sys = doc.system;
     const legal = CharacterBuilder.isModuleLegal(sys, this.#state.affiliationKey);
     const pre = this.#prereqStatus(sys.prerequisites, derived);
+    const affNames = this._asArray(sys.restrictedToAffiliations)
+      .map(k => k.charAt(0).toUpperCase() + k.slice(1)).join(', ');
     return {
       id: doc.id,
       name: doc.name,
@@ -380,9 +511,141 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       prereq: this.#prereqSummary(sys.prerequisites),
       hasPrereq: pre.has,
       prereqMet: pre.met,
+      notes: sys.notes || '',
+      hasVariants: this._asArray(sys.variants).length > 0,
       legal,
-      restrictedTo: legal ? '' : this._asArray(sys.restrictedToAffiliations).join(', ')
+      // Human-readable reason the module is unavailable to this character.
+      restrictionText: legal ? ''
+        : `Available only to ${affNames || 'certain'} affiliation(s) — your affiliation (${this.#state.affiliation || 'none'}) cannot take it.${sys.notes ? ' ' + sys.notes : ''}`
     };
+  }
+
+  /** Build the Skill-Field picker view model for one Stage-3 school. */
+  #schoolFieldContext(school, derived) {
+    const sys = school.system;
+    const fc = this.#choices.fields[school.id] || { basic: '', advanced: [], special: [] };
+    const count = this.#fieldCount(fc);
+    const atMax = count >= 3;
+    const hasAdvanced = this._asArray(fc.advanced).length > 0;
+    const tierCards = (tierObj, kind) => this._asArray(tierObj?.options).map(name => {
+      const selected = kind === 'basic' ? fc.basic === name : this._asArray(fc[kind]).includes(name);
+      // Can't add a new field once at the cap; Specials also need an Advanced first.
+      const disabled = !selected && (atMax || (kind === 'special' && !hasAdvanced));
+      return this.#fieldCard(name, kind, school.id, selected, disabled, derived);
+    });
+    // Does this school's conditional penalty currently apply to the build?
+    const cx = sys.conditionalXP;
+    const penaltyApplies = cx && this._asArray(cx.unlessModules).length
+      && !this._asArray(cx.unlessModules).some(w => this.#state.modules.some(m => String(m.name || '').includes(w)));
+    return {
+      moduleId: school.id, moduleName: school.name, schoolType: sys.schoolType,
+      count, atMax,
+      basicOptions: tierCards(sys.fields.basic, 'basic'),
+      basicTime: sys.fields.basic.time,
+      advancedOptions: tierCards(sys.fields.advanced, 'advanced'),
+      advancedTime: sys.fields.advanced.time,
+      hasAdvanced: this._asArray(sys.fields.advanced.options).length > 0,
+      specialOptions: tierCards(sys.fields.special, 'special'),
+      specialTime: sys.fields.special.time,
+      hasSpecial: this._asArray(sys.fields.special.options).length > 0,
+      needsBasic: !fc.basic,
+      penaltyApplies,
+      penaltyText: penaltyApplies ? this.#conditionalPenaltyText(cx) : ''
+    };
+  }
+
+  /** One selectable Skill-Field card (skills, cost, prereqs). */
+  #fieldCard(name, kind, moduleId, selected, disabled, derived) {
+    const def = SKILL_FIELDS[name] || { skills: [], req: {} };
+    const pre = this.#fieldPrereqStatus(def.req, derived);
+    return {
+      name, kind, moduleId, selected, disabled,
+      skills: def.skills.join(', '),
+      skillCount: def.skills.length,
+      cost: FIELD_SKILL_COST * def.skills.length,
+      prereq: this.#fieldPrereqText(def.req),
+      hasPrereq: pre.has,
+      prereqMet: pre.met
+    };
+  }
+
+  /** Human-readable prereq string for a Field. */
+  #fieldPrereqText(req) {
+    if (!req) return '';
+    const bits = [];
+    for (const [k, v] of Object.entries(req.attrs || {})) bits.push(`${k.toUpperCase()} ${v}`);
+    for (const fn of this._asArray(req.fields)) bits.push(`${fn} Field`);
+    for (const t of this._asArray(req.traits)) bits.push(`${t} Trait`);
+    for (const t of this._asArray(req.forbidTraits)) bits.push(`no ${t}`);
+    let s = bits.join(', ');
+    if (req.note) s += (s ? ' — ' : '') + req.note;
+    return s;
+  }
+
+  /** Whether a Field's attribute/Field prereqs are currently met (warn-only). */
+  #fieldPrereqStatus(req, derived) {
+    if (!req) return { has: false, met: true };
+    const hasReq = Object.keys(req.attrs || {}).length || this._asArray(req.fields).length
+      || this._asArray(req.traits).length;
+    if (!hasReq) return { has: false, met: true };
+    let met = true;
+    for (const [k, min] of Object.entries(req.attrs || {})) {
+      if ((derived.attributes[k]?.total ?? 0) < min) met = false;
+    }
+    // "Requires one of these Fields": met if any listed Field is selected anywhere.
+    const reqFields = this._asArray(req.fields);
+    if (reqFields.length) {
+      const chosen = new Set();
+      for (const fcv of Object.values(this.#choices.fields || {})) {
+        if (fcv.basic) chosen.add(fcv.basic);
+        for (const n of this._asArray(fcv.advanced)) chosen.add(n);
+        for (const n of this._asArray(fcv.special)) chosen.add(n);
+      }
+      if (!reqFields.some(f => chosen.has(f))) met = false;
+    }
+    return { has: true, met };
+  }
+
+  /** Short description of a school's conditional penalty allotment. */
+  #conditionalPenaltyText(cx) {
+    const fx = cx.fixedXP || {};
+    const parts = [];
+    for (const [k, v] of Object.entries(fx.attributes || {})) parts.push(`${k.toUpperCase()} ${v > 0 ? '+' : ''}${v}`);
+    for (const t of this._asArray(fx.traits)) parts.push(`${t.name} ${t.xp > 0 ? '+' : ''}${t.xp}`);
+    return `Penalty applied (you skipped ${this._asArray(cx.unlessModules).join(' / ')}): ${parts.join(', ')}.`;
+  }
+
+  /** View models for a list of sub-affiliation bundles (main or birth). */
+  #subAffCards(subs, selectedKey) {
+    return this._asArray(subs).map(s => ({
+      key: s.key,
+      name: s.name,
+      selected: s.key === selectedKey,
+      grants: this.#moduleGrants(s),
+      flexible: this.#flexibleSummaries(s),
+      notes: s.notes || ''
+    }));
+  }
+
+  /** Build variant-picker view models for any of the given module docs that
+   * declare variants (shared by the affiliation and stage steps). */
+  #variantPickersFor(docs) {
+    return (docs || [])
+      .filter(m => m && this._asArray(m.system.variants).length)
+      .map(m => ({
+        moduleId: m.id,
+        moduleName: m.name,
+        label: m.system.variantLabel || 'Variant',
+        required: !!m.system.variantRequired,
+        variants: this._asArray(m.system.variants).map(v => ({
+          key: v.key,
+          name: v.name,
+          selected: this.#choices.variants[m.id] === v.key,
+          grants: this.#moduleGrants({ fixedXP: v.fixedXP }),
+          flexible: this.#flexibleSummaries({ flexibleXP: v.flexibleXP }),
+          notes: v.notes || ''
+        }))
+      }));
   }
 
   /** Small array coercion (module fields may be arrays or objects). */
@@ -424,10 +687,15 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     };
   }
 
-  /** Short descriptions of a module's flexible-XP pools (for the card). */
+  /** Short descriptions of a module's flexible-XP pools (for the card). Always
+   * shows the XP amount, then the constraint note (a lump note like "may only
+   * be applied to Skills" doesn't itself state the amount). */
   #flexibleSummaries(system) {
-    return (system.flexibleXP || []).map(p =>
-      p.note || (p.lump ? `${p.amount} XP flexible` : `${p.amount} XP × ${p.count || 1} (${p.targets || 'any'})`));
+    return (system.flexibleXP || []).map(p => {
+      if (p.lump) return `${p.amount} XP flexible${p.note ? ` — ${p.note}` : ''}`;
+      const base = `${p.amount} XP × ${p.count || 1}`;
+      return p.note ? `${base} — ${p.note}` : `${base} (${p.targets || 'any'})`;
+    });
   }
 
   /** Tooltip text for a trait, resolved from its base name (before "/subskill"). */
@@ -488,10 +756,14 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       const saved = this.#choices.flexible[pool.sourceKey] || [];
       const moduleName = this.#state.modules.find(m => m.id === pool.moduleId)?.name || '';
 
+      // A constrained choice list (e.g. "choose one: Combat Sense or Pain
+      // Resistance") drives the dropdown directly for skills/traits.
+      const constrained = pool.choices.length && baseKind && baseKind !== 'attribute'
+        ? pool.choices.map(c => ({ value: c, label: c })) : null;
       const slots = Array.from({ length: pool.count }, (_, i) => {
         const s = saved[i] || {};
         const kind = baseKind || s.kind || 'attribute';
-        const options = baseKind === 'attribute' ? attrChoices : optionsFor(kind);
+        const options = baseKind === 'attribute' ? attrChoices : (constrained || optionsFor(kind));
         return { idx: i, isAny: baseKind === null, kind, key: s.key || '', options };
       });
 
@@ -551,8 +823,21 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
 
   /** Whether the current step is complete enough to advance / finish. */
   #canAdvance(stepId, step) {
-    if (stepId === 'affiliation') return !!this.#choices.affiliationId;
-    if (step.stage && [1, 2].includes(step.stage)) return !!this.#choices.modules[step.stage];
+    if (stepId === 'affiliation') {
+      if (!this.#choices.affiliationId) return false;
+      if (this.#missingRequiredVariantFor(this.#modulesCache?.[0], [this.#choices.affiliationId])) return false;
+      if (this.#needsBirthAffiliation()) {
+        if (!this.#choices.birthAffiliationId) return false;
+        // A birth affiliation that itself requires a variant (a Clan caste).
+        if (this.#missingRequiredVariantFor(this.#modulesCache?.[0], [this.#choices.birthAffiliationId])) return false;
+      }
+      return true;
+    }
+    if (step.stage && [1, 2].includes(step.stage)) {
+      return !!this.#choices.modules[step.stage] && !this.#missingRequiredVariant(step.stage);
+    }
+    if (step.stage === 3) return !this.#missingRequiredVariant(3) && !this.#schoolMissingBasic();
+    if (step.stage) return !this.#missingRequiredVariant(step.stage);
     if (stepId === 'flexible') {
       return CharacterBuilder.flexibleResolved(this.#state) && CharacterBuilder.subskillsResolved(this.#state);
     }
@@ -560,15 +845,69 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   #advanceHint(stepId, step) {
-    if (stepId === 'affiliation' && !this.#choices.affiliationId) return 'Choose an affiliation to continue.';
+    if (stepId === 'affiliation') {
+      if (!this.#choices.affiliationId) return 'Choose an affiliation to continue.';
+      const a = this.#missingRequiredVariantFor(this.#modulesCache?.[0], [this.#choices.affiliationId]);
+      if (a) return `Choose a ${a.label.toLowerCase()} for ${a.moduleName} to continue.`;
+      if (this.#needsBirthAffiliation()) {
+        if (!this.#choices.birthAffiliationId) return 'Choose a birth affiliation for ComStar / Word of Blake to continue.';
+        const b = this.#missingRequiredVariantFor(this.#modulesCache?.[0], [this.#choices.birthAffiliationId]);
+        if (b) return `Choose a ${b.label.toLowerCase()} for your birth affiliation (${b.moduleName}) to continue.`;
+      }
+    }
     if (step.stage && [1, 2].includes(step.stage) && !this.#choices.modules[step.stage]) {
       return 'Choose a module for this required stage.';
+    }
+    if (step.stage) {
+      const m = this.#missingRequiredVariant(step.stage);
+      if (m) return `Choose a ${m.label.toLowerCase()} for ${m.moduleName} to continue.`;
+    }
+    if (step.stage === 3) {
+      const s = this.#schoolMissingBasic();
+      if (s) return `Choose a Basic Field for ${s} to continue (or deselect the school).`;
     }
     if (stepId === 'flexible') {
       if (!CharacterBuilder.subskillsResolved(this.#state)) return 'Choose all subskills to continue.';
       if (!CharacterBuilder.flexibleResolved(this.#state)) return 'Assign all flexible XP to continue.';
     }
     return '';
+  }
+
+  /** Whether the currently-chosen affiliation demands a "birth" affiliation (ComStar). */
+  #needsBirthAffiliation() {
+    const aff = this.#modulesCache?.[0]?.find(a => a.id === this.#choices.affiliationId);
+    return !!aff?.system.requiresBirthAffiliation;
+  }
+
+  /** Name of the first selected Stage-3 school that still needs a Basic Field. */
+  #schoolMissingBasic() {
+    const list = this.#modulesCache?.[3] || [];
+    for (const id of this.#choices.modules[3]) {
+      const m = list.find(x => x.id === id);
+      if (m && !this.#choices.fields[id]?.basic) return m.name;
+    }
+    return null;
+  }
+
+  /** First selected module in a stage that requires a variant but has none chosen. */
+  #missingRequiredVariant(stage) {
+    const sel = this.#choices.modules[stage];
+    const ids = Array.isArray(sel) ? sel : (sel ? [sel] : []);
+    return this.#missingRequiredVariantFor(this.#modulesCache?.[stage], ids);
+  }
+
+  /** First module in `ids` (looked up in `list`) that requires a variant but has none chosen. */
+  #missingRequiredVariantFor(list, ids) {
+    const byId = list || [];
+    for (const id of ids || []) {
+      const m = byId.find(x => x.id === id);
+      if (!m) continue;
+      const variants = this._asArray(m.system.variants);
+      if (variants.length && m.system.variantRequired && !this.#choices.variants[id]) {
+        return { moduleId: id, moduleName: m.name, label: m.system.variantLabel || 'Variant' };
+      }
+    }
+    return null;
   }
 
   /* ---------------------------------------------------------------------- */
@@ -687,8 +1026,14 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   static async #onSelectAffiliation(event, target) {
+    const prev = this.#choices.affiliationId;
+    const prevBirth = this.#choices.birthAffiliationId;
     this.#choices.affiliationId = target.dataset.id || '';
     this.#choices.subAffiliationKey = ''; // sub-affiliations are affiliation-specific
+    this.#choices.birthAffiliationId = '';       // ComStar birth is ComStar-specific
+    this.#choices.birthSubAffiliationKey = '';
+    if (prev) delete this.#choices.variants[prev]; // caste is affiliation-specific
+    if (prevBirth) delete this.#choices.variants[prevBirth]; // birth caste too
     await this.#rebuildState();
     this.render();
   }
@@ -696,6 +1041,24 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
   static async #onSelectSubAffiliation(event, target) {
     const key = target.dataset.key || '';
     this.#choices.subAffiliationKey = this.#choices.subAffiliationKey === key ? '' : key;
+    await this.#rebuildState();
+    this.render();
+  }
+
+  /** ComStar / Word of Blake: choose (or clear) the "birth" affiliation. */
+  static async #onSelectBirthAffiliation(event, target) {
+    const prev = this.#choices.birthAffiliationId;
+    const id = target.dataset.id || '';
+    this.#choices.birthAffiliationId = this.#choices.birthAffiliationId === id ? '' : id;
+    this.#choices.birthSubAffiliationKey = ''; // birth sub is birth-affiliation-specific
+    if (prev) delete this.#choices.variants[prev]; // birth caste is birth-affiliation-specific
+    await this.#rebuildState();
+    this.render();
+  }
+
+  static async #onSelectBirthSubAffiliation(event, target) {
+    const key = target.dataset.key || '';
+    this.#choices.birthSubAffiliationKey = this.#choices.birthSubAffiliationKey === key ? '' : key;
     await this.#rebuildState();
     this.render();
   }
@@ -710,7 +1073,10 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
   static async #onSelectStageModule(event, target) {
     const stage = Number(target.dataset.stage);
     const id = target.dataset.id;
-    this.#choices.modules[stage] = this.#choices.modules[stage] === id ? '' : id;
+    const prev = this.#choices.modules[stage];
+    this.#choices.modules[stage] = prev === id ? '' : id;
+    // Clear any variant choice tied to a module that is no longer selected.
+    if (prev && prev !== this.#choices.modules[stage]) delete this.#choices.variants[prev];
     await this.#rebuildState();
     this.render();
   }
@@ -721,7 +1087,77 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     const id = target.dataset.id;
     const list = this.#choices.modules[stage];
     const i = list.indexOf(id);
-    if (i === -1) list.push(id); else list.splice(i, 1);
+    if (i === -1) {
+      // Stage 3: block a second school of the same type (Officer is exempt).
+      if (stage === 3 && await this.#stageThreeTypeConflict(id)) return;
+      list.push(id);
+    } else {
+      list.splice(i, 1);
+      delete this.#choices.variants[id];  // drop variant on deselect
+      delete this.#choices.fields[id];    // drop Skill-Field choices on deselect
+    }
+    await this.#rebuildState();
+    this.render();
+  }
+
+  /** True (and warns) if adding this Stage-3 school repeats an already-chosen
+   * school type (Civilian / Intelligence / Military). Officer type is exempt. */
+  async #stageThreeTypeConflict(id) {
+    const byStage = await this.#loadModules();
+    const list = byStage[3] || [];
+    const adding = list.find(m => m.id === id);
+    const type = adding?.system.schoolType;
+    if (!type || type === 'officer') return false;
+    const clash = this.#choices.modules[3]
+      .map(sid => list.find(m => m.id === sid))
+      .some(m => m && m.system.schoolType === type);
+    if (clash) {
+      ui.notifications?.warn(`You may not take two ${type} schools — choose a different type of schooling.`);
+      return true;
+    }
+    return false;
+  }
+
+  /** Stage-3: pick (or clear) the single Basic Field for a school. */
+  static async #onSelectFieldBasic(event, target) {
+    const fc = this.#fieldChoice(target.dataset.module);
+    const name = target.dataset.field;
+    fc.basic = fc.basic === name ? '' : name;
+    await this.#rebuildState();
+    this.render();
+  }
+
+  /** Stage-3: toggle an Advanced or Special Field (respecting the 3-field cap). */
+  static async #onToggleField(event, target) {
+    const fc = this.#fieldChoice(target.dataset.module);
+    const kind = target.dataset.kind; // 'advanced' | 'special'
+    const name = target.dataset.field;
+    const arr = fc[kind];
+    const i = arr.indexOf(name);
+    if (i !== -1) {
+      arr.splice(i, 1);
+      // Removing the last Advanced orphans any Specials — clear them.
+      if (kind === 'advanced' && !arr.length) fc.special = [];
+    } else {
+      if (this.#fieldCount(fc) >= 3) { ui.notifications?.warn('A school may grant at most three Fields.'); return; }
+      if (kind === 'special' && !fc.advanced.length) { ui.notifications?.warn('Choose an Advanced Field before a Special Field.'); return; }
+      arr.push(name);
+    }
+    await this.#rebuildState();
+    this.render();
+  }
+
+  /** Get (creating if needed) the Field-selection record for a school. */
+  #fieldChoice(moduleId) {
+    return (this.#choices.fields[moduleId] ??= { basic: '', advanced: [], special: [] });
+  }
+
+  /** Choose (or clear) a module's variant (caste/branch sub-option). */
+  static async #onSelectVariant(event, target) {
+    const moduleId = target.dataset.module;
+    const key = target.dataset.key || '';
+    this.#choices.variants[moduleId] = this.#choices.variants[moduleId] === key ? '' : key;
+    if (!this.#choices.variants[moduleId]) delete this.#choices.variants[moduleId];
     await this.#rebuildState();
     this.render();
   }

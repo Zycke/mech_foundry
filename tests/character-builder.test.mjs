@@ -8,8 +8,9 @@
  *
  * Exits non-zero on failure so it can gate CI later.
  */
-import { CharacterBuilder as CB } from '../module/helpers/character-builder.mjs';
+import { CharacterBuilder as CB, FIELD_SKILL_XP, FIELD_SKILL_COST } from '../module/helpers/character-builder.mjs';
 import * as XP from '../module/helpers/xp-math.mjs';
+import { SKILL_FIELDS } from '../module/data/skill-fields.mjs';
 
 let failed = 0;
 const ok = (cond, msg) => {
@@ -258,6 +259,210 @@ try {
   CB.derive(st);
 } catch (_e) { applyOk = false; }
 ok(applyOk, 'all seed modules apply through the engine without error');
+
+/* ---- Module variants (branch/caste sub-options) ------------------------- */
+{
+  const appr = LIFE_MODULE_SEED.find(m => m.name === 'Clan Apprenticeship');
+  ok(appr?.system.variantRequired && appr.system.variants.length === 4,
+    'Clan Apprenticeship requires one of 4 castes');
+  // base grants (360) + one caste (140) reproduces the book Module Cost of 500.
+  ok(appr.system.xpCost + appr.system.variants[0].xpCost === 500,
+    'Clan Apprenticeship base + caste = 500 XP (book value)');
+
+  const free = LIFE_MODULE_SEED.find(m => m.name === 'Freeborn Sibko');
+  ok(free?.system.variants.length === 5, 'Freeborn Sibko has 5 branches');
+  // Freeborn is a flat 950 XP for every branch.
+  ok(free.system.variants.every(v => free.system.xpCost + v.xpCost === 950),
+    'every Freeborn Sibko branch totals 950 XP (book value)');
+
+  const tb = LIFE_MODULE_SEED.find(m => m.name === 'Trueborn Sibko');
+  ok(tb?.system.variants.some(v => v.key === 'protomech'), 'Trueborn Sibko includes ProtoMech branch');
+  // Trueborn is 1,600 XP except ProtoMech, which is 1,500.
+  ok(tb.system.variants.every(v => {
+    const total = tb.system.xpCost + v.xpCost;
+    return v.key === 'protomech' ? total === 1500 : total === 1600;
+  }), 'Trueborn Sibko branches total 1,600 XP (1,500 for ProtoMech)');
+
+  // A branch bundle applies cleanly on top of its parent, carrying its own cost + grants.
+  const st = CB.createState();
+  st.affiliationKey = 'clan';
+  CB.applyModule(st, appr.system, { id: 'appr', name: appr.name });
+  const before = st.spent;
+  const tech = appr.system.variants.find(v => v.key === 'technician');
+  CB.applyModule(st, { stage: 2, xpCost: tech.xpCost, fixedXP: tech.fixedXP, flexibleXP: tech.flexibleXP },
+    { id: 'appr:technician', name: tech.name });
+  ok(st.spent - before === 140, 'applying the Technician caste spends its 140 XP');
+  ok(st.attributes.dex === 30, 'Technician caste added +30 DEX XP');
+}
+
+/* ---- Full affiliation catalogue ----------------------------------------- */
+{
+  const affs = LIFE_MODULE_SEED.filter(m => m.system.stage === 0 && m.system.moduleType === 'affiliation'
+    && m.system.affiliationKey !== 'universal');
+  ok(affs.length >= 13, `all Stage 0 affiliations present (found ${affs.length})`);
+
+  // Every named realm from ATOW pp.64-74 should be there.
+  for (const name of ['Capellan Confederation', 'Draconis Combine', 'Federated Suns', 'Free Worlds League',
+    'Lyran Alliance', 'Free Rasalhague Republic', 'Minor Periphery State', 'Major Periphery State',
+    'Deep Periphery', 'Invading Clan', 'Homeworld Clan', 'Independent', 'ComStar']) {
+    ok(affs.some(a => a.name.includes(name)), `affiliation present: ${name}`);
+  }
+
+  // Every affiliation applies cleanly, including all of its sub-affiliations.
+  let affApplyOk = true;
+  for (const a of affs) {
+    try {
+      const st = CB.createState();
+      st.affiliationKey = a.system.affiliationKey;
+      CB.applyModule(st, a.system, { id: a.name, name: a.name });
+      for (const sub of (a.system.subAffiliations || [])) {
+        CB.applyModule(st, { stage: 0, xpCost: 0, fixedXP: sub.fixedXP, flexibleXP: sub.flexibleXP },
+          { id: `${a.name}:${sub.key}`, name: sub.name });
+      }
+      CB.derive(st);
+    } catch (_e) { affApplyOk = false; }
+  }
+  ok(affApplyOk, 'every affiliation + all its sub-affiliations apply without error');
+
+  // Both Clan affiliations expose the 10 castes as required variants.
+  const clanAffs = affs.filter(a => a.system.affiliationKey === 'clan');
+  ok(clanAffs.length === 2, 'Invading Clan + Homeworld Clan both use affiliationKey "clan"');
+  ok(clanAffs.every(a => a.system.variantRequired && a.system.variants.length === 10),
+    'each Clan affiliation requires one of 10 castes');
+
+  // Sub-affiliation XP stacks on top of the main affiliation.
+  const draconis = affs.find(a => a.name.includes('Draconis Combine'));
+  const st = CB.createState();
+  st.affiliationKey = 'kurita';
+  CB.applyModule(st, draconis.system, { id: 'drac', name: draconis.name });
+  const azami = draconis.system.subAffiliations.find(s => s.key === 'azami');
+  CB.applyModule(st, { stage: 0, xpCost: 0, fixedXP: azami.fixedXP, flexibleXP: azami.flexibleXP }, { id: 'azami', name: 'Azami' });
+  ok(st.attributes.wil === 50 + 190, 'Draconis WIL +50 and Azami WIL +190 stack to 240');
+
+  // Language override: a sub-affiliation's own primary language wins over the
+  // main affiliation's (mirrors CharacterWizard#rebuildState resolution).
+  const resolvePrimary = (a, sub) => sub?.primaryLanguage || a.system.primaryLanguage || '';
+  const deep = affs.find(a => a.name === 'Deep Periphery');
+  const hanse = deep.system.subAffiliations.find(s => s.key === 'hanseatic-league');
+  ok(resolvePrimary(deep, hanse) === 'German', 'Deep Periphery + Hanseatic resolves primary language to German');
+  ok(resolvePrimary(draconis, null) === 'Japanese', 'Draconis with no sub keeps its Japanese primary language');
+  ok(deep.system.subAffiliations.every(s => s.primaryLanguage), 'every Deep Periphery sub defines its own primary language');
+
+  // ComStar / Word of Blake stacks a second "birth" affiliation at full cost.
+  const comstar = affs.find(a => a.system.affiliationKey === 'comstar');
+  ok(comstar.system.requiresBirthAffiliation, 'ComStar requires a birth affiliation');
+  const davion = affs.find(a => a.name.includes('Federated Suns'));
+  const stC = CB.createState();
+  stC.affiliationKey = 'davion';
+  CB.applyUniversalFixedXP(stC, { primaryLanguageName: 'English' });
+  const afterUniversal = stC.spent;
+  CB.applyModule(stC, davion.system, { id: 'd', name: davion.name });
+  CB.applyModule(stC, comstar.system, { id: 'c', name: comstar.name });
+  ok(stC.spent === afterUniversal + 150 + 50, 'birth (Davion 150) + ComStar (50) both charged at full cost');
+  ok(stC.traits['Rank'] === 50, 'ComStar Rank +50 stacks on top of the birth affiliation');
+  ok(Object.keys(stC.skills).some(k => /protocol\/fedsuns/i.test(k)),
+    'birth affiliation grants (Protocol/FedSuns) survive alongside ComStar');
+  // Birth affiliation drives the primary language; ComStar's English is secondary.
+  const resolveLangs = (birth, order) => {
+    const primary = order.map(x => x.a.system.primaryLanguage).find(Boolean) || '';
+    return { primary };
+  };
+  ok(resolveLangs(davion, [{ a: davion }, { a: comstar }]).primary === 'English',
+    'ComStar born in the Federated Suns takes English (birth) as primary language');
+
+  // ComStar born into a Clan: the birth affiliation's caste (variant) applies too.
+  const invading = affs.find(a => a.name === 'Invading Clan');
+  ok(invading.system.variants.length === 10, 'a Clan birth affiliation still exposes its 10 castes');
+  const stK = CB.createState();
+  stK.affiliationKey = 'clan';
+  CB.applyUniversalFixedXP(stK, { primaryLanguageName: 'English' });
+  CB.applyModule(stK, invading.system, { id: 'birth', name: invading.name });
+  const mw = invading.system.variants.find(v => v.key === 'mechwarrior');
+  CB.applyModule(stK, { stage: 0, xpCost: mw.xpCost, fixedXP: mw.fixedXP, flexibleXP: mw.flexibleXP },
+    { id: 'variant:birth:mechwarrior', name: mw.name });
+  CB.applyModule(stK, comstar.system, { id: 'c2', name: comstar.name });
+  // Universal grants +100 to each attribute; the MechWarrior caste adds +75 DEX/RFL.
+  ok(stK.attributes.dex === 100 + 75 && stK.attributes.rfl === 100 + 75,
+    'ComStar born into a Clan applies the MechWarrior caste (DEX +75, RFL +75) alongside ComStar');
+}
+
+/* ---- Stage 3: Higher Education (schools & Skill Fields) ------------------ */
+{
+  const schools = LIFE_MODULE_SEED.filter(m => m.system.stage === 3);
+  ok(schools.length === 10, `all 10 Higher Education schools present (found ${schools.length})`);
+  ok(!schools.some(s => /\(Example\)/.test(s.name)), 'Stage 3 example placeholder removed');
+
+  // Every Field a school offers must be defined in the Master Skill Fields List.
+  let allFieldsDefined = true;
+  for (const s of schools)
+    for (const tier of ['basic', 'advanced', 'special', 'officer'])
+      for (const fn of s.system.fields[tier].options)
+        if (!SKILL_FIELDS[fn]) allFieldsDefined = false;
+  ok(allFieldsDefined, 'every school Field resolves to a Master Skill Fields List entry');
+
+  // Field economics: pay 24/skill, gain 30/skill.
+  const st = CB.createState();
+  const mw = SKILL_FIELDS['MechWarrior'];
+  const before = st.spent;
+  CB.applyField(st, mw.skills, 1, { id: 'f1', name: 'MechWarrior' });
+  ok(st.spent - before === FIELD_SKILL_COST * mw.skills.length, `MechWarrior Field costs ${FIELD_SKILL_COST}×${mw.skills.length} XP`);
+  ok(st.skills["Gunnery/'Mech"] === FIELD_SKILL_XP, 'each Field Skill gains +30 XP');
+  ok(st.age === CB.createState().age + 1, 'a Field adds its tier time to age');
+
+  // Field-selection constraints.
+  ok(CB.validateFieldSelection({ basic: 'Basic Training', advanced: [], special: [] }).length === 0,
+    'one Basic Field is a valid selection');
+  ok(CB.validateFieldSelection({ basic: '', advanced: ['Infantry'], special: [] }).some(m => /one Basic/.test(m)),
+    'selection without a Basic Field is rejected');
+  ok(CB.validateFieldSelection({ basic: 'Basic Training', advanced: [], special: ['Special Forces'] }).some(m => /Special Field requires/.test(m)),
+    'a Special Field without an Advanced Field is rejected');
+  ok(CB.validateFieldSelection({ basic: 'Basic Training', advanced: ['Infantry', 'MechWarrior'], special: ['Special Forces'] }).some(m => /at most three/.test(m)),
+    'more than three Fields is rejected');
+
+  // Same-type repeat rule (Officer is exempt).
+  ok(CB.duplicateSchoolTypes(['military', 'military']).includes('military'), 'two Military schools is a duplicate');
+  ok(CB.duplicateSchoolTypes(['military', 'civilian']).length === 0, 'different school types are allowed');
+  ok(CB.duplicateSchoolTypes(['military', 'officer', 'officer']).length === 0, 'Officer schooling is exempt from the repeat rule');
+
+  // Conditional penalty: applies only when none of the "unless" modules are present.
+  const uni = schools.find(s => s.name === 'University');
+  const p1 = CB.createState();
+  CB.applyConditionalXP(p1, uni.system.conditionalXP); // no Prep School -> penalty applies
+  ok(p1.attributes.wil === 100 && p1.traits['Connections'] === 200, 'University penalty applies when Prep School was skipped');
+  const p2 = CB.createState();
+  p2.modules.push({ id: 'x', name: 'Preparatory School', stage: 2 });
+  CB.applyConditionalXP(p2, uni.system.conditionalXP);
+  ok(!p2.attributes.wil && !p2.traits['Connections'], 'University penalty is waived when Prep School was taken');
+
+  // Base cost already nets the automatics + flexible (ATOW "base + Field Costs").
+  const tc = schools.find(s => s.name === 'Technical College');
+  ok(tc.system.xpCost === 600, 'Technical College base cost is 600 XP (automatics + flexible)');
+
+  // A full enrolment: school + one Basic + one Advanced Field.
+  const full = CB.createState();
+  const before2 = full.spent;
+  CB.applyModule(full, tc.system, { id: 'tc', name: tc.name });
+  CB.applyField(full, SKILL_FIELDS['Communications'].skills, tc.system.fields.basic.time, { id: 'tc-b', name: 'Communications' });
+  CB.applyField(full, SKILL_FIELDS['Engineer'].skills, tc.system.fields.advanced.time, { id: 'tc-a', name: 'Engineer' });
+  const fieldCost = FIELD_SKILL_COST * (SKILL_FIELDS['Communications'].skills.length + SKILL_FIELDS['Engineer'].skills.length);
+  ok(full.spent - before2 === 600 + fieldCost, 'total cost = school base + 24×(field skills)');
+  ok(full.age === CB.createState().age + tc.system.fields.basic.time + tc.system.fields.advanced.time, 'age = sum of chosen Field tier times');
+
+  // Full wizard-style enrolment: Military Academy (no Prep School -> penalty) +
+  // Basic Training + MechWarrior Advanced Field. Mirrors CharacterWizard flow.
+  const acad = schools.find(s => s.name === 'Military Academy');
+  const w = CB.createState();
+  const base = w.spent;
+  CB.applyModule(w, acad.system, { id: 'ma', name: acad.name });
+  CB.applyConditionalXP(w, acad.system.conditionalXP);              // penalty (Prep skipped)
+  CB.applyField(w, SKILL_FIELDS['Basic Training'].skills, acad.system.fields.basic.time, { id: 'ma-b', name: 'Basic Training' });
+  CB.applyField(w, SKILL_FIELDS['MechWarrior'].skills, acad.system.fields.advanced.time, { id: 'ma-a', name: 'MechWarrior' });
+  const maCost = 830 + FIELD_SKILL_COST * (SKILL_FIELDS['Basic Training'].skills.length + SKILL_FIELDS['MechWarrior'].skills.length);
+  ok(w.spent - base === maCost, 'Military Academy + Basic + MechWarrior sums school base + Field costs');
+  ok(w.traits['Rank'] === 200, 'Military Academy grants Rank +200');
+  ok(w.traits['Connections'] === 200, 'the skip-Prep penalty adds Connections +200');
+  ok(w.skills["Piloting/'Mech"] === 30, 'the MechWarrior Field grants +30 to Piloting/’Mech');
+}
 
 /* ---- Result ------------------------------------------------------------- */
 if (failed) { console.error(`\n${failed} check(s) FAILED`); process.exit(1); }

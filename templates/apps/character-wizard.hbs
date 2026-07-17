@@ -59,8 +59,59 @@
             {{#if this.selected}}<span class="selected-flag"><i class="fas fa-check"></i></span>{{/if}}
           </span>
           {{> "systems/mech-foundry/templates/apps/parts/wizard-grants.hbs"}}
+          {{#if this.notes}}<span class="choice-prereq"><i class="fas fa-circle-info"></i> {{this.notes}}</span>{{/if}}
         </button>
         {{/each}}
+      </div>
+      {{/if}}
+
+      {{#if hasVariantPickers}}
+      {{#each variantPickers}}
+      {{> "systems/mech-foundry/templates/apps/parts/wizard-variant-picker.hbs"}}
+      {{/each}}
+      {{/if}}
+
+      {{#if needsBirthAffiliation}}
+      <div class="variant-picker birth-picker">
+        <div class="vp-head">
+          <span class="vp-title">Birth Affiliation <span class="hint-inline">(where you were born before joining the order)</span></span>
+          <span class="vp-required">required</span>
+        </div>
+        <div class="choice-grid">
+          {{#each birthAffiliations}}
+          <button type="button" class="choice-card affiliation-card {{#if this.selected}}selected{{/if}}" data-action="selectBirthAffiliation" data-id="{{this.id}}">
+            <span class="card-head">
+              <img src="{{this.img}}" alt=""/>
+              <span class="choice-name">{{this.name}}</span>
+              {{#if this.selected}}<span class="selected-flag"><i class="fas fa-check"></i></span>{{/if}}
+            </span>
+            <span class="card-meta"><span class="cost">{{this.cost}} XP</span></span>
+            {{> "systems/mech-foundry/templates/apps/parts/wizard-grants.hbs"}}
+          </button>
+          {{/each}}
+        </div>
+
+        {{#if hasBirthSubAffiliations}}
+        <h3 class="spend-sub">Birth Sub-Affiliation <span class="hint-inline">(optional — adds its own XP)</span></h3>
+        <div class="choice-grid">
+          {{#each birthSubAffiliations}}
+          <button type="button" class="choice-card {{#if this.selected}}selected{{/if}}" data-action="selectBirthSubAffiliation" data-key="{{this.key}}">
+            <span class="card-head">
+              <span class="choice-name">{{this.name}}</span>
+              {{#if this.selected}}<span class="selected-flag"><i class="fas fa-check"></i></span>{{/if}}
+            </span>
+            {{> "systems/mech-foundry/templates/apps/parts/wizard-grants.hbs"}}
+            {{#if this.notes}}<span class="choice-prereq"><i class="fas fa-circle-info"></i> {{this.notes}}</span>{{/if}}
+          </button>
+          {{/each}}
+        </div>
+        {{/if}}
+
+        {{#if hasBirthVariantPickers}}
+        {{#each birthVariantPickers}}
+        {{> "systems/mech-foundry/templates/apps/parts/wizard-variant-picker.hbs"}}
+        {{/each}}
+        {{/if}}
       </div>
       {{/if}}
     </div>
@@ -102,17 +153,34 @@
           <span class="card-meta">
             <span class="cost">{{this.cost}} XP</span>
             {{#if this.time}}<span class="time">{{this.time}} yr</span>{{/if}}
-            {{#unless this.legal}}<span class="badge-illegal" data-tooltip="Restricted to: {{this.restrictedTo}}"><i class="fas fa-ban"></i> Restricted</span>{{/unless}}
+            {{#unless this.legal}}<span class="badge-illegal" data-tooltip="{{this.restrictionText}}"><i class="fas fa-ban"></i> Restricted</span>{{/unless}}
             {{#if this.hasPrereq}}
               {{#if this.prereqMet}}<span class="badge-prereq met"><i class="fas fa-check"></i> Prereqs met</span>
               {{else}}<span class="badge-prereq unmet"><i class="fas fa-lock"></i> Prereqs unmet</span>{{/if}}
             {{/if}}
+            {{#if this.notes}}<span class="card-note" data-tooltip="{{this.notes}}"><i class="fas fa-circle-info"></i> Notes</span>{{/if}}
           </span>
           {{> "systems/mech-foundry/templates/apps/parts/wizard-grants.hbs"}}
           {{#if this.prereq}}<span class="choice-prereq"><i class="fas fa-lock"></i> Requires {{this.prereq}}</span>{{/if}}
+          {{#unless this.legal}}<span class="choice-restricted"><i class="fas fa-ban"></i> {{this.restrictionText}}</span>{{/unless}}
         </button>
         {{/each}}
       </div>
+
+      {{#if hasVariantPickers}}
+      {{#each variantPickers}}
+      {{> "systems/mech-foundry/templates/apps/parts/wizard-variant-picker.hbs"}}
+      {{/each}}
+      {{/if}}
+
+      {{#if tooManyStage3}}
+      <p class="choice-restricted"><i class="fas fa-circle-info"></i> Gamemasters are encouraged to limit characters to two Higher Education modules. More than two is allowed, but ages the character considerably.</p>
+      {{/if}}
+      {{#if hasSchoolFields}}
+      {{#each schoolFields}}
+      {{> "systems/mech-foundry/templates/apps/parts/wizard-field-picker.hbs"}}
+      {{/each}}
+      {{/if}}
       {{else}}
       <p class="empty-note"><i class="fas fa-circle-info"></i> No Stage {{stage}} modules in the compendium yet.{{#unless mandatory}} This stage is optional — you can continue.{{/unless}} A GM can add <em>Life Module</em> items for this stage.</p>
       {{/if}}

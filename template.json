@@ -166,6 +166,37 @@
       "primaryLanguage": "",
       "secondaryLanguages": [],
       "subAffiliations": [],
+      "variantLabel": "",
+      "variantRequired": false,
+      "variants": [],
+      "requiresBirthAffiliation": false,
+      "schoolType": "",
+      "conditionalXP": {
+        "unlessModules": [],
+        "fixedXP": {
+          "attributes": {},
+          "skills": [],
+          "traits": []
+        }
+      },
+      "fields": {
+        "basic": {
+          "time": 0,
+          "options": []
+        },
+        "advanced": {
+          "time": 0,
+          "options": []
+        },
+        "special": {
+          "time": 0,
+          "options": []
+        },
+        "officer": {
+          "time": 0,
+          "options": []
+        }
+      },
       "restrictedToAffiliations": [],
       "prerequisites": {
         "attributes": {},
