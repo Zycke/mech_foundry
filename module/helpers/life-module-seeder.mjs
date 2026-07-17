@@ -37,13 +37,13 @@ export function registerSeederSettings() {
  *                                 notification when nothing needed adding.
  * @returns {Promise<number>} how many documents were created
  */
-export async function seedLifeModules({ force = false } = {}) {
+export async function seedLifeModules({ force = false, quiet = false } = {}) {
   if (!game.user?.isGM) return 0;
 
   const pack = game.packs?.get(PACK_ID);
   if (!pack) {
     console.warn(`mech-foundry | Life Modules pack "${PACK_ID}" not found; skipping seed.`);
-    if (force) ui.notifications?.warn('Mech Foundry: Life Modules compendium not found.');
+    if (force && !quiet) ui.notifications?.warn('Mech Foundry: Life Modules compendium not found.');
     return 0;
   }
 
@@ -54,7 +54,7 @@ export async function seedLifeModules({ force = false } = {}) {
   const existingNames = new Set(index.map(e => e.name));
   const toCreate = LIFE_MODULE_SEED.filter(e => !existingNames.has(e.name));
   if (!toCreate.length) {
-    if (force) ui.notifications?.info('Mech Foundry: Life Modules compendium already up to date.');
+    if (force && !quiet) ui.notifications?.info('Mech Foundry: Life Modules compendium already up to date.');
     return 0;
   }
 
@@ -66,7 +66,7 @@ export async function seedLifeModules({ force = false } = {}) {
 
     if (wasLocked) await pack.configure({ locked: true });
     console.log(`mech-foundry | Seeded ${toCreate.length} life module(s) into ${PACK_ID}.`);
-    ui.notifications?.info(`Mech Foundry: added ${toCreate.length} starter life module(s) to the Life Modules compendium.`);
+    if (!quiet) ui.notifications?.info(`Mech Foundry: added ${toCreate.length} starter life module(s) to the Life Modules compendium.`);
     return toCreate.length;
   } catch (err) {
     console.error('mech-foundry | Failed to seed life modules:', err);

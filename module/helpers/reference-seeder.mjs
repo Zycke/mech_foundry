@@ -20,6 +20,15 @@ import { skillSeedItems, traitSeedItems, ATOW_SUBSKILLS } from '../data/atow-lis
 const SKILLS_PACK = 'mech-foundry.skills';
 const TRAITS_PACK = 'mech-foundry.traits';
 
+/** Register the world flag that records the system version the reference
+ *  compendia were last reconciled against (drives version-change reseeding). */
+export function registerReferenceSeederSettings() {
+  if (game.settings.settings.has('mech-foundry.referenceSeedVersion')) return;
+  game.settings.register('mech-foundry', 'referenceSeedVersion', {
+    scope: 'world', config: false, type: String, default: ''
+  });
+}
+
 async function seedPackIfEmpty(packId, buildItems, { force = false } = {}) {
   const pack = game.packs?.get(packId);
   if (!pack) { console.warn(`mech-foundry | pack "${packId}" not found; skipping seed.`); return 0; }
@@ -38,8 +47,10 @@ async function seedPackIfEmpty(packId, buildItems, { force = false } = {}) {
   return toCreate.length;
 }
 
-/** Seed both reference packs (GM only, idempotent). */
-export async function seedReferenceCompendia({ force = false } = {}) {
+/** Seed both reference packs (GM only, idempotent). With `force`, adds any
+ *  missing-by-name entries to an already-populated pack without touching
+ *  existing (possibly GM-edited) items; `quiet` suppresses the error toast. */
+export async function seedReferenceCompendia({ force = false, quiet = false } = {}) {
   if (!game.user?.isGM) return 0;
   let n = 0;
   try {
@@ -47,7 +58,7 @@ export async function seedReferenceCompendia({ force = false } = {}) {
     n += await seedPackIfEmpty(TRAITS_PACK, traitSeedItems, { force });
   } catch (err) {
     console.error('mech-foundry | Failed to seed reference compendia:', err);
-    if (force) ui.notifications?.error('Mech Foundry: failed to seed reference compendia (see console).');
+    if (force && !quiet) ui.notifications?.error('Mech Foundry: failed to seed reference compendia (see console).');
   }
   return n;
 }
