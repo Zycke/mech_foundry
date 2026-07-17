@@ -26,6 +26,7 @@ import { preloadHandlebarsTemplates } from "./helpers/templates.mjs";
 import { registerSeederSettings, seedLifeModules } from "./helpers/life-module-seeder.mjs";
 import { seedReferenceCompendia, rebuildReferenceConfig, registerReferenceSeederSettings } from "./helpers/reference-seeder.mjs";
 import { seedWeapons } from "./helpers/weapon-seeder.mjs";
+import { seedAmmo } from "./helpers/ammo-seeder.mjs";
 import { CharacterWizard } from "./apps/character-wizard.mjs";
 import { ATOW_SKILLS, ATOW_TRAITS, ATOW_TRAIT_DESCRIPTIONS } from "./data/atow-lists.mjs";
 import { SocketHandler, SOCKET_EVENTS } from "./helpers/socket-handler.mjs";
@@ -60,6 +61,11 @@ Hooks.once('init', function() {
     /** Overwrite already-seeded weapons with the current seed data (pushes data
      *  corrections; discards GM edits to those weapons). */
     refreshWeapons: () => seedWeapons({ refresh: true }),
+    /** Manually (re)seed the Ammunition compendium, adding any missing entries. */
+    reseedAmmo: () => seedAmmo({ force: true }),
+    /** Overwrite already-seeded ammo with the current seed data (pushes data
+     *  corrections; discards GM edits to those items). */
+    refreshAmmo: () => seedAmmo({ refresh: true }),
     config: MECHFOUNDRY
   };
 
@@ -142,6 +148,7 @@ Hooks.once('ready', async function() {
     added += await seedLifeModules({ force: reconcile, quiet: reconcile });
     added += await seedReferenceCompendia({ force: reconcile, quiet: reconcile });
     added += await seedWeapons({ force: reconcile, quiet: reconcile });
+    added += await seedAmmo({ force: reconcile, quiet: reconcile });
     if (reconcile) {
       await game.settings.set('mech-foundry', 'referenceSeedVersion', current);
       if (added > 0) {
@@ -195,7 +202,8 @@ const MECHFOUNDRY = {
     grenade: "Grenade (ordnance)",
     mortar: "Mortar (ordnance)",
     missile: "Missile (ordnance)",
-    recoilless: "Recoilless (ordnance)"
+    recoilless: "Recoilless (ordnance)",
+    ordnance: "Ordnance (generic, by class)"
   },
   // Ordnance families require a matching class letter (A-E) between weapon & ammo.
   ordnanceAmmoTypes: ["grenade", "mortar", "missile", "recoilless"],

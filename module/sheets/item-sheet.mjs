@@ -150,7 +150,9 @@ export class MechFoundryItemSheet extends HandlebarsApplicationMixin(ItemSheetV2
       value, label, selected: value === current
     }));
     const ordnance = cfg.ordnanceAmmoTypes || ['grenade', 'mortar', 'missile', 'recoilless'];
-    context.isOrdnance = ordnance.includes(current);
+    // Ordnance weapons use a launcher family (grenade/mortar/…); ordnance ammo
+    // uses the generic 'ordnance' family — both take an ordnance class.
+    context.isOrdnance = current === 'ordnance' || ordnance.includes(current);
     const curClass = sys.ordnanceClass || '';
     context.ordnanceClassOptions = (cfg.ordnanceClasses || ['', 'A', 'B', 'C', 'D', 'E']).map(v => ({
       value: v, label: v || '—', selected: v === curClass

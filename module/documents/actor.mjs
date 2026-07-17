@@ -2224,13 +2224,17 @@ export class MechFoundryActor extends Actor {
     const aType = ammo.system.ammoType || '';
     // A weapon (or ammo) with no family doesn't take loose ammo (single-use).
     if (!wType || !aType) return false;
-    if (wType !== aType) return false;
-    // Ordnance families additionally require a matching ordnance class.
-    const ordnance = game.mechfoundry?.config?.ordnanceAmmoTypes || ['grenade', 'mortar', 'missile', 'recoilless'];
-    if (ordnance.includes(wType) && (weapon.system.ordnanceClass || '') !== (ammo.system.ordnanceClass || '')) {
-      return false;
+    const ordFam = game.mechfoundry?.config?.ordnanceAmmoTypes || ['grenade', 'mortar', 'missile', 'recoilless'];
+    // Ordnance weapons take generic ordnance ammo (ATOW ordnance is classified
+    // by class, not weapon type): any ordnance family (or the "ordnance"
+    // catch-all) whose ordnance class matches the weapon's.
+    if (ordFam.includes(wType)) {
+      const ammoIsOrdnance = aType === 'ordnance' || ordFam.includes(aType) || ammo.system.ammoCategory === 'ordnance';
+      if (!ammoIsOrdnance) return false;
+      return (weapon.system.ordnanceClass || '') === (ammo.system.ordnanceClass || '');
     }
-    return true;
+    // Non-ordnance weapons: exact ammo-family match.
+    return wType === aType;
   }
 
   /**
