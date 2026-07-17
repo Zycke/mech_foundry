@@ -160,12 +160,14 @@
       {{#if hasModules}}
       <div class="choice-grid">
         {{#each modules}}
-        <button type="button" class="choice-card module-card {{#if this.selected}}selected{{/if}} {{#unless this.legal}}illegal{{/unless}}"
+        <button type="button" class="choice-card module-card {{#if this.selected}}selected{{/if}} {{#unless this.legal}}illegal{{/unless}} {{#if this.locked}}field-locked is-disabled{{/if}}"
                 data-action="{{#if ../multi}}toggleStageModule{{else}}selectStageModule{{/if}}"
-                data-stage="{{../stage}}" data-id="{{this.id}}">
+                data-stage="{{../stage}}" data-id="{{this.id}}"
+                {{#if this.locked}}disabled data-tooltip="{{this.lockReason}}"{{/if}}>
           <span class="card-head">
             <span class="choice-name">{{this.name}}</span>
             {{#if this.selected}}<span class="selected-flag"><i class="fas fa-check"></i></span>{{/if}}
+            {{#if this.locked}}<span class="badge-illegal"><i class="fas fa-lock"></i> Locked</span>{{/if}}
           </span>
           <span class="card-meta">
             <span class="cost">{{this.cost}} XP</span>
@@ -179,6 +181,7 @@
           </span>
           {{> "systems/mech-foundry/templates/apps/parts/wizard-grants.hbs"}}
           {{#if this.prereq}}<span class="choice-prereq"><i class="fas fa-lock"></i> Requires {{this.prereq}}</span>{{/if}}
+          {{#if this.locked}}<span class="choice-restricted"><i class="fas fa-lock"></i> {{this.lockReason}}</span>{{/if}}
           {{#unless this.legal}}<span class="choice-restricted"><i class="fas fa-ban"></i> {{this.restrictionText}}</span>{{/unless}}
         </button>
         {{/each}}

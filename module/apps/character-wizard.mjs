@@ -433,6 +433,16 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
 
       // Stage 3: Skill-Field pickers for each selected school + repeat advisory.
       if (step.stage === 3) {
+        // Officer Candidate School locks until a prior Intelligence/Police/Military
+        // school with a Basic + Advanced Field exists (ATOW p.83).
+        const ocsMet = this.#ocsPrereqMet();
+        for (const card of context.modules) {
+          const m = list.find(x => x.id === card.id);
+          if (m?.system.schoolType === 'officer' && !card.selected && !ocsMet) {
+            card.locked = true;
+            card.lockReason = 'Requires an Intelligence, Police or Military school with at least one Basic and one Advanced Field first.';
+          }
+        }
         const schools = selectedIds.map(id => list.find(m => m.id === id)).filter(Boolean);
         context.schoolFields = schools.map(m => this.#schoolFieldContext(m, derived));
         context.hasSchoolFields = context.schoolFields.length > 0;
@@ -862,7 +872,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     if (step.stage && [1, 2].includes(step.stage)) {
       return !!this.#choices.modules[step.stage] && !this.#missingRequiredVariant(step.stage);
     }
-    if (step.stage === 3) return !this.#missingRequiredVariant(3) && !this.#schoolMissingBasic();
+    if (step.stage === 3) return !this.#missingRequiredVariant(3) && !this.#schoolMissingBasic() && !this.#ocsSelectedButUnmet();
     if (step.stage) return !this.#missingRequiredVariant(step.stage);
     if (stepId === 'flexible') {
       return CharacterBuilder.flexibleResolved(this.#state) && CharacterBuilder.subskillsResolved(this.#state);
@@ -893,6 +903,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     if (step.stage === 3) {
       const s = this.#schoolMissingBasic();
       if (s) return `Choose a Basic Field for ${s} to continue (or deselect the school).`;
+      if (this.#ocsSelectedButUnmet()) return 'Officer Candidate School needs an Intelligence/Police/Military school with a Basic and an Advanced Field (or deselect OCS).';
     }
     if (stepId === 'flexible') {
       if (!CharacterBuilder.subskillsResolved(this.#state)) return 'Choose all subskills to continue.';
@@ -927,6 +938,26 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       if (m && !this.#choices.fields[id]?.basic) return m.name;
     }
     return null;
+  }
+
+  /** Whether Officer Candidate School's prerequisite is satisfied: a selected
+   * Intelligence/Police/Military school that has both a Basic and an Advanced
+   * Field chosen (ATOW p.83). */
+  #ocsPrereqMet() {
+    const list = this.#modulesCache?.[3] || [];
+    return this.#choices.modules[3].some(id => {
+      const m = list.find(x => x.id === id);
+      if (!m || !['intelligence', 'military'].includes(m.system.schoolType)) return false;
+      const fc = this.#choices.fields[id];
+      return !!fc?.basic && this._asArray(fc.advanced).length > 0;
+    });
+  }
+
+  /** True if OCS is selected but its prerequisite is not (yet) satisfied. */
+  #ocsSelectedButUnmet() {
+    const list = this.#modulesCache?.[3] || [];
+    const ocs = this.#choices.modules[3].some(id => list.find(x => x.id === id)?.system.schoolType === 'officer');
+    return ocs && !this.#ocsPrereqMet();
   }
 
   /** First selected module in a stage that requires a variant but has none chosen. */
@@ -1133,6 +1164,15 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     if (i === -1) {
       // Stage 3: block a second school of the same type (Officer is exempt).
       if (stage === 3 && await this.#stageThreeTypeConflict(id)) return;
+      // Stage 3: block OCS until its prior-schooling prerequisite is met.
+      if (stage === 3) {
+        const byStage = await this.#loadModules();
+        const m = (byStage[3] || []).find(x => x.id === id);
+        if (m?.system.schoolType === 'officer' && !this.#ocsPrereqMet()) {
+          ui.notifications?.warn('Officer Candidate School requires a prior Intelligence, Police or Military school with a Basic and an Advanced Field.');
+          return;
+        }
+      }
       list.push(id);
     } else {
       list.splice(i, 1);

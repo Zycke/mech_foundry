@@ -477,6 +477,19 @@ ok(applyOk, 'all seed modules apply through the engine without error');
   // Solaris waives Basic Training for its Cavalry / MechWarrior / Battle Armor Fields.
   const solaris = schools.find(s => s.name === 'Solaris Internship');
   ok(solaris.system.fieldWaivers.includes('MechWarrior'), 'Solaris waives the Basic-Training prereq for MechWarrior');
+
+  // Officer Candidate School gating: needs a prior Int/Police/Military school
+  // with a Basic AND an Advanced Field (mirrors CharacterWizard#ocsPrereqMet).
+  const ocs = schools.find(s => s.system.schoolType === 'officer');
+  ok(ocs && ocs.name === 'Officer Candidate School', 'OCS uses the officer school type');
+  const ocsMet = (selected) => selected.some(({ type, fc }) =>
+    ['intelligence', 'military'].includes(type) && fc.basic && fc.advanced.length);
+  ok(!ocsMet([{ type: 'civilian', fc: { basic: 'General Studies', advanced: ['Manager'] } }]),
+    'a civilian school does not satisfy the OCS prerequisite');
+  ok(!ocsMet([{ type: 'military', fc: { basic: 'Basic Training', advanced: [] } }]),
+    'a military school with only a Basic Field does not satisfy OCS');
+  ok(ocsMet([{ type: 'military', fc: { basic: 'Basic Training', advanced: ['MechWarrior'] } }]),
+    'a military school with a Basic + Advanced Field satisfies OCS');
 }
 
 /* ---- Result ------------------------------------------------------------- */
