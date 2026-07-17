@@ -1,6 +1,7 @@
-import { CharacterBuilder, ATTRIBUTE_KEYS, SEVERITY } from '../helpers/character-builder.mjs';
+import { CharacterBuilder, ATTRIBUTE_KEYS, SEVERITY, FIELD_SKILL_COST } from '../helpers/character-builder.mjs';
 import * as XP from '../helpers/xp-math.mjs';
 import { ATOW_SKILLS, ATOW_TRAITS, ATOW_TRAIT_DESCRIPTIONS, ATOW_SUBSKILLS, computeStartingWealth } from '../data/atow-lists.mjs';
+import { SKILL_FIELDS } from '../data/skill-fields.mjs';
 import { grantCharacter } from '../helpers/character-grant.mjs';
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
@@ -57,6 +58,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     phenotypeKey: '',
     modules: { 1: '', 2: '', 3: [], 4: [] }, // stage -> id | id[]
     variants: {},                            // moduleId -> chosen variant key
+    fields: {},                              // stage-3 schoolId -> { basic, advanced[], special[] }
     flexible: {},                            // sourceKey -> [{ kind, key }]  (count pools)
     lumpFlexible: {},                        // sourceKey -> [{ kind, key, amount }] (lump pools)
     subskills: {},                           // subskill sourceKey -> chosen text
@@ -93,6 +95,9 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       selectStageModule: CharacterWizard.#onSelectStageModule,
       toggleStageModule: CharacterWizard.#onToggleStageModule,
       selectVariant: CharacterWizard.#onSelectVariant,
+      selectFieldBasic: CharacterWizard.#onSelectFieldBasic,
+      toggleFieldAdvanced: CharacterWizard.#onToggleField,
+      toggleFieldSpecial: CharacterWizard.#onToggleField,
       spendAttr: CharacterWizard.#onSpendAttr,
       finish: CharacterWizard.#onFinish
     }
@@ -257,6 +262,12 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
           fixedXP: variant.fixedXP, flexibleXP: variant.flexibleXP
         }, { id: `variant:${d.id}:${variant.key}`, name: `${d.name} — ${variant.name}` });
       }
+      // Stage 3 schools: conditional penalty (if earlier modules were skipped)
+      // and the player's chosen Skill Fields (each grants +30/skill at 24/skill).
+      if (Number(d.system.stage) === 3) {
+        CharacterBuilder.applyConditionalXP(this.#state, d.system.conditionalXP);
+        this.#applyChosenFields(d);
+      }
     }
 
     // Re-apply saved subskill choices (adds the queued XP under the chosen subskill).
@@ -318,6 +329,27 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     return key ? phenotypes[key] || null : null;
   }
 
+  /** Apply a Stage-3 school's chosen Skill Fields (Basic + Advanced + Special). */
+  #applyChosenFields(school) {
+    const fc = this.#choices.fields[school.id];
+    if (!fc) return;
+    const f = school.system.fields || {};
+    const apply = (name, tier, kind) => {
+      const def = SKILL_FIELDS[name];
+      if (!def) return;
+      CharacterBuilder.applyField(this.#state, def.skills, tier?.time || 0,
+        { id: `field:${school.id}:${kind}:${name}`, name: `${school.name} — ${name}` });
+    };
+    if (fc.basic) apply(fc.basic, f.basic, 'basic');
+    for (const n of this._asArray(fc.advanced)) apply(n, f.advanced, 'advanced');
+    for (const n of this._asArray(fc.special)) apply(n, f.special, 'special');
+  }
+
+  /** Total Fields chosen for a school (Basic + Advanced + Special). */
+  #fieldCount(fc) {
+    return (fc?.basic ? 1 : 0) + this._asArray(fc?.advanced).length + this._asArray(fc?.special).length;
+  }
+
   /* ---------------------------------------------------------------------- */
   /*  Context                                                                */
   /* ---------------------------------------------------------------------- */
@@ -342,7 +374,8 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       age: this.#state.age,
       moduleCount: this.#state.modules.filter(m => {
         const id = String(m.id);
-        return !id.startsWith('subaff:') && !id.startsWith('variant:') && !id.startsWith('birthsub:');
+        return !id.startsWith('subaff:') && !id.startsWith('variant:')
+          && !id.startsWith('birthsub:') && !id.startsWith('field:');
       }).length
     };
 
@@ -390,6 +423,14 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       context.variantPickers = this.#variantPickersFor(selectedIds.map(id => list.find(m => m.id === id)));
       context.hasVariantPickers = context.variantPickers.length > 0;
       context.emptyKind = 'stage';
+
+      // Stage 3: Skill-Field pickers for each selected school + repeat advisory.
+      if (step.stage === 3) {
+        const schools = selectedIds.map(id => list.find(m => m.id === id)).filter(Boolean);
+        context.schoolFields = schools.map(m => this.#schoolFieldContext(m, derived));
+        context.hasSchoolFields = context.schoolFields.length > 0;
+        context.tooManyStage3 = selectedIds.length > 2; // GM soft cap (ATOW p.80)
+      }
     }
 
     if (stepId === 'phenotype') {
@@ -477,6 +518,101 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       restrictionText: legal ? ''
         : `Available only to ${affNames || 'certain'} affiliation(s) — your affiliation (${this.#state.affiliation || 'none'}) cannot take it.${sys.notes ? ' ' + sys.notes : ''}`
     };
+  }
+
+  /** Build the Skill-Field picker view model for one Stage-3 school. */
+  #schoolFieldContext(school, derived) {
+    const sys = school.system;
+    const fc = this.#choices.fields[school.id] || { basic: '', advanced: [], special: [] };
+    const count = this.#fieldCount(fc);
+    const atMax = count >= 3;
+    const hasAdvanced = this._asArray(fc.advanced).length > 0;
+    const tierCards = (tierObj, kind) => this._asArray(tierObj?.options).map(name => {
+      const selected = kind === 'basic' ? fc.basic === name : this._asArray(fc[kind]).includes(name);
+      // Can't add a new field once at the cap; Specials also need an Advanced first.
+      const disabled = !selected && (atMax || (kind === 'special' && !hasAdvanced));
+      return this.#fieldCard(name, kind, school.id, selected, disabled, derived);
+    });
+    // Does this school's conditional penalty currently apply to the build?
+    const cx = sys.conditionalXP;
+    const penaltyApplies = cx && this._asArray(cx.unlessModules).length
+      && !this._asArray(cx.unlessModules).some(w => this.#state.modules.some(m => String(m.name || '').includes(w)));
+    return {
+      moduleId: school.id, moduleName: school.name, schoolType: sys.schoolType,
+      count, atMax,
+      basicOptions: tierCards(sys.fields.basic, 'basic'),
+      basicTime: sys.fields.basic.time,
+      advancedOptions: tierCards(sys.fields.advanced, 'advanced'),
+      advancedTime: sys.fields.advanced.time,
+      hasAdvanced: this._asArray(sys.fields.advanced.options).length > 0,
+      specialOptions: tierCards(sys.fields.special, 'special'),
+      specialTime: sys.fields.special.time,
+      hasSpecial: this._asArray(sys.fields.special.options).length > 0,
+      needsBasic: !fc.basic,
+      penaltyApplies,
+      penaltyText: penaltyApplies ? this.#conditionalPenaltyText(cx) : ''
+    };
+  }
+
+  /** One selectable Skill-Field card (skills, cost, prereqs). */
+  #fieldCard(name, kind, moduleId, selected, disabled, derived) {
+    const def = SKILL_FIELDS[name] || { skills: [], req: {} };
+    const pre = this.#fieldPrereqStatus(def.req, derived);
+    return {
+      name, kind, moduleId, selected, disabled,
+      skills: def.skills.join(', '),
+      skillCount: def.skills.length,
+      cost: FIELD_SKILL_COST * def.skills.length,
+      prereq: this.#fieldPrereqText(def.req),
+      hasPrereq: pre.has,
+      prereqMet: pre.met
+    };
+  }
+
+  /** Human-readable prereq string for a Field. */
+  #fieldPrereqText(req) {
+    if (!req) return '';
+    const bits = [];
+    for (const [k, v] of Object.entries(req.attrs || {})) bits.push(`${k.toUpperCase()} ${v}`);
+    for (const fn of this._asArray(req.fields)) bits.push(`${fn} Field`);
+    for (const t of this._asArray(req.traits)) bits.push(`${t} Trait`);
+    for (const t of this._asArray(req.forbidTraits)) bits.push(`no ${t}`);
+    let s = bits.join(', ');
+    if (req.note) s += (s ? ' — ' : '') + req.note;
+    return s;
+  }
+
+  /** Whether a Field's attribute/Field prereqs are currently met (warn-only). */
+  #fieldPrereqStatus(req, derived) {
+    if (!req) return { has: false, met: true };
+    const hasReq = Object.keys(req.attrs || {}).length || this._asArray(req.fields).length
+      || this._asArray(req.traits).length;
+    if (!hasReq) return { has: false, met: true };
+    let met = true;
+    for (const [k, min] of Object.entries(req.attrs || {})) {
+      if ((derived.attributes[k]?.total ?? 0) < min) met = false;
+    }
+    // "Requires one of these Fields": met if any listed Field is selected anywhere.
+    const reqFields = this._asArray(req.fields);
+    if (reqFields.length) {
+      const chosen = new Set();
+      for (const fcv of Object.values(this.#choices.fields || {})) {
+        if (fcv.basic) chosen.add(fcv.basic);
+        for (const n of this._asArray(fcv.advanced)) chosen.add(n);
+        for (const n of this._asArray(fcv.special)) chosen.add(n);
+      }
+      if (!reqFields.some(f => chosen.has(f))) met = false;
+    }
+    return { has: true, met };
+  }
+
+  /** Short description of a school's conditional penalty allotment. */
+  #conditionalPenaltyText(cx) {
+    const fx = cx.fixedXP || {};
+    const parts = [];
+    for (const [k, v] of Object.entries(fx.attributes || {})) parts.push(`${k.toUpperCase()} ${v > 0 ? '+' : ''}${v}`);
+    for (const t of this._asArray(fx.traits)) parts.push(`${t.name} ${t.xp > 0 ? '+' : ''}${t.xp}`);
+    return `Penalty applied (you skipped ${this._asArray(cx.unlessModules).join(' / ')}): ${parts.join(', ')}.`;
   }
 
   /** View models for a list of sub-affiliation bundles (main or birth). */
@@ -700,6 +836,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     if (step.stage && [1, 2].includes(step.stage)) {
       return !!this.#choices.modules[step.stage] && !this.#missingRequiredVariant(step.stage);
     }
+    if (step.stage === 3) return !this.#missingRequiredVariant(3) && !this.#schoolMissingBasic();
     if (step.stage) return !this.#missingRequiredVariant(step.stage);
     if (stepId === 'flexible') {
       return CharacterBuilder.flexibleResolved(this.#state) && CharacterBuilder.subskillsResolved(this.#state);
@@ -725,6 +862,10 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       const m = this.#missingRequiredVariant(step.stage);
       if (m) return `Choose a ${m.label.toLowerCase()} for ${m.moduleName} to continue.`;
     }
+    if (step.stage === 3) {
+      const s = this.#schoolMissingBasic();
+      if (s) return `Choose a Basic Field for ${s} to continue (or deselect the school).`;
+    }
     if (stepId === 'flexible') {
       if (!CharacterBuilder.subskillsResolved(this.#state)) return 'Choose all subskills to continue.';
       if (!CharacterBuilder.flexibleResolved(this.#state)) return 'Assign all flexible XP to continue.';
@@ -736,6 +877,16 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
   #needsBirthAffiliation() {
     const aff = this.#modulesCache?.[0]?.find(a => a.id === this.#choices.affiliationId);
     return !!aff?.system.requiresBirthAffiliation;
+  }
+
+  /** Name of the first selected Stage-3 school that still needs a Basic Field. */
+  #schoolMissingBasic() {
+    const list = this.#modulesCache?.[3] || [];
+    for (const id of this.#choices.modules[3]) {
+      const m = list.find(x => x.id === id);
+      if (m && !this.#choices.fields[id]?.basic) return m.name;
+    }
+    return null;
   }
 
   /** First selected module in a stage that requires a variant but has none chosen. */
@@ -936,10 +1087,69 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     const id = target.dataset.id;
     const list = this.#choices.modules[stage];
     const i = list.indexOf(id);
-    if (i === -1) list.push(id);
-    else { list.splice(i, 1); delete this.#choices.variants[id]; } // drop variant on deselect
+    if (i === -1) {
+      // Stage 3: block a second school of the same type (Officer is exempt).
+      if (stage === 3 && await this.#stageThreeTypeConflict(id)) return;
+      list.push(id);
+    } else {
+      list.splice(i, 1);
+      delete this.#choices.variants[id];  // drop variant on deselect
+      delete this.#choices.fields[id];    // drop Skill-Field choices on deselect
+    }
     await this.#rebuildState();
     this.render();
+  }
+
+  /** True (and warns) if adding this Stage-3 school repeats an already-chosen
+   * school type (Civilian / Intelligence / Military). Officer type is exempt. */
+  async #stageThreeTypeConflict(id) {
+    const byStage = await this.#loadModules();
+    const list = byStage[3] || [];
+    const adding = list.find(m => m.id === id);
+    const type = adding?.system.schoolType;
+    if (!type || type === 'officer') return false;
+    const clash = this.#choices.modules[3]
+      .map(sid => list.find(m => m.id === sid))
+      .some(m => m && m.system.schoolType === type);
+    if (clash) {
+      ui.notifications?.warn(`You may not take two ${type} schools — choose a different type of schooling.`);
+      return true;
+    }
+    return false;
+  }
+
+  /** Stage-3: pick (or clear) the single Basic Field for a school. */
+  static async #onSelectFieldBasic(event, target) {
+    const fc = this.#fieldChoice(target.dataset.module);
+    const name = target.dataset.field;
+    fc.basic = fc.basic === name ? '' : name;
+    await this.#rebuildState();
+    this.render();
+  }
+
+  /** Stage-3: toggle an Advanced or Special Field (respecting the 3-field cap). */
+  static async #onToggleField(event, target) {
+    const fc = this.#fieldChoice(target.dataset.module);
+    const kind = target.dataset.kind; // 'advanced' | 'special'
+    const name = target.dataset.field;
+    const arr = fc[kind];
+    const i = arr.indexOf(name);
+    if (i !== -1) {
+      arr.splice(i, 1);
+      // Removing the last Advanced orphans any Specials — clear them.
+      if (kind === 'advanced' && !arr.length) fc.special = [];
+    } else {
+      if (this.#fieldCount(fc) >= 3) { ui.notifications?.warn('A school may grant at most three Fields.'); return; }
+      if (kind === 'special' && !fc.advanced.length) { ui.notifications?.warn('Choose an Advanced Field before a Special Field.'); return; }
+      arr.push(name);
+    }
+    await this.#rebuildState();
+    this.render();
+  }
+
+  /** Get (creating if needed) the Field-selection record for a school. */
+  #fieldChoice(moduleId) {
+    return (this.#choices.fields[moduleId] ??= { basic: '', advanced: [], special: [] });
   }
 
   /** Choose (or clear) a module's variant (caste/branch sub-option). */

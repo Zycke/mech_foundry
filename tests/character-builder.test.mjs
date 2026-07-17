@@ -447,6 +447,21 @@ ok(applyOk, 'all seed modules apply through the engine without error');
   const fieldCost = FIELD_SKILL_COST * (SKILL_FIELDS['Communications'].skills.length + SKILL_FIELDS['Engineer'].skills.length);
   ok(full.spent - before2 === 600 + fieldCost, 'total cost = school base + 24×(field skills)');
   ok(full.age === CB.createState().age + tc.system.fields.basic.time + tc.system.fields.advanced.time, 'age = sum of chosen Field tier times');
+
+  // Full wizard-style enrolment: Military Academy (no Prep School -> penalty) +
+  // Basic Training + MechWarrior Advanced Field. Mirrors CharacterWizard flow.
+  const acad = schools.find(s => s.name === 'Military Academy');
+  const w = CB.createState();
+  const base = w.spent;
+  CB.applyModule(w, acad.system, { id: 'ma', name: acad.name });
+  CB.applyConditionalXP(w, acad.system.conditionalXP);              // penalty (Prep skipped)
+  CB.applyField(w, SKILL_FIELDS['Basic Training'].skills, acad.system.fields.basic.time, { id: 'ma-b', name: 'Basic Training' });
+  CB.applyField(w, SKILL_FIELDS['MechWarrior'].skills, acad.system.fields.advanced.time, { id: 'ma-a', name: 'MechWarrior' });
+  const maCost = 830 + FIELD_SKILL_COST * (SKILL_FIELDS['Basic Training'].skills.length + SKILL_FIELDS['MechWarrior'].skills.length);
+  ok(w.spent - base === maCost, 'Military Academy + Basic + MechWarrior sums school base + Field costs');
+  ok(w.traits['Rank'] === 200, 'Military Academy grants Rank +200');
+  ok(w.traits['Connections'] === 200, 'the skip-Prep penalty adds Connections +200');
+  ok(w.skills["Piloting/'Mech"] === 30, 'the MechWarrior Field grants +30 to Piloting/’Mech');
 }
 
 /* ---- Result ------------------------------------------------------------- */

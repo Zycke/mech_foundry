@@ -172,6 +172,15 @@
       {{> "systems/mech-foundry/templates/apps/parts/wizard-variant-picker.hbs"}}
       {{/each}}
       {{/if}}
+
+      {{#if tooManyStage3}}
+      <p class="choice-restricted"><i class="fas fa-circle-info"></i> Gamemasters are encouraged to limit characters to two Higher Education modules. More than two is allowed, but ages the character considerably.</p>
+      {{/if}}
+      {{#if hasSchoolFields}}
+      {{#each schoolFields}}
+      {{> "systems/mech-foundry/templates/apps/parts/wizard-field-picker.hbs"}}
+      {{/each}}
+      {{/if}}
       {{else}}
       <p class="empty-note"><i class="fas fa-circle-info"></i> No Stage {{stage}} modules in the compendium yet.{{#unless mandatory}} This stage is optional — you can continue.{{/unless}} A GM can add <em>Life Module</em> items for this stage.</p>
       {{/if}}

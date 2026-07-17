@@ -36,6 +36,8 @@ export const preloadHandlebarsTemplates = async function() {
     "systems/mech-foundry/templates/apps/character-wizard.hbs",
     "systems/mech-foundry/templates/apps/parts/wizard-grants.hbs",
     "systems/mech-foundry/templates/apps/parts/wizard-variant-picker.hbs",
+    "systems/mech-foundry/templates/apps/parts/wizard-field-picker.hbs",
+    "systems/mech-foundry/templates/apps/parts/wizard-field-card.hbs",
 
     // Chat partials
     "systems/mech-foundry/templates/chat/skill-roll.hbs",
