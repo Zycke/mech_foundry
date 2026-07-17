@@ -377,20 +377,80 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   /** Apply the Stage-4 instance list. Each entry is one "take" of a module; the
-   * 2nd+ take of the same module is a repeat (attributes/traits granted once). */
+   * 2nd+ take of the same module is a repeat (attributes/traits granted once).
+   * Also applies affiliation cost tiers, auto sub-modules and repeat effects. */
   async #applyStageFour() {
     const byStage = await this.#loadModules();
     const list = byStage[4] || [];
+    const cat = affiliationCategory(this.#state.affiliationKey);
+    const casteGroup = this.#characterCasteGroup();
     const count = new Map();
     this.#choices.modules[4].forEach((id, idx) => {
       const d = list.find(x => x.id === id);
       if (!d) return;
+      const sys = d.system;
       const n = count.get(id) || 0;
       count.set(id, n + 1);
-      CharacterBuilder.applyModule(this.#state, d.system,
+      const repeat = n > 0;
+      // Affiliation-tiered cost (e.g. Tour of Duty 700/800/1,000).
+      const cost = sys.costByCategory?.[cat] ?? sys.xpCost;
+      CharacterBuilder.applyModule(this.#state, this.#prepareStage4Module(sys, cost),
         { id: `s4:${idx}:${d.id}`, name: d.name, uuid: d.uuid },
-        { repeat: n > 0, noFlexOnRepeat: !!d.system.noFlexOnRepeat });
+        { repeat, noFlexOnRepeat: !!sys.noFlexOnRepeat });
+      // Auto sub-module matching the character's affiliation / caste.
+      if (sys.variantAuto) {
+        const v = this.#matchAutoVariant(sys, cat, casteGroup);
+        if (v) CharacterBuilder.applyModule(this.#state,
+          this.#prepareStage4Module({ stage: 4, xpCost: Number(v.xpCost) || 0, fixedXP: v.fixedXP, flexibleXP: v.flexibleXP }, Number(v.xpCost) || 0),
+          { id: `s4:${idx}:${d.id}:sub`, name: `${d.name} — ${v.name}` }, { repeat });
+      }
+      // Repeat effect (e.g. Solaris modules' In For Life penalty) — repeats only.
+      if (repeat && this.#hasRepeatEffect(sys.repeatEffect)) {
+        CharacterBuilder.applyModule(this.#state, { stage: 4, xpCost: 0, fixedXP: sys.repeatEffect },
+          { id: `s4:${idx}:${d.id}:rep`, name: `${d.name} (repeat effect)` });
+      }
     });
+  }
+
+  #hasRepeatEffect(re) {
+    return !!re && (Object.keys(re.attributes || {}).length || this._asArray(re.skills).length || this._asArray(re.traits).length);
+  }
+
+  /** Skills the character gained from Stage-3 Fields, optionally of given type(s). */
+  #characterFieldSkills(fieldTypes) {
+    const out = new Set();
+    for (const fname of this.#chosenFieldNames()) {
+      const def = SKILL_FIELDS[fname];
+      if (!def) continue;
+      if (this._asArray(fieldTypes).length && !fieldTypes.includes(def.type)) continue;
+      for (const s of def.skills) out.add(s);
+    }
+    return [...out];
+  }
+
+  /** Override a Stage-4 module's cost and fill any field-constrained pool's
+   * choices with the character's actual Field skills before applying it. */
+  #prepareStage4Module(sys, cost) {
+    const flexibleXP = this._asArray(sys.flexibleXP).map(pool =>
+      pool.fromFields ? { ...pool, choices: this.#characterFieldSkills(pool.fieldTypes) } : pool);
+    return { ...sys, xpCost: cost, flexibleXP };
+  }
+
+  /** The auto sub-module whose `match` fits this character (or null). */
+  #matchAutoVariant(sys, cat, casteGroup) {
+    const key = this.#state.affiliationKey;
+    const subKey = this.#choices.subAffiliationKey;
+    const affName = this.#state.affiliation || '';
+    for (const v of this._asArray(sys.variants)) {
+      const m = v.match || {};
+      if (this._asArray(m.categories).length && !m.categories.includes(cat)) continue;
+      if (this._asArray(m.affiliationKeys).length && !m.affiliationKeys.includes(key)) continue;
+      if (this._asArray(m.castes).length && !m.castes.includes(casteGroup)) continue;
+      if (this._asArray(m.subAffiliations).length && !m.subAffiliations.includes(subKey)) continue;
+      if (this._asArray(m.affiliationNames).length && !m.affiliationNames.some(nm => affName.includes(nm))) continue;
+      return v;
+    }
+    return null;
   }
 
   /* ---------------------------------------------------------------------- */
@@ -1055,18 +1115,20 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       const group = this.#characterCasteGroup();
       if (!castes.includes(group)) reasons.push(`requires the ${castes.join(' or ')} caste`);
     }
-    // Training requirement: possessed Field(s) OR prior module(s). If both are
-    // listed, either satisfies; if only one, that one must be satisfied.
-    const reqFields = this._asArray(p.fields), reqModules = this._asArray(p.modules);
-    if (reqFields.length || reqModules.length) {
+    // Training requirement: a specific Field, a Field of a given type, OR a prior
+    // module — any listed satisfies the requirement.
+    const reqFields = this._asArray(p.fields), reqTypes = this._asArray(p.fieldTypes), reqModules = this._asArray(p.modules);
+    if (reqFields.length || reqTypes.length || reqModules.length) {
       const chosenFields = this.#chosenFieldNames();
       const names = this.#takenModuleNames();
       const hasField = reqFields.some(f => chosenFields.has(f));
+      const hasType = reqTypes.some(t => [...chosenFields].some(f => SKILL_FIELDS[f]?.type === t));
       const hasModule = reqModules.some(r => [...names].some(n => n.includes(r) || r.includes(n)));
-      const ok = (reqFields.length && hasField) || (reqModules.length && hasModule);
+      const ok = (reqFields.length && hasField) || (reqTypes.length && hasType) || (reqModules.length && hasModule);
       if (!ok) {
         const bits = [];
         if (reqFields.length) bits.push(`the ${reqFields.join('/')} Field`);
+        if (reqTypes.length) bits.push(`a ${reqTypes.join('/')} Field`);
         if (reqModules.length) bits.push(`the ${reqModules.join(' or ')} module`);
         reasons.push(`requires ${bits.join(' or ')}`);
       }

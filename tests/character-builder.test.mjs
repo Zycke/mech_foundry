@@ -572,6 +572,50 @@ ok(applyOk, 'all seed modules apply through the engine without error');
     'caste family lookup returns warrior / scientist correctly');
 }
 
+/* ---- Real Life: sub-modules, cost tiers, repeat effects ------------------ */
+{
+  const s4 = LIFE_MODULE_SEED.filter(m => m.system.stage === 4);
+  const { affiliationCategory: catOf } = { affiliationCategory };
+
+  // Cost tiers (Tour of Duty 700/800/1,000).
+  const tour = s4.find(m => m.name === 'Tour of Duty');
+  const cost = (affKey) => tour.system.costByCategory[catOf(affKey)] ?? tour.system.xpCost;
+  ok(cost('davion') === 800 && cost('periphery-major') === 700 && cost('clan') === 1000,
+    'Tour of Duty cost tiers resolve to 800 / 700 / 1,000 by affiliation category');
+
+  // Auto sub-module matching (mirrors CharacterWizard#matchAutoVariant).
+  const match = (sys, { cat, casteGroup, key, subKey, affName }) => {
+    const asA = v => Array.isArray(v) ? v : (v == null ? [] : [v]);
+    return (sys.variants || []).find(v => {
+      const m = v.match || {};
+      if (asA(m.categories).length && !m.categories.includes(cat)) return false;
+      if (asA(m.affiliationKeys).length && !m.affiliationKeys.includes(key)) return false;
+      if (asA(m.castes).length && !m.castes.includes(casteGroup)) return false;
+      if (asA(m.subAffiliations).length && !m.subAffiliations.includes(subKey)) return false;
+      if (asA(m.affiliationNames).length && !m.affiliationNames.some(nm => (affName || '').includes(nm))) return false;
+      return true;
+    }) || null;
+  };
+  ok(match(tour.system, { cat: 'periphery' })?.key === 'periphery', 'a Periphery character auto-selects the Periphery Tour');
+  ok(match(tour.system, { cat: 'clan' })?.key === 'clan', 'a Clan character auto-selects the Clan Tour');
+
+  const covert = s4.find(m => m.name === 'Covert Operations');
+  ok(match(covert.system, { cat: 'innerSphere', key: 'kurita' })?.name.includes('Draconis'), 'Covert Ops auto-selects the Draconis sub-module by key');
+  const washout = s4.find(m => m.name === 'Clan Warrior Washout');
+  ok(match(washout.system, { casteGroup: 'scientist' })?.key === 'scientist', 'Clan Warrior Washout auto-selects the Scientist caste sub-module');
+  const guerilla = s4.find(m => m.name === 'Guerilla Insurgent');
+  ok(match(guerilla.system, { cat: 'innerSphere', key: 'davion' })?.key === 'general', 'Guerilla Insurgent falls back to the General sub-module');
+
+  // Repeat effect data.
+  ok(s4.find(m => m.name === 'Solaris Insider').system.repeatEffect.traits.some(t => t.name === 'In For Life' && t.xp === -100),
+    'Solaris Insider applies In For Life -100 on repeat');
+
+  // Field-constrained pools carry the fromFields flag + field-type filter.
+  const perTour = tour.system.variants.find(v => v.key === 'periphery');
+  const fp = perTour.flexibleXP.find(p => p.fromFields);
+  ok(fp && fp.fieldTypes.includes('military'), 'the Periphery Tour Military-Field pool is fromFields/military');
+}
+
 /* ---- Result ------------------------------------------------------------- */
 
 /* ---- Result ------------------------------------------------------------- */

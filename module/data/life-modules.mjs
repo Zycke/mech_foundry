@@ -123,18 +123,31 @@ const school = (name, schoolType, xpCost, s = {}) => ({
  * repeat only Skill + Flexible XP re-apply (the engine handles that). Prereqs
  * may be categorical (affiliation category / caste / possessed Field / prior
  * module) as well as the usual attribute/trait minimums. */
+/** A Stage-4 auto sub-module (applied automatically when its `match` fits the
+ * character's affiliation category / key / caste / sub-affiliation / clan kind). */
+const vsub = (key, name, match, s = {}) => ({
+  key, name, match, xpCost: 0,
+  fixedXP: { attributes: s.attrs || {}, skills: s.skills || [], traits: s.traits || [] },
+  flexibleXP: s.flex || []
+});
+/** A flexible pool constrained to Skills the character gained from Stage-3
+ * Fields of the given type(s) ('military' | 'intelligence' | 'civilian'). */
+const fieldPool = (amount, count, fieldTypes, note) => ({ amount, count, targets: 'skills', fromFields: true, fieldTypes, note });
 const real = (name, xpCost, s = {}) => ({
   name, img: IMG, type: 'lifeModule',
   system: {
     stage: 4, moduleType: 'reallife', affiliationKey: '', xpCost, time: s.time || 0,
     repeatable: s.repeatable !== false,
     noFlexOnRepeat: !!s.noFlexOnRepeat,
+    costByCategory: s.costByCategory || {},
+    variantAuto: !!s.variantAuto,
+    repeatEffect: s.repeatEffect || { attributes: {}, skills: [], traits: [] },
     restrictedToAffiliations: s.restricted || [],
     variantLabel: s.variantLabel || '', variants: s.variants || [],
     prerequisites: {
       attributes: s.reqAttrs || {}, skills: s.reqSkills || {}, traits: s.reqTraits || {},
       affiliationCategories: s.reqCategories || [], forbidCategories: s.forbidCategories || [],
-      castes: s.reqCastes || [], fields: s.reqFields || [], modules: s.reqModules || [],
+      castes: s.reqCastes || [], fields: s.reqFields || [], fieldTypes: s.reqFieldTypes || [], modules: s.reqModules || [],
       note: s.reqNote || ''
     },
     fixedXP: { attributes: s.attrs || {}, skills: s.skills || [], traits: s.traits || [] },
@@ -1123,7 +1136,19 @@ export const LIFE_MODULE_SEED = [
       sk('Perception', 75), sk('Protocol', 50, 'Affiliation'), sk('Small Arms', 80), sk('Stealth', 50), sk('Streetwise', 50, 'Affiliation'),
       sk('Tracking', 80, 'Any')],
     flex: [lump(175)],
-    notes: 'Homeworld / Invader Clan sub-modules add their own skills (Phase-3 follow-up). Warrior, Scientist or Technician castes only.',
+    variantAuto: true,
+    variants: [
+      vsub('homeworld', 'Homeworld Clan', { affiliationNames: ['Homeworld Clan'] }, {
+        skills: [sk('Career', 60, 'Soldier'), sk('Interrogation', 50), sk('Investigation', 50), sk('Melee Weapons', 40), sk('Protocol', 75, 'Any Clan'),
+          sk('Security Systems', 35, 'Any'), sk('Streetwise', 50, 'Any Homeworld Clan'), sk('Survival', 25, 'Any'), sk('Technician', 40, 'Any')]
+      }),
+      vsub('invader', 'Invading Clan', { affiliationNames: ['Invading Clan'] }, {
+        traits: [tr('Equipped', 50), tr('Dark Secret', -50)],
+        skills: [sk('Computers', 50), sk('Disguise', 35), sk('Interrogation', 75), sk('Investigation', 75), sk('Negotiation', 40),
+          sk('Perception', 50), sk('Streetwise', 50, 'Any Invader Clan or Inner Sphere'), sk('Survival', 50, 'Any')]
+      })
+    ],
+    notes: 'Homeworld / Invader Clan sub-modules apply automatically. Warrior, Scientist or Technician castes only.',
     desc: '<p>The Clans\' grudging foray into espionage — spycraft the warrior castes disdain.</p>'
   }),
 
@@ -1133,7 +1158,26 @@ export const LIFE_MODULE_SEED = [
     traits: [tr('Compulsion/Any', -25), tr('Reputation', -150)],
     skills: [sk('Career', -30, 'Soldier'), sk('Computers', 25), sk('Protocol', 80, 'Affiliation'), sk('Survival', 75, 'Any')],
     flex: [lump(185)],
-    notes: 'Cannot be repeated. Player chooses the new caste; each caste (Scientist/Technician/Merchant/Laborer) adds its own XP (Phase-3 follow-up). Also -60 XP (-30 to two Clan Warrior Field Skills). Requires a prior Freeborn or Trueborn Sibko.',
+    variantAuto: true,
+    variants: [
+      vsub('scientist', 'Scientist Caste', { castes: ['scientist'] }, {
+        attrs: { int: 50, rfl: 25 }, traits: [tr('Dark Secret', -50)],
+        skills: [sk('Administration', 75), sk('Interest', 50, 'Any'), sk('Investigation', 75), sk('MedTech', 50, 'Any'), sk('Science', 75, 'Any'), sk('Surgery', 25)]
+      }),
+      vsub('technician', 'Technician Caste', { castes: ['technician'] }, {
+        attrs: { rfl: 25, str: 50 }, traits: [tr('Impatient', -50)],
+        skills: [sk('Communications', 75, 'Any'), sk('Interest', 50, 'Any'), sk('Perception', 75), sk('Technician', 75, 'Any'), sk('Technician', 50, 'Any'), sk('Technician', 25, 'Any')]
+      }),
+      vsub('merchant', 'Merchant Caste', { castes: ['merchant'] }, {
+        attrs: { wil: 70 },
+        skills: [sk('Acting', 45), sk('Administration', 40), sk('Appraisal', 70), sk('Interest', 35, 'Any'), sk('Leadership', 40), sk('Negotiation', 50), sk('Streetwise', 25, 'Affiliation')]
+      }),
+      vsub('laborer', 'Laborer Caste', { castes: ['laborer'] }, {
+        attrs: { bod: 75 }, traits: [tr('Dependent', -50)],
+        skills: [sk('Career', 75, 'Any'), sk('Computers', 50), sk('Driving', 75, 'Any'), sk('Interest', 75, 'Any'), sk('Interest', 50, 'Any'), sk('Streetwise', 25, 'Affiliation')]
+      })
+    ],
+    notes: 'Cannot be repeated. The washed-out warrior joins a new caste (auto-applied from your Stage-0 caste). Also -60 XP (-30 to two Clan Warrior Field Skills). Requires a prior Freeborn or Trueborn Sibko.',
     desc: '<p>Washed out of warrior training and consigned to a lesser caste.</p>'
   }),
 
@@ -1168,7 +1212,20 @@ export const LIFE_MODULE_SEED = [
     skills: [sk('Administration', 40), sk('Communications', 55, 'HPG'), sk('Communications', 35, 'Any'), sk('Computers', 35),
       sk('Language', 25, 'Any'), sk('Martial Arts', 45), sk('Protocol', 35, 'Affiliation'), sk('Protocol', 20, 'Any')],
     flex: [flex(100, 1, 'traits', 'choose one: Equipped, Vehicle or Wealth', ['Equipped', 'Vehicle', 'Wealth']), lump(50)],
-    notes: 'ComStar / Word of Blake sub-modules add their own XP (Phase-3 follow-up). Members trained in intel/police/military Fields may take Covert Operations / To Serve and Protect / Tour of Duty instead.',
+    variantAuto: true,
+    variants: [
+      vsub('comstar', 'ComStar', { subAffiliations: ['comstar'] }, {
+        attrs: { wil: 25, edg: -25 }, traits: [tr('Equipped', 80), tr('Rank', 80), tr('Compulsion/Hatred of Word of Blake', -50)],
+        skills: [sk('Communications', 15, 'HPG'), sk('Leadership', 20), sk('Negotiation', 15), sk('Technician', 15, 'Any'), sk('Training', 15)],
+        flex: [fieldPool(40, 4, [], '+40 XP to any four of your Field Skills')]
+      }),
+      vsub('word-of-blake', 'Word of Blake', { subAffiliations: ['word-of-blake'] }, {
+        attrs: { int: 25, cha: -25 }, traits: [tr('Equipped', 70), tr('Rank', 70), tr('Compulsion/Hatred of ComStar', -75), tr('Compulsion/Hatred of Clans', -100)],
+        skills: [sk('Communications', 50, 'Any'), sk('Computers', 35), sk('Cryptography', 25), sk('Interest', 50, 'Writings of Jerome Blake'), sk('Interrogation', 40), sk('Perception', 25)],
+        flex: [fieldPool(40, 4, [], '+40 XP to any four of your Field Skills')]
+      })
+    ],
+    notes: 'ComStar / Word of Blake sub-modules apply automatically by sub-affiliation. Members trained in intel/police/military Fields may take Covert Operations / To Serve and Protect / Tour of Duty instead.',
     desc: '<p>Service to ComStar or the Word of Blake — HPG tech, comms, security and investigation.</p>'
   }),
 
@@ -1178,8 +1235,58 @@ export const LIFE_MODULE_SEED = [
     traits: [tr('Alternate ID', 85), tr('Enemy', -25), tr('In For Life', -110), tr('Sixth Sense', 50)],
     skills: [sk('Acting', 25), sk('Perception', 50), sk('Survival', 75, 'Any')],
     flex: [flex(50, 2, 'attributes', 'choose two: BOD, RFL, WIL or EDG', ['bod', 'rfl', 'wil', 'edg']),
-      flex(25, 6, 'skills', '+25 XP to up to six of your Military or Intelligence/Police Field Skills')],
-    notes: 'Ten affiliation sub-modules add their own XP (Phase-3 follow-up). Inner Sphere or Periphery only (for Clan covert ops, see Clan Watch Operative).',
+      fieldPool(25, 6, ['military', 'intelligence'], '+25 XP to up to six of your Military or Intelligence/Police Field Skills')],
+    variantAuto: true,
+    variants: [
+      vsub('capellan', 'Capellan Confederation', { affiliationKeys: ['capellan'] }, {
+        attrs: { dex: 25 }, traits: [tr('Citizenship', 75), tr('Dark Secret', -50), tr('Fit', 25), tr('Reputation', -50)],
+        skills: [sk('Climbing', 50), sk('Demolitions', 60), sk('Escape Artist', 35), sk('Interrogation', 50), sk('Investigation', 15), sk('Martial Arts', 75),
+          sk('Perception', 25), sk('Science', 40, 'Chemistry'), sk('Stealth', 50), sk('Tactics', 30, 'Any'), sk('Thrown Weapons', 45, 'Blade')]
+      }),
+      vsub('comstar', 'ComStar / Word of Blake / Terran', { affiliationKeys: ['comstar'] }, {
+        attrs: { int: 25 }, traits: [tr('Combat Sense', 50), tr('Fast Learner', 50), tr('Impatient', -50), tr('Reputation', -50)],
+        skills: [sk('Administration', 50), sk('Communications', 50, 'Any'), sk('Computers', 50), sk('Cryptography', 60), sk('Interrogation', 75),
+          sk('Small Arms', 50), sk('Strategy', 50), sk('Tactics', 40, 'Any'), sk('Technician', 50, 'Any')]
+      }),
+      vsub('kurita', 'Draconis Combine', { affiliationKeys: ['kurita'] }, {
+        attrs: { int: 50, wil: 50, cha: -50, edg: -50 }, traits: [tr('Connections', 75), tr('Enemy', -25), tr('Equipped', 50), tr('Reputation', -75)],
+        skills: [sk('Acrobatics', 35, 'Gymnastics'), sk('Climbing', 50), sk('Computers', 25), sk('Cryptography', 40), sk('Interrogation', 60), sk('Investigation', 25),
+          sk('Leadership', 40), sk('Martial Arts', 55), sk('Melee Weapons', 30), sk('Protocol', 40, 'Affiliation'), sk('Stealth', 30), sk('Streetwise', 35, 'Affiliation'), sk('Tactics', 35, 'Any'), sk('Training', 25)],
+        flex: [flex(-50, 1, 'traits', 'choose one penalty: Compulsion/Loyalty to House Kurita or to the Draconis Combine', ['Compulsion/Loyalty to House Kurita', 'Compulsion/Loyalty to Draconis Combine'])]
+      }),
+      vsub('davion', 'Federated Suns', { affiliationKeys: ['davion'] }, {
+        traits: [tr('Combat Sense', 50), tr('Compulsion/Any Addiction', -25), tr('Connections', 40), tr('Enemy', -75), tr('Rank', 50)],
+        skills: [sk('Acrobatics', 20, 'Free-Fall'), sk('Climbing', 35), sk('Computers', 45), sk('Cryptography', 30), sk('Driving', 25, 'Any'), sk('Interrogation', 25),
+          sk('Investigation', 65), sk('Leadership', 20), sk('Navigation', 35, 'Any'), sk('Security Systems', 50, 'Any'), sk('Streetwise', 50, 'Affiliation'), sk('Support Weapons', 30), sk('Tactics', 30, 'Any')]
+      }),
+      vsub('marik', 'Free Worlds League', { affiliationKeys: ['marik'] }, {
+        traits: [tr('Slow Learner', -50), tr('Tech Empathy', 50)],
+        skills: [sk('Administration', 45), sk('Computers', 30), sk('Disguise', 35), sk('Driving', 35, 'Any'), sk('Forgery', 45), sk('Interrogation', 35), sk('Investigation', 40),
+          sk('Martial Arts', 25), sk('MedTech', 35, 'Any'), sk('Protocol', 60, 'Affiliation'), sk('Security Systems', 50, 'Any'), sk('Swimming', 50), sk('Tracking', 65, 'Any')],
+        flex: [flex(50, 1, 'traits', 'choose one pair: Implant/Prosthetic (+Lost Limb) or Attractive (+Dark Secret)', ['Implant/Prosthetic', 'Attractive'])]
+      }),
+      vsub('rasalhague', 'Free Rasalhague', { affiliationKeys: ['rasalhague'] }, {
+        attrs: { wil: 50 }, traits: [tr('Alternate ID', 35), tr('Compulsion/Rasalhague Pride', -75), tr('Equipped', 35), tr('Impatient', -25)],
+        skills: [sk('Cryptography', 35), sk('Demolitions', 50), sk('Disguise', 35), sk('Interrogation', 25), sk('MedTech', 50, 'General'), sk('Melee Weapons', 35),
+          sk('Perception', 25), sk('Security Systems', 40, 'Any'), sk('Small Arms', 50), sk('Stealth', 50), sk('Tactics', 35, 'Infantry'), sk('Technician', 25, 'Any'), sk('Tracking', 25, 'Any')]
+      }),
+      vsub('steiner', 'Lyran Alliance', { affiliationKeys: ['steiner'] }, {
+        attrs: { wil: 30 }, traits: [tr('Connections', 85), tr('Enemy', -45), tr('Introvert', -85), tr('Property', 25), tr('Rank', 85), tr('Reputation', -20)],
+        skills: [sk('Acting', 30), sk('Computers', 50), sk('Cryptography', 35), sk('Driving', 35, 'Any'), sk('Forgery', 20), sk('Investigation', 50),
+          sk('Martial Arts', 40), sk('Negotiation', 50), sk('Strategy', 25), sk('Support Weapons', 25), sk('Tactics', 25, 'Any'), sk('Training', 40)]
+      }),
+      vsub('periphery', 'Periphery', { categories: ['periphery'] }, {
+        attrs: { bod: 25, wil: 50 }, traits: [tr('Alternate ID', 50), tr('Compulsion/Gambling', -35), tr('Connections', 25), tr('Introvert', -35)],
+        skills: [sk('Administration', 50), sk('Driving', 50, 'Any'), sk('Disguise', 35), sk('Interrogation', 65), sk('Melee Weapons', 25), sk('Negotiation', 25),
+          sk('Security Systems', 25, 'Any'), sk('Small Arms', 60), sk('Survival', 50, 'Any'), sk('Thrown Weapons', 35, 'Any')]
+      }),
+      vsub('independent', 'Independent', { affiliationKeys: ['independent'] }, {
+        attrs: { rfl: 75, cha: -50 }, traits: [tr('Bloodmark', -50), tr('Connections', 75), tr('Extra Income', 25), tr('Reputation', -75), tr('Wealth', -50)],
+        skills: [sk('Acting', 50), sk('Climbing', 35), sk('Cryptography', 40), sk('Escape Artist', 75), sk('Interest', 50, 'Any'), sk('Language', 75, 'Any'), sk('Martial Arts', 35),
+          sk('Navigation', 25, 'Any'), sk('Protocol', 45, 'Any'), sk('Science', 25, 'Chemistry'), sk('Small Arms', 25), sk('Streetwise', 35, 'Any'), sk('Tactics', 35, 'Any')]
+      })
+    ],
+    notes: 'The affiliation sub-module applies automatically. Inner Sphere or Periphery only (for Clan covert ops, see Clan Watch Operative). Some sub-modules also carry a paired negative Trait — see the flexible choices.',
     desc: '<p>Spies, scouts and undercover operatives — the shadowy trade of covert ops.</p>'
   }),
 
@@ -1229,7 +1336,18 @@ export const LIFE_MODULE_SEED = [
       sk('Perception', 25), sk('Prestidigitation', 50, 'Any'), sk('Security Systems', 25, 'Any'), sk('Small Arms', 35),
       sk('Support Weapons', 35), sk('Survival', 35, 'Any')],
     flex: [lump(180)],
-    notes: 'Free Rasalhague / General sub-modules add their own XP (Phase-3 follow-up). Cannot have a Clan affiliation.',
+    variantAuto: true,
+    variants: [
+      vsub('rasalhague', 'Free Rasalhague Insurgent', { affiliationKeys: ['rasalhague'] }, {
+        traits: [tr('Bloodmark', -35), tr('Combat Sense', 40), tr('Lost Limb', -50), tr('Prosthetic', 50)],
+        skills: [sk('Demolitions', 40), sk('Forgery', 40), sk('Leadership', 35), sk('Protocol', 35, 'Rasalhague'), sk('Streetwise', 40, 'Rasalhague'), sk('Tactics', 25, 'Any')]
+      }),
+      vsub('general', 'Guerilla Insurgent (General)', {}, {
+        attrs: { edg: -25 }, traits: [tr('Dark Secret', -50), tr('Enemy', -50), tr('Reputation', 25), tr('Toughness', 25)],
+        skills: [sk('Climbing', 40), sk('Driving', 50, 'Any'), sk('Interrogation', 50), sk('Language', 35, 'Affiliation'), sk('Small Arms', 25), sk('Swimming', 45), sk('Tactics', 50, 'Infantry')]
+      })
+    ],
+    notes: 'The Free Rasalhague or General sub-module applies automatically. Cannot have a Clan affiliation.',
     desc: '<p>Freedom fighter or terrorist — an armed insurgent, often backed by a foreign power.</p>'
   }),
 
@@ -1241,7 +1359,7 @@ export const LIFE_MODULE_SEED = [
     skills: [sk('Acting', 20), sk('Appraisal', 20), sk('Computers', 15), sk('Interest', 35, 'Any'), sk('Language', 20, 'Affiliation'),
       sk('Language', 25, 'Any'), sk('Negotiation', 20), sk('Perception', 30), sk('Protocol', 35, 'Any'), sk('Protocol', 15, 'Any'), sk('Zero-G Operations', 10)],
     flex: [lump(200)],
-    notes: 'Free Trader / Merchant Master / Deep Periphery Trader / Diamond Shark sub-modules add their own XP (Phase-3 follow-up).',
+    notes: 'The trader type (Free Trader / Merchant Master / Deep Periphery Trader / Diamond Shark) is a player choice rather than affiliation-driven, so its sub-module XP is not yet auto-applied — the base module is complete.',
     desc: '<p>The trader\'s life of near-constant JumpShip travel — free traders to Diamond Shark warrior-merchants.</p>'
   }),
 
@@ -1316,8 +1434,9 @@ export const LIFE_MODULE_SEED = [
     skills: [sk('Administration', 30), sk('Computers', 25), sk('Escape Artist', 15), sk('Forgery', 15), sk('Interest', 20, 'Solaris Games'),
       sk('Interest', 25, 'Solaris Night Life'), sk('Interest', 15, 'Any'), sk('Prestidigitation', 15, 'Any'), sk('Security Systems', 25, 'Any'),
       sk('Stealth', 20), sk('Streetwise', 25, 'Solaris VII')],
-    flex: [flex(25, 6, 'skills', '+25 XP to six of your Solaris Stable Internship Field Skills (else Communications/Manager/Politician)'), lump(100)],
-    notes: 'On repeat, also apply -100 XP to the In For Life Trait.',
+    flex: [fieldPool(25, 6, [], '+25 XP to six of your Stage-3 Field Skills'), lump(100)],
+    repeatEffect: { attributes: {}, skills: [], traits: [tr('In For Life', -100)] },
+    notes: 'On repeat, -100 XP is applied to the In For Life Trait automatically.',
     desc: '<p>A fixer on Solaris VII, brokering the deals behind the arena games.</p>'
   }),
 
@@ -1331,8 +1450,9 @@ export const LIFE_MODULE_SEED = [
     flex: [flex(100, 1, 'attributes', '+100 XP to any one other Attribute'),
       flex(100, 3, 'traits', '+100 XP each to three of: Custom Vehicle, Design Quirk, Equipped, Extra Income, Property, Tech Empathy or Vehicle',
         ['Custom Vehicle', 'Design Quirk', 'Equipped', 'Extra Income', 'Property', 'Tech Empathy', 'Vehicle']),
-      flex(45, 6, 'skills', '+45 XP to six Skills from any Tech or Military Fields you possess (except Officer)'), lump(125)],
-    notes: 'On repeat, also apply -150 XP to the In For Life Trait. Also awards a -50 XP Addiction/Gambling Compulsion.',
+      fieldPool(45, 6, ['military', 'civilian'], '+45 XP to six Skills from your Tech or Military Fields (except Officer)'), lump(125)],
+    repeatEffect: { attributes: {}, skills: [], traits: [tr('In For Life', -150)] },
+    notes: 'On repeat, -150 XP is applied to the In For Life Trait automatically. Also awards a -50 XP Addiction/Gambling Compulsion.',
     desc: '<p>A gladiator in the arenas of Solaris VII — wealth and glory, betrayal and intrigue.</p>'
   }),
 
@@ -1348,11 +1468,34 @@ export const LIFE_MODULE_SEED = [
   }),
 
   real('Tour of Duty', 800, {
-    time: 3, reqFields: [], reqNote: 'Must have at least one Military Skill Field. Cost varies by affiliation: 700 (Periphery) / 800 (Inner Sphere) / 1,000 (Clan).',
+    time: 3, reqFieldTypes: ['military'], costByCategory: { periphery: 700, innerSphere: 800, clan: 1000 }, variantAuto: true,
+    reqNote: 'Requires at least one Military Field. Cost by affiliation: 700 Periphery / 800 Inner Sphere / 1,000 Clan.',
     traits: [tr('Connections', 25)],
     skills: [sk('Career', 50, 'Soldier'), sk('Martial Arts', 40), sk('Navigation', 40, 'Any'), sk('Protocol', 40, 'Affiliation')],
     flex: [flex(100, 1, 'traits', 'choose one: Equipped or Vehicle', ['Equipped', 'Vehicle']), lump(100)],
-    notes: 'Inner Sphere / Periphery / Clan sub-modules add their own attributes, traits, skills and a Military-Field skill pool, and set the cost tier (Phase-3 follow-up). Base cost shown is the Inner Sphere tier.',
+    variants: [
+      vsub('periphery', 'Periphery Tour', { categories: ['periphery'] }, {
+        traits: [tr('Enemy', -50), tr('Toughness', 50)],
+        skills: [sk('Interest', 20, 'Any'), sk('Leadership', 15), sk('MedTech', 30, 'General'), sk('Negotiation', 25), sk('Perception', 15)],
+        flex: [flex(50, 1, 'attributes', '+50 XP to any one Attribute'), fieldPool(25, 6, ['military'], '+25 XP to up to six of your Military Field Skills')]
+      }),
+      vsub('innerSphere', 'Inner Sphere Tour', { categories: ['innerSphere'] }, {
+        traits: [tr('Rank', 50)],
+        skills: [sk('Language', 15, 'Affiliation'), sk('Leadership', 15), sk('Martial Arts', 10), sk('MedTech', 20, 'General'), sk('Perception', 20)],
+        flex: [flex(50, 2, 'attributes', '+50 XP each to any two Attributes'),
+          flex(50, 1, 'traits', 'choose one: Equipped or Vehicle', ['Equipped', 'Vehicle']),
+          flex(-50, 1, 'traits', 'choose one penalty: Compulsion/Any Addiction or Unlucky', ['Compulsion/Any Addiction', 'Unlucky']),
+          fieldPool(25, 7, ['military'], '+25 XP to up to seven of your Military Field Skills')]
+      }),
+      vsub('clan', 'Clan Tour', { categories: ['clan'] }, {
+        traits: [tr('Bloodname', 50), tr('Combat Sense', 75), tr('Enemy', -75)],
+        skills: [sk('Communications', 15, 'Any'), sk('Computers', 15), sk('Interest', 20, 'Any'), sk('Perception', 20), sk('Technician', 10, 'Any')],
+        flex: [flex(75, 2, 'attributes', '+75 XP each to any two Attributes'),
+          flex(75, 1, 'traits', 'choose one: Equipped or Vehicle', ['Equipped', 'Vehicle']),
+          fieldPool(25, 10, ['military'], '+25 XP to up to ten of your Military Field Skills')]
+      })
+    ],
+    notes: 'Inner Sphere / Periphery / Clan sub-modules apply automatically by affiliation and set the cost tier.',
     desc: '<p>A soldier\'s tour — long dull guard duty punctuated by the panic of incoming fire.</p>'
   }),
 

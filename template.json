@@ -172,6 +172,13 @@
       "requiresBirthAffiliation": false,
       "repeatable": true,
       "noFlexOnRepeat": false,
+      "costByCategory": {},
+      "variantAuto": false,
+      "repeatEffect": {
+        "attributes": {},
+        "skills": [],
+        "traits": []
+      },
       "schoolType": "",
       "fieldWaivers": [],
       "conditionalXP": {
@@ -209,6 +216,7 @@
         "forbidCategories": [],
         "castes": [],
         "fields": [],
+        "fieldTypes": [],
         "modules": [],
         "note": ""
       },
