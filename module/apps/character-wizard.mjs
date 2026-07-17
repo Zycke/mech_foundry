@@ -1,4 +1,4 @@
-import { CharacterBuilder, ATTRIBUTE_KEYS, SEVERITY, FIELD_SKILL_COST } from '../helpers/character-builder.mjs';
+import { CharacterBuilder, ATTRIBUTE_KEYS, SEVERITY, FIELD_SKILL_COST, affiliationCategory } from '../helpers/character-builder.mjs';
 import * as XP from '../helpers/xp-math.mjs';
 import { ATOW_SKILLS, ATOW_TRAITS, ATOW_TRAIT_DESCRIPTIONS, ATOW_SUBSKILLS, computeStartingWealth } from '../data/atow-lists.mjs';
 import { SKILL_FIELDS } from '../data/skill-fields.mjs';
@@ -22,9 +22,15 @@ const STEPS = [
   { id: 'stage3', label: 'Higher Ed', stage: 3, multi: true },
   { id: 'stage4', label: 'Real Life', stage: 4, multi: true },
   { id: 'flexible', label: 'Flexible XP' },
-  { id: 'spend', label: 'Spend XP' },
+  { id: 'spend', label: 'Finalize' },
   { id: 'review', label: 'Review' }
 ];
+
+/** Clan caste variant keys grouped by the caste families Stage-4 prereqs use. */
+const CASTE_GROUPS = {
+  warrior: ['mechwarrior', 'elemental', 'elemental-adv', 'aerospace', 'aerospace-naval', 'warrior-other'],
+  scientist: ['scientist'], technician: ['technician'], merchant: ['merchant'], laborer: ['laborer']
+};
 
 /** Map a flexible pool's `targets` to a concrete builder kind (null = player picks). */
 function kindForTargets(targets) {
@@ -62,7 +68,9 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     flexible: {},                            // sourceKey -> [{ kind, key }]  (count pools)
     lumpFlexible: {},                        // sourceKey -> [{ kind, key, amount }] (lump pools)
     subskills: {},                           // subskill sourceKey -> chosen text
-    freeSpend: { attributes: {}, skills: [] } // leftover-pool spend
+    optimize: { attributes: false, traits: false, skills: false }, // reclaim excess XP
+    boughtTraits: [],                        // [{ name, tp }] negative traits bought for XP
+    freeSpend: { attributes: {}, skills: [], traits: [] } // leftover-pool spend
   };
   /** @type {Object<number, Item[]>|null} cached modules grouped by stage */
   #modulesCache = null;
@@ -94,11 +102,14 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       selectPhenotype: CharacterWizard.#onSelectPhenotype,
       selectStageModule: CharacterWizard.#onSelectStageModule,
       toggleStageModule: CharacterWizard.#onToggleStageModule,
+      addStageModule: CharacterWizard.#onAddStageModule,
+      removeStageInstance: CharacterWizard.#onRemoveStageInstance,
       selectVariant: CharacterWizard.#onSelectVariant,
       selectFieldBasic: CharacterWizard.#onSelectFieldBasic,
       toggleFieldAdvanced: CharacterWizard.#onToggleField,
       toggleFieldSpecial: CharacterWizard.#onToggleField,
       spendAttr: CharacterWizard.#onSpendAttr,
+      toggleOptimize: CharacterWizard.#onToggleOptimize,
       finish: CharacterWizard.#onFinish
     }
   };
@@ -146,7 +157,8 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     return byStage[0].filter(d => d.system.moduleType === 'affiliation');
   }
 
-  /** Every currently-selected module doc, in application order. */
+  /** Every currently-selected module doc (Stages 0-3), in application order.
+   * Stage 4 is applied separately (repeat-aware) — see #applyStageFour. */
   async #selectedModuleDocs() {
     const byStage = await this.#loadModules();
     const find = (st, id) => byStage[st]?.find(m => m.id === id) || null;
@@ -154,8 +166,48 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     const aff = find(0, this.#choices.affiliationId);
     if (aff) docs.push(aff);
     for (const st of [1, 2]) { const m = find(st, this.#choices.modules[st]); if (m) docs.push(m); }
-    for (const st of [3, 4]) for (const id of this.#choices.modules[st]) { const m = find(st, id); if (m) docs.push(m); }
+    for (const id of this.#choices.modules[3]) { const m = find(3, id); if (m) docs.push(m); }
     return docs;
+  }
+
+  /** Unique Stage-4 module docs currently taken (for review/validation/grant). */
+  async #stageFourDocs() {
+    const byStage = await this.#loadModules();
+    const list = byStage[4] || [];
+    const seen = new Set(), docs = [];
+    for (const entry of this.#choices.modules[4]) {
+      const id = entry.id;
+      if (seen.has(id)) continue;
+      const m = list.find(x => x.id === id);
+      if (m) { seen.add(id); docs.push(m); }
+    }
+    return docs;
+  }
+
+  /** Map every applied module *record id* to its source system data, so
+   *  validate() can look up legality even for Stage-4 records whose ids are
+   *  `s4:<iid>:<docId>[:sub|:var|:rep]` rather than a raw document id. */
+  async #modulesByRecordId() {
+    const docs = [...await this.#selectedModuleDocs(), ...await this.#stageFourDocs()];
+    const byDocId = Object.fromEntries(docs.map(d => [d.id, d.system]));
+    const map = { ...byDocId };
+    for (const rec of this.#state.modules) {
+      const id = String(rec.id);
+      if (id.startsWith('s4:')) {
+        const docId = id.split(':')[2];       // s4 : iid : docId : [sub|var|rep]
+        if (byDocId[docId]) map[id] = byDocId[docId];
+      }
+    }
+    return map;
+  }
+
+  /** Stage-4 instances whose categorical prerequisite broke after they were
+   *  added (their XP is not applied) — surfaced as errors on Review/Finish. */
+  async #stageFourUnmetIssues() {
+    return (this.#state.stage4Unmet || []).map(u => ({
+      severity: SEVERITY.ERROR, code: 'stage4-prereq-unmet',
+      message: `${u.name}: its prerequisite is no longer met — remove it or restore the requirement.`
+    }));
   }
 
   /** Rebuild the builder state from the current choices. */
@@ -270,6 +322,10 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       }
     }
 
+    // Stage 4 (Real Life): apply each instance in order. The 2nd+ instance of
+    // the same module is a repeat (Skill + Flexible XP only), still full cost.
+    await this.#applyStageFour();
+
     // Re-apply saved subskill choices (adds the queued XP under the chosen subskill).
     // '__other__' is the "Other…" placeholder before the player has typed a value.
     for (const p of this.#state.subskillPending) {
@@ -307,21 +363,55 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       }
     }
 
-    // Apply leftover-pool free spend (attributes at 100 XP/point, then skills).
+    // Finalization post-pass (ATOW pp.96-97), in book order: resolve opposed
+    // Traits, optimize (reclaim excess XP), then buy additional XP via negatives.
+    CharacterBuilder.resolveOpposedTraits(this.#state);
+    this.#state.optimizeReclaimed = CharacterBuilder.optimize(this.#state, this.#choices.optimize);
+    const boughtDetail = [];
+    this.#state.additionalXPGained = CharacterBuilder.applyBoughtTraits(this.#state, this.#choices.boughtTraits, this.#traitLimitFn(), boughtDetail);
+    this.#state.boughtDetail = boughtDetail;
+
+    // Apply leftover-pool free spend (attributes at 100 XP/point, skills, traits).
+    // Rows the pool can't afford are collected so the UI can flag them rather
+    // than silently displaying a spend that never happened.
     const pheno = this.#phenotypeEntry();
+    const excCaps = CharacterBuilder.exceptionalAttributeBonuses(this.#state);
+    const overspent = [];
     for (const [key, count] of Object.entries(this.#choices.freeSpend.attributes || {})) {
       const n = Number(count) || 0;
       if (n <= 0) continue;
-      const cap = pheno?.maxValues?.[key] ?? Infinity;
-      // Don't buy past the phenotype cap.
+      // Cap includes any Exceptional-Attribute bonus that raised the maximum.
+      const cap = (pheno?.maxValues?.[key] ?? Infinity) + (excCaps[key] || 0);
       const currentScore = XP.getAttributeScoreFromXP(this.#state.attributes[key] || 0);
       const buyable = Math.max(0, Math.min(n, cap - currentScore));
-      if (buyable > 0) CharacterBuilder.spendPool(this.#state, { kind: 'attribute', key, xp: buyable * 100 });
+      if (buyable > 0 && !CharacterBuilder.spendPool(this.#state, { kind: 'attribute', key, xp: buyable * 100 })) {
+        overspent.push({ kind: 'attribute', key: key.toUpperCase(), xp: buyable * 100 });
+      }
     }
     for (const s of (this.#choices.freeSpend.skills || [])) {
       const xp = Number(s?.xp) || 0;
-      if (s?.key && xp > 0) CharacterBuilder.spendPool(this.#state, { kind: 'skill', key: s.key, xp });
+      if (s?.key && xp > 0 && !CharacterBuilder.spendPool(this.#state, { kind: 'skill', key: s.key, xp })) {
+        overspent.push({ kind: 'skill', key: s.key, xp });
+      }
     }
+    for (const t of (this.#choices.freeSpend.traits || [])) {
+      let xp = Number(t?.xp) || 0;
+      if (!t?.key || xp <= 0) continue;
+      // Don't let a spend push a Trait past its maximum (positive) level.
+      const lim = this.#traitLimit(t.key);
+      if (lim && Number.isFinite(lim.max)) {
+        const currentTP = XP.getTraitTP(this.#state.traits[t.key] || 0);
+        const maxAddXP = Math.max(0, (lim.max - currentTP) * 100);
+        if (xp > maxAddXP) xp = maxAddXP;
+      }
+      if (xp > 0 && !CharacterBuilder.spendPool(this.#state, { kind: 'trait', key: t.key, xp })) {
+        overspent.push({ kind: 'trait', key: t.key, xp });
+      }
+    }
+    this.#state.freeSpendOverspent = overspent;
+
+    // Safety net: cap any Trait that somehow exceeded its allowed level range.
+    CharacterBuilder.clampTraits(this.#state, this.#traitLimitFn());
   }
 
   #phenotypeEntry(key = this.#choices.phenotypeKey) {
@@ -350,6 +440,95 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     return (fc?.basic ? 1 : 0) + this._asArray(fc?.advanced).length + this._asArray(fc?.special).length;
   }
 
+  /** Apply the Stage-4 instance list. Each entry is one "take" of a module; the
+   * 2nd+ take of the same module is a repeat (attributes/traits granted once).
+   * Also applies affiliation cost tiers, auto sub-modules and repeat effects. */
+  async #applyStageFour() {
+    const byStage = await this.#loadModules();
+    const list = byStage[4] || [];
+    const cat = affiliationCategory(this.#state.affiliationKey);
+    const casteGroup = this.#characterCasteGroup();
+    const count = new Map();
+    const unmet = [];
+    this.#choices.modules[4].forEach((entry) => {
+      const { iid, id } = entry;
+      const d = list.find(x => x.id === id);
+      if (!d) return;
+      const sys = d.system;
+      // A categorical prerequisite that an earlier choice has since broken:
+      // do NOT apply this instance's XP, and flag it for the Review step.
+      if (!this.#stageFourPrereqStatus(sys).met) { unmet.push({ id, name: d.name }); return; }
+      const n = count.get(id) || 0;
+      count.set(id, n + 1);
+      const repeat = n > 0;
+      // Affiliation-tiered cost (e.g. Tour of Duty 700/800/1,000).
+      const cost = sys.costByCategory?.[cat] ?? sys.xpCost;
+      CharacterBuilder.applyModule(this.#state, this.#prepareStage4Module(sys, cost),
+        { id: `s4:${iid}:${d.id}`, name: d.name, uuid: d.uuid },
+        { repeat, noFlexOnRepeat: !!sys.noFlexOnRepeat });
+      // Auto sub-module matching the character's affiliation / caste.
+      if (sys.variantAuto) {
+        const v = this.#matchAutoVariant(sys, cat, casteGroup);
+        if (v) CharacterBuilder.applyModule(this.#state,
+          this.#prepareStage4Module({ stage: 4, xpCost: Number(v.xpCost) || 0, fixedXP: v.fixedXP, flexibleXP: v.flexibleXP }, Number(v.xpCost) || 0),
+          { id: `s4:${iid}:${d.id}:sub`, name: `${d.name} — ${v.name}` }, { repeat });
+      } else if (this._asArray(sys.variants).length) {
+        // Player-selected variant (e.g. Clan Warrior Washout's new caste).
+        const v = this._asArray(sys.variants).find(x => x.key === this.#choices.variants[id]);
+        if (v) CharacterBuilder.applyModule(this.#state,
+          this.#prepareStage4Module({ stage: 4, xpCost: Number(v.xpCost) || 0, fixedXP: v.fixedXP, flexibleXP: v.flexibleXP }, Number(v.xpCost) || 0),
+          { id: `s4:${iid}:${d.id}:var`, name: `${d.name} — ${v.name}` }, { repeat });
+      }
+      // Repeat effect (e.g. Solaris modules' In For Life penalty) — repeats only.
+      if (repeat && this.#hasRepeatEffect(sys.repeatEffect)) {
+        CharacterBuilder.applyModule(this.#state, { stage: 4, xpCost: 0, fixedXP: sys.repeatEffect },
+          { id: `s4:${iid}:${d.id}:rep`, name: `${d.name} (repeat effect)` });
+      }
+    });
+    this.#state.stage4Unmet = unmet;
+  }
+
+  #hasRepeatEffect(re) {
+    return !!re && (Object.keys(re.attributes || {}).length || this._asArray(re.skills).length || this._asArray(re.traits).length);
+  }
+
+  /** Skills the character gained from Stage-3 Fields, optionally of given type(s). */
+  #characterFieldSkills(fieldTypes) {
+    const out = new Set();
+    for (const fname of this.#chosenFieldNames()) {
+      const def = SKILL_FIELDS[fname];
+      if (!def) continue;
+      if (this._asArray(fieldTypes).length && !fieldTypes.includes(def.type)) continue;
+      for (const s of def.skills) out.add(s);
+    }
+    return [...out];
+  }
+
+  /** Override a Stage-4 module's cost and fill any field-constrained pool's
+   * choices with the character's actual Field skills before applying it. */
+  #prepareStage4Module(sys, cost) {
+    const flexibleXP = this._asArray(sys.flexibleXP).map(pool =>
+      pool.fromFields ? { ...pool, choices: this.#characterFieldSkills(pool.fieldTypes) } : pool);
+    return { ...sys, xpCost: cost, flexibleXP };
+  }
+
+  /** The auto sub-module whose `match` fits this character (or null). */
+  #matchAutoVariant(sys, cat, casteGroup) {
+    const key = this.#state.affiliationKey;
+    const subKey = this.#choices.subAffiliationKey;
+    const affName = this.#state.affiliation || '';
+    for (const v of this._asArray(sys.variants)) {
+      const m = v.match || {};
+      if (this._asArray(m.categories).length && !m.categories.includes(cat)) continue;
+      if (this._asArray(m.affiliationKeys).length && !m.affiliationKeys.includes(key)) continue;
+      if (this._asArray(m.castes).length && !m.castes.includes(casteGroup)) continue;
+      if (this._asArray(m.subAffiliations).length && !m.subAffiliations.includes(subKey)) continue;
+      if (this._asArray(m.affiliationNames).length && !m.affiliationNames.some(nm => affName.includes(nm))) continue;
+      return v;
+    }
+    return null;
+  }
+
   /* ---------------------------------------------------------------------- */
   /*  Context                                                                */
   /* ---------------------------------------------------------------------- */
@@ -372,10 +551,18 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       remaining,
       remainingClass: remaining < 0 ? 'over' : '',
       age: this.#state.age,
+      // Live attribute totals for the top bar (so players can read prereqs).
+      attributeBar: ATTRIBUTE_KEYS.map(k => {
+        const a = derived.attributes[k];
+        return { key: k.toUpperCase(), total: a.total, capped: !!a.cappedBy };
+      }),
       moduleCount: this.#state.modules.filter(m => {
         const id = String(m.id);
         return !id.startsWith('subaff:') && !id.startsWith('variant:')
-          && !id.startsWith('birthsub:') && !id.startsWith('field:');
+          && !id.startsWith('birthsub:') && !id.startsWith('field:')
+          // Stage-4 auto sub-modules, player variants and repeat effects are not
+          // separate "modules" for the count shown in Review.
+          && !/^s4:[^:]+:[^:]+:(sub|var|rep)$/.test(id);
       }).length
     };
 
@@ -385,10 +572,11 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       context.modules = affiliations.map(a => this.#moduleCard(a, a.id === this.#choices.affiliationId, derived));
       context.emptyKind = 'affiliation';
 
-      // Sub-affiliations of the chosen affiliation (optional, each adds its own XP).
+      // Sub-affiliations of the chosen affiliation (required — each adds its own XP).
       const chosen = affiliations.find(a => a.id === this.#choices.affiliationId);
       context.subAffiliations = this.#subAffCards(chosen?.system.subAffiliations, this.#choices.subAffiliationKey);
       context.hasSubAffiliations = context.subAffiliations.length > 0;
+      context.subAffRequired = context.hasSubAffiliations && !this.#choices.subAffiliationKey;
 
       // Affiliation variant (e.g. a Clan Caste) — same picker as the stage steps.
       context.variantPickers = this.#variantPickersFor(chosen ? [chosen] : []);
@@ -403,6 +591,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
         const birth = options.find(a => a.id === this.#choices.birthAffiliationId);
         context.birthSubAffiliations = this.#subAffCards(birth?.system.subAffiliations, this.#choices.birthSubAffiliationKey);
         context.hasBirthSubAffiliations = context.birthSubAffiliations.length > 0;
+        context.birthSubAffRequired = context.hasBirthSubAffiliations && !this.#choices.birthSubAffiliationKey;
         // Birth caste picker (e.g. a ComStar acolyte born into a Clan).
         context.birthVariantPickers = this.#variantPickersFor(birth ? [birth] : []);
         context.hasBirthVariantPickers = context.birthVariantPickers.length > 0;
@@ -413,23 +602,66 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       const byStage = await this.#loadModules();
       const list = byStage[step.stage] || [];
       const sel = this.#choices.modules[step.stage];
-      const selectedIds = step.multi ? sel : (sel ? [sel] : []);
+      // Stage 4's selections are an instance list of { iid, id } objects.
+      const selectedIds = step.stage === 4
+        ? this.#choices.modules[4].map(e => e.id)
+        : (step.multi ? sel : (sel ? [sel] : []));
       context.stage = step.stage;
       context.multi = !!step.multi;
       context.hasModules = list.length > 0;
       context.mandatory = [1, 2].includes(step.stage);
       context.modules = list.map(m => this.#moduleCard(m, selectedIds.includes(m.id), derived));
       // Variant (caste/branch) pickers for any selected module that has variants.
-      context.variantPickers = this.#variantPickersFor(selectedIds.map(id => list.find(m => m.id === id)));
+      const uniqueSelected = [...new Set(selectedIds)].map(id => list.find(m => m.id === id));
+      context.variantPickers = this.#variantPickersFor(uniqueSelected);
       context.hasVariantPickers = context.variantPickers.length > 0;
       context.emptyKind = 'stage';
 
       // Stage 3: Skill-Field pickers for each selected school + repeat advisory.
       if (step.stage === 3) {
+        // Officer Candidate School locks until a prior Intelligence/Police/Military
+        // school with a Basic + Advanced Field exists (ATOW p.83).
+        const ocsMet = this.#ocsPrereqMet();
+        for (const card of context.modules) {
+          const m = list.find(x => x.id === card.id);
+          if (m?.system.schoolType === 'officer' && !card.selected && !ocsMet) {
+            card.locked = true;
+            card.lockReason = 'Requires an Intelligence, Police or Military school with at least one Basic and one Advanced Field first.';
+          }
+        }
         const schools = selectedIds.map(id => list.find(m => m.id === id)).filter(Boolean);
         context.schoolFields = schools.map(m => this.#schoolFieldContext(m, derived));
         context.hasSchoolFields = context.schoolFields.length > 0;
         context.tooManyStage3 = selectedIds.length > 2; // GM soft cap (ATOW p.80)
+      }
+
+      // Stage 4: repeatable modules taken as an "instance list"; categorical
+      // prerequisites lock a module, attribute/trait minimums only warn.
+      if (step.stage === 4) {
+        const instances = this.#choices.modules[4];
+        const countById = {};
+        for (const e of instances) countById[e.id] = (countById[e.id] || 0) + 1;
+        for (const card of context.modules) {
+          const m = list.find(x => x.id === card.id);
+          card.count = countById[card.id] || 0;
+          card.repeatable = m.system.repeatable !== false;
+          card.maxedOut = !card.repeatable && card.count >= 1;
+          const pre = this.#stageFourPrereqStatus(m.system);
+          if (!pre.met && !card.count) { card.locked = true; card.lockReason = pre.reason; }
+        }
+        // An instance whose prereq broke after it was added is flagged (not applied).
+        const unmetIds = new Set((this.#state.stage4Unmet || []).map(u => u.id));
+        const seen = {};
+        context.stage4Instances = instances.map((e, idx) => {
+          const m = list.find(x => x.id === e.id);
+          seen[e.id] = (seen[e.id] || 0) + 1;
+          return {
+            index: idx, name: m ? m.name : '(removed)', isRepeat: seen[e.id] > 1,
+            unmet: unmetIds.has(e.id),
+            unmetReason: unmetIds.has(e.id) ? this.#stageFourPrereqStatus(m.system).reason : ''
+          };
+        });
+        context.hasStage4Instances = context.stage4Instances.length > 0;
       }
     }
 
@@ -439,6 +671,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
         key,
         label: p.label || key,
         selected: key === this.#choices.phenotypeKey,
+        clanOnly: !!p.clanOnly,
         modifiers: ATTRIBUTE_KEYS
           .filter(k => (p.modifiers?.[k] ?? 0) !== 0)
           .map(k => `${k.toUpperCase()} ${p.modifiers[k] > 0 ? '+' : ''}${p.modifiers[k]}`)
@@ -474,11 +707,13 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     if (stepId === 'review') {
       const pheno = this.#phenotypeEntry();
       const preview = CharacterBuilder.derive(this.#state, pheno);
-      const docs = await this.#selectedModuleDocs();
-      const modulesById = Object.fromEntries(docs.map(d => [d.id, d.system]));
-      const issues = CharacterBuilder.validate(this.#state, { phenotype: pheno, modules: modulesById });
+      const modulesById = await this.#modulesByRecordId();
+      const issues = [...await this.#stageFourUnmetIssues(),
+        ...CharacterBuilder.validate(this.#state, { phenotype: pheno, modules: modulesById })];
       context.preview = {
         ...preview,
+        // Human-readable phenotype name (preview.phenotype is the raw key).
+        phenotypeLabel: pheno?.label || '',
         attributeRows: ATTRIBUTE_KEYS.map(k => ({ key: k.toUpperCase(), ...preview.attributes[k] })),
         skillRows: preview.skills.map(s => ({ ...s, levelLabel: s.level < 0 ? 'Untrained' : `L${s.level}` })),
         traitRows: preview.traits.map(t => ({ ...t, tooltip: this.#traitTooltip(t.name) }))
@@ -488,6 +723,9 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       context.warningCount = issues.filter(i => i.severity === SEVERITY.WARNING).length;
       context.targetName = this.actor?.name || this.#choices.name || 'a new character';
       context.wealth = computeStartingWealth(this.#state.traits, { isClan: !!this.#state.isClan });
+      const rec = this.#state.optimizeReclaimed || {};
+      context.reclaimTotal = (rec.attributes || 0) + (rec.traits || 0) + (rec.skills || 0);
+      context.additionalXP = this.#state.additionalXPGained || 0;
     }
 
     return context;
@@ -527,11 +765,16 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     const count = this.#fieldCount(fc);
     const atMax = count >= 3;
     const hasAdvanced = this._asArray(fc.advanced).length > 0;
+    const chosen = this.#chosenFieldNames();
+    const waivers = new Set(this._asArray(sys.fieldWaivers)); // school-specific prereq waivers
     const tierCards = (tierObj, kind) => this._asArray(tierObj?.options).map(name => {
       const selected = kind === 'basic' ? fc.basic === name : this._asArray(fc[kind]).includes(name);
-      // Can't add a new field once at the cap; Specials also need an Advanced first.
-      const disabled = !selected && (atMax || (kind === 'special' && !hasAdvanced));
-      return this.#fieldCard(name, kind, school.id, selected, disabled, derived);
+      // A Field prerequisite (needs another Field first) locks the option unless
+      // the school waives it (e.g. Solaris MechWarrior needs no Basic Training).
+      const fieldsMet = waivers.has(name) || this.#requiredFieldsMet(SKILL_FIELDS[name]?.req, chosen);
+      // Can't add once at the cap; Specials need an Advanced first; locked = prereq unmet.
+      const disabled = !selected && (atMax || (kind === 'special' && !hasAdvanced) || !fieldsMet);
+      return this.#fieldCard(name, kind, school.id, selected, disabled, derived, fieldsMet);
     });
     // Does this school's conditional penalty currently apply to the build?
     const cx = sys.conditionalXP;
@@ -555,7 +798,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   /** One selectable Skill-Field card (skills, cost, prereqs). */
-  #fieldCard(name, kind, moduleId, selected, disabled, derived) {
+  #fieldCard(name, kind, moduleId, selected, disabled, derived, fieldsMet = true) {
     const def = SKILL_FIELDS[name] || { skills: [], req: {} };
     const pre = this.#fieldPrereqStatus(def.req, derived);
     return {
@@ -565,7 +808,11 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       cost: FIELD_SKILL_COST * def.skills.length,
       prereq: this.#fieldPrereqText(def.req),
       hasPrereq: pre.has,
-      prereqMet: pre.met
+      prereqMet: pre.met,
+      // A field is "locked" (greyed) when a *Field* prerequisite is unmet — e.g.
+      // Doctor needs the Medical Assistant or Scientist Field first. Attribute
+      // prereqs never lock (they only warn), per design.
+      fieldLocked: !selected && !fieldsMet
     };
   }
 
@@ -582,7 +829,24 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     return s;
   }
 
-  /** Whether a Field's attribute/Field prereqs are currently met (warn-only). */
+  /** Every Skill Field currently selected across all schools. */
+  #chosenFieldNames() {
+    const chosen = new Set();
+    for (const fcv of Object.values(this.#choices.fields || {})) {
+      if (fcv.basic) chosen.add(fcv.basic);
+      for (const n of this._asArray(fcv.advanced)) chosen.add(n);
+      for (const n of this._asArray(fcv.special)) chosen.add(n);
+    }
+    return chosen;
+  }
+
+  /** Whether a Field's "requires one of these Fields" prereq is satisfied. */
+  #requiredFieldsMet(req, chosen = this.#chosenFieldNames()) {
+    const reqFields = this._asArray(req?.fields);
+    return !reqFields.length || reqFields.some(f => chosen.has(f));
+  }
+
+  /** Whether a Field's attribute + Field prereqs are currently met (for the badge). */
   #fieldPrereqStatus(req, derived) {
     if (!req) return { has: false, met: true };
     const hasReq = Object.keys(req.attrs || {}).length || this._asArray(req.fields).length
@@ -592,17 +856,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     for (const [k, min] of Object.entries(req.attrs || {})) {
       if ((derived.attributes[k]?.total ?? 0) < min) met = false;
     }
-    // "Requires one of these Fields": met if any listed Field is selected anywhere.
-    const reqFields = this._asArray(req.fields);
-    if (reqFields.length) {
-      const chosen = new Set();
-      for (const fcv of Object.values(this.#choices.fields || {})) {
-        if (fcv.basic) chosen.add(fcv.basic);
-        for (const n of this._asArray(fcv.advanced)) chosen.add(n);
-        for (const n of this._asArray(fcv.special)) chosen.add(n);
-      }
-      if (!reqFields.some(f => chosen.has(f))) met = false;
-    }
+    if (!this.#requiredFieldsMet(req)) met = false;
     return { has: true, met };
   }
 
@@ -733,6 +987,46 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     return [...set].sort((a, b) => a.localeCompare(b)).map(n => ({ value: n, label: n }));
   }
 
+  /**
+   * Parse a Trait's TP spec into its allowed { min, max } level range (in TP).
+   * Handles single ('2', '-1', '0'), range ('1 to 10', '-5 to -1', '-9 to -2'),
+   * discrete ('3 or 5') and dual-sign flexible ('-5 to 5') specs. Positive Traits
+   * are floored at 0, negative Traits capped at 0; flexible Traits keep both signs.
+   * Returns null when the Trait/spec is unknown (treated as unlimited).
+   */
+  #traitLimit(name) {
+    if (!name) return null;
+    const list = game.mechfoundry?.config?.traitsList || ATOW_TRAITS;
+    let def = list.find(t => t.name === name);
+    if (!def && name.includes('/')) {
+      const base = name.slice(0, name.indexOf('/'));
+      def = list.find(t => t.name === base);
+    }
+    if (!def) return null;
+    const nums = String(def.tp || '').match(/-?\d+/g);
+    if (!nums || !nums.length) return null;
+    const vals = nums.map(Number);
+    let lo = Math.min(...vals), hi = Math.max(...vals);
+    if (def.type === 'positive') lo = Math.min(0, lo);
+    else if (def.type === 'negative') hi = Math.max(0, hi);
+    return { min: lo, max: hi };
+  }
+
+  /** Bound Trait-limit lookup passed into the builder engine. */
+  #traitLimitFn() {
+    return (name) => this.#traitLimit(name);
+  }
+
+  /** Trait options limited to negatives — for the Buy Additional XP dropdown. */
+  #negativeTraitOptions() {
+    const list = game.mechfoundry?.config?.traitsList || ATOW_TRAITS;
+    return list
+      .filter(t => t.type === 'negative')
+      .map(t => t.name)
+      .sort((a, b) => a.localeCompare(b))
+      .map(n => ({ value: n, label: n }));
+  }
+
   #prereqSummary(pre) {
     if (!pre) return '';
     const bits = [];
@@ -805,8 +1099,10 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
   #buildSpendContext(derived) {
     const pheno = this.#phenotypeEntry();
     const remaining = CharacterBuilder.remaining(this.#state);
+    const excCaps = CharacterBuilder.exceptionalAttributeBonuses(this.#state);
     const attributes = ATTRIBUTE_KEYS.map(k => {
-      const cap = pheno?.maxValues?.[k] ?? Infinity;
+      // Effective cap includes any Exceptional-Attribute bonus (matches rebuild).
+      const cap = (pheno?.maxValues?.[k] ?? Infinity) + (excCaps[k] || 0);
       const value = derived.attributes[k].value;
       return {
         key: k, label: k.toUpperCase(),
@@ -818,16 +1114,53 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     });
     const saved = this.#choices.freeSpend.skills || [];
     const rows = [...saved, { key: '', xp: '' }].map((s, i) => ({ idx: i, key: s.key || '', xp: s.xp || '' }));
-    return { attributes, skillOptions: this.#skillOptions(), skills: rows, remaining };
+    const savedT = this.#choices.freeSpend.traits || [];
+    const traitRows = [...savedT, { key: '', xp: '' }].map((t, i) => ({ idx: i, key: t.key || '', xp: t.xp || '' }));
+
+    // Optimization: how much would be reclaimed per category (already applied).
+    const opt = this.#choices.optimize;
+    const reclaimed = this.#state.optimizeReclaimed || { attributes: 0, traits: 0, skills: 0 };
+
+    // Buy Additional XP: negative Traits, capped at 10% of starting XP.
+    const cap = CharacterBuilder.additionalXPCap(this.#state);
+    const gained = this.#state.additionalXPGained || 0;
+    // Per-row applied XP (after cap/limit clamping) so the display never
+    // overstates a purchase that was reduced or skipped.
+    const detail = this.#state.boughtDetail || [];
+    const boughtRows = [...(this.#choices.boughtTraits || []), { name: '', tp: '' }]
+      .map((b, i) => {
+        const requested = Math.abs((Number(b.tp) || 0) * 100);
+        const d = detail[i];
+        const xp = d ? d.appliedXP : requested;
+        return {
+          idx: i, name: b.name || '', tp: b.tp || '', xp,
+          requestedXp: requested,
+          reduced: !!b.name && xp > 0 && xp < requested,     // partially clamped
+          dropped: !!b.name && xp === 0 && requested > 0     // skipped (cap reached)
+        };
+      });
+
+    return {
+      attributes, skillOptions: this.#skillOptions(), skills: rows,
+      traitOptions: this.#traitOptions(), traits: traitRows, remaining,
+      optimize: opt, reclaimed,
+      reclaimTotal: reclaimed.attributes + reclaimed.traits + reclaimed.skills,
+      buyCap: cap, buyGained: gained, buyLeft: cap - gained, boughtRows,
+      negativeTraitOptions: this.#negativeTraitOptions(),
+      overspent: this.#state.freeSpendOverspent || [],
+      hasOverspent: (this.#state.freeSpendOverspent || []).length > 0
+    };
   }
 
   /** Whether the current step is complete enough to advance / finish. */
   #canAdvance(stepId, step) {
     if (stepId === 'affiliation') {
       if (!this.#choices.affiliationId) return false;
+      if (this.#affiliationHasSubs() && !this.#choices.subAffiliationKey) return false;
       if (this.#missingRequiredVariantFor(this.#modulesCache?.[0], [this.#choices.affiliationId])) return false;
       if (this.#needsBirthAffiliation()) {
         if (!this.#choices.birthAffiliationId) return false;
+        if (this.#birthAffiliationHasSubs() && !this.#choices.birthSubAffiliationKey) return false;
         // A birth affiliation that itself requires a variant (a Clan caste).
         if (this.#missingRequiredVariantFor(this.#modulesCache?.[0], [this.#choices.birthAffiliationId])) return false;
       }
@@ -836,7 +1169,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     if (step.stage && [1, 2].includes(step.stage)) {
       return !!this.#choices.modules[step.stage] && !this.#missingRequiredVariant(step.stage);
     }
-    if (step.stage === 3) return !this.#missingRequiredVariant(3) && !this.#schoolMissingBasic();
+    if (step.stage === 3) return !this.#missingRequiredVariant(3) && !this.#schoolMissingBasic() && !this.#ocsSelectedButUnmet();
     if (step.stage) return !this.#missingRequiredVariant(step.stage);
     if (stepId === 'flexible') {
       return CharacterBuilder.flexibleResolved(this.#state) && CharacterBuilder.subskillsResolved(this.#state);
@@ -847,10 +1180,12 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
   #advanceHint(stepId, step) {
     if (stepId === 'affiliation') {
       if (!this.#choices.affiliationId) return 'Choose an affiliation to continue.';
+      if (this.#affiliationHasSubs() && !this.#choices.subAffiliationKey) return 'Choose a sub-affiliation to continue.';
       const a = this.#missingRequiredVariantFor(this.#modulesCache?.[0], [this.#choices.affiliationId]);
       if (a) return `Choose a ${a.label.toLowerCase()} for ${a.moduleName} to continue.`;
       if (this.#needsBirthAffiliation()) {
         if (!this.#choices.birthAffiliationId) return 'Choose a birth affiliation for ComStar / Word of Blake to continue.';
+        if (this.#birthAffiliationHasSubs() && !this.#choices.birthSubAffiliationKey) return 'Choose a birth sub-affiliation to continue.';
         const b = this.#missingRequiredVariantFor(this.#modulesCache?.[0], [this.#choices.birthAffiliationId]);
         if (b) return `Choose a ${b.label.toLowerCase()} for your birth affiliation (${b.moduleName}) to continue.`;
       }
@@ -865,6 +1200,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     if (step.stage === 3) {
       const s = this.#schoolMissingBasic();
       if (s) return `Choose a Basic Field for ${s} to continue (or deselect the school).`;
+      if (this.#ocsSelectedButUnmet()) return 'Officer Candidate School needs an Intelligence/Police/Military school with a Basic and an Advanced Field (or deselect OCS).';
     }
     if (stepId === 'flexible') {
       if (!CharacterBuilder.subskillsResolved(this.#state)) return 'Choose all subskills to continue.';
@@ -879,6 +1215,18 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     return !!aff?.system.requiresBirthAffiliation;
   }
 
+  /** Whether the currently-chosen affiliation offers sub-affiliations (one is required). */
+  #affiliationHasSubs() {
+    const aff = this.#modulesCache?.[0]?.find(a => a.id === this.#choices.affiliationId);
+    return !!aff && this._asArray(aff.system.subAffiliations).length > 0;
+  }
+
+  /** Whether the chosen ComStar "birth" affiliation offers sub-affiliations (one is required). */
+  #birthAffiliationHasSubs() {
+    const b = this.#modulesCache?.[0]?.find(a => a.id === this.#choices.birthAffiliationId);
+    return !!b && this._asArray(b.system.subAffiliations).length > 0;
+  }
+
   /** Name of the first selected Stage-3 school that still needs a Basic Field. */
   #schoolMissingBasic() {
     const list = this.#modulesCache?.[3] || [];
@@ -889,10 +1237,82 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     return null;
   }
 
+  /** Whether Officer Candidate School's prerequisite is satisfied: a selected
+   * Intelligence/Police/Military school that has both a Basic and an Advanced
+   * Field chosen (ATOW p.83). */
+  #ocsPrereqMet() {
+    const list = this.#modulesCache?.[3] || [];
+    return this.#choices.modules[3].some(id => {
+      const m = list.find(x => x.id === id);
+      if (!m || !['intelligence', 'military'].includes(m.system.schoolType)) return false;
+      const fc = this.#choices.fields[id];
+      return !!fc?.basic && this._asArray(fc.advanced).length > 0;
+    });
+  }
+
+  /** True if OCS is selected but its prerequisite is not (yet) satisfied. */
+  #ocsSelectedButUnmet() {
+    const list = this.#modulesCache?.[3] || [];
+    const ocs = this.#choices.modules[3].some(id => list.find(x => x.id === id)?.system.schoolType === 'officer');
+    return ocs && !this.#ocsPrereqMet();
+  }
+
+  /** The character's Clan caste family ('warrior'|'scientist'|…), or '' if none. */
+  #characterCasteGroup() {
+    const casteKey = this.#choices.variants[this.#choices.affiliationId];
+    if (!casteKey) return '';
+    for (const [group, keys] of Object.entries(CASTE_GROUPS)) if (keys.includes(casteKey)) return group;
+    return '';
+  }
+
+  /** Names of every module currently in the build (all stages). */
+  #takenModuleNames() {
+    return new Set(this.#state.modules.map(m => String(m.name || '')));
+  }
+
+  /** Evaluate a Stage-4 module's CATEGORICAL prerequisites (affiliation category,
+   * caste, possessed Field, prior module) — these lock the module. Attribute /
+   * trait minimums are handled separately (warn-only) by #moduleCard. */
+  #stageFourPrereqStatus(sys) {
+    const p = sys.prerequisites || {};
+    const cat = affiliationCategory(this.#state.affiliationKey);
+    const reasons = [];
+    const cats = this._asArray(p.affiliationCategories);
+    if (cats.length && !cats.includes(cat)) reasons.push(`requires a ${cats.join(' or ')} affiliation`);
+    const forbid = this._asArray(p.forbidCategories);
+    if (forbid.length && forbid.includes(cat)) reasons.push(`not available to ${forbid.join('/')} characters`);
+    const castes = this._asArray(p.castes);
+    if (castes.length) {
+      const group = this.#characterCasteGroup();
+      if (!castes.includes(group)) reasons.push(`requires the ${castes.join(' or ')} caste`);
+    }
+    // Training requirement: a specific Field, a Field of a given type, OR a prior
+    // module — any listed satisfies the requirement.
+    const reqFields = this._asArray(p.fields), reqTypes = this._asArray(p.fieldTypes), reqModules = this._asArray(p.modules);
+    if (reqFields.length || reqTypes.length || reqModules.length) {
+      const chosenFields = this.#chosenFieldNames();
+      const names = this.#takenModuleNames();
+      const hasField = reqFields.some(f => chosenFields.has(f));
+      const hasType = reqTypes.some(t => [...chosenFields].some(f => SKILL_FIELDS[f]?.type === t));
+      const hasModule = reqModules.some(r => [...names].some(n => n.includes(r) || r.includes(n)));
+      const ok = (reqFields.length && hasField) || (reqTypes.length && hasType) || (reqModules.length && hasModule);
+      if (!ok) {
+        const bits = [];
+        if (reqFields.length) bits.push(`the ${reqFields.join('/')} Field`);
+        if (reqTypes.length) bits.push(`a ${reqTypes.join('/')} Field`);
+        if (reqModules.length) bits.push(`the ${reqModules.join(' or ')} module`);
+        reasons.push(`requires ${bits.join(' or ')}`);
+      }
+    }
+    return { met: reasons.length === 0, reason: reasons.length ? `Locked — ${reasons.join('; ')}.` : '' };
+  }
+
   /** First selected module in a stage that requires a variant but has none chosen. */
   #missingRequiredVariant(stage) {
     const sel = this.#choices.modules[stage];
-    const ids = Array.isArray(sel) ? sel : (sel ? [sel] : []);
+    let ids = Array.isArray(sel) ? sel : (sel ? [sel] : []);
+    // Stage 4 stores { iid, id } instance objects; other stages store id strings.
+    ids = ids.map(x => (x && typeof x === 'object') ? x.id : x);
     return this.#missingRequiredVariantFor(this.#modulesCache?.[stage], ids);
   }
 
@@ -951,6 +1371,26 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       const slot = Number(parts[1]), field = parts[2];
       (spendSkills[slot] ??= { key: '', xp: '' })[field] = v;
     }
+    // Leftover-pool trait spend: name = "spendtrait::<slot>::<field>"
+    let spendTraitChanged = false;
+    const spendTraits = [];
+    for (const [k, v] of Object.entries(data)) {
+      if (!k.startsWith('spendtrait::')) continue;
+      spendTraitChanged = true;
+      const parts = k.split('::');
+      const slot = Number(parts[1]), field = parts[2];
+      (spendTraits[slot] ??= { key: '', xp: '' })[field] = v;
+    }
+    // Buy Additional XP via negative Traits: name = "buytrait::<slot>::<field>"
+    let buyChanged = false;
+    const buys = [];
+    for (const [k, v] of Object.entries(data)) {
+      if (!k.startsWith('buytrait::')) continue;
+      buyChanged = true;
+      const parts = k.split('::');
+      const slot = Number(parts[1]), field = parts[2];
+      (buys[slot] ??= { name: '', tp: '' })[field] = v;
+    }
 
     // Subskill choices: a "subskill::<key>" select (or text) plus, when the
     // select is on "Other…", a "subskillother::<key>" free-text field.
@@ -986,9 +1426,12 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     }
     if (lumpChanged) {
       for (const [sk, rows] of Object.entries(lump)) {
+        // Keep a row once it has EITHER a target or an amount, so a dropdown
+        // choice sticks before the amount is typed (and vice-versa). The amount
+        // is only actually allocated in #rebuildState when key && amount > 0.
         this.#choices.lumpFlexible[sk] = rows
           .map(r => ({ kind: r?.kind || '', key: r?.key || '', amount: Number(r?.amount) || 0 }))
-          .filter(r => r.key && r.amount > 0);
+          .filter(r => r.key || r.amount > 0);
       }
     }
     if (spendChanged) {
@@ -996,10 +1439,28 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
         .map(s => ({ key: s?.key || '', xp: Number(s?.xp) || 0 }))
         .filter(s => s.key && s.xp > 0);
     }
-    if (flexChanged || lumpChanged || spendChanged || subChanged) {
+    if (spendTraitChanged) {
+      this.#choices.freeSpend.traits = spendTraits
+        .map(t => ({ key: t?.key || '', xp: Number(t?.xp) || 0 }))
+        .filter(t => t.key && t.xp > 0);
+    }
+    if (buyChanged) {
+      this.#choices.boughtTraits = buys
+        .map(b => ({ name: b?.name || '', tp: Number(b?.tp) || 0 }))
+        .filter(b => b.name && b.tp < 0);
+    }
+    if (flexChanged || lumpChanged || spendChanged || spendTraitChanged || buyChanged || subChanged) {
       await this.#rebuildState();
       this.render();
     }
+  }
+
+  /** Toggle optimization for a category (attributes / traits / skills). */
+  static async #onToggleOptimize(event, target) {
+    const cat = target.dataset.cat;
+    if (cat in this.#choices.optimize) this.#choices.optimize[cat] = !this.#choices.optimize[cat];
+    await this.#rebuildState();
+    this.render();
   }
 
   static async #onBack() { if (this.#step > 0) { this.#step -= 1; this.render(); } }
@@ -1066,6 +1527,9 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
   static async #onSelectPhenotype(event, target) {
     this.#choices.phenotypeKey = target.dataset.key || '';
     this.#state.phenotype = this.#choices.phenotypeKey;
+    // Rebuild so the phenotype's attribute caps are re-applied to any leftover
+    // free-spend (otherwise earlier spends stay clamped to the old caps).
+    await this.#rebuildState();
     this.render();
   }
 
@@ -1090,6 +1554,15 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     if (i === -1) {
       // Stage 3: block a second school of the same type (Officer is exempt).
       if (stage === 3 && await this.#stageThreeTypeConflict(id)) return;
+      // Stage 3: block OCS until its prior-schooling prerequisite is met.
+      if (stage === 3) {
+        const byStage = await this.#loadModules();
+        const m = (byStage[3] || []).find(x => x.id === id);
+        if (m?.system.schoolType === 'officer' && !this.#ocsPrereqMet()) {
+          ui.notifications?.warn('Officer Candidate School requires a prior Intelligence, Police or Military school with a Basic and an Advanced Field.');
+          return;
+        }
+      }
       list.push(id);
     } else {
       list.splice(i, 1);
@@ -1152,6 +1625,39 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     return (this.#choices.fields[moduleId] ??= { basic: '', advanced: [], special: [] });
   }
 
+  /** Stage 4: add an instance of a Real Life module (repeatable → multiple). */
+  static async #onAddStageModule(event, target) {
+    const id = target.dataset.id;
+    const list = (await this.#loadModules())[4] || [];
+    const m = list.find(x => x.id === id);
+    if (!m) return;
+    // Categorical prerequisite gate.
+    if (!this.#stageFourPrereqStatus(m.system).met) {
+      ui.notifications?.warn(this.#stageFourPrereqStatus(m.system).reason.replace(/^Locked — /, ''));
+      return;
+    }
+    // Non-repeatable modules can be taken only once.
+    if (m.system.repeatable === false && this.#choices.modules[4].some(e => e.id === id)) {
+      ui.notifications?.warn(`${m.name} cannot be repeated.`);
+      return;
+    }
+    // Each instance carries a stable instance id (iid) so that removing one
+    // instance never renumbers the others' derived pool/subskill sourceKeys.
+    this.#choices.modules[4].push({ iid: foundry.utils.randomID(), id });
+    await this.#rebuildState();
+    this.render();
+  }
+
+  /** Stage 4: remove one taken instance by its position in the list. */
+  static async #onRemoveStageInstance(event, target) {
+    const idx = Number(target.dataset.index);
+    if (Number.isInteger(idx) && idx >= 0 && idx < this.#choices.modules[4].length) {
+      this.#choices.modules[4].splice(idx, 1);
+      await this.#rebuildState();
+      this.render();
+    }
+  }
+
   /** Choose (or clear) a module's variant (caste/branch sub-option). */
   static async #onSelectVariant(event, target) {
     const moduleId = target.dataset.module;
@@ -1165,9 +1671,9 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
   static async #onFinish() {
     const pheno = this.#phenotypeEntry();
     const derived = CharacterBuilder.derive(this.#state, pheno);
-    const docs = await this.#selectedModuleDocs();
-    const modulesById = Object.fromEntries(docs.map(d => [d.id, d.system]));
-    const issues = CharacterBuilder.validate(this.#state, { phenotype: pheno, modules: modulesById });
+    const modulesById = await this.#modulesByRecordId();
+    const issues = [...await this.#stageFourUnmetIssues(),
+      ...CharacterBuilder.validate(this.#state, { phenotype: pheno, modules: modulesById })];
     const errors = issues.filter(i => i.severity === SEVERITY.ERROR);
 
     let strict = false;

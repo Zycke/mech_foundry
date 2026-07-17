@@ -95,6 +95,10 @@ export const ATOW_TRAITS = [
   { name: 'Tech Empathy', type: 'positive', tp: '3', desc: 'Intuitive feel for machines; bonus to Technician-style work.' },
   { name: 'Title', type: 'positive', tp: '3 to 10', desc: 'A noble title or Clan Bloodname and its standing.' },
   { name: 'Toughness', type: 'positive', tp: '3', desc: 'Higher damage capacity; harder to put down.' },
+  { name: 'Vehicle', type: 'positive', tp: '1 to 10', desc: 'Owns a personal vehicle; the level reflects its size and quality.' },
+  { name: 'Custom Vehicle', type: 'positive', tp: '1 to 10', desc: 'Owns a customised or bespoke vehicle beyond a standard model.' },
+  { name: 'Bloodname', type: 'positive', tp: '1 to 10', desc: 'Holds a Clan Bloodname and the standing it confers among the warrior caste.' },
+  { name: 'Prosthetic', type: 'positive', tp: '1 to 6', desc: 'A prosthetic limb or implant that restores function lost to a Lost Limb.' },
   // Negative
   { name: 'Animal Antipathy', type: 'negative', tp: '-1', desc: 'Animals distrust the character; penalty to handling them.' },
   { name: 'Bloodmark', type: 'negative', tp: '-5 to -1', desc: 'A price on the character’s head; hunted by bounty hunters.' },
@@ -118,6 +122,7 @@ export const ATOW_TRAITS = [
   { name: 'Unattractive', type: 'negative', tp: '-1', desc: 'Penalty to CHA-based interactions.' },
   { name: 'Unlucky', type: 'negative', tp: '-10 to -2', desc: 'Fate works against the character; reduced Edge benefit.' },
   // Flexible
+  { name: 'Design Quirk', type: 'flexible', tp: '-5 to 5', desc: 'A vehicle or equipment quirk that can help or hinder, depending on the score.' },
   { name: 'Equipped', type: 'flexible', tp: '-1 to 8', desc: 'Starts with (or lacking) personal gear appropriate to the score.' },
   { name: 'Extra Income', type: 'flexible', tp: '-10 to 10', desc: 'A recurring income (or debt) each month.' },
   { name: 'Reputation', type: 'flexible', tp: '-5 to 5', desc: 'A widespread good or ill reputation.' },

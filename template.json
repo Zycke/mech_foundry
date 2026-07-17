@@ -170,7 +170,17 @@
       "variantRequired": false,
       "variants": [],
       "requiresBirthAffiliation": false,
+      "repeatable": true,
+      "noFlexOnRepeat": false,
+      "costByCategory": {},
+      "variantAuto": false,
+      "repeatEffect": {
+        "attributes": {},
+        "skills": [],
+        "traits": []
+      },
       "schoolType": "",
+      "fieldWaivers": [],
       "conditionalXP": {
         "unlessModules": [],
         "fixedXP": {
@@ -201,7 +211,14 @@
       "prerequisites": {
         "attributes": {},
         "skills": {},
-        "traits": {}
+        "traits": {},
+        "affiliationCategories": [],
+        "forbidCategories": [],
+        "castes": [],
+        "fields": [],
+        "fieldTypes": [],
+        "modules": [],
+        "note": ""
       },
       "fixedXP": {
         "attributes": {},

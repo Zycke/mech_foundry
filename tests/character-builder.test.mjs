@@ -8,9 +8,10 @@
  *
  * Exits non-zero on failure so it can gate CI later.
  */
-import { CharacterBuilder as CB, FIELD_SKILL_XP, FIELD_SKILL_COST } from '../module/helpers/character-builder.mjs';
+import { CharacterBuilder as CB, FIELD_SKILL_XP, FIELD_SKILL_COST, affiliationCategory } from '../module/helpers/character-builder.mjs';
 import * as XP from '../module/helpers/xp-math.mjs';
 import { SKILL_FIELDS } from '../module/data/skill-fields.mjs';
+import { ATOW_TRAITS } from '../module/data/atow-lists.mjs';
 
 let failed = 0;
 const ok = (cond, msg) => {
@@ -462,6 +463,292 @@ ok(applyOk, 'all seed modules apply through the engine without error');
   ok(w.traits['Rank'] === 200, 'Military Academy grants Rank +200');
   ok(w.traits['Connections'] === 200, 'the skip-Prep penalty adds Connections +200');
   ok(w.skills["Piloting/'Mech"] === 30, 'the MechWarrior Field grants +30 to Piloting/’Mech');
+
+  // Field-prerequisite data that drives the wizard grey-out.
+  const metWith = (req, chosen) => {
+    const rf = req?.fields || [];
+    return !rf.length || rf.some(f => chosen.has(f));
+  };
+  ok(SKILL_FIELDS['Doctor'].req.fields.includes('Scientist'), 'Doctor Field requires Medical Assistant / Scientist');
+  ok(!metWith(SKILL_FIELDS['Doctor'].req, new Set()), 'Doctor is locked with no prerequisite Field chosen');
+  ok(metWith(SKILL_FIELDS['Doctor'].req, new Set(['Scientist'])), 'Doctor unlocks once Scientist is chosen');
+  // Basic Training vs Basic Training (Naval) gate different Advanced Fields.
+  ok(!metWith(SKILL_FIELDS['MechWarrior'].req, new Set(['Basic Training (Naval)'])), 'MechWarrior stays locked under a Naval Basic Field');
+  ok(metWith(SKILL_FIELDS['Marine'].req, new Set(['Basic Training (Naval)'])), 'Marine unlocks under a Naval Basic Field');
+  // Solaris waives Basic Training for its Cavalry / MechWarrior / Battle Armor Fields.
+  const solaris = schools.find(s => s.name === 'Solaris Internship');
+  ok(solaris.system.fieldWaivers.includes('MechWarrior'), 'Solaris waives the Basic-Training prereq for MechWarrior');
+
+  // Officer Candidate School gating: needs a prior Int/Police/Military school
+  // with a Basic AND an Advanced Field (mirrors CharacterWizard#ocsPrereqMet).
+  const ocs = schools.find(s => s.system.schoolType === 'officer');
+  ok(ocs && ocs.name === 'Officer Candidate School', 'OCS uses the officer school type');
+  const ocsMet = (selected) => selected.some(({ type, fc }) =>
+    ['intelligence', 'military'].includes(type) && fc.basic && fc.advanced.length);
+  ok(!ocsMet([{ type: 'civilian', fc: { basic: 'General Studies', advanced: ['Manager'] } }]),
+    'a civilian school does not satisfy the OCS prerequisite');
+  ok(!ocsMet([{ type: 'military', fc: { basic: 'Basic Training', advanced: [] } }]),
+    'a military school with only a Basic Field does not satisfy OCS');
+  ok(ocsMet([{ type: 'military', fc: { basic: 'Basic Training', advanced: ['MechWarrior'] } }]),
+    'a military school with a Basic + Advanced Field satisfies OCS');
+}
+
+/* ---- Stage 4: Real Life (repeat rule & prereqs) ------------------------- */
+{
+  const s4 = LIFE_MODULE_SEED.filter(m => m.system.stage === 4);
+  ok(s4.length === 24, `all 24 Real Life modules present (found ${s4.length})`);
+  ok(!s4.some(m => /\(Example\)/.test(m.name)), 'Stage 4 example placeholder removed');
+  for (const name of ['Tour of Duty', 'Civilian Job', 'Covert Operations', 'Merchant', 'Travel', 'Agitator', 'Dark Caste']) {
+    ok(s4.some(m => m.name === name), `Stage 4 module present: ${name}`);
+  }
+
+  // Affiliation categories (ATOW p.91).
+  ok(affiliationCategory('davion') === 'innerSphere' && affiliationCategory('comstar') === 'innerSphere', 'Houses & ComStar are Inner Sphere');
+  ok(affiliationCategory('periphery-major') === 'periphery' && affiliationCategory('independent') === 'periphery', 'Periphery realms & Independents are Periphery');
+  ok(affiliationCategory('clan') === 'clan', 'Clans are the Clan category');
+
+  // Repeat rule: a repeat re-awards Skill + Flexible XP but NOT Attribute/Trait.
+  const agitator = s4.find(m => m.name === 'Agitator');
+  const st = CB.createState();
+  CB.applyModule(st, agitator.system, { id: 'a1', name: agitator.name });                 // first take
+  const willAfter1 = st.attributes.wil, toughAfter1 = st.traits['Toughness'], actAfter1 = st.skills['Acting'], spent1 = st.spent;
+  CB.applyModule(st, agitator.system, { id: 'a2', name: agitator.name }, { repeat: true }); // repeat
+  ok(st.attributes.wil === willAfter1, 'a repeat does not re-award Attribute XP');
+  ok(st.traits['Toughness'] === toughAfter1, 'a repeat does not re-award Trait XP');
+  ok(st.skills['Acting'] === actAfter1 + 50, 'a repeat DOES re-award Skill XP');
+  ok(st.spent === spent1 + 900, 'a repeat still charges the full module cost');
+  // The flexible pool is re-queued on a repeat (two pools now pending).
+  ok(st.flexiblePending.filter(p => p.moduleId === 'a2').length === 1, 'a repeat re-queues the Flexible XP pool');
+
+  // noFlexOnRepeat: Ne'er-do-well grants no Flexible XP on repeat.
+  const neer = s4.find(m => m.name === "Ne'er-do-well");
+  ok(neer.system.noFlexOnRepeat, "Ne'er-do-well is flagged noFlexOnRepeat");
+  const st2 = CB.createState();
+  CB.applyModule(st2, neer.system, { id: 'n2', name: neer.name }, { repeat: true, noFlexOnRepeat: true });
+  ok(st2.flexiblePending.length === 0, "Ne'er-do-well queues no Flexible pools on a repeat");
+
+  // Non-repeatable modules are flagged.
+  ok(s4.find(m => m.name === 'Postgraduate Studies').system.repeatable === false, 'Postgraduate Studies is not repeatable');
+
+  // Categorical prereq data is captured.
+  const cw = s4.find(m => m.name === 'Clan Watch Operative');
+  ok(cw.system.prerequisites.affiliationCategories.includes('clan'), 'Clan Watch Operative requires the Clan category');
+  ok(s4.find(m => m.name === 'Guerilla Insurgent').system.prerequisites.forbidCategories.includes('clan'), 'Guerilla Insurgent forbids the Clan category');
+  ok(s4.find(m => m.name === 'Postgraduate Studies').system.prerequisites.modules.includes('University'), 'Postgraduate Studies requires the University module');
+  ok(s4.find(m => m.name === 'To Serve and Protect').system.prerequisites.fields.includes('Detective'), 'To Serve and Protect requires a Police/Detective Field');
+
+  // Wizard-style instance application: two takes of Tour of Duty (the 2nd a
+  // repeat) — Trait once, Skill twice, cost twice. Mirrors #applyStageFour.
+  const tour = s4.find(m => m.name === 'Tour of Duty');
+  const inst = CB.createState();
+  const instances = ['tour', 'tour'];
+  const seen = new Map();
+  const spent0 = inst.spent;
+  instances.forEach((id, idx) => {
+    const n = seen.get(id) || 0; seen.set(id, n + 1);
+    CB.applyModule(inst, tour.system, { id: `s4:${idx}:${id}`, name: tour.name }, { repeat: n > 0 });
+  });
+  ok(inst.traits['Connections'] === 25, 'two Tour-of-Duty instances grant its Trait XP once');
+  ok(inst.skills['Career/Soldier'] === 50 * 2, 'two Tour-of-Duty instances grant Skill XP twice');
+  ok(inst.spent - spent0 === 800 * 2, 'two Tour-of-Duty instances each cost full price');
+
+  // Solaris prior-module references point at the real Stage-3 school name.
+  ok(s4.find(m => m.name === 'Solaris Insider').system.prerequisites.modules.includes('Solaris Internship'),
+    'Solaris Insider references the Solaris Internship module by its real name');
+}
+
+/* ---- Real Life: caste-group prereq mapping (Clan castes) ----------------- */
+{
+  // The caste families Stage-4 prereqs use must cover the ten Clan castes.
+  const CASTE_GROUPS = {
+    warrior: ['mechwarrior', 'elemental', 'elemental-adv', 'aerospace', 'aerospace-naval', 'warrior-other'],
+    scientist: ['scientist'], technician: ['technician'], merchant: ['merchant'], laborer: ['laborer']
+  };
+  const invading = LIFE_MODULE_SEED.find(m => m.name === 'Invading Clan');
+  const allCastes = invading.system.variants.map(v => v.key);
+  const grouped = new Set(Object.values(CASTE_GROUPS).flat());
+  ok(allCastes.every(c => grouped.has(c)), 'every Clan caste maps to a caste family');
+  const groupOf = (k) => Object.entries(CASTE_GROUPS).find(([, ks]) => ks.includes(k))?.[0] || '';
+  ok(groupOf('mechwarrior') === 'warrior' && groupOf('scientist') === 'scientist',
+    'caste family lookup returns warrior / scientist correctly');
+}
+
+/* ---- Real Life: sub-modules, cost tiers, repeat effects ------------------ */
+{
+  const s4 = LIFE_MODULE_SEED.filter(m => m.system.stage === 4);
+  const { affiliationCategory: catOf } = { affiliationCategory };
+
+  // Cost tiers (Tour of Duty 700/800/1,000).
+  const tour = s4.find(m => m.name === 'Tour of Duty');
+  const cost = (affKey) => tour.system.costByCategory[catOf(affKey)] ?? tour.system.xpCost;
+  ok(cost('davion') === 800 && cost('periphery-major') === 700 && cost('clan') === 1000,
+    'Tour of Duty cost tiers resolve to 800 / 700 / 1,000 by affiliation category');
+
+  // Auto sub-module matching (mirrors CharacterWizard#matchAutoVariant).
+  const match = (sys, { cat, casteGroup, key, subKey, affName }) => {
+    const asA = v => Array.isArray(v) ? v : (v == null ? [] : [v]);
+    return (sys.variants || []).find(v => {
+      const m = v.match || {};
+      if (asA(m.categories).length && !m.categories.includes(cat)) return false;
+      if (asA(m.affiliationKeys).length && !m.affiliationKeys.includes(key)) return false;
+      if (asA(m.castes).length && !m.castes.includes(casteGroup)) return false;
+      if (asA(m.subAffiliations).length && !m.subAffiliations.includes(subKey)) return false;
+      if (asA(m.affiliationNames).length && !m.affiliationNames.some(nm => (affName || '').includes(nm))) return false;
+      return true;
+    }) || null;
+  };
+  ok(match(tour.system, { cat: 'periphery' })?.key === 'periphery', 'a Periphery character auto-selects the Periphery Tour');
+  ok(match(tour.system, { cat: 'clan' })?.key === 'clan', 'a Clan character auto-selects the Clan Tour');
+
+  const covert = s4.find(m => m.name === 'Covert Operations');
+  ok(match(covert.system, { cat: 'innerSphere', key: 'kurita' })?.name.includes('Draconis'), 'Covert Ops auto-selects the Draconis sub-module by key');
+  const washout = s4.find(m => m.name === 'Clan Warrior Washout');
+  ok(match(washout.system, { casteGroup: 'scientist' })?.key === 'scientist', 'Clan Warrior Washout auto-selects the Scientist caste sub-module');
+  const guerilla = s4.find(m => m.name === 'Guerilla Insurgent');
+  ok(match(guerilla.system, { cat: 'innerSphere', key: 'davion' })?.key === 'general', 'Guerilla Insurgent falls back to the General sub-module');
+
+  // Repeat effect data.
+  ok(s4.find(m => m.name === 'Solaris Insider').system.repeatEffect.traits.some(t => t.name === 'In For Life' && t.xp === -100),
+    'Solaris Insider applies In For Life -100 on repeat');
+
+  // Field-constrained pools carry the fromFields flag + field-type filter.
+  const perTour = tour.system.variants.find(v => v.key === 'periphery');
+  const fp = perTour.flexibleXP.find(p => p.fromFields);
+  ok(fp && fp.fieldTypes.includes('military'), 'the Periphery Tour Military-Field pool is fromFields/military');
+}
+
+/* ---- Finalization: opposed traits, optimization, buying XP -------------- */
+{
+  // Opposed-trait canceling (Toughness +250 vs Glass Jaw -100 -> Toughness 150).
+  const s = CB.createState();
+  s.traits['Toughness'] = 250; s.traits['Glass Jaw'] = -100;
+  s.traits['Combat Sense'] = 100; s.traits['Combat Paralysis'] = -100; // net 0 -> both cancel
+  CB.resolveOpposedTraits(s);
+  ok(s.traits['Toughness'] === 150 && s.traits['Glass Jaw'] === undefined, 'opposed pair merges to the net positive Trait');
+  ok(s.traits['Combat Sense'] === undefined && s.traits['Combat Paralysis'] === undefined, 'an even opposed pair cancels both Traits');
+
+  // Illiterate erased by a level-4 Language Skill.
+  const s2 = CB.createState();
+  s2.traits['Illiterate'] = -75; s2.skills['Language/English'] = 120; // level 4 (120 XP)
+  CB.resolveOpposedTraits(s2);
+  ok(s2.traits['Illiterate'] === undefined, 'Illiterate is erased once a Language Skill reaches level 4');
+
+  // Negative Trait with positive XP is stricken, XP returned to the pool.
+  const s3 = CB.createState();
+  s3.traits['Enemy'] = 40;
+  CB.resolveOpposedTraits(s3);
+  ok(s3.traits['Enemy'] === undefined && s3.poolBonus === 40, 'a negative Trait left positive is stripped and its XP returned to the pool');
+
+  // Optimization reclaims excess above the highest fully-attained level.
+  const o = CB.createState();
+  o.attributes.str = 325;                 // score 3 (300) + 25 excess
+  o.skills['Career/Soldier'] = 115;       // level 3 (80) + 35 excess
+  o.skills['Strategy'] = 10;              // below level 0 -> drops, reclaim 10
+  o.traits['Fit'] = 15;                   // < 100, can't reach 1 TP -> reclaim 15
+  const r = CB.optimize(o, { attributes: true, traits: true, skills: true });
+  ok(r.attributes === 25 && r.skills === 45 && r.traits === 15, 'optimize reclaims 25 / 45 / 15 by category');
+  ok(o.attributes.str === 300 && o.skills['Career/Soldier'] === 80 && o.skills['Strategy'] === undefined,
+    'optimized stats sit exactly at their fully-attained level');
+  ok(o.poolBonus === 85, 'reclaimed XP is added to the pool');
+
+  // Selective optimization: skills only leaves attributes untouched.
+  const o2 = CB.createState();
+  o2.attributes.str = 325; o2.skills['Career/Soldier'] = 115;
+  CB.optimize(o2, { skills: true });
+  ok(o2.attributes.str === 325 && o2.skills['Career/Soldier'] === 80, 'skills-only optimization leaves attributes alone');
+
+  // Buying additional XP: capped at 10% of starting XP.
+  const b = CB.createState(); // 5000 pool -> cap 500
+  ok(CB.additionalXPCap(b) === 500, 'the additional-XP cap is 10% of the starting pool');
+  const gained = CB.applyBoughtTraits(b, [{ name: 'In For Life', tp: -3 }, { name: 'Dark Secret', tp: -2 }]);
+  ok(gained === 500 && b.traits['In For Life'] === -300, 'buying In For Life -3 and Dark Secret -2 yields 500 XP at the cap');
+  ok(CB.remaining(b) === 5000 + 500, 'bought XP raises the remaining pool');
+  const over = CB.createState();
+  CB.applyBoughtTraits(over, [{ name: 'Slow Learner', tp: -4 }, { name: 'Glass Jaw', tp: -3 }]); // 400 + 300 > 500
+  ok(over.poolBonus === 400, 'a purchase that would exceed the cap is skipped');
+
+  // The optional detail array reports per-row applied vs requested XP.
+  const det = [];
+  const dstate = CB.createState(); // cap 500
+  CB.applyBoughtTraits(dstate, [{ name: 'Slow Learner', tp: -4 }, { name: 'Glass Jaw', tp: -3 }], null, det);
+  ok(det.length === 2 && det[0].appliedXP === 400 && det[0].requestedXP === 400, 'detail records the first purchase in full');
+  ok(det[1].requestedXP === 300 && det[1].appliedXP === 0, 'detail flags the cap-skipped purchase as applied 0');
+
+  // Trait level limits: a limitOf(name) -> { min, max } in TP clamps buys/spends.
+  const limitOf = (name) => ({
+    'Illiterate': { min: -1, max: 0 },
+    'Enemy': { min: -10, max: 0 },
+    'Fit': { min: 0, max: 2 },
+    'Reputation': { min: -5, max: 5 }
+  })[name] || null;
+
+  // Buying past a Trait's most-negative level is clamped to the limit.
+  const lim = CB.createState();
+  const g = CB.applyBoughtTraits(lim, [{ name: 'Illiterate', tp: -3 }], limitOf); // clamps to -1
+  ok(g === 100 && lim.traits['Illiterate'] === -100, 'buying Illiterate -3 clamps to its -1 maximum (100 XP)');
+
+  // A Trait already at its limit yields nothing further.
+  const lim2 = CB.createState();
+  lim2.traits['Illiterate'] = -100; // already at -1 TP
+  const g2 = CB.applyBoughtTraits(lim2, [{ name: 'Illiterate', tp: -1 }], limitOf);
+  ok(g2 === 0 && lim2.traits['Illiterate'] === -100, 'buying an already-maxed negative Trait adds nothing');
+
+  // clampTraits caps a positive Trait over its max and a negative Trait past its min.
+  const c = CB.createState();
+  c.traits['Fit'] = 300;        // 3 TP, over the +2 cap
+  c.traits['Illiterate'] = -250; // -2.5 TP, past the -1 floor
+  c.traits['Reputation'] = 800;  // 8 TP, over the +5 cap
+  CB.clampTraits(c, limitOf);
+  ok(c.traits['Fit'] === 200, 'clampTraits caps a positive Trait to its maximum');
+  ok(c.traits['Illiterate'] === -100, 'clampTraits caps a negative Trait to its most-negative level');
+  ok(c.traits['Reputation'] === 500, 'clampTraits caps a dual-sign Trait to its positive maximum');
+}
+
+/* ---- Engine robustness (Tier C hardening) ------------------------------- */
+{
+  // resolveSubskill: re-selecting a different subskill reverses the prior grant
+  // instead of double-counting, and re-selecting the same one is idempotent.
+  const s = CB.createState();
+  CB.applyModule(s, { stage: 1, xpCost: 0, fixedXP: { skills: [{ name: 'Survival', subskill: 'Any', xp: 20 }] } },
+    { id: 'mod-a' });
+  const sourceKey = s.subskillPending[0].sourceKey;
+  CB.resolveSubskill(s, sourceKey, 'Wilderness');
+  ok(s.skills['Survival/Wilderness'] === 20, 'subskill choice grants XP under the chosen subskill');
+  CB.resolveSubskill(s, sourceKey, 'Wilderness'); // idempotent
+  ok(s.skills['Survival/Wilderness'] === 20, 're-selecting the same subskill does not double-count');
+  CB.resolveSubskill(s, sourceKey, 'Urban');       // change of mind
+  ok(s.skills['Survival/Urban'] === 20 && (s.skills['Survival/Wilderness'] || 0) === 0,
+    'changing the subskill reverses the previous grant');
+
+  // removeModule clears the module's pending subskill grants.
+  const s2 = CB.createState();
+  CB.applyModule(s2, { stage: 1, xpCost: 0, fixedXP: { skills: [{ name: 'Career', subskill: 'Any', xp: 10 }] } },
+    { id: 'mod-b' });
+  ok(s2.subskillPending.length === 1, 'a Skill/Any grant queues a pending subskill');
+  CB.removeModule(s2, 'mod-b');
+  ok(s2.subskillPending.length === 0, 'removeModule also clears orphaned subskillPending entries');
+
+  // spendPool guards: unknown attribute key and empty key both return false.
+  const s3 = CB.createState();
+  ok(CB.spendPool(s3, { kind: 'attribute', key: 'zzz', xp: 100 }) === false, 'spendPool rejects an unknown attribute key');
+  ok(CB.spendPool(s3, { kind: 'skill', key: '', xp: 20 }) === false, 'spendPool rejects an empty key');
+  ok(s3.spent === 0, 'a rejected spend does not touch the pool');
+
+  // applyBoughtTraits ignores a nameless row instead of creating an "undefined" Trait.
+  const s4 = CB.createState();
+  CB.applyBoughtTraits(s4, [{ tp: -2 }]);
+  ok(s4.traits['undefined'] === undefined && s4.poolBonus === 0, 'a nameless bought Trait row is ignored');
+}
+
+/* ---- Data cross-reference integrity ------------------------------------- */
+{
+  const badComms = Object.entries(SKILL_FIELDS)
+    .flatMap(([name, def]) => def.skills.filter(s => /^Comms\//.test(s)).map(s => `${name}:${s}`));
+  ok(badComms.length === 0, `no Skill Field references a non-existent "Comms" skill (found: ${badComms.join(', ')})`);
+
+  const traitNames = new Set(ATOW_TRAITS.map(t => t.name));
+  ok(['Vehicle', 'Custom Vehicle', 'Bloodname', 'Prosthetic', 'Design Quirk'].every(n => traitNames.has(n)),
+    'previously-missing granted Traits are now defined in ATOW_TRAITS');
 }
 
 /* ---- Result ------------------------------------------------------------- */

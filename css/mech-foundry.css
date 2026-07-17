@@ -5673,6 +5673,23 @@
 .mech-foundry .wizard-step.done { color: var(--mf-ok); }
 .mech-foundry .wizard-step.done .step-index { border-color: var(--mf-ok); color: var(--mf-ok); }
 
+/* ---- Live attribute bar ----------------------------------- */
+.mech-foundry .wizard-attrbar {
+  display: flex; gap: 4px; padding: 5px 10px; flex: 0 0 auto;
+  border-bottom: 1px solid var(--mf-line); background: var(--mf-panel);
+}
+.mech-foundry .wizard-attrbar .ab-cell {
+  flex: 1 1 0; display: flex; flex-direction: column; align-items: center;
+  border: 1px solid var(--mf-line); border-radius: 3px; padding: 2px 0; min-width: 0;
+}
+.mech-foundry .wizard-attrbar .ab-key {
+  font-family: var(--mf-font-head); font-size: 0.64em; letter-spacing: 0.05em;
+  color: var(--mf-ink-dim); text-transform: uppercase;
+}
+.mech-foundry .wizard-attrbar .ab-val { font-family: var(--mf-font-head); font-size: 1.05em; color: var(--mf-amber-2); line-height: 1; }
+.mech-foundry .wizard-attrbar .ab-cell.capped { border-color: var(--mf-amber); }
+.mech-foundry .wizard-attrbar .ab-cell.capped .ab-val { color: var(--mf-amber); }
+
 /* ---- Body ------------------------------------------------- */
 .mech-foundry .wizard-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 14px 16px; }
 .mech-foundry .wizard-panel h2 {
@@ -5952,3 +5969,45 @@
 .mech-foundry .field-card .field-skillcount { color: var(--mf-ink-dim); font-size: 0.72em; }
 .mech-foundry .field-card.selected { border-color: var(--mf-amber); }
 .mech-foundry .field-card.is-disabled { opacity: 0.4; cursor: not-allowed; pointer-events: none; }
+/* Field-prereq locked: a touch more visible than a plain cap-disable, so the
+   "Locked / Requires …" reason stays readable. */
+.mech-foundry .field-card.field-locked { opacity: 0.6; border-style: dashed; }
+.mech-foundry .field-card.field-locked .badge-illegal { color: var(--mf-danger); }
+
+/* ---- Wizard: Stage-4 Real Life instances ---- */
+.mech-foundry .module-card .instance-count {
+  font-family: var(--mf-font-head); color: var(--mf-amber-2); font-size: 0.9em;
+  border: 1px solid var(--mf-amber); border-radius: 3px; padding: 0 5px; margin-left: 4px;
+}
+.mech-foundry .module-card .add-flag { margin-left: auto; color: var(--mf-ink-dim); }
+.mech-foundry .instance-list .s4-instances { list-style: none; margin: 4px 0 0; padding: 0; counter-reset: s4; }
+.mech-foundry .instance-list .s4-instances li {
+  display: flex; align-items: center; gap: 8px; padding: 3px 6px; border-bottom: 1px solid var(--mf-line);
+}
+.mech-foundry .instance-list .s4-instances li::before {
+  counter-increment: s4; content: counter(s4); font-family: var(--mf-font-head);
+  color: var(--mf-ink-dim); font-size: 0.8em; min-width: 1.2em; text-align: right;
+}
+.mech-foundry .instance-list .s4-name { flex: 1 1 auto; }
+.mech-foundry .instance-list .s4-repeat { color: var(--mf-ink-dim); font-size: 0.76em; font-style: italic; }
+.mech-foundry .instance-list .s4-remove {
+  flex: 0 0 auto; border: 1px solid var(--mf-line); border-radius: 3px; background: transparent;
+  color: var(--mf-danger); cursor: pointer; width: 22px; height: 22px; line-height: 1;
+}
+.mech-foundry .instance-list .s4-remove:hover { border-color: var(--mf-danger); }
+.mech-foundry .instance-list li.s4-unmet .s4-name { color: var(--mf-danger); }
+.mech-foundry .instance-list .s4-warn { color: var(--mf-danger); font-size: 0.76em; }
+.mech-foundry .over-row { color: var(--mf-danger); }
+
+/* ---- Wizard: Finalize (optimize + buy additional XP) ---- */
+.mech-foundry .optimize-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 4px 0 8px; }
+.mech-foundry .opt-toggle {
+  display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; cursor: pointer;
+  border: 1px solid var(--mf-line); border-radius: 3px; background: var(--mf-panel); color: var(--mf-ink-dim);
+  font-family: var(--mf-font-head); font-size: 0.82em;
+}
+.mech-foundry .opt-toggle.on { border-color: var(--mf-amber); color: var(--mf-amber-2); }
+.mech-foundry .opt-toggle .opt-amt { color: var(--mf-ok); }
+.mech-foundry .opt-total { color: var(--mf-ok); font-family: var(--mf-font-head); font-size: 0.82em; }
+.mech-foundry .spend-skill-row .buy-xp { color: var(--mf-ok); font-family: var(--mf-font-head); font-size: 0.82em; align-self: center; }
+.mech-foundry .spend-skill-row .buy-note { color: var(--mf-danger); font-size: 0.74em; align-self: center; }

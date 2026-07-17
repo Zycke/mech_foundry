@@ -10,6 +10,13 @@
     {{/each}}
   </nav>
 
+  {{!-- Live attribute totals (for reading prerequisites at a glance) --}}
+  <div class="wizard-attrbar" data-tooltip="Current attribute scores as built so far">
+    {{#each attributeBar}}
+    <span class="ab-cell {{#if this.capped}}capped{{/if}}"><span class="ab-key">{{this.key}}</span><span class="ab-val">{{this.total}}</span></span>
+    {{/each}}
+  </div>
+
   {{!-- Body --}}
   <section class="wizard-body">
 
@@ -50,7 +57,10 @@
       {{/if}}
 
       {{#if hasSubAffiliations}}
-      <h3 class="spend-sub">Sub-Affiliation <span class="hint-inline">(optional — adds its own XP)</span></h3>
+      <h3 class="spend-sub">Sub-Affiliation <span class="hint-inline">(required — each adds its own XP)</span></h3>
+      {{#if subAffRequired}}
+      <p class="choice-restricted"><i class="fas fa-circle-exclamation"></i> A sub-affiliation must be selected before you can continue.</p>
+      {{/if}}
       <div class="choice-grid">
         {{#each subAffiliations}}
         <button type="button" class="choice-card {{#if this.selected}}selected{{/if}}" data-action="selectSubAffiliation" data-key="{{this.key}}">
@@ -92,7 +102,10 @@
         </div>
 
         {{#if hasBirthSubAffiliations}}
-        <h3 class="spend-sub">Birth Sub-Affiliation <span class="hint-inline">(optional — adds its own XP)</span></h3>
+        <h3 class="spend-sub">Birth Sub-Affiliation <span class="hint-inline">(required — each adds its own XP)</span></h3>
+        {{#if birthSubAffRequired}}
+        <p class="choice-restricted"><i class="fas fa-circle-exclamation"></i> A birth sub-affiliation must be selected before you can continue.</p>
+        {{/if}}
         <div class="choice-grid">
           {{#each birthSubAffiliations}}
           <button type="button" class="choice-card {{#if this.selected}}selected{{/if}}" data-action="selectBirthSubAffiliation" data-key="{{this.key}}">
@@ -121,10 +134,14 @@
     <div class="wizard-panel">
       <h2>Phenotype</h2>
       <p class="hint">Sets attribute modifiers, maximum caps, and bonus traits.</p>
+      <p class="choice-restricted"><i class="fas fa-circle-info"></i> All phenotypes except <strong>Normal Human</strong> are for Clan trueborn characters only.</p>
       <div class="choice-grid">
         {{#each phenotypes}}
         <button type="button" class="choice-card {{#if this.selected}}selected{{/if}}" data-action="selectPhenotype" data-key="{{this.key}}">
-          <span class="choice-name">{{this.label}}</span>
+          <span class="card-head">
+            <span class="choice-name">{{this.label}}</span>
+            {{#if this.clanOnly}}<span class="badge-illegal" data-tooltip="Clan trueborn characters only"><i class="fas fa-dna"></i> Clan only</span>{{/if}}
+          </span>
           <span class="choice-summary">{{this.modifiers}}</span>
           {{#if this.bonusTraits}}<span class="choice-traits">Traits: {{this.bonusTraits}}</span>{{/if}}
         </button>
@@ -137,18 +154,23 @@
     <div class="wizard-panel">
       <h2>{{stepLabel}}</h2>
       <p class="hint">
-        {{#if multi}}Choose any number of modules for this optional stage.{{else}}Choose exactly one module for this required stage.{{/if}}
-        {{#unless multi}}{{#unless mandatory}} This stage is optional.{{/unless}}{{/unless}}
+        {{#if (eq stage 4)}}Add any number of Real Life modules — most may be repeated (click again to add another). A repeat re-awards only Skill &amp; Flexible XP. This stage is optional.
+        {{else}}{{#if multi}}Choose any number of modules for this optional stage.{{else}}Choose exactly one module for this required stage.{{/if}}
+        {{#unless multi}}{{#unless mandatory}} This stage is optional.{{/unless}}{{/unless}}{{/if}}
       </p>
       {{#if hasModules}}
       <div class="choice-grid">
         {{#each modules}}
-        <button type="button" class="choice-card module-card {{#if this.selected}}selected{{/if}} {{#unless this.legal}}illegal{{/unless}}"
-                data-action="{{#if ../multi}}toggleStageModule{{else}}selectStageModule{{/if}}"
-                data-stage="{{../stage}}" data-id="{{this.id}}">
+        <button type="button" class="choice-card module-card {{#if this.selected}}selected{{/if}} {{#unless this.legal}}illegal{{/unless}} {{#if this.locked}}field-locked is-disabled{{/if}} {{#if this.maxedOut}}is-disabled{{/if}}"
+                data-action="{{#if (eq ../stage 4)}}addStageModule{{else}}{{#if ../multi}}toggleStageModule{{else}}selectStageModule{{/if}}{{/if}}"
+                data-stage="{{../stage}}" data-id="{{this.id}}"
+                {{#if this.locked}}disabled data-tooltip="{{this.lockReason}}"{{else}}{{#if this.maxedOut}}disabled data-tooltip="Cannot be repeated"{{/if}}{{/if}}>
           <span class="card-head">
             <span class="choice-name">{{this.name}}</span>
-            {{#if this.selected}}<span class="selected-flag"><i class="fas fa-check"></i></span>{{/if}}
+            {{#if this.count}}<span class="instance-count">&times;{{this.count}}</span>{{/if}}
+            {{#if this.selected}}{{#unless (eq ../stage 4)}}<span class="selected-flag"><i class="fas fa-check"></i></span>{{/unless}}{{/if}}
+            {{#if this.locked}}<span class="badge-illegal"><i class="fas fa-lock"></i> Locked</span>{{/if}}
+            {{#if (eq ../stage 4)}}{{#unless this.locked}}{{#unless this.maxedOut}}<span class="add-flag" data-tooltip="{{#if this.count}}Add another{{else}}Add{{/if}}"><i class="fas fa-plus"></i></span>{{/unless}}{{/unless}}{{/if}}
           </span>
           <span class="card-meta">
             <span class="cost">{{this.cost}} XP</span>
@@ -162,6 +184,7 @@
           </span>
           {{> "systems/mech-foundry/templates/apps/parts/wizard-grants.hbs"}}
           {{#if this.prereq}}<span class="choice-prereq"><i class="fas fa-lock"></i> Requires {{this.prereq}}</span>{{/if}}
+          {{#if this.locked}}<span class="choice-restricted"><i class="fas fa-lock"></i> {{this.lockReason}}</span>{{/if}}
           {{#unless this.legal}}<span class="choice-restricted"><i class="fas fa-ban"></i> {{this.restrictionText}}</span>{{/unless}}
         </button>
         {{/each}}
@@ -180,6 +203,20 @@
       {{#each schoolFields}}
       {{> "systems/mech-foundry/templates/apps/parts/wizard-field-picker.hbs"}}
       {{/each}}
+      {{/if}}
+
+      {{#if hasStage4Instances}}
+      <div class="variant-picker instance-list">
+        <div class="vp-head"><span class="vp-title">Your Real Life (in order)</span></div>
+        <ol class="s4-instances">
+          {{#each stage4Instances}}
+          <li class="{{#if this.unmet}}s4-unmet{{/if}}">
+            <span class="s4-name">{{this.name}}{{#if this.isRepeat}} <span class="s4-repeat">repeat — Skills &amp; Flexible XP only</span>{{/if}}{{#if this.unmet}} <span class="s4-warn"><i class="fas fa-triangle-exclamation"></i> prerequisite no longer met — not applied</span>{{/if}}</span>
+            <button type="button" class="s4-remove" data-action="removeStageInstance" data-index="{{this.index}}" data-tooltip="Remove"><i class="fas fa-xmark"></i></button>
+          </li>
+          {{/each}}
+        </ol>
+      </div>
       {{/if}}
       {{else}}
       <p class="empty-note"><i class="fas fa-circle-info"></i> No Stage {{stage}} modules in the compendium yet.{{#unless mandatory}} This stage is optional — you can continue.{{/unless}} A GM can add <em>Life Module</em> items for this stage.</p>
@@ -286,9 +323,46 @@
 
     {{#if (eq stepId "spend")}}
     <div class="wizard-panel">
-      <h2>Spend Remaining XP <span class="hint-inline">(optional)</span></h2>
-      <p class="hint">Spend leftover pool XP directly. Attributes cost 100 XP per point (up to the phenotype cap); skills take any amount you enter.</p>
+      <h2>Finalize <span class="hint-inline">(optional)</span></h2>
+      <p class="hint">Optimize leftover XP, buy extra XP with negative Traits, then spend it all on Attributes, Traits and Skills.</p>
 
+      {{!-- 1. Optimize --}}
+      <h3 class="spend-sub">Optimize Leftover XP</h3>
+      <p class="hint">Shave XP each stat holds above its highest fully-attained level back into the pool, to reinvest more efficiently (ATOW p.97).</p>
+      <div class="optimize-row">
+        <button type="button" class="opt-toggle {{#if spend.optimize.attributes}}on{{/if}}" data-action="toggleOptimize" data-cat="attributes">
+          <i class="fas {{#if spend.optimize.attributes}}fa-toggle-on{{else}}fa-toggle-off{{/if}}"></i> Attributes {{#if spend.reclaimed.attributes}}<span class="opt-amt">+{{spend.reclaimed.attributes}}</span>{{/if}}
+        </button>
+        <button type="button" class="opt-toggle {{#if spend.optimize.traits}}on{{/if}}" data-action="toggleOptimize" data-cat="traits">
+          <i class="fas {{#if spend.optimize.traits}}fa-toggle-on{{else}}fa-toggle-off{{/if}}"></i> Traits {{#if spend.reclaimed.traits}}<span class="opt-amt">+{{spend.reclaimed.traits}}</span>{{/if}}
+        </button>
+        <button type="button" class="opt-toggle {{#if spend.optimize.skills}}on{{/if}}" data-action="toggleOptimize" data-cat="skills">
+          <i class="fas {{#if spend.optimize.skills}}fa-toggle-on{{else}}fa-toggle-off{{/if}}"></i> Skills {{#if spend.reclaimed.skills}}<span class="opt-amt">+{{spend.reclaimed.skills}}</span>{{/if}}
+        </button>
+        {{#if spend.reclaimTotal}}<span class="opt-total">{{spend.reclaimTotal}} XP reclaimed</span>{{/if}}
+      </div>
+
+      {{!-- 2. Buy Additional XP --}}
+      <h3 class="spend-sub">Buy Additional XP <span class="hint-inline">(via negative Traits — max {{spend.buyCap}})</span></h3>
+      <p class="hint">Gain up to 10% of your starting XP by taking negative Traits at whole Trait-Point levels (ATOW p.97). <strong>{{spend.buyGained}}</strong> gained, <strong>{{spend.buyLeft}}</strong> available.</p>
+      <div class="spend-skills">
+        {{#each spend.boughtRows}}
+        <div class="spend-skill-row">
+          <select name="buytrait::{{this.idx}}::name" class="value-select">
+            <option value="">— negative Trait —</option>
+            {{#each ../spend.negativeTraitOptions}}
+            <option value="{{this.value}}" {{#if (eq this.value ../name)}}selected{{/if}}>{{this.label}}</option>
+            {{/each}}
+          </select>
+          <input type="number" name="buytrait::{{this.idx}}::tp" value="{{this.tp}}" max="0" step="1" placeholder="TP (−)"/>
+          {{#if this.xp}}<span class="buy-xp">+{{this.xp}} XP</span>{{/if}}
+          {{#if this.reduced}}<span class="buy-note">reduced from +{{this.requestedXp}} (limit/cap)</span>{{/if}}
+          {{#if this.dropped}}<span class="buy-note">not applied — 10% cap reached</span>{{/if}}
+        </div>
+        {{/each}}
+      </div>
+
+      {{!-- 3. Spend --}}
       <h3 class="spend-sub">Attributes</h3>
       <div class="spend-attrs">
         {{#each spend.attributes}}
@@ -319,6 +393,27 @@
         </div>
         {{/each}}
       </div>
+
+      <h3 class="spend-sub">Traits</h3>
+      <div class="spend-skills">
+        {{#each spend.traits}}
+        <div class="spend-skill-row">
+          <select name="spendtrait::{{this.idx}}::key" class="value-select">
+            <option value="">— choose Trait —</option>
+            {{#each ../spend.traitOptions}}
+            <option value="{{this.value}}" {{#if (eq this.value ../key)}}selected{{/if}}>{{this.label}}</option>
+            {{/each}}
+          </select>
+          <input type="number" name="spendtrait::{{this.idx}}::xp" value="{{this.xp}}" min="0" step="10" placeholder="XP"/>
+        </div>
+        {{/each}}
+      </div>
+
+      {{#if spend.hasOverspent}}
+      <p class="choice-restricted"><i class="fas fa-triangle-exclamation"></i> Not enough XP for the following — they were <strong>not applied</strong>:
+        {{#each spend.overspent}}<span class="over-row">{{this.key}} ({{this.xp}} XP){{#unless @last}}, {{/unless}}</span>{{/each}}
+      </p>
+      {{/if}}
     </div>
     {{/if}}
 
@@ -344,10 +439,12 @@
 
       <div class="review-meta">
         <span><strong>Affiliation:</strong> {{#if preview.affiliation}}{{preview.affiliation}}{{#if preview.subAffiliation}} / {{preview.subAffiliation}}{{/if}}{{else}}—{{/if}}</span>
-        <span><strong>Phenotype:</strong> {{#if preview.phenotype}}{{preview.phenotype}}{{else}}—{{/if}}</span>
+        <span><strong>Phenotype:</strong> {{#if preview.phenotypeLabel}}{{preview.phenotypeLabel}}{{else}}—{{/if}}</span>
         <span><strong>Age:</strong> {{preview.age}}</span>
         <span><strong>Modules:</strong> {{moduleCount}}</span>
         <span><strong>XP:</strong> {{preview.spent}} spent / {{preview.remaining}} left</span>
+        {{#if reclaimTotal}}<span data-tooltip="XP reclaimed by optimizing leftover points"><strong>Optimized:</strong> +{{reclaimTotal}} XP</span>{{/if}}
+        {{#if additionalXP}}<span data-tooltip="XP bought via negative Traits (ATOW p.97)"><strong>Bought:</strong> +{{additionalXP}} XP</span>{{/if}}
         <span data-tooltip="From the Wealth Trait (default 1,000). Unspent C-bills are kept as starting cash."><strong>C-Bills:</strong> {{numberFormat wealth.cbills}}</span>
         <span data-tooltip="From the Equipped Trait: the maximum Tech/Availability/Legality rating of gear you may buy at creation."><strong>Gear rating:</strong> {{wealth.rating}}</span>
       </div>

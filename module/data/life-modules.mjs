@@ -103,6 +103,7 @@ const school = (name, schoolType, xpCost, s = {}) => ({
   system: {
     stage: 3, moduleType: 'education', affiliationKey: '', xpCost, time: 0,
     schoolType,
+    fieldWaivers: s.fieldWaivers || [],
     conditionalXP: s.conditional || { unlessModules: [], fixedXP: { attributes: {}, skills: [], traits: [] } },
     fields: {
       basic: s.basic || { time: 0, options: [] },
@@ -115,6 +116,43 @@ const school = (name, schoolType, xpCost, s = {}) => ({
     fixedXP: { attributes: s.attrs || {}, skills: s.skills || [], traits: s.traits || [] },
     flexibleXP: s.flex || [],
     grantsFields: [], notes: s.notes || '', pageRef: s.pageRef || 'ATOW pp.82-83',
+    description: s.desc || ''
+  }
+});
+/** A Stage-4 Real Life module (ATOW pp.84-91). Repeatable by default; on a
+ * repeat only Skill + Flexible XP re-apply (the engine handles that). Prereqs
+ * may be categorical (affiliation category / caste / possessed Field / prior
+ * module) as well as the usual attribute/trait minimums. */
+/** A Stage-4 auto sub-module (applied automatically when its `match` fits the
+ * character's affiliation category / key / caste / sub-affiliation / clan kind). */
+const vsub = (key, name, match, s = {}) => ({
+  key, name, match, xpCost: 0,
+  fixedXP: { attributes: s.attrs || {}, skills: s.skills || [], traits: s.traits || [] },
+  flexibleXP: s.flex || []
+});
+/** A flexible pool constrained to Skills the character gained from Stage-3
+ * Fields of the given type(s) ('military' | 'intelligence' | 'civilian'). */
+const fieldPool = (amount, count, fieldTypes, note) => ({ amount, count, targets: 'skills', fromFields: true, fieldTypes, note });
+const real = (name, xpCost, s = {}) => ({
+  name, img: IMG, type: 'lifeModule',
+  system: {
+    stage: 4, moduleType: 'reallife', affiliationKey: '', xpCost, time: s.time || 0,
+    repeatable: s.repeatable !== false,
+    noFlexOnRepeat: !!s.noFlexOnRepeat,
+    costByCategory: s.costByCategory || {},
+    variantAuto: !!s.variantAuto,
+    repeatEffect: s.repeatEffect || { attributes: {}, skills: [], traits: [] },
+    restrictedToAffiliations: s.restricted || [],
+    variantLabel: s.variantLabel || '', variants: s.variants || [],
+    prerequisites: {
+      attributes: s.reqAttrs || {}, skills: s.reqSkills || {}, traits: s.reqTraits || {},
+      affiliationCategories: s.reqCategories || [], forbidCategories: s.forbidCategories || [],
+      castes: s.reqCastes || [], fields: s.reqFields || [], fieldTypes: s.reqFieldTypes || [], modules: s.reqModules || [],
+      note: s.reqNote || ''
+    },
+    fixedXP: { attributes: s.attrs || {}, skills: s.skills || [], traits: s.traits || [] },
+    flexibleXP: s.flex || [],
+    grantsFields: [], notes: s.notes || '', pageRef: s.pageRef || 'ATOW pp.84-91',
     description: s.desc || ''
   }
 });
@@ -547,7 +585,7 @@ export const LIFE_MODULE_SEED = [
       saff('coyote', 'Coyote', {
         attrs: { int: 100, wil: -60, edg: 25 }, traits: [tr('Equipped', 25), tr('Reputation', -60)],
         skills: [sk('Interest', 15, 'Coyote Rituals'), sk('Protocol', 10, 'Coyote'), sk('Survival', 10, 'Any')],
-        flex: [flex(10, 1, 'traits', 'choose one: Custom Vehicle, Natural Aptitude/Computers, Natural Aptitude/Technician/Any or Vehicle Level', ['Custom Vehicle', 'Natural Aptitude/Computers', 'Natural Aptitude/Technician/Any', 'Vehicle Level'])] }),
+        flex: [flex(10, 1, 'traits', 'choose one: Custom Vehicle, Natural Aptitude/Computers, Natural Aptitude/Technician/Any or Vehicle', ['Custom Vehicle', 'Natural Aptitude/Computers', 'Natural Aptitude/Technician/Any', 'Vehicle'])] }),
       saff('fire-mandrill', 'Fire Mandrill', {
         attrs: { wil: 25 }, traits: [tr('Compulsion/Fire Mandrill Fanaticism', -100), tr('Compulsion/Kindraa Fanaticism', -100), tr('Enemy/Rival Kindraa', -25), tr('Reputation', -25)],
         skills: [sk('Language', 20, 'Secondary'), sk('Martial Arts', 15), sk('Protocol', 15, 'Fire Mandrill'), sk('Protocol', 25, 'Kindraa')],
@@ -714,7 +752,7 @@ export const LIFE_MODULE_SEED = [
   mod('Trueborn Crèche', 1, 'childhood', 300, 10, {
     restricted: ['clan'],
     attrs: { str: 100, bod: 125, rfl: 125, wil: 100, cha: -75 },
-    traits: [tr('Compulsion/Clan Honor', -100), tr('Phenotype', 0), tr('Slow Learner', -300), tr('Trueborn', 200)],
+    traits: [tr('Compulsion/Clan Honor', -100), tr('Phenotype', 0), tr('Slow Learner', -300), tr('Citizenship/Trueborn', 200)],
     skills: [sk('Interest', 10, 'Clan Remembrance'), sk('Martial Arts', 10), sk('Melee Weapons', 5),
       sk('Protocol', 10, 'Clan'), sk('Small Arms', 5), sk('Swimming', 10)],
     flex: [flex(15, 5, 'any', '+15 XP each to any five Attributes, Traits or Skills')],
@@ -980,6 +1018,7 @@ export const LIFE_MODULE_SEED = [
 
   school('Solaris Internship', 'civilian', 700, {
     prereq: { attributes: {}, skills: {}, traits: {} },
+    fieldWaivers: ['Cavalry', 'MechWarrior', 'Pilot – Battle Armor'],
     attrs: { cha: 150, edg: 50 },
     traits: [tr('Connections', 100), tr('Enemy', -50), tr('Reputation', 100)],
     skills: [sk('Acting', 25), sk('Interest', 30, 'Solaris Games'), sk('Perception', 20), sk('Streetwise', 25, 'Any')],
@@ -1063,33 +1102,429 @@ export const LIFE_MODULE_SEED = [
     notes: 'A bolt-on to an Intelligence, Police or Military school (requires at least one Basic and one Advanced Field there). Grants only the Officer Field and access to the officer (O-grade) ranks. Does not count against the same-type repeat rule.',
     desc: '<p>Officer Candidate School — technically a branch of the character\'s academy, taken after all other Fields, unlocking the officer ranks.</p>'
   }),
-  {
-    name: 'Soldier (Example)',
-    img: IMG,
-    type: 'lifeModule',
-    system: {
-      stage: 4,
-      moduleType: 'reallife',
-      affiliationKey: '',
-      xpCost: 500,
-      time: 4,
-      restrictedToAffiliations: [],
-      prerequisites: { attributes: {}, skills: {}, traits: {} },
-      fixedXP: {
-        attributes: { bod: 25 },
-        skills: [
-          { name: 'Small Arms', xp: 30 },
-          { name: 'Survival', subskill: 'Any', xp: 20 }
-        ],
-        traits: []
-      },
-      flexibleXP: [
-        { amount: 20, count: 3, targets: 'any', choices: [], note: '+20 each to any three Attributes, Traits or Skills' }
-      ],
-      grantsFields: [],
-      notes: 'EXAMPLE Stage 4 module. Each Stage 4 module adds years (aging applied post-creation).',
-      pageRef: '',
-      description: '<p><em>Example</em> adult-career module.</p>'
-    }
-  }
+  /* ==== STAGE 4 — REAL LIFE (ATOW pp.84-91) ============================= */
+  /* Optional and repeatable (a repeat re-awards only Skill + Flexible XP).
+     Prereqs may be categorical (affiliation category / caste / possessed Field
+     / prior module). Affiliation & caste sub-modules within some entries are a
+     Phase-3 follow-up — noted in each module's `notes`. */
+
+  real('Agitator', 900, {
+    time: 4,
+    attrs: { wil: 75 },
+    traits: [tr('Bloodmark', -50), tr('Gregarious', 80), tr('Toughness', 80), tr('Reputation', -150)],
+    skills: [sk('Acting', 50), sk('Disguise', 75), sk('Driving', 65, 'Any'), sk('Leadership', 60), sk('Negotiation', 80),
+      sk('Perception', 70), sk('Prestidigitation', 100, 'Any'), sk('Small Arms', 75), sk('Streetwise', 75, 'Affiliation'),
+      sk('Tactics', 40, 'Infantry'), sk('Training', 50)],
+    flex: [lump(125, 'any', 'max +50 XP to any one Attribute')],
+    desc: '<p>Challenging authority by any means necessary — a life of constant peril.</p>'
+  }),
+
+  real('Civilian Job', 600, {
+    time: 6,
+    reqNote: 'Clan characters from any non-warrior caste except Scientist and Dark Caste use this module.',
+    skills: [sk('Administration', 75), sk('Career', 40, 'Any Non-Military'), sk('Computers', 40), sk('Driving', 60, 'Any'),
+      sk('Interest', 50, 'Any'), sk('Interest', 50, 'Any'), sk('Leadership', 40), sk('Negotiation', 30), sk('Protocol', 50, 'Affiliation')],
+    flex: [flex(20, 4, 'skills', '+20 XP to any four Skills in your chosen career Field (else treat as flexible)'), lump(85)],
+    desc: '<p>Honest work in the vast civilian infrastructure — bureaucrat, clerk, loader.</p>'
+  }),
+
+  real('Clan Watch Operative', 1200, {
+    time: 3, restricted: ['clan'], reqCategories: ['clan'], reqCastes: ['warrior', 'scientist', 'technician'],
+    attrs: { int: 70, rfl: 50, cha: -75 },
+    traits: [tr('Connections', 100), tr('Dark Secret', -50), tr('In For Life', -100), tr('Reputation', -50)],
+    skills: [sk('Acting', 30), sk('Computers', 75), sk('Cryptography', 50), sk('Demolitions', 40), sk('Martial Arts', 75),
+      sk('Perception', 75), sk('Protocol', 50, 'Affiliation'), sk('Small Arms', 80), sk('Stealth', 50), sk('Streetwise', 50, 'Affiliation'),
+      sk('Tracking', 80, 'Any')],
+    flex: [lump(175)],
+    variantAuto: true,
+    variants: [
+      vsub('homeworld', 'Homeworld Clan', { affiliationNames: ['Homeworld Clan'] }, {
+        skills: [sk('Career', 60, 'Soldier'), sk('Interrogation', 50), sk('Investigation', 50), sk('Melee Weapons', 40), sk('Protocol', 75, 'Any Clan'),
+          sk('Security Systems', 35, 'Any'), sk('Streetwise', 50, 'Any Homeworld Clan'), sk('Survival', 25, 'Any'), sk('Technician', 40, 'Any')]
+      }),
+      vsub('invader', 'Invading Clan', { affiliationNames: ['Invading Clan'] }, {
+        traits: [tr('Equipped', 50), tr('Dark Secret', -50)],
+        skills: [sk('Computers', 50), sk('Disguise', 35), sk('Interrogation', 75), sk('Investigation', 75), sk('Negotiation', 40),
+          sk('Perception', 50), sk('Streetwise', 50, 'Any Invader Clan or Inner Sphere'), sk('Survival', 50, 'Any')]
+      })
+    ],
+    notes: 'Homeworld / Invader Clan sub-modules apply automatically. Warrior, Scientist or Technician castes only.',
+    desc: '<p>The Clans\' grudging foray into espionage — spycraft the warrior castes disdain.</p>'
+  }),
+
+  real('Clan Warrior Washout', 400, {
+    time: 2, repeatable: false, restricted: ['clan'], reqCategories: ['clan'], reqModules: ['Freeborn Sibko', 'Trueborn Sibko'],
+    attrs: { cha: -25, wil: -50 },
+    traits: [tr('Compulsion/Any', -25), tr('Reputation', -150)],
+    skills: [sk('Career', -30, 'Soldier'), sk('Computers', 25), sk('Protocol', 80, 'Affiliation'), sk('Survival', 75, 'Any')],
+    flex: [lump(185)],
+    variantLabel: 'New Caste', variantRequired: true,
+    variants: [
+      vr('scientist', 'Scientist Caste', 0, {
+        attrs: { int: 50, rfl: 25 }, traits: [tr('Dark Secret', -50)],
+        skills: [sk('Administration', 75), sk('Interest', 50, 'Any'), sk('Investigation', 75), sk('MedTech', 50, 'Any'), sk('Science', 75, 'Any'), sk('Surgery', 25)]
+      }),
+      vr('technician', 'Technician Caste', 0, {
+        attrs: { rfl: 25, str: 50 }, traits: [tr('Impatient', -50)],
+        skills: [sk('Communications', 75, 'Any'), sk('Interest', 50, 'Any'), sk('Perception', 75), sk('Technician', 75, 'Any'), sk('Technician', 50, 'Any'), sk('Technician', 25, 'Any')]
+      }),
+      vr('merchant', 'Merchant Caste', 0, {
+        attrs: { wil: 70 },
+        skills: [sk('Acting', 45), sk('Administration', 40), sk('Appraisal', 70), sk('Interest', 35, 'Any'), sk('Leadership', 40), sk('Negotiation', 50), sk('Streetwise', 25, 'Affiliation')]
+      }),
+      vr('laborer', 'Laborer Caste', 0, {
+        attrs: { bod: 75 }, traits: [tr('Dependent', -50)],
+        skills: [sk('Career', 75, 'Any'), sk('Computers', 50), sk('Driving', 75, 'Any'), sk('Interest', 75, 'Any'), sk('Interest', 50, 'Any'), sk('Streetwise', 25, 'Affiliation')]
+      })
+    ],
+    notes: 'Cannot be repeated. Choose the new (lesser) caste the washed-out warrior is assigned to — a required choice. Also -60 XP (-30 to two Clan Warrior Field Skills). Requires a prior Freeborn or Trueborn Sibko.',
+    desc: '<p>Washed out of warrior training and consigned to a lesser caste.</p>'
+  }),
+
+  real('Cloister Training', 700, {
+    time: 3, repeatable: false, restricted: ['clan'], reqCategories: ['clan'], reqCastes: ['warrior'], reqAttrs: { wil: 5 },
+    attrs: { wil: 75 },
+    traits: [tr('Connections', 50), tr('In For Life', -75)],
+    skills: [sk('Interest', 80, 'Clan Remembrance'), sk('Interest', 100, 'Theology'), sk('Interest', 75, 'Any'),
+      sk('Melee Weapons', 50), sk('Perception', 35), sk('Training', 85)],
+    flex: [flex(25, 3, 'skills', '+25 XP to three of your Clan Warrior Field Skills'), lump(150)],
+    notes: 'Cannot be repeated. Clan warrior caste, WIL 5+. Non-Cloud Cobra characters also need Connections +2 TP.',
+    desc: '<p>The spiritual-martial Cloisters of Clan Cloud Cobra.</p>'
+  }),
+
+  real('Combat Correspondent', 700, {
+    time: 4, forbidCategories: ['clan'], reqFields: ['Journalist'],
+    reqNote: 'Any non-Clan affiliation. Must not have the Combat Paralysis Trait.',
+    attrs: { wil: 50, cha: 75 },
+    traits: [tr('Extra Income', 40), tr('Reputation', 30)],
+    skills: [sk('Art', 35, 'Writing'), sk('Career', 50, 'Journalist'), sk('Communications', 30, 'Conventional'), sk('Computers', 20),
+      sk('Investigation', 35), sk('Language', 50, 'Affiliation'), sk('Language', 30, 'Any'), sk('Navigation', 25, 'Any'),
+      sk('Negotiation', 40), sk('Perception', 30), sk('Survival', 35, 'Any'), sk('Technician', 35, 'Electronic')],
+    flex: [lump(90)],
+    desc: '<p>Part soldier, part journalist — front-line battlefield reporting.</p>'
+  }),
+
+  real('ComStar / Word of Blake Service', 900, {
+    time: 5, restricted: ['comstar'],
+    reqNote: 'ComStar or Word of Blake only. Cannot have Lost Limb, Poor Hearing, Poor Vision or TDS above the lowest level.',
+    attrs: { dex: 50, int: 50 },
+    traits: [tr('Combat Sense', 75), tr('In For Life', -100), tr('Tech Empathy', 35)],
+    skills: [sk('Administration', 40), sk('Communications', 55, 'HPG'), sk('Communications', 35, 'Any'), sk('Computers', 35),
+      sk('Language', 25, 'Any'), sk('Martial Arts', 45), sk('Protocol', 35, 'Affiliation'), sk('Protocol', 20, 'Any')],
+    flex: [flex(100, 1, 'traits', 'choose one: Equipped, Vehicle or Wealth', ['Equipped', 'Vehicle', 'Wealth']), lump(50)],
+    variantAuto: true,
+    variants: [
+      vsub('comstar', 'ComStar', { subAffiliations: ['comstar'] }, {
+        attrs: { wil: 25, edg: -25 }, traits: [tr('Equipped', 80), tr('Rank', 80), tr('Compulsion/Hatred of Word of Blake', -50)],
+        skills: [sk('Communications', 15, 'HPG'), sk('Leadership', 20), sk('Negotiation', 15), sk('Technician', 15, 'Any'), sk('Training', 15)],
+        flex: [fieldPool(40, 4, [], '+40 XP to any four of your Field Skills')]
+      }),
+      vsub('word-of-blake', 'Word of Blake', { subAffiliations: ['word-of-blake'] }, {
+        attrs: { int: 25, cha: -25 }, traits: [tr('Equipped', 70), tr('Rank', 70), tr('Compulsion/Hatred of ComStar', -75), tr('Compulsion/Hatred of Clans', -100)],
+        skills: [sk('Communications', 50, 'Any'), sk('Computers', 35), sk('Cryptography', 25), sk('Interest', 50, 'Writings of Jerome Blake'), sk('Interrogation', 40), sk('Perception', 25)],
+        flex: [fieldPool(40, 4, [], '+40 XP to any four of your Field Skills')]
+      })
+    ],
+    notes: 'ComStar / Word of Blake sub-modules apply automatically by sub-affiliation. Members trained in intel/police/military Fields may take Covert Operations / To Serve and Protect / Tour of Duty instead.',
+    desc: '<p>Service to ComStar or the Word of Blake — HPG tech, comms, security and investigation.</p>'
+  }),
+
+  real('Covert Operations', 900, {
+    time: 6, reqCategories: ['innerSphere', 'periphery'],
+    reqNote: 'Requires prior military or intelligence training (a Stage-3 Field or a Tour of Duty with +150 XP in Connections or Leadership). Cannot have Combat Paralysis.',
+    traits: [tr('Alternate ID', 85), tr('Enemy', -25), tr('In For Life', -110), tr('Sixth Sense', 50)],
+    skills: [sk('Acting', 25), sk('Perception', 50), sk('Survival', 75, 'Any')],
+    flex: [flex(50, 2, 'attributes', 'choose two: BOD, RFL, WIL or EDG', ['bod', 'rfl', 'wil', 'edg']),
+      fieldPool(25, 6, ['military', 'intelligence'], '+25 XP to up to six of your Military or Intelligence/Police Field Skills')],
+    variantAuto: true,
+    variants: [
+      vsub('capellan', 'Capellan Confederation', { affiliationKeys: ['capellan'] }, {
+        attrs: { dex: 25 }, traits: [tr('Citizenship', 75), tr('Dark Secret', -50), tr('Fit', 25), tr('Reputation', -50)],
+        skills: [sk('Climbing', 50), sk('Demolitions', 60), sk('Escape Artist', 35), sk('Interrogation', 50), sk('Investigation', 15), sk('Martial Arts', 75),
+          sk('Perception', 25), sk('Science', 40, 'Chemistry'), sk('Stealth', 50), sk('Tactics', 30, 'Any'), sk('Thrown Weapons', 45, 'Blade')]
+      }),
+      vsub('comstar', 'ComStar / Word of Blake / Terran', { affiliationKeys: ['comstar'] }, {
+        attrs: { int: 25 }, traits: [tr('Combat Sense', 50), tr('Fast Learner', 50), tr('Impatient', -50), tr('Reputation', -50)],
+        skills: [sk('Administration', 50), sk('Communications', 50, 'Any'), sk('Computers', 50), sk('Cryptography', 60), sk('Interrogation', 75),
+          sk('Small Arms', 50), sk('Strategy', 50), sk('Tactics', 40, 'Any'), sk('Technician', 50, 'Any')]
+      }),
+      vsub('kurita', 'Draconis Combine', { affiliationKeys: ['kurita'] }, {
+        attrs: { int: 50, wil: 50, cha: -50, edg: -50 }, traits: [tr('Connections', 75), tr('Enemy', -25), tr('Equipped', 50), tr('Reputation', -75)],
+        skills: [sk('Acrobatics', 35, 'Gymnastics'), sk('Climbing', 50), sk('Computers', 25), sk('Cryptography', 40), sk('Interrogation', 60), sk('Investigation', 25),
+          sk('Leadership', 40), sk('Martial Arts', 55), sk('Melee Weapons', 30), sk('Protocol', 40, 'Affiliation'), sk('Stealth', 30), sk('Streetwise', 35, 'Affiliation'), sk('Tactics', 35, 'Any'), sk('Training', 25)],
+        flex: [flex(-50, 1, 'traits', 'choose one penalty: Compulsion/Loyalty to House Kurita or to the Draconis Combine', ['Compulsion/Loyalty to House Kurita', 'Compulsion/Loyalty to Draconis Combine'])]
+      }),
+      vsub('davion', 'Federated Suns', { affiliationKeys: ['davion'] }, {
+        traits: [tr('Combat Sense', 50), tr('Compulsion/Any Addiction', -25), tr('Connections', 40), tr('Enemy', -75), tr('Rank', 50)],
+        skills: [sk('Acrobatics', 20, 'Free-Fall'), sk('Climbing', 35), sk('Computers', 45), sk('Cryptography', 30), sk('Driving', 25, 'Any'), sk('Interrogation', 25),
+          sk('Investigation', 65), sk('Leadership', 20), sk('Navigation', 35, 'Any'), sk('Security Systems', 50, 'Any'), sk('Streetwise', 50, 'Affiliation'), sk('Support Weapons', 30), sk('Tactics', 30, 'Any')]
+      }),
+      vsub('marik', 'Free Worlds League', { affiliationKeys: ['marik'] }, {
+        traits: [tr('Slow Learner', -50), tr('Tech Empathy', 50)],
+        skills: [sk('Administration', 45), sk('Computers', 30), sk('Disguise', 35), sk('Driving', 35, 'Any'), sk('Forgery', 45), sk('Interrogation', 35), sk('Investigation', 40),
+          sk('Martial Arts', 25), sk('MedTech', 35, 'Any'), sk('Protocol', 60, 'Affiliation'), sk('Security Systems', 50, 'Any'), sk('Swimming', 50), sk('Tracking', 65, 'Any')],
+        flex: [flex(50, 1, 'traits', 'choose one pair: Implant/Prosthetic (+Lost Limb) or Attractive (+Dark Secret)', ['Implant/Prosthetic', 'Attractive'])]
+      }),
+      vsub('rasalhague', 'Free Rasalhague', { affiliationKeys: ['rasalhague'] }, {
+        attrs: { wil: 50 }, traits: [tr('Alternate ID', 35), tr('Compulsion/Rasalhague Pride', -75), tr('Equipped', 35), tr('Impatient', -25)],
+        skills: [sk('Cryptography', 35), sk('Demolitions', 50), sk('Disguise', 35), sk('Interrogation', 25), sk('MedTech', 50, 'General'), sk('Melee Weapons', 35),
+          sk('Perception', 25), sk('Security Systems', 40, 'Any'), sk('Small Arms', 50), sk('Stealth', 50), sk('Tactics', 35, 'Infantry'), sk('Technician', 25, 'Any'), sk('Tracking', 25, 'Any')]
+      }),
+      vsub('steiner', 'Lyran Alliance', { affiliationKeys: ['steiner'] }, {
+        attrs: { wil: 30 }, traits: [tr('Connections', 85), tr('Enemy', -45), tr('Introvert', -85), tr('Property', 25), tr('Rank', 85), tr('Reputation', -20)],
+        skills: [sk('Acting', 30), sk('Computers', 50), sk('Cryptography', 35), sk('Driving', 35, 'Any'), sk('Forgery', 20), sk('Investigation', 50),
+          sk('Martial Arts', 40), sk('Negotiation', 50), sk('Strategy', 25), sk('Support Weapons', 25), sk('Tactics', 25, 'Any'), sk('Training', 40)]
+      }),
+      // Independent is a member of the `periphery` category, so its specific
+      // sub-module must precede the generic Periphery one for #matchAutoVariant
+      // (first-match-wins) to reach it.
+      vsub('independent', 'Independent', { affiliationKeys: ['independent'] }, {
+        attrs: { rfl: 75, cha: -50 }, traits: [tr('Bloodmark', -50), tr('Connections', 75), tr('Extra Income', 25), tr('Reputation', -75), tr('Wealth', -50)],
+        skills: [sk('Acting', 50), sk('Climbing', 35), sk('Cryptography', 40), sk('Escape Artist', 75), sk('Interest', 50, 'Any'), sk('Language', 75, 'Any'), sk('Martial Arts', 35),
+          sk('Navigation', 25, 'Any'), sk('Protocol', 45, 'Any'), sk('Science', 25, 'Chemistry'), sk('Small Arms', 25), sk('Streetwise', 35, 'Any'), sk('Tactics', 35, 'Any')]
+      }),
+      vsub('periphery', 'Periphery', { categories: ['periphery'] }, {
+        attrs: { bod: 25, wil: 50 }, traits: [tr('Alternate ID', 50), tr('Compulsion/Gambling', -35), tr('Connections', 25), tr('Introvert', -35)],
+        skills: [sk('Administration', 50), sk('Driving', 50, 'Any'), sk('Disguise', 35), sk('Interrogation', 65), sk('Melee Weapons', 25), sk('Negotiation', 25),
+          sk('Security Systems', 25, 'Any'), sk('Small Arms', 60), sk('Survival', 50, 'Any'), sk('Thrown Weapons', 35, 'Any')]
+      })
+    ],
+    notes: 'The affiliation sub-module applies automatically. Inner Sphere or Periphery only (for Clan covert ops, see Clan Watch Operative). Some sub-modules also carry a paired negative Trait — see the flexible choices.',
+    desc: '<p>Spies, scouts and undercover operatives — the shadowy trade of covert ops.</p>'
+  }),
+
+  real('Dark Caste', 700, {
+    time: 4, restricted: ['clan'], reqCategories: ['clan'],
+    reqNote: 'Any Clan affiliation, but only after leaving the Clans or washing out of training.',
+    attrs: { bod: 25, dex: 25 },
+    traits: [tr('Compulsion/Distrust of Inner Sphere', 75), tr('Reputation', -100), tr('Wealth', -25)],
+    skills: [sk('Acting', 30), sk('Disguise', 50), sk('Escape Artist', 50), sk('Gunnery', 75, 'Any'), sk('Martial Arts', 60),
+      sk('Navigation', 50, 'Any'), sk('Negotiation', 25), sk('Perception', 40), sk('Piloting', 20, 'Any'), sk('Prestidigitation', 25, 'Any'),
+      sk('Protocol', -25, 'Clan'), sk('Running', 30), sk('Stealth', 40), sk('Survival', 45, 'Any'), sk('Technician', 45, 'Any'), sk('Technician', 25, 'Any')],
+    flex: [lump(115)],
+    desc: '<p>The outcast Bandit Caste — drifters and fugitives in the shadows of Clan society.</p>'
+  }),
+
+  real('Explorer', 900, {
+    time: 6,
+    reqNote: 'Inner Sphere characters need 150 XP in Connections; Clan characters must be scientist caste. May not have the TDS Trait.',
+    reqCastes: [], // Clan-only constraint handled by note; open to IS/Periphery/Clan-scientist
+    attrs: { bod: 20, rfl: 30, int: 30, wil: 30 },
+    traits: [tr('G-Tolerance', 50), tr('Good Hearing', 35), tr('Vehicle', 35), tr('Introvert', -40), tr('Wealth', -50)],
+    skills: [sk('Appraisal', 35), sk('Climbing', 25), sk('Communications', 35, 'Any'), sk('Computers', 20), sk('Investigation', 35),
+      sk('Language', 25, 'Affiliation'), sk('Language', 40, 'Any'), sk('Martial Arts', 25), sk('MedTech', 15, 'Any'), sk('Melee Weapons', 30),
+      sk('Navigation', 50, 'Any'), sk('Piloting', 50, 'Any'), sk('Sensor Operations', 55), sk('Survival', 75, 'Any'), sk('Streetwise', 35, 'Any'),
+      sk('Tracking', 25, 'Any'), sk('Zero-G Operations', 15)],
+    flex: [lump(170)],
+    desc: '<p>Charting lost and untapped worlds in search of Star League relics and new resources.</p>'
+  }),
+
+  real('Goliath Scorpion Seeker', 700, {
+    time: 4, restricted: ['clan'], reqCategories: ['clan'], reqCastes: ['warrior'],
+    reqNote: 'Clan Goliath Scorpion affiliation, warrior caste only.',
+    traits: [tr('Connections', 75), tr('In For Life', -25)],
+    skills: [sk('Appraisal', 50), sk('Computers', 65), sk('Interest', 55, 'Archaeology'), sk('Interest', 60, 'Star League History'),
+      sk('Interest', 35, 'Pre-Star League History'), sk('Language', 35, 'Any'), sk('MedTech', 40, 'Any'), sk('Navigation', 35, 'Space'),
+      sk('Perception', 50), sk('Survival', 40, 'Any'), sk('Zero-G Operations', 25)],
+    flex: [lump(160, 'any', 'at least 100 XP must be applied to Attributes or Traits')],
+    desc: '<p>Clan Goliath Scorpion\'s relic-hunting Seekers, roaming as far as the Inner Sphere.</p>'
+  }),
+
+  real('Guerilla Insurgent', 900, {
+    time: 6, forbidCategories: ['clan'],
+    attrs: { str: 100, wil: 100 },
+    traits: [tr('Bloodmark', -50), tr('Combat Sense', 30), tr('Connections', 50), tr('Equipped', 30),
+      tr('Compulsion/Hatred for Authority', -100), tr('Dependent', -25), tr('Unlucky', -35)],
+    skills: [sk('Computers', 45), sk('Demolitions', 65), sk('Disguise', 40), sk('Escape Artist', 25), sk('Melee Weapons', 20),
+      sk('Perception', 25), sk('Prestidigitation', 50, 'Any'), sk('Security Systems', 25, 'Any'), sk('Small Arms', 35),
+      sk('Support Weapons', 35), sk('Survival', 35, 'Any')],
+    flex: [lump(180)],
+    variantAuto: true,
+    variants: [
+      vsub('rasalhague', 'Free Rasalhague Insurgent', { affiliationKeys: ['rasalhague'] }, {
+        traits: [tr('Bloodmark', -35), tr('Combat Sense', 40), tr('Lost Limb', -50), tr('Prosthetic', 50)],
+        skills: [sk('Demolitions', 40), sk('Forgery', 40), sk('Leadership', 35), sk('Protocol', 35, 'Rasalhague'), sk('Streetwise', 40, 'Rasalhague'), sk('Tactics', 25, 'Any')]
+      }),
+      vsub('general', 'Guerilla Insurgent (General)', {}, {
+        attrs: { edg: -25 }, traits: [tr('Dark Secret', -50), tr('Enemy', -50), tr('Reputation', 25), tr('Toughness', 25)],
+        skills: [sk('Climbing', 40), sk('Driving', 50, 'Any'), sk('Interrogation', 50), sk('Language', 35, 'Affiliation'), sk('Small Arms', 25), sk('Swimming', 45), sk('Tactics', 50, 'Infantry')]
+      })
+    ],
+    notes: 'The Free Rasalhague or General sub-module applies automatically. Cannot have a Clan affiliation.',
+    desc: '<p>Freedom fighter or terrorist — an armed insurgent, often backed by a foreign power.</p>'
+  }),
+
+  real('Merchant', 900, {
+    time: 4, reqFields: ['Merchant'],
+    reqNote: 'Merchant Field, or +50 XP each in Negotiation and Administration. Diamond Shark warrior-merchants need Clan/Diamond Shark, warrior or merchant caste, no TDS.',
+    attrs: { cha: 50 },
+    traits: [tr('Enemy', -75), tr('Reputation', 50), tr('Wealth', 50)],
+    skills: [sk('Acting', 20), sk('Appraisal', 20), sk('Computers', 15), sk('Interest', 35, 'Any'), sk('Language', 20, 'Affiliation'),
+      sk('Language', 25, 'Any'), sk('Negotiation', 20), sk('Perception', 30), sk('Protocol', 35, 'Any'), sk('Protocol', 15, 'Any'), sk('Zero-G Operations', 10)],
+    flex: [lump(200)],
+    notes: 'The trader type (Free Trader / Merchant Master / Deep Periphery Trader / Diamond Shark) is a player choice rather than affiliation-driven, so its sub-module XP is not yet auto-applied — the base module is complete.',
+    desc: '<p>The trader\'s life of near-constant JumpShip travel — free traders to Diamond Shark warrior-merchants.</p>'
+  }),
+
+  real("Ne'er-do-well", 700, {
+    time: 4, noFlexOnRepeat: true, forbidCategories: ['clan'],
+    reqNote: 'Not available to Clan characters unless they leave the Clans for the Inner Sphere.',
+    attrs: { edg: 75 },
+    traits: [tr('Extra Income', 75), tr('Reputation', -25), tr('Wealth', -50)],
+    skills: [sk('Acting', 25), sk('Appraisal', 25), sk('Art', 35, 'Cooking'), sk('Disguise', 15), sk('Escape Artist', 35),
+      sk('Interest', 40, 'Any'), sk('Interest', 20, 'Any'), sk('Language', 25, 'Any'), sk('Martial Arts', 20), sk('Negotiation', 35),
+      sk('Prestidigitation', 25, 'Pick Pocket'), sk('Running', 35), sk('Streetwise', 25, 'Affiliation'), sk('Survival', 35, 'Any'), sk('Swimming', 10)],
+    flex: [flex(75, 1, 'attributes', '+75 XP to any one other Attribute'), lump(145, 'any', 'may not be applied to Traits')],
+    notes: 'Flexible XP are not awarded on repeats (the cost is unchanged).',
+    desc: '<p>The aimless free spirit — a catch-all for characters who fit no other module.</p>'
+  }),
+
+  real('Organized Crime', 1000, {
+    time: 5,
+    reqNote: 'Clan characters must take a Dark Caste module first, and receive no Attribute/Trait XP from this module.',
+    attrs: { edg: 85 },
+    traits: [tr('Alternate ID', 100), tr('In For Life', -150)],
+    skills: [sk('Acting', 60), sk('Career', 100, 'Syndicate'), sk('Computers', 15), sk('Demolitions', 50), sk('Driving', 30, 'Any'),
+      sk('Escape Artist', 35), sk('Forgery', 35), sk('Interest', 55, 'Any Sport'), sk('Interrogation', 85), sk('Language', 50, 'Syndicate'),
+      sk('Leadership', 25), sk('Martial Arts', 30), sk('Melee Weapons', 45), sk('Negotiation', 35), sk('Perception', 35),
+      sk('Prestidigitation', 35, 'Any'), sk('Protocol', 25, 'Affiliation'), sk('Security Systems', 45, 'Any'), sk('Small Arms', 75),
+      sk('Stealth', 35), sk('Streetwise', 50, 'Affiliation')],
+    flex: [flex(85, 1, 'traits', 'choose one: Dark Secret or Compulsion/Loyalty to Crime Boss', ['Dark Secret', 'Compulsion/Loyalty to Crime Boss']), lump(100)],
+    desc: '<p>The mafia, yakuza, tong or triad — amassing wealth and power by any means.</p>'
+  }),
+
+  real('Postgraduate Studies', 700, {
+    time: 4, repeatable: false, reqModules: ['University'],
+    attrs: { int: 50, wil: -50 },
+    traits: [tr('Connections', 75), tr('Extra Income', 25), tr('Wealth', -100)],
+    skills: [sk('Appraisal', 50), sk('Interest', 120, 'Any Academic'), sk('Interest', 85, 'Any'), sk('Language', 85, 'Affiliation'),
+      sk('Language', 50, 'Any'), sk('Survival', 35, 'Any'), sk('Training', 75), sk('Zero-G Operations', 25)],
+    flex: [lump(175, 'any', 'at least 100 XP to up to four Skills in your Stage-3 University Fields')],
+    notes: 'Cannot be repeated. Requires the University Stage-3 module.',
+    desc: '<p>Hands-on postgraduate fieldwork rounding out a university education.</p>'
+  }),
+
+  real('ProtoMech Pilot Training', 600, {
+    time: 2, repeatable: false, restricted: ['clan'], reqCategories: ['clan'], reqCastes: ['warrior'],
+    reqNote: 'Blood Spirit, Fire Mandrill, Goliath Scorpion, Hell\'s Horses or Snow Raven only. Warrior caste, Aerospace Phenotype, Implant/EI Neural Implant. May not have Combat Paralysis, Glass Jaw, Lost Limb, Poor Hearing, Poor Vision or Slow Learner.',
+    attrs: { rfl: 50 },
+    traits: [tr('Fast Learner', 50), tr('Toughness', 80), tr('Vehicle', 75), tr('Compulsion/Chemical Addiction', -80),
+      tr('Implant/EI Neural Implant', 150), tr('Reputation', -75)],
+    skills: [sk('Career', 15, 'Soldier'), sk('Escape Artist', 20), sk('Interest', 15, 'Neural Implants'), sk('Martial Arts', 30),
+      sk('Melee Weapons', 15), sk('Tactics', 50, 'Infantry'), sk('Tactics', 50, 'Land'),
+      sk('Gunnery', 25, 'ProtoMech'), sk('Piloting', 25, 'ProtoMech'), sk('Navigation', 25, 'Ground'), sk('Sensor Operations', 25), sk('Tactics', 25, 'Land')],
+    flex: [lump(30)],
+    notes: 'Cannot be repeated. The +125 XP Clan ProtoMech Field is folded into the skill list above (+25 to each of its five Skills).',
+    desc: '<p>Washed-out aerospace warriors retrained as ProtoMech pilots.</p>'
+  }),
+
+  real('Scientist Caste Service', 1200, {
+    time: 4, restricted: ['clan'], reqCategories: ['clan'], reqCastes: ['scientist'],
+    attrs: { int: 75, wil: 50, bod: -75 },
+    skills: [sk('Acting', 50), sk('Administration', 75), sk('Career', 100, 'Scientist'), sk('Computers', 70), sk('Cryptography', 50),
+      sk('Interest', 85, 'Clan Genetics'), sk('Interest', 75, 'Any'), sk('Investigation', 95), sk('Language', 45, 'Any'), sk('Leadership', 35),
+      sk('MedTech', 65, 'Any'), sk('Perception', 85), sk('Protocol', 65, 'Affiliation'), sk('Protocol', 35, 'Any Clan'), sk('Science', 85, 'Any'), sk('Training', 85)],
+    flex: [flex(75, 1, 'traits', 'choose one pair: Fast Learner/Combat Paralysis or Natural Aptitude/Dark Secret', ['Fast Learner', 'Natural Aptitude/Any Interest or Science']), lump(50)],
+    notes: 'Clan scientist caste only. The chosen Trait pair also carries a -75 XP negative Trait (Combat Paralysis or Dark Secret).',
+    desc: '<p>Service in the powerful, secretive Clan scientist caste.</p>'
+  }),
+
+  real('Solaris Insider', 825, {
+    time: 4, reqModules: ['Solaris Internship'],
+    reqNote: 'Requires the Solaris Internship (Stable Internship) module, or 200 XP in Connections.',
+    attrs: { wil: 50, cha: 45, edg: 50 },
+    traits: [tr('Compulsion/Gambling', -75), tr('Connections', 150), tr('Enemy', -200), tr('Fit', 50), tr('Property', 75), tr('Reputation', 100), tr('Wealth', 100)],
+    skills: [sk('Administration', 30), sk('Computers', 25), sk('Escape Artist', 15), sk('Forgery', 15), sk('Interest', 20, 'Solaris Games'),
+      sk('Interest', 25, 'Solaris Night Life'), sk('Interest', 15, 'Any'), sk('Prestidigitation', 15, 'Any'), sk('Security Systems', 25, 'Any'),
+      sk('Stealth', 20), sk('Streetwise', 25, 'Solaris VII')],
+    flex: [fieldPool(25, 6, [], '+25 XP to six of your Stage-3 Field Skills'), lump(100)],
+    repeatEffect: { attributes: {}, skills: [], traits: [tr('In For Life', -100)] },
+    notes: 'On repeat, -100 XP is applied to the In For Life Trait automatically.',
+    desc: '<p>A fixer on Solaris VII, brokering the deals behind the arena games.</p>'
+  }),
+
+  real('Solaris VII Games', 900, {
+    time: 4, reqModules: ['Solaris Internship', 'Tour of Duty'], reqFields: ['MechWarrior', 'Cavalry', 'Pilot – Battle Armor'],
+    reqNote: 'Requires Solaris Internship, Tour of Duty, or any module with MechWarrior, Cavalry or Battle Armor training.',
+    attrs: { edg: 100 },
+    traits: [tr('Bloodmark', -25), tr('Enemy', -250), tr('Reputation', 150)],
+    skills: [sk('Acting', 25), sk('Administration', 10), sk('Computers', 10), sk('Escape Artist', 15), sk('Interest', 30, 'Solaris Games'),
+      sk('Interest', 35, 'Solaris Night Life'), sk('Interest', 10, 'Any'), sk('Martial Arts', 20), sk('Streetwise', 25, 'Solaris VII')],
+    flex: [flex(100, 1, 'attributes', '+100 XP to any one other Attribute'),
+      flex(100, 3, 'traits', '+100 XP each to three of: Custom Vehicle, Design Quirk, Equipped, Extra Income, Property, Tech Empathy or Vehicle',
+        ['Custom Vehicle', 'Design Quirk', 'Equipped', 'Extra Income', 'Property', 'Tech Empathy', 'Vehicle']),
+      fieldPool(45, 6, ['military', 'civilian'], '+45 XP to six Skills from your Tech or Military Fields (except Officer)'), lump(125)],
+    repeatEffect: { attributes: {}, skills: [], traits: [tr('In For Life', -150)] },
+    notes: 'On repeat, -150 XP is applied to the In For Life Trait automatically. Also awards a -50 XP Addiction/Gambling Compulsion.',
+    desc: '<p>A gladiator in the arenas of Solaris VII — wealth and glory, betrayal and intrigue.</p>'
+  }),
+
+  real('Think Tank', 900, {
+    time: 4, reqAttrs: { int: 7 }, reqTraits: { Connections: 3 }, reqFields: ['Analysis', 'Doctor', 'Engineer', 'Military Scientist'],
+    reqNote: 'INT 7+, Connections +3 TP, and one or more of the Analysis, Doctor, Engineer or Military Scientist Fields.',
+    attrs: { str: -75, bod: -75, int: 90, wil: 75 },
+    traits: [tr('Connections', 100), tr('Exceptional Attribute/INT', 75), tr('Rank', 75), tr('Wealth', 100), tr('In For Life', -100)],
+    skills: [sk('Administration', 50), sk('Computers', 50), sk('Interest', 120, 'Any Academic'), sk('Interest', 85, 'Any'),
+      sk('Protocol', 30, 'Affiliation'), sk('Science', 30, 'Any'), sk('Technician', 30, 'Any'), sk('Training', 50)],
+    flex: [lump(190, 'any', 'non-military, non-combat Traits and/or Skills only')],
+    desc: '<p>A handpicked genius solving problems and projecting strategy for a powerful patron.</p>'
+  }),
+
+  real('Tour of Duty', 800, {
+    time: 3, reqFieldTypes: ['military'], costByCategory: { periphery: 700, innerSphere: 800, clan: 1000 }, variantAuto: true,
+    reqNote: 'Requires at least one Military Field. Cost by affiliation: 700 Periphery / 800 Inner Sphere / 1,000 Clan.',
+    traits: [tr('Connections', 25)],
+    skills: [sk('Career', 50, 'Soldier'), sk('Martial Arts', 40), sk('Navigation', 40, 'Any'), sk('Protocol', 40, 'Affiliation')],
+    flex: [flex(100, 1, 'traits', 'choose one: Equipped or Vehicle', ['Equipped', 'Vehicle']), lump(100)],
+    variants: [
+      vsub('periphery', 'Periphery Tour', { categories: ['periphery'] }, {
+        traits: [tr('Enemy', -50), tr('Toughness', 50)],
+        skills: [sk('Interest', 20, 'Any'), sk('Leadership', 15), sk('MedTech', 30, 'General'), sk('Negotiation', 25), sk('Perception', 15)],
+        flex: [flex(50, 1, 'attributes', '+50 XP to any one Attribute'), fieldPool(25, 6, ['military'], '+25 XP to up to six of your Military Field Skills')]
+      }),
+      vsub('innerSphere', 'Inner Sphere Tour', { categories: ['innerSphere'] }, {
+        traits: [tr('Rank', 50)],
+        skills: [sk('Language', 15, 'Affiliation'), sk('Leadership', 15), sk('Martial Arts', 10), sk('MedTech', 20, 'General'), sk('Perception', 20)],
+        flex: [flex(50, 2, 'attributes', '+50 XP each to any two Attributes'),
+          flex(50, 1, 'traits', 'choose one: Equipped or Vehicle', ['Equipped', 'Vehicle']),
+          flex(-50, 1, 'traits', 'choose one penalty: Compulsion/Any Addiction or Unlucky', ['Compulsion/Any Addiction', 'Unlucky']),
+          fieldPool(25, 7, ['military'], '+25 XP to up to seven of your Military Field Skills')]
+      }),
+      vsub('clan', 'Clan Tour', { categories: ['clan'] }, {
+        traits: [tr('Bloodname', 50), tr('Combat Sense', 75), tr('Enemy', -75)],
+        skills: [sk('Communications', 15, 'Any'), sk('Computers', 15), sk('Interest', 20, 'Any'), sk('Perception', 20), sk('Technician', 10, 'Any')],
+        flex: [flex(75, 2, 'attributes', '+75 XP each to any two Attributes'),
+          flex(75, 1, 'traits', 'choose one: Equipped or Vehicle', ['Equipped', 'Vehicle']),
+          fieldPool(25, 10, ['military'], '+25 XP to up to ten of your Military Field Skills')]
+      })
+    ],
+    notes: 'Inner Sphere / Periphery / Clan sub-modules apply automatically by affiliation and set the cost tier.',
+    desc: '<p>A soldier\'s tour — long dull guard duty punctuated by the panic of incoming fire.</p>'
+  }),
+
+  real('To Serve and Protect', 900, {
+    time: 4, reqFields: ['Police Officer', 'Police Tactical Officer', 'Detective'],
+    reqNote: 'Requires a Police Officer, Police Tactical Officer or Detective Field.',
+    attrs: { bod: 100, rfl: 100, wil: 100 },
+    traits: [tr('Connections', 50), tr('Enemy', -75)],
+    skills: [sk('Administration', 25), sk('Computers', 35), sk('Cryptography', 15), sk('Interrogation', 25), sk('Investigation', 25),
+      sk('Leadership', 25), sk('MedTech', 30, 'Any'), sk('Melee Weapons', 45), sk('Navigation', 35, 'Any'), sk('Perception', 45),
+      sk('Protocol', 25, 'Affiliation'), sk('Small Arms', 50), sk('Streetwise', 45, 'Affiliation'), sk('Support Weapons', 15),
+      sk('Tactics', 25, 'Infantry'), sk('Training', 10)],
+    flex: [flex(50, 1, 'traits', 'choose one pair: Attractive/Handicap or Fit/Dependent', ['Attractive', 'Fit']),
+      flex(25, 4, 'skills', '+25 XP to four of your Police / Police Tactical / Detective Field Skills'), lump(50)],
+    notes: 'The chosen Trait pair also carries a -50 XP negative Trait (Handicap or Dependent).',
+    desc: '<p>A police or security officer sworn to serve and protect the civilian population.</p>'
+  }),
+
+  real('Travel', 700, {
+    time: 6, reqTraits: { Wealth: 2 },
+    reqNote: 'Cannot have TDS. Requires +2 TP in Extra Income or Wealth.',
+    attrs: { int: 45, edg: 45 },
+    skills: [sk('Art', 35, 'Any'), sk('Art', 30, 'Cooking'), sk('Climbing', 35), sk('Driving', 50, 'Any'), sk('Interest', 75, 'Any'),
+      sk('Interest', 45, 'Any'), sk('Interest', 20, 'Any'), sk('Language', 50, 'Affiliation'), sk('Language', 35, 'Any'),
+      sk('Survival', 25, 'Any'), sk('Swimming', 50), sk('Zero-G Operations', 50)],
+    flex: [lump(110)],
+    desc: '<p>Wanderlust — years and fortunes spent venturing among the stars just to see them.</p>'
+  })
 ];
