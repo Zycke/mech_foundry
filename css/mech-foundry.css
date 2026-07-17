@@ -6051,7 +6051,15 @@
 /* Section headers (h3) already teal-on-light; keep them but ensure contrast. */
 .mech-foundry.item-sheet h3 { color: var(--mf-light); }
 .mech-foundry.item-sheet .sheet-tabs .item { color: #cfe0e6; }
-.mech-foundry.item-sheet .sheet-tabs .item.active { color: var(--mf-warning); font-weight: bold; }
+/* Active tab: light text on a teal highlight (the amber highlight washed out the
+   label). Override the themed amber background + glow. */
+.mech-foundry.item-sheet .sheet-tabs .item.active {
+  color: #ffffff;
+  background: var(--mf-primary);
+  border-color: var(--mf-primary);
+  box-shadow: none;
+  font-weight: bold;
+}
 .mech-foundry.item-sheet .hint,
 .mech-foundry.item-sheet .hint-inline { color: #9db3bb; }
 .mech-foundry.item-sheet .weapon-modes th { color: var(--mf-warning); }
