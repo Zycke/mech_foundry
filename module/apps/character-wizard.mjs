@@ -213,6 +213,12 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     // Birth affiliation (ComStar only): full XP and full cost, applied first.
     if (birthAff) {
       CharacterBuilder.applyModule(this.#state, birthAff.system, { id: birthAff.id, name: birthAff.name, uuid: birthAff.uuid });
+      // Birth caste/variant (e.g. a ComStar acolyte born into a Clan).
+      const birthVariant = this._asArray(birthAff.system.variants).find(v => v.key === this.#choices.variants[birthAff.id]);
+      if (birthVariant) CharacterBuilder.applyModule(this.#state, {
+        stage: 0, xpCost: Number(birthVariant.xpCost) || 0, time: 0,
+        fixedXP: birthVariant.fixedXP, flexibleXP: birthVariant.flexibleXP
+      }, { id: `variant:${birthAff.id}:${birthVariant.key}`, name: `${birthAff.name} — ${birthVariant.name}` });
       if (birthSub) CharacterBuilder.applyModule(this.#state, {
         stage: 0, xpCost: 0, time: 0, fixedXP: birthSub.fixedXP, flexibleXP: birthSub.flexibleXP
       }, { id: `birthsub:${birthSub.key}`, name: `${birthAff.name} — ${birthSub.name}` });
@@ -364,6 +370,9 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
         const birth = options.find(a => a.id === this.#choices.birthAffiliationId);
         context.birthSubAffiliations = this.#subAffCards(birth?.system.subAffiliations, this.#choices.birthSubAffiliationKey);
         context.hasBirthSubAffiliations = context.birthSubAffiliations.length > 0;
+        // Birth caste picker (e.g. a ComStar acolyte born into a Clan).
+        context.birthVariantPickers = this.#variantPickersFor(birth ? [birth] : []);
+        context.hasBirthVariantPickers = context.birthVariantPickers.length > 0;
       }
     }
 
@@ -681,7 +690,11 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     if (stepId === 'affiliation') {
       if (!this.#choices.affiliationId) return false;
       if (this.#missingRequiredVariantFor(this.#modulesCache?.[0], [this.#choices.affiliationId])) return false;
-      if (this.#needsBirthAffiliation() && !this.#choices.birthAffiliationId) return false;
+      if (this.#needsBirthAffiliation()) {
+        if (!this.#choices.birthAffiliationId) return false;
+        // A birth affiliation that itself requires a variant (a Clan caste).
+        if (this.#missingRequiredVariantFor(this.#modulesCache?.[0], [this.#choices.birthAffiliationId])) return false;
+      }
       return true;
     }
     if (step.stage && [1, 2].includes(step.stage)) {
@@ -699,8 +712,10 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       if (!this.#choices.affiliationId) return 'Choose an affiliation to continue.';
       const a = this.#missingRequiredVariantFor(this.#modulesCache?.[0], [this.#choices.affiliationId]);
       if (a) return `Choose a ${a.label.toLowerCase()} for ${a.moduleName} to continue.`;
-      if (this.#needsBirthAffiliation() && !this.#choices.birthAffiliationId) {
-        return 'Choose a birth affiliation for ComStar / Word of Blake to continue.';
+      if (this.#needsBirthAffiliation()) {
+        if (!this.#choices.birthAffiliationId) return 'Choose a birth affiliation for ComStar / Word of Blake to continue.';
+        const b = this.#missingRequiredVariantFor(this.#modulesCache?.[0], [this.#choices.birthAffiliationId]);
+        if (b) return `Choose a ${b.label.toLowerCase()} for your birth affiliation (${b.moduleName}) to continue.`;
       }
     }
     if (step.stage && [1, 2].includes(step.stage) && !this.#choices.modules[step.stage]) {
@@ -861,11 +876,13 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
 
   static async #onSelectAffiliation(event, target) {
     const prev = this.#choices.affiliationId;
+    const prevBirth = this.#choices.birthAffiliationId;
     this.#choices.affiliationId = target.dataset.id || '';
     this.#choices.subAffiliationKey = ''; // sub-affiliations are affiliation-specific
     this.#choices.birthAffiliationId = '';       // ComStar birth is ComStar-specific
     this.#choices.birthSubAffiliationKey = '';
     if (prev) delete this.#choices.variants[prev]; // caste is affiliation-specific
+    if (prevBirth) delete this.#choices.variants[prevBirth]; // birth caste too
     await this.#rebuildState();
     this.render();
   }
@@ -879,9 +896,11 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
 
   /** ComStar / Word of Blake: choose (or clear) the "birth" affiliation. */
   static async #onSelectBirthAffiliation(event, target) {
+    const prev = this.#choices.birthAffiliationId;
     const id = target.dataset.id || '';
     this.#choices.birthAffiliationId = this.#choices.birthAffiliationId === id ? '' : id;
     this.#choices.birthSubAffiliationKey = ''; // birth sub is birth-affiliation-specific
+    if (prev) delete this.#choices.variants[prev]; // birth caste is birth-affiliation-specific
     await this.#rebuildState();
     this.render();
   }

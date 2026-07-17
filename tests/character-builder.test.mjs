@@ -368,6 +368,21 @@ ok(applyOk, 'all seed modules apply through the engine without error');
   };
   ok(resolveLangs(davion, [{ a: davion }, { a: comstar }]).primary === 'English',
     'ComStar born in the Federated Suns takes English (birth) as primary language');
+
+  // ComStar born into a Clan: the birth affiliation's caste (variant) applies too.
+  const invading = affs.find(a => a.name === 'Invading Clan');
+  ok(invading.system.variants.length === 10, 'a Clan birth affiliation still exposes its 10 castes');
+  const stK = CB.createState();
+  stK.affiliationKey = 'clan';
+  CB.applyUniversalFixedXP(stK, { primaryLanguageName: 'English' });
+  CB.applyModule(stK, invading.system, { id: 'birth', name: invading.name });
+  const mw = invading.system.variants.find(v => v.key === 'mechwarrior');
+  CB.applyModule(stK, { stage: 0, xpCost: mw.xpCost, fixedXP: mw.fixedXP, flexibleXP: mw.flexibleXP },
+    { id: 'variant:birth:mechwarrior', name: mw.name });
+  CB.applyModule(stK, comstar.system, { id: 'c2', name: comstar.name });
+  // Universal grants +100 to each attribute; the MechWarrior caste adds +75 DEX/RFL.
+  ok(stK.attributes.dex === 100 + 75 && stK.attributes.rfl === 100 + 75,
+    'ComStar born into a Clan applies the MechWarrior caste (DEX +75, RFL +75) alongside ComStar');
 }
 
 /* ---- Result ------------------------------------------------------------- */
