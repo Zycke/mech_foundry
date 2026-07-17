@@ -25,6 +25,7 @@ import { MechFoundryShipSheet } from "./sheets/ship-sheet.mjs";
 import { preloadHandlebarsTemplates } from "./helpers/templates.mjs";
 import { registerSeederSettings, seedLifeModules } from "./helpers/life-module-seeder.mjs";
 import { seedReferenceCompendia, rebuildReferenceConfig, registerReferenceSeederSettings } from "./helpers/reference-seeder.mjs";
+import { seedWeapons } from "./helpers/weapon-seeder.mjs";
 import { CharacterWizard } from "./apps/character-wizard.mjs";
 import { ATOW_SKILLS, ATOW_TRAITS, ATOW_TRAIT_DESCRIPTIONS } from "./data/atow-lists.mjs";
 import { SocketHandler, SOCKET_EVENTS } from "./helpers/socket-handler.mjs";
@@ -54,6 +55,8 @@ Hooks.once('init', function() {
     reseedLifeModules: () => seedLifeModules({ force: true }),
     /** Manually (re)seed the Skills/Traits reference compendia, then refresh config. */
     reseedReferences: () => seedReferenceCompendia({ force: true }).then(rebuildReferenceConfig),
+    /** Manually (re)seed the Weapons compendium, adding any missing entries. */
+    reseedWeapons: () => seedWeapons({ force: true }),
     config: MECHFOUNDRY
   };
 
@@ -135,6 +138,7 @@ Hooks.once('ready', async function() {
     let added = 0;
     added += await seedLifeModules({ force: reconcile, quiet: reconcile });
     added += await seedReferenceCompendia({ force: reconcile, quiet: reconcile });
+    added += await seedWeapons({ force: reconcile, quiet: reconcile });
     if (reconcile) {
       await game.settings.set('mech-foundry', 'referenceSeedVersion', current);
       if (added > 0) {
