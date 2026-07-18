@@ -41,6 +41,7 @@ const seedVehicles = makeFolderedSeeder("mech-foundry.vehicles", () => VEHICLE_S
 import { CharacterWizard } from "./apps/character-wizard.mjs";
 import { ShopApplication } from "./apps/shop.mjs";
 import { ATOW_SKILLS, ATOW_TRAITS, ATOW_TRAIT_DESCRIPTIONS } from "./data/atow-lists.mjs";
+import { woundDescription, conditionDescription } from "./data/status-descriptions.mjs";
 import { SocketHandler, SOCKET_EVENTS } from "./helpers/socket-handler.mjs";
 import { OpposedRollHelper } from "./helpers/opposed-rolls.mjs";
 import { DiceMechanics } from "./helpers/dice-mechanics.mjs";
@@ -199,6 +200,7 @@ Hooks.once('ready', async function() {
 
   // Initialize socket handler for cross-player communication
   SocketHandler.initialize();
+  ShopApplication.initSocket();
 
   // Make OpposedRollHelper available globally
   game.mechfoundry.OpposedRollHelper = OpposedRollHelper;
@@ -357,6 +359,34 @@ function _registerHandlebarsHelpers() {
   Handlebars.registerHelper('formatMod', function(value) {
     if (value >= 0) return `+${value}`;
     return `${value}`;
+  });
+
+  // Hover-tooltip text for a wound type / medical condition (combat tab).
+  Handlebars.registerHelper('woundDescription', function(type) {
+    return woundDescription(type);
+  });
+  Handlebars.registerHelper('conditionDescription', function(key) {
+    return conditionDescription(key);
+  });
+
+  // Thousands-separated number (e.g. 1000000 -> "1,000,000"), used for C-bill and
+  // other large-number displays. Overrides Foundry's core `numberFormat` as a
+  // safe superset: adds comma grouping while still honouring the `decimals` and
+  // `sign` hash options and preserving precision when no decimals are requested.
+  Handlebars.registerHelper('numberFormat', function(value, options) {
+    const hash = (options && options.hash) || {};
+    const n = Number(value);
+    if (!Number.isFinite(n)) return value ?? '';
+    const opts = { useGrouping: true };
+    if (Number.isInteger(hash.decimals)) {
+      opts.minimumFractionDigits = hash.decimals;
+      opts.maximumFractionDigits = hash.decimals;
+    } else {
+      opts.maximumFractionDigits = 20; // don't lose precision when unspecified
+    }
+    let str = n.toLocaleString('en-US', opts);
+    if (hash.sign && n >= 0) str = `+${str}`;
+    return str;
   });
 
   // Calculate damage capacity from BOD

@@ -67,7 +67,7 @@ function buildTraitItem(name, xp) {
     name,
     type: 'trait',
     // Each Trait Point costs 100 XP (ATOW p.66).
-    system: { xp, cost: xp / 100, traitType, purchased: true, description: meta ? `<p>${meta.desc}</p>` : '' },
+    system: { xp, cost: xp / 100, traitType, purchased: true, description: meta ? (meta.longDesc || `<p>${meta.desc}</p>`) : '' },
     flags: { [FLAG_SCOPE]: { fromWizard: true } }
   };
 }
@@ -147,7 +147,7 @@ export async function grantCharacter(actor, { state, derived, choices, phenotype
     remaining: derived.remaining,
     cbills: wealth.cbills,
     equipmentRating: wealth.rating,
-    modules: state.modules.map(m => ({ stage: m.stage, name: m.name })),
+    modules: state.modules.map(m => ({ stage: m.stage, name: m.name, xp: Number(m.xpCost) || 0 })),
     choices
   });
 

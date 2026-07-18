@@ -524,6 +524,33 @@
 }
 
 /* Traits Table */
+/* Click-to-expand trait detail */
+.mech-foundry .trait-toggle { cursor: pointer; user-select: none; }
+.mech-foundry .trait-caret { margin-right: 4px; opacity: 0.7; transition: transform 0.1s; }
+.mech-foundry .trait-toggle:hover { color: var(--mf-accent, #c38154); }
+.mech-foundry .trait-detail-row.hidden { display: none; }
+.mech-foundry .trait-detail-row > td { padding: 0; }
+.mech-foundry .trait-detail {
+  padding: 8px 12px 10px 26px;
+  background: rgba(0, 0, 0, 0.18);
+  border-left: 3px solid var(--mf-accent, #c38154);
+}
+.mech-foundry .trait-detail-meta {
+  display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: baseline;
+  margin-bottom: 6px; font-size: 0.85em;
+}
+.mech-foundry .trait-detail-meta .td-type {
+  text-transform: uppercase; letter-spacing: 0.04em; font-size: 0.85em;
+  padding: 1px 7px; border-radius: 3px; border: 1px solid var(--mf-border, #888);
+}
+.mech-foundry .trait-detail-meta .td-type.positive { color: var(--mf-success); border-color: var(--mf-success); }
+.mech-foundry .trait-detail-meta .td-type.negative { color: var(--mf-danger); border-color: var(--mf-danger); }
+.mech-foundry .trait-detail-meta .td-range { opacity: 0.7; }
+.mech-foundry .trait-detail-meta .td-note { opacity: 0.75; font-style: italic; }
+.mech-foundry .trait-detail-desc { font-size: 0.9em; line-height: 1.4; }
+.mech-foundry .trait-detail-desc p { margin: 0 0 6px; }
+.mech-foundry .trait-detail-desc p:last-child { margin-bottom: 0; }
+
 .mech-foundry .trait-row.positive .trait-indicator {
   color: var(--mf-success);
   font-weight: bold;
@@ -5883,6 +5910,28 @@
 }
 .mech-foundry .creation-summary .cs-stage { color: var(--mf-amber); font-family: var(--mf-font-mono); }
 
+/* Builder summary — selected life-path cards, grouped by stage */
+.mech-foundry .creation-summary .cs-cards { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.mech-foundry .creation-summary .cs-stage-group { display: flex; flex-direction: column; gap: 4px; }
+.mech-foundry .creation-summary .cs-stage-label {
+  display: flex; align-items: center; gap: 6px; font-size: 0.72em;
+  text-transform: uppercase; letter-spacing: 0.05em; color: var(--mf-ink-dim);
+}
+.mech-foundry .creation-summary .cs-stage-badge {
+  color: var(--mf-amber); font-family: var(--mf-font-mono); background: rgba(255,176,32,0.12);
+  border: 1px solid var(--mf-line); border-radius: 2px; padding: 0 5px; font-size: 0.9em;
+}
+.mech-foundry .creation-summary .cs-card-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.mech-foundry .creation-summary .cs-card {
+  display: inline-flex; align-items: center; gap: 8px; min-height: 26px;
+  background: var(--mf-panel-2); border: 1px solid var(--mf-line); border-left: 3px solid var(--mf-amber);
+  border-radius: 3px; padding: 3px 9px;
+}
+.mech-foundry .creation-summary .cs-card-name { color: var(--mf-ink); font-size: 0.82em; }
+.mech-foundry .creation-summary .cs-card-xp {
+  color: var(--mf-amber-2); font-family: var(--mf-font-mono); font-size: 0.72em; white-space: nowrap;
+}
+
 /* ---- Wizard M7: legality/prereq badges, gating, spend step - */
 .mech-foundry .choice-card.illegal { opacity: 0.7; border-style: dashed; }
 .mech-foundry .card-meta .badge-illegal { color: var(--mf-danger); font-size: 0.72em; }
@@ -6201,3 +6250,46 @@
 }
 .mech-foundry-shop .shop-checkout:hover:not(:disabled) { background: var(--mf-amber-2); }
 .mech-foundry-shop .shop-checkout:disabled, .mech-foundry-shop .shop-clear:disabled { opacity: 0.4; cursor: default; }
+
+/* ---- GM approval ------------------------------------------- */
+.mech-foundry-shop .shop-approval {
+  display: flex; align-items: center; gap: 6px; font-size: 0.78em; line-height: 1.3;
+  padding: 6px 8px; margin-bottom: 8px; border-radius: 3px;
+  border: 1px solid var(--mf-line); color: var(--mf-ink-dim); background: rgba(0,0,0,0.2);
+}
+.mech-foundry-shop .shop-approval i { flex: 0 0 auto; }
+.mech-foundry-shop .shop-approval-pending { border-color: var(--mf-amber); color: var(--mf-amber-2); }
+.mech-foundry-shop .shop-approval-approved { border-color: var(--mf-ok, #4caf72); color: var(--mf-ok, #7ddca0); }
+.mech-foundry-shop .shop-approval-denied { border-color: var(--mf-danger); color: var(--mf-danger); }
+.mech-foundry-shop .shop-approve-btn {
+  flex: 1 1 auto; padding: 7px 12px; background: transparent; color: var(--mf-amber-2);
+  border: 1px solid var(--mf-amber); border-radius: 3px; cursor: pointer; font-size: 0.85em;
+  font-family: var(--mf-font-head); text-transform: uppercase; letter-spacing: 0.04em;
+}
+.mech-foundry-shop .shop-approve-btn:hover:not(:disabled) { background: rgba(255,176,32,0.12); }
+.mech-foundry-shop .shop-approve-btn:disabled { opacity: 0.4; cursor: default; }
+
+/* GM approval dialog table */
+.mf-approval-table { width: 100%; border-collapse: collapse; margin-top: 6px; font-size: 0.9em; }
+.mf-approval-table th, .mf-approval-table td { padding: 3px 6px; border-bottom: 1px solid rgba(128,128,128,0.25); }
+.mf-approval-table .mf-ap-qty { text-align: center; }
+.mf-approval-table .mf-ap-cost { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.mf-approval-table tfoot td { font-weight: bold; border-top: 2px solid rgba(128,128,128,0.4); border-bottom: none; }
+
+/* ---- Hover stats card -------------------------------------- */
+.mech-foundry-shop .shop-hovercard {
+  position: fixed; z-index: 120; width: 300px; max-width: 340px; pointer-events: none;
+  background: var(--mf-panel, #1a1f24); color: var(--mf-ink, #d7dde3);
+  border: 1px solid var(--mf-amber, #ffb020); border-radius: 5px;
+  box-shadow: 0 8px 26px rgba(0,0,0,0.6); padding: 10px 12px; font-size: 0.82em;
+}
+.mech-foundry-shop .shop-hc-head { display: flex; align-items: center; gap: 9px; margin-bottom: 7px; }
+.mech-foundry-shop .shop-hc-head img { width: 38px; height: 38px; object-fit: contain; border: 1px solid var(--mf-line); border-radius: 3px; background: #0d1013; flex: 0 0 auto; }
+.mech-foundry-shop .shop-hc-name { display: block; font-family: var(--mf-font-head); color: var(--mf-amber-2); text-transform: uppercase; letter-spacing: 0.03em; line-height: 1.15; }
+.mech-foundry-shop .shop-hc-type { display: block; color: var(--mf-ink-dim); font-size: 0.85em; }
+.mech-foundry-shop .shop-hc-stats { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; margin: 0 0 7px; }
+.mech-foundry-shop .shop-hc-stats dt { color: var(--mf-ink-dim); white-space: nowrap; }
+.mech-foundry-shop .shop-hc-stats dd { margin: 0; text-align: right; font-family: var(--mf-font-mono); color: var(--mf-ink); }
+.mech-foundry-shop .shop-hc-desc { color: var(--mf-ink); line-height: 1.4; border-top: 1px solid var(--mf-line); padding-top: 6px; max-height: 220px; overflow: hidden; }
+.mech-foundry-shop .shop-hc-desc p { margin: 0 0 5px; }
+.mech-foundry-shop .shop-hc-desc p:last-child { margin-bottom: 0; }

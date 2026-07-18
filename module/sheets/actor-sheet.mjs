@@ -73,6 +73,18 @@ export class MechFoundryActorSheet extends HandlebarsApplicationMixin(ActorSheet
     new ShopApplication({ actor: this.actor }).render(true);
   }
 
+  /** @override — C-Bills is a comma-formatted text field for readability; strip
+   *  the separators back to a plain number before it is written to the actor. */
+  _processFormData(event, form, formData) {
+    const data = super._processFormData(event, form, formData);
+    const raw = foundry.utils.getProperty(data, 'system.cbills');
+    if (typeof raw === 'string') {
+      const n = Number(raw.replace(/[,\s]/g, ''));
+      foundry.utils.setProperty(data, 'system.cbills', Number.isFinite(n) ? n : 0);
+    }
+    return data;
+  }
+
   /** Placeholder; real template chosen per actor type in _configureRenderParts. */
   static PARTS = {
     form: { template: "systems/mech-foundry/templates/actor/actor-character-sheet.hbs" }
@@ -233,8 +245,37 @@ export class MechFoundryActorSheet extends HandlebarsApplicationMixin(ActorSheet
     // Read-only summary of a character-wizard build (if this actor was created
     // or rebuilt through the wizard).
     context.creation = this.actor.getFlag('mech-foundry', 'creation') || null;
+    context.creationCards = this._prepareCreationCards(context.creation);
 
     return context;
+  }
+
+  /**
+   * Group a creation snapshot's modules into per-stage cards for the biography
+   * tab (replaces the old flat text list). Returns [] when the actor was not
+   * built through the wizard.
+   * @param {Object|null} creation The stored `creation` flag
+   * @returns {Array<{stage:number,label:string,modules:Array}>}
+   */
+  _prepareCreationCards(creation) {
+    if (!creation?.modules?.length) return [];
+    const STAGE_LABELS = {
+      0: 'Affiliation', 1: 'Early Childhood', 2: 'Late Childhood',
+      3: 'Higher Education', 4: 'Real Life'
+    };
+    const byStage = new Map();
+    for (const m of creation.modules) {
+      const stage = Number(m.stage) || 0;
+      if (!byStage.has(stage)) byStage.set(stage, []);
+      byStage.get(stage).push({ name: m.name, xp: Number(m.xp) || 0 });
+    }
+    return [...byStage.entries()]
+      .sort((a, b) => a[0] - b[0])
+      .map(([stage, modules]) => ({
+        stage,
+        label: STAGE_LABELS[stage] || `Stage ${stage}`,
+        modules
+      }));
   }
 
   /**
@@ -325,6 +366,39 @@ export class MechFoundryActorSheet extends HandlebarsApplicationMixin(ActorSheet
         // Positive traits cost XP, negative traits give XP back
         const tp = Math.abs(i.system.cost || 0);
         i.xpCost = tp * 100; // 100 XP per Trait Point
+
+        // Expandable detail: the trait's own description (falling back to the
+        // canonical ATOW summary) plus what its current rank/TP means.
+        const cfg = game.mechfoundry?.config || {};
+        const baseName = String(i.name).split('/')[0].trim();
+        const meta = (cfg.traitsList || []).find(t => t.name === baseName);
+        const stored = (i.system.description || '').trim();
+        // Auto-generated short form written by earlier seeds/grants; if the item
+        // still carries that (or nothing), upgrade it to the richer longDesc.
+        const autoShort = meta ? `<p>${meta.desc}</p>` : '';
+        let descHTML;
+        if (meta?.longDesc && (!stored || stored === autoShort)) {
+          descHTML = meta.longDesc;
+        } else if (stored) {
+          descHTML = stored;
+        } else {
+          const summary = (cfg.traitDescriptions || {})[baseName] || meta?.desc || '';
+          descHTML = summary ? `<p>${summary}</p>` : '<p><em>No description recorded for this trait.</em></p>';
+        }
+        const level = Number(i.system.cost) || 0;
+        i.detail = {
+          descHTML,
+          level,
+          levelSigned: `${level > 0 ? '+' : ''}${level}`,
+          range: meta?.tp ? `${meta.tp} TP` : '',
+          typeLabel: meta?.type
+            ? meta.type.charAt(0).toUpperCase() + meta.type.slice(1)
+            : (i.system.traitType === 'negative' ? 'Negative' : 'Positive'),
+          // For flexible traits the sign of the rank flips benefit ↔ penalty.
+          rankNote: level === 0 ? 'Not yet ranked.'
+            : (level > 0 ? 'A beneficial rank (higher is stronger).'
+                         : 'A detrimental rank (more negative is worse).')
+        };
         traits.push(i);
       }
       else if (i.type === 'weapon') {
@@ -786,6 +860,17 @@ export class MechFoundryActorSheet extends HandlebarsApplicationMixin(ActorSheet
     html.on('change', '.attr-xp-input', this._onAttributeXPChange.bind(this));
     html.on('change', '.skill-xp-input', this._onSkillXPChange.bind(this));
     html.on('change', '.trait-xp-input', this._onTraitXPChange.bind(this));
+
+    // Click a trait name to expand/collapse its description + current-rank detail.
+    html.on('click', '.trait-toggle', (ev) => {
+      const id = ev.currentTarget.dataset.traitId;
+      const detail = this.element.querySelector(`.trait-detail-row[data-detail-for="${id}"]`);
+      if (!detail) return;
+      const nowHidden = detail.classList.toggle('hidden');
+      const caret = ev.currentTarget.querySelector('.trait-caret');
+      caret?.classList.toggle('fa-caret-down', !nowHidden);
+      caret?.classList.toggle('fa-caret-right', nowHidden);
+    });
 
     // Condition monitor max validation
     html.on('change', '.condition-input', this._onConditionChange.bind(this));
