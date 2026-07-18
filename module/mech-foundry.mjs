@@ -28,6 +28,10 @@ import { seedReferenceCompendia, rebuildReferenceConfig, registerReferenceSeeder
 import { seedWeapons } from "./helpers/weapon-seeder.mjs";
 import { seedAmmo } from "./helpers/ammo-seeder.mjs";
 import { seedArmor } from "./helpers/armor-seeder.mjs";
+import { makeFolderedSeeder } from "./helpers/pack-seeder.mjs";
+import { ELECTRONICS_SEED } from "./data/electronics.mjs";
+
+const seedElectronics = makeFolderedSeeder("mech-foundry.electronics", () => ELECTRONICS_SEED, "Electronics");
 import { CharacterWizard } from "./apps/character-wizard.mjs";
 import { ShopApplication } from "./apps/shop.mjs";
 import { ATOW_SKILLS, ATOW_TRAITS, ATOW_TRAIT_DESCRIPTIONS } from "./data/atow-lists.mjs";
@@ -78,6 +82,9 @@ Hooks.once('init', function() {
     /** Overwrite already-seeded armor with the current seed data (pushes data
      *  corrections; discards GM edits to those items). */
     refreshArmor: () => seedArmor({ refresh: true }),
+    /** Manually (re)seed the Electronics compendium, adding any missing entries. */
+    reseedElectronics: () => seedElectronics({ force: true }),
+    refreshElectronics: () => seedElectronics({ refresh: true }),
     config: MECHFOUNDRY
   };
 
@@ -162,6 +169,7 @@ Hooks.once('ready', async function() {
     added += await seedWeapons({ force: reconcile, quiet: reconcile });
     added += await seedAmmo({ force: reconcile, quiet: reconcile });
     added += await seedArmor({ force: reconcile, quiet: reconcile });
+    added += await seedElectronics({ force: reconcile, quiet: reconcile });
     if (reconcile) {
       await game.settings.set('mech-foundry', 'referenceSeedVersion', current);
       if (added > 0) {
