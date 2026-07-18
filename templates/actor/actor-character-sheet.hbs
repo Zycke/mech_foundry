@@ -427,7 +427,7 @@
                 {{#if system.wounds.length}}
                 <div class="wounds-list">
                   {{#each system.wounds}}
-                  <div class="wound-item wound-{{this.type}}" data-wound-index="{{@index}}">
+                  <div class="wound-item wound-{{this.type}}" data-wound-index="{{@index}}" data-tooltip="{{woundDescription this.type}}" data-tooltip-direction="UP">
                     <span class="wound-type">
                       {{#if (eq this.type "dazed")}}<i class="fas fa-dizzy"></i> Dazed{{/if}}
                       {{#if (eq this.type "concussion")}}<i class="fas fa-brain"></i> Concussion{{/if}}
@@ -494,29 +494,29 @@
 
               {{!-- Status Toggles --}}
               <div class="medical-status-row">
-                <label class="status-toggle {{#if system.bleeding}}active{{/if}}">
+                <label class="status-toggle {{#if system.bleeding}}active{{/if}}" data-tooltip="{{conditionDescription 'bleeding'}}" data-tooltip-direction="UP">
                   <input type="checkbox" name="system.bleeding" {{#if system.bleeding}}checked{{/if}}/>
                   <i class="fas fa-tint"></i> Bleeding
                 </label>
-                <label class="status-toggle {{#if system.stun}}active{{/if}}">
+                <label class="status-toggle {{#if system.stun}}active{{/if}}" data-tooltip="{{conditionDescription 'stun'}}" data-tooltip-direction="UP">
                   <input type="checkbox" name="system.stun" {{#if system.stun}}checked{{/if}}/>
                   <i class="fas fa-dizzy"></i> Stunned
                 </label>
-                <label class="status-toggle {{#if system.unconscious}}active{{/if}}">
+                <label class="status-toggle {{#if system.unconscious}}active{{/if}}" data-tooltip="{{conditionDescription 'unconscious'}}" data-tooltip-direction="UP">
                   <input type="checkbox" name="system.unconscious" {{#if system.unconscious}}checked{{/if}}/>
                   <i class="fas fa-bed"></i> Unconscious
                 </label>
               </div>
               <div class="medical-status-row">
-                <label class="status-toggle critical {{#if system.criticallyInjured}}active{{/if}}">
+                <label class="status-toggle critical {{#if system.criticallyInjured}}active{{/if}}" data-tooltip="{{conditionDescription 'criticallyInjured'}}" data-tooltip-direction="UP">
                   <input type="checkbox" name="system.criticallyInjured" {{#if system.criticallyInjured}}checked{{/if}}/>
                   <i class="fas fa-heartbeat"></i> Critically Injured
                 </label>
-                <label class="status-toggle stabilized {{#if system.stabilized}}active{{/if}}">
+                <label class="status-toggle stabilized {{#if system.stabilized}}active{{/if}}" data-tooltip="{{conditionDescription 'stabilized'}}" data-tooltip-direction="UP">
                   <input type="checkbox" name="system.stabilized" {{#if system.stabilized}}checked{{/if}}/>
                   <i class="fas fa-plus-circle"></i> Stabilized
                 </label>
-                <label class="status-toggle dying {{#if system.dying}}active{{/if}}">
+                <label class="status-toggle dying {{#if system.dying}}active{{/if}}" data-tooltip="{{conditionDescription 'dying'}}" data-tooltip-direction="UP">
                   <input type="checkbox" name="system.dying" {{#if system.dying}}checked{{/if}}/>
                   <i class="fas fa-skull"></i> Dying
                 </label>

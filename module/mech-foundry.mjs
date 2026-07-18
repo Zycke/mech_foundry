@@ -41,6 +41,7 @@ const seedVehicles = makeFolderedSeeder("mech-foundry.vehicles", () => VEHICLE_S
 import { CharacterWizard } from "./apps/character-wizard.mjs";
 import { ShopApplication } from "./apps/shop.mjs";
 import { ATOW_SKILLS, ATOW_TRAITS, ATOW_TRAIT_DESCRIPTIONS } from "./data/atow-lists.mjs";
+import { woundDescription, conditionDescription } from "./data/status-descriptions.mjs";
 import { SocketHandler, SOCKET_EVENTS } from "./helpers/socket-handler.mjs";
 import { OpposedRollHelper } from "./helpers/opposed-rolls.mjs";
 import { DiceMechanics } from "./helpers/dice-mechanics.mjs";
@@ -358,6 +359,14 @@ function _registerHandlebarsHelpers() {
   Handlebars.registerHelper('formatMod', function(value) {
     if (value >= 0) return `+${value}`;
     return `${value}`;
+  });
+
+  // Hover-tooltip text for a wound type / medical condition (combat tab).
+  Handlebars.registerHelper('woundDescription', function(type) {
+    return woundDescription(type);
+  });
+  Handlebars.registerHelper('conditionDescription', function(key) {
+    return conditionDescription(key);
   });
 
   // Thousands-separated number (e.g. 1000000 -> "1,000,000"), used for C-bill and
