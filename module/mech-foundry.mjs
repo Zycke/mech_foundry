@@ -26,7 +26,18 @@ import { preloadHandlebarsTemplates } from "./helpers/templates.mjs";
 import { registerSeederSettings, seedLifeModules } from "./helpers/life-module-seeder.mjs";
 import { seedReferenceCompendia, rebuildReferenceConfig, registerReferenceSeederSettings } from "./helpers/reference-seeder.mjs";
 import { seedWeapons } from "./helpers/weapon-seeder.mjs";
+import { seedAmmo } from "./helpers/ammo-seeder.mjs";
+import { seedArmor } from "./helpers/armor-seeder.mjs";
+import { makeFolderedSeeder } from "./helpers/pack-seeder.mjs";
+import { ELECTRONICS_SEED } from "./data/electronics.mjs";
+import { FIELD_GEAR_SEED } from "./data/field-gear.mjs";
+import { MEDICAL_SEED } from "./data/medical.mjs";
+
+const seedElectronics = makeFolderedSeeder("mech-foundry.electronics", () => ELECTRONICS_SEED, "Electronics");
+const seedFieldGear = makeFolderedSeeder("mech-foundry.gear", () => FIELD_GEAR_SEED, "Field Gear");
+const seedMedical = makeFolderedSeeder("mech-foundry.medical", () => MEDICAL_SEED, "Medical");
 import { CharacterWizard } from "./apps/character-wizard.mjs";
+import { ShopApplication } from "./apps/shop.mjs";
 import { ATOW_SKILLS, ATOW_TRAITS, ATOW_TRAIT_DESCRIPTIONS } from "./data/atow-lists.mjs";
 import { SocketHandler, SOCKET_EVENTS } from "./helpers/socket-handler.mjs";
 import { OpposedRollHelper } from "./helpers/opposed-rolls.mjs";
@@ -51,6 +62,11 @@ Hooks.once('init', function() {
     CharacterWizard,
     /** Open the character-creation wizard, optionally bound to an actor. */
     openCharacterWizard: (actor = null) => new CharacterWizard({ actor }).render(true),
+    /** Open the equipment shop bound to an actor (defaults to the selected token/character). */
+    openShop: (actor = null) => new ShopApplication({
+      actor: actor ?? game.user?.character ?? canvas?.tokens?.controlled?.[0]?.actor ?? null
+    }).render(true),
+    ShopApplication,
     /** Manually (re)seed the Life Modules compendium, adding any missing starters. */
     reseedLifeModules: () => seedLifeModules({ force: true }),
     /** Manually (re)seed the Skills/Traits reference compendia, then refresh config. */
@@ -60,6 +76,25 @@ Hooks.once('init', function() {
     /** Overwrite already-seeded weapons with the current seed data (pushes data
      *  corrections; discards GM edits to those weapons). */
     refreshWeapons: () => seedWeapons({ refresh: true }),
+    /** Manually (re)seed the Ammunition compendium, adding any missing entries. */
+    reseedAmmo: () => seedAmmo({ force: true }),
+    /** Overwrite already-seeded ammo with the current seed data (pushes data
+     *  corrections; discards GM edits to those items). */
+    refreshAmmo: () => seedAmmo({ refresh: true }),
+    /** Manually (re)seed the Armor compendium, adding any missing entries. */
+    reseedArmor: () => seedArmor({ force: true }),
+    /** Overwrite already-seeded armor with the current seed data (pushes data
+     *  corrections; discards GM edits to those items). */
+    refreshArmor: () => seedArmor({ refresh: true }),
+    /** Manually (re)seed the Electronics compendium, adding any missing entries. */
+    reseedElectronics: () => seedElectronics({ force: true }),
+    refreshElectronics: () => seedElectronics({ refresh: true }),
+    /** Manually (re)seed the Field Gear compendium, adding any missing entries. */
+    reseedFieldGear: () => seedFieldGear({ force: true }),
+    refreshFieldGear: () => seedFieldGear({ refresh: true }),
+    /** Manually (re)seed the Medical compendium, adding any missing entries. */
+    reseedMedical: () => seedMedical({ force: true }),
+    refreshMedical: () => seedMedical({ refresh: true }),
     config: MECHFOUNDRY
   };
 
@@ -142,6 +177,11 @@ Hooks.once('ready', async function() {
     added += await seedLifeModules({ force: reconcile, quiet: reconcile });
     added += await seedReferenceCompendia({ force: reconcile, quiet: reconcile });
     added += await seedWeapons({ force: reconcile, quiet: reconcile });
+    added += await seedAmmo({ force: reconcile, quiet: reconcile });
+    added += await seedArmor({ force: reconcile, quiet: reconcile });
+    added += await seedElectronics({ force: reconcile, quiet: reconcile });
+    added += await seedFieldGear({ force: reconcile, quiet: reconcile });
+    added += await seedMedical({ force: reconcile, quiet: reconcile });
     if (reconcile) {
       await game.settings.set('mech-foundry', 'referenceSeedVersion', current);
       if (added > 0) {
@@ -181,6 +221,27 @@ const MECHFOUNDRY = {
     positive: "MECHFOUNDRY.TraitPositive",
     negative: "MECHFOUNDRY.TraitNegative"
   },
+  // Ammunition families. A weapon and an ammo item are compatible when their
+  // `ammoType` matches (and, for ordnance families, their ordnance class too).
+  // Weapons get their ammoType automatically from the seed; the field is an
+  // editable dropdown so a GM can override it.
+  ammoTypes: {
+    "": "None / single-use",
+    ballistic: "Ballistic (slug rounds)",
+    flechette: "Flechette / shotgun / needler",
+    gauss: "Gauss slugs",
+    gyrojet: "Gyrojet rockets",
+    "power-pack": "Power pack (energy)",
+    grenade: "Grenade (ordnance)",
+    mortar: "Mortar (ordnance)",
+    missile: "Missile (ordnance)",
+    recoilless: "Recoilless (ordnance)",
+    mine: "Mine (ordnance)",
+    ordnance: "Ordnance (generic, by class)"
+  },
+  // Ordnance families require a matching class letter (A-E) between weapon & ammo.
+  ordnanceAmmoTypes: ["grenade", "mortar", "missile", "recoilless", "mine"],
+  ordnanceClasses: ["", "A", "B", "C", "D", "E"],
   weaponTypes: {
     melee: "MECHFOUNDRY.WeaponMelee",
     ranged: "MECHFOUNDRY.WeaponRanged",

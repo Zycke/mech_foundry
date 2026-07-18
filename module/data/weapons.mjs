@@ -18,6 +18,40 @@
 
 const IMG = 'icons/weapons/guns/gun-pistol-flintlock-metal.webp';
 
+/** Category default icons (Foundry core art) for the melee/archaic families, so
+ *  a katana doesn't inherit the flintlock default. GM-editable per item. */
+const IMG_BLADE = 'icons/weapons/swords/sword-guard-purple.webp';
+const IMG_AXE = 'icons/weapons/axes/axe-battle-worn.webp';
+const IMG_BLUNT = 'icons/weapons/maces/mace-flanged-steel.webp';
+const IMG_KNIFE = 'icons/weapons/daggers/dagger-straight-blue.webp';
+const IMG_POLE = 'icons/weapons/polearms/spear-flanged-steel.webp';
+const IMG_BOW = 'icons/weapons/bows/bow-recurve-brown.webp';
+const IMG_CROSSBOW = 'icons/weapons/crossbows/crossbow-simple-brown.webp';
+const IMG_THROWN = 'icons/weapons/thrown/dagger-thrown-jeweled-green.webp';
+const IMG_VIBRO = 'icons/weapons/swords/greatsword-blue.webp';
+const IMG_STUN = 'icons/weapons/staves/staff-simple-gold.webp';
+const IMG_GRENADE = 'icons/weapons/thrown/grenade-round.webp';
+const IMG_MINE = 'icons/weapons/thrown/bomb-timed-red.webp';
+const IMG_CHARGE = 'icons/weapons/thrown/bomb-fuse-black.webp';
+
+/** Weapon sub-category → ammunition family (see CONFIG.mechfoundry.ammoTypes).
+ *  Drives ammo compatibility automatically so seeded weapons need no tagging. */
+const AMMO_TYPE_BY_CATEGORY = {
+  Ballistic: 'ballistic',
+  Flechette: 'flechette',
+  Gauss: 'gauss',
+  Gyrojet: 'gyrojet',
+  Energy: 'power-pack',
+  Miscellaneous: '',
+  'Machine Guns': 'ballistic',
+  'Grenade Launchers': 'grenade',
+  Mortars: 'mortar',
+  Missiles: 'missile',
+  'Recoilless Rifles': 'recoilless',
+  'Support Energy': 'power-pack',
+  'Support Gauss': 'gauss'
+};
+
 /** Convert a raw firing-mode record into a stored mode profile. Ranges are given
  *  as [short, medium, long, extreme]; only present fields are carried. */
 function toMode(m) {
@@ -96,7 +130,13 @@ export function toWeaponSeed(r) {
         loadedAmmoName: '',
         loadedAmmoCategory: '',
         pps: r.pps ?? 0,
-        ammoCompatibility: r.ammoCompatibility || [],
+        // Ammo compatibility: the weapon's family (auto-derived from its
+        // sub-category) plus, for ordnance weapons, its ordnance class (A-E).
+        // An explicit ammoType wins (e.g. powered vibro/stun melee weapons use
+        // power packs); otherwise archaic melee has none, and ranged weapons
+        // derive their family from the sub-category.
+        ammoType: r.ammoType ?? (isMelee ? '' : (AMMO_TYPE_BY_CATEGORY[r.subCategory] ?? '')),
+        ordnanceClass: r.ordnanceClass || '',
         // Multi-mode weapons: one profile per firing mode; the active mode's
         // stats are overlaid onto the fields above at prepare time.
         modes: Array.isArray(r.modes) ? r.modes.map(toMode) : [],
@@ -279,8 +319,135 @@ export const SUPPORT_WEAPONS = [
   {"name":"Tsunami Heavy Gauss Rifle","subCategory":"Support Gauss","skill":"Support Weapons","ar":"E/X-X-D/E","ap":6,"apFactor":"B","bd":6,"bdFactor":"","ordnanceClass":null,"range":[45,135,400,1070],"shots":5,"pps":8,"cost":5500,"reloadCost":5,"aff":"DC","massKg":12.5,"reloadMassG":4500,"burst":null,"recoil":null,"crew":null,"notes":"ENCUMBERING"}
 ];
 
+/**
+ * Archaic Melee Weapons (ATOW p.261). Skill: Melee Weapons. All `melee`.
+ * AP/BD like "3M/2" → ap 3, apFactor M, bd 2 (a trailing "D" on BD marks
+ * subduing damage). The table's RANGE column is the weapon's reach in metres
+ * (1 m unless noted). No ammunition.
+ */
+export const ARCHAIC_MELEE = [
+  {"name":"Axe","subCategory":"Archaic","ar":"A/A-A-A/A","ap":3,"apFactor":"M","bd":2,"bdFactor":"","cost":25,"aff":"","massKg":4,"img":IMG_AXE,"notes":"-2 to attack roll"},
+  {"name":"Blackjack/Sap","subCategory":"Archaic","ar":"A/A-A-A/A","ap":0,"apFactor":"M","bd":3,"bdFactor":"D","subduing":true,"cost":5,"aff":"","massKg":0.2,"img":IMG_BLUNT,"notes":"-2 to attack roll"},
+  {"name":"Bokken","subCategory":"Archaic","ar":"A/B-B-B/A","ap":0,"apFactor":"M","bd":2,"bdFactor":"","cost":15,"aff":"DC","massKg":2,"img":IMG_BLADE,"notes":"+1 to attack roll"},
+  {"name":"Club or Improvised","subCategory":"Archaic","ar":"A/A-A-A/A","ap":1,"apFactor":"M","bd":1,"bdFactor":"","cost":0,"aff":"","massKg":2,"img":IMG_BLUNT,"notes":""},
+  {"name":"Dao","subCategory":"Archaic","ar":"A/C-C-C/B","ap":1,"apFactor":"M","bd":2,"bdFactor":"","cost":200,"aff":"CC","massKg":3,"img":IMG_BLADE,"notes":"+1 to attack roll"},
+  {"name":"Fingernails, Carbon-Fiber Reinforced","subCategory":"Archaic","ar":"D/X-D-D/C","ap":1,"apFactor":"M","bd":1,"bdFactor":"","cost":1000,"aff":"CC","massKg":0,"img":IMG_KNIFE,"notes":"No effect vs. BAR 3+"},
+  {"name":"Hatchet/Tomahawk","subCategory":"Archaic","ar":"A/A-A-A/A","ap":2,"apFactor":"M","bd":1,"bdFactor":"","cost":10,"aff":"","massKg":1,"img":IMG_AXE,"notes":"-2 to attack roll"},
+  {"name":"Katana","subCategory":"Archaic","ar":"A/C-C-D/B","ap":2,"apFactor":"M","bd":2,"bdFactor":"","cost":250,"aff":"","massKg":2.5,"img":IMG_BLADE,"notes":"+1 to attack roll"},
+  {"name":"Knife/Dagger/Bayonet","subCategory":"Archaic","ar":"A/A-A-A/A","ap":1,"apFactor":"M","bd":1,"bdFactor":"","cost":8,"aff":"","massKg":0.25,"img":IMG_KNIFE,"notes":""},
+  {"name":"No-Dachi","subCategory":"Archaic","ar":"A/C-C-C/B","ap":1,"apFactor":"M","bd":3,"bdFactor":"","cost":300,"aff":"DC","massKg":4.5,"img":IMG_BLADE,"notes":""},
+  {"name":"Nunchaku","subCategory":"Archaic","ar":"A/B-B-B/A","ap":1,"apFactor":"M","bd":1,"bdFactor":"","cost":10,"aff":"DC","massKg":1.5,"img":IMG_BLUNT,"notes":"Opponent -2 to defense roll"},
+  {"name":"Pole Arm","subCategory":"Archaic","ar":"A/B-B-B/B","ap":1,"apFactor":"M","bd":2,"bdFactor":"","cost":50,"aff":"","massKg":6,"img":IMG_POLE,"notes":"Reach: 2 m"},
+  {"name":"Scimitar","subCategory":"Archaic","ar":"A/C-C-C/B","ap":2,"apFactor":"M","bd":2,"bdFactor":"","cost":250,"aff":"","massKg":2.5,"img":IMG_BLADE,"notes":"+1 to attack roll"},
+  {"name":"Staff","subCategory":"Archaic","ar":"A/A-A-A/A","ap":0,"apFactor":"M","bd":2,"bdFactor":"","cost":5,"aff":"","massKg":2.5,"img":IMG_POLE,"notes":""},
+  {"name":"Sword","subCategory":"Archaic","ar":"A/A-A-A/B","ap":2,"apFactor":"M","bd":2,"bdFactor":"","cost":30,"aff":"","massKg":3,"img":IMG_BLADE,"notes":""},
+  {"name":"Wakizashi","subCategory":"Archaic","ar":"A/C-C-C/B","ap":1,"apFactor":"M","bd":1,"bdFactor":"","cost":150,"aff":"DC","massKg":1,"img":IMG_BLADE,"notes":"+1 to attack roll"}
+];
+
+/**
+ * Modern Melee Weapons (ATOW p.264). Skill: Melee Weapons. All `melee`, and all
+ * powered — they draw Power Points from an attached power pack (SHOTS column is
+ * PPS). Vibro weapons use the M(elee) damage factor; stun/neural weapons use
+ * E(nergy) with a subduing (D) BD factor. RANGE column is reach in metres.
+ */
+export const MODERN_MELEE = [
+  {"name":"Medusa Whip","subCategory":"Modern","ar":"E/X-F-E/E","ap":0,"apFactor":"E","bd":1,"bdFactor":"D","subduing":true,"pps":1,"cost":2200,"aff":"CLAN","massKg":0.45,"ammoType":"power-pack","img":IMG_STUN,"notes":"Reach: 3 m; +1D BD per +0.25 PPS spent, to weapon maximum"},
+  {"name":"Mini Stunstick","subCategory":"Modern","ar":"C/B-A-A/B","ap":0,"apFactor":"E","bd":3,"bdFactor":"D","subduing":true,"pps":1,"cost":50,"aff":"","massKg":0.15,"ammoType":"power-pack","img":IMG_STUN,"notes":"Do not add STR damage"},
+  {"name":"Neural Lash","subCategory":"Modern","ar":"D/E-E-D/C","ap":0,"apFactor":"E","bd":5,"bdFactor":"D","subduing":true,"pps":1,"cost":750,"aff":"DC","massKg":0.1,"ammoType":"power-pack","img":IMG_STUN,"notes":"Reach: 2 m; do not add STR damage"},
+  {"name":"Neural Whip","subCategory":"Modern","ar":"D/F-F-E/E","ap":0,"apFactor":"E","bd":5,"bdFactor":"D","subduing":true,"pps":2,"cost":500,"aff":"DC","massKg":0.3,"ammoType":"power-pack","img":IMG_STUN,"notes":"Do not add STR damage"},
+  {"name":"Stunstick","subCategory":"Modern","ar":"C/A-A-A/B","ap":0,"apFactor":"E","bd":4,"bdFactor":"D","subduing":true,"pps":1,"cost":200,"aff":"","massKg":0.2,"ammoType":"power-pack","img":IMG_STUN,"notes":"Do not add STR damage"},
+  {"name":"Stun-Staff, Single-End","subCategory":"Modern","ar":"C/A-C-A/B","ap":0,"apFactor":"E","bd":4,"bdFactor":"D","subduing":true,"pps":1,"cost":300,"aff":"","massKg":3,"ammoType":"power-pack","img":IMG_STUN,"notes":"Reach: 2 m"},
+  {"name":"Stun-Staff, Double-End","subCategory":"Modern","ar":"C/A-C-A/B","ap":0,"apFactor":"E","bd":4,"bdFactor":"D","subduing":true,"pps":2,"cost":500,"aff":"","massKg":3,"ammoType":"power-pack","img":IMG_STUN,"notes":"Reach: 2 m"},
+  {"name":"Monowire","subCategory":"Modern","ar":"E/E-F-E/E","ap":4,"apFactor":"M","bd":5,"bdFactor":"","pps":1,"cost":200,"aff":"","massKg":0.25,"ammoType":"power-pack","img":IMG_VIBRO,"notes":"Reach: adjacent (monofilament garrote)"},
+  {"name":"Vibroaxe","subCategory":"Modern","ar":"E/C-D-D/C","ap":6,"apFactor":"M","bd":4,"bdFactor":"","pps":2,"cost":150,"aff":"CC","massKg":5,"ammoType":"power-pack","img":IMG_VIBRO,"notes":"-1 to attack roll"},
+  {"name":"Vibroblade/Vibrodagger","subCategory":"Modern","ar":"D/B-C-B/C","ap":6,"apFactor":"M","bd":2,"bdFactor":"","pps":1,"cost":100,"aff":"CC","massKg":0.35,"ammoType":"power-pack","img":IMG_VIBRO,"notes":""},
+  {"name":"Vibrokatana","subCategory":"Modern","ar":"E/E-E-D/D","ap":6,"apFactor":"M","bd":3,"bdFactor":"","pps":2,"cost":350,"aff":"DC","massKg":1,"ammoType":"power-pack","img":IMG_VIBRO,"notes":"+1 to attack roll"},
+  {"name":"Vibromace","subCategory":"Modern","ar":"D/X-F-E/E","ap":3,"apFactor":"M","bd":5,"bdFactor":"","pps":3,"cost":540,"aff":"CF","massKg":6,"ammoType":"power-pack","img":IMG_VIBRO,"notes":"-2 to attack roll"},
+  {"name":"Vibrosword","subCategory":"Modern","ar":"E/D-D-C/D","ap":6,"apFactor":"M","bd":3,"bdFactor":"","pps":1,"cost":300,"aff":"","massKg":2.5,"ammoType":"power-pack","img":IMG_VIBRO,"notes":""},
+  {"name":"Vibrosword, Clan","subCategory":"Modern","ar":"F/X-F-E/D","ap":7,"apFactor":"M","bd":3,"bdFactor":"","pps":2,"cost":500,"aff":"CLAN","massKg":4,"ammoType":"power-pack","img":IMG_VIBRO,"notes":""}
+];
+
+/**
+ * Archaic Ranged Weapons (ATOW p.261). Skill: Archery. All `archaic`. AP/BD
+ * uses the B(allistic) factor. RANGE is the usual four bands. Arrows/bolts are
+ * tracked as loose reloads (reloadCost/reloadMass) rather than a magazine.
+ */
+export const ARCHERY = [
+  {"name":"Short Bow","subCategory":"Bows","ar":"A/A-A-A/A","ap":2,"apFactor":"B","bd":1,"bdFactor":"","range":[8,20,50,100],"shots":1,"cost":10,"reloadCost":1,"aff":"","massKg":0.8,"reloadMassG":60,"img":IMG_BOW,"notes":"Simple Action to reload"},
+  {"name":"Longbow","subCategory":"Bows","ar":"A/B-B-B/A","ap":2,"apFactor":"B","bd":2,"bdFactor":"","range":[10,30,80,175],"shots":1,"cost":20,"reloadCost":2,"aff":"","massKg":1.5,"reloadMassG":70,"img":IMG_BOW,"notes":"Simple Action to reload"},
+  {"name":"Compound Bow","subCategory":"Bows","ar":"C/B-A-A/A","ap":2,"apFactor":"B","bd":2,"bdFactor":"","range":[10,25,70,160],"shots":1,"cost":15,"reloadCost":2,"aff":"","massKg":1,"reloadMassG":70,"img":IMG_BOW,"notes":"Simple Action to reload; +1 to attack roll"},
+  {"name":"Hankyu","subCategory":"Bows","ar":"A/C-C-C/A","ap":2,"apFactor":"B","bd":1,"bdFactor":"","range":[8,20,55,110],"shots":1,"cost":15,"reloadCost":1,"aff":"DC","massKg":0.8,"reloadMassG":60,"img":IMG_BOW,"notes":"Simple Action to reload"},
+  {"name":"Daikyu","subCategory":"Bows","ar":"A/C-D-D/A","ap":2,"apFactor":"B","bd":2,"bdFactor":"","range":[10,25,60,125],"shots":1,"cost":30,"reloadCost":2,"aff":"DC","massKg":1,"reloadMassG":70,"img":IMG_BOW,"notes":"Simple Action to reload"},
+  {"name":"Crossbow, Basic","subCategory":"Crossbows","ar":"A/A-A-A/A","ap":3,"apFactor":"B","bd":2,"bdFactor":"","range":[5,16,30,70],"shots":1,"cost":10,"reloadCost":1,"aff":"","massKg":2,"reloadMassG":50,"img":IMG_CROSSBOW,"notes":"Simple Action to reload"},
+  {"name":"Crossbow, Heavy","subCategory":"Crossbows","ar":"A/A-A-A/A","ap":3,"apFactor":"B","bd":3,"bdFactor":"","range":[5,20,40,100],"shots":1,"cost":10,"reloadCost":1,"aff":"","massKg":4,"reloadMassG":60,"img":IMG_CROSSBOW,"notes":"Simple Action to reload"}
+];
+
+/**
+ * Thrown Weapons (ATOW p.261). Skill: Thrown Weapons. All `archaic`. Their
+ * effective range is not fixed — it equals the thrower's STR + DEX in metres
+ * (×1/×2/×3/×4 for Short/Medium/Long/Extreme), so no range bands are stored;
+ * the formula (and any per-weapon modifier) is captured in the notes.
+ */
+const THROWN_RANGE_NOTE = 'Range = (STR + DEX) m: ×1 Short, ×2 Medium, ×3 Long, ×4 Extreme.';
+export const THROWN = [
+  {"name":"Dart","subCategory":"Aerodynamic","ar":"A/A-A-A/A","ap":1,"apFactor":"M","bd":1,"bdFactor":"","cost":3,"aff":"","massKg":0.01,"img":IMG_THROWN,"notes":`+1 to-hit; half thrown-weapon range (round down). ${THROWN_RANGE_NOTE}`},
+  {"name":"Shuriken","subCategory":"Aerodynamic","ar":"A/B-B-B/A","ap":2,"apFactor":"M","bd":1,"bdFactor":"","cost":5,"aff":"DC","massKg":0.1,"img":IMG_THROWN,"notes":`Extreme range = 6× Short. ${THROWN_RANGE_NOTE}`},
+  {"name":"Knife, Throwing","subCategory":"Bladed","ar":"A/C-C-C/B","ap":2,"apFactor":"M","bd":1,"bdFactor":"","cost":8,"aff":"","massKg":0.25,"img":IMG_THROWN,"notes":THROWN_RANGE_NOTE},
+  {"name":"Hatchet/Tomahawk (Thrown)","subCategory":"Bladed","ar":"A/A-A-A/A","ap":3,"apFactor":"M","bd":1,"bdFactor":"","cost":10,"aff":"","massKg":1,"img":IMG_THROWN,"notes":THROWN_RANGE_NOTE},
+  {"name":"Spear","subCategory":"Bladed","ar":"A/B-B-B/B","ap":2,"apFactor":"M","bd":2,"bdFactor":"","cost":15,"aff":"","massKg":5,"img":IMG_THROWN,"notes":`Double thrown-weapon range. ${THROWN_RANGE_NOTE}`}
+];
+
+/**
+ * Standard Explosives — Grenades (ATOW p.277). Skill: Thrown Weapons.
+ * `explosives` weaponType. The three basic grenades carry an ordnance class
+ * (A/B/C) and take their AP/BD from the loaded munition (like a launcher, but
+ * thrown); the rocket-assisted grenade is self-contained with fixed AP/BD.
+ * Throw range is STR-based (STR ×1/2/3/4), captured in notes.
+ */
+const GRENADE_RANGE_NOTE = 'Range = STR m: ×1 Short, ×2 Medium, ×3 Long, ×4 Extreme.';
+export const GRENADES = [
+  {"name":"Grenade, Micro","subCategory":"Grenades","ar":"C/B-C-C/E","ordnanceClass":"A","ammoType":"grenade","shots":1,"cost":2,"aff":"","massKg":0.2,"img":IMG_GRENADE,"notes":`Indirect. ${GRENADE_RANGE_NOTE}`},
+  {"name":"Grenade, Mini","subCategory":"Grenades","ar":"C/B-B-B/E","ordnanceClass":"B","ammoType":"grenade","shots":1,"cost":10,"aff":"","massKg":0.45,"img":IMG_GRENADE,"notes":`Indirect. ${GRENADE_RANGE_NOTE}`},
+  {"name":"Grenade","subCategory":"Grenades","ar":"C/A-A-A/E","ordnanceClass":"C","ammoType":"grenade","shots":1,"cost":20,"aff":"","massKg":0.6,"img":IMG_GRENADE,"notes":`Indirect. ${GRENADE_RANGE_NOTE}`},
+  {"name":"Grenade, Rocket-Assisted","subCategory":"Grenades","ar":"C/X-X-D/E","ap":5,"apFactor":"X","bd":10,"bdFactor":"A","shots":1,"cost":50,"aff":"","massKg":0.6,"img":IMG_GRENADE,"notes":`Indirect; -2 to attack; in rocket-assisted mode range ×5 and BD -2. ${GRENADE_RANGE_NOTE}`}
+];
+
+/**
+ * Standard Explosives — Mines (ATOW p.277). Skill: Demolitions. `explosives`
+ * weaponType. Each mine detonates as an ordnance class (D/E) — attach the
+ * ordnance munition (anti-personnel, HE, inferno, …) to set its payload. The
+ * Sea/Land entries are minefield deployment options, not standalone items.
+ */
+export const MINES = [
+  {"name":"Mine, Active","subCategory":"Mines","skill":"Demolitions","ar":"E/X-X-D/E","ordnanceClass":"D","ammoType":"mine","cost":1000,"aff":"CC","massKg":5,"img":IMG_MINE,"notes":"-4 to detonation check vs. jumping units or hovercraft immediately overhead"},
+  {"name":"Mine, Command-Detonated","subCategory":"Mines","skill":"Demolitions","ar":"C/B-B-B/E","ordnanceClass":"E","ammoType":"mine","cost":75,"aff":"","massKg":0.6,"img":IMG_MINE,"notes":"Will not detonate unless triggered by a friendly unit with working comms"},
+  {"name":"Mine, Standard","subCategory":"Mines","skill":"Demolitions","ar":"B/A-A-A/E","ordnanceClass":"E","ammoType":"mine","cost":50,"aff":"","massKg":0.5,"img":IMG_MINE,"notes":"+4 to detonation check vs. hovercraft; may not attack jumping units overhead"},
+  {"name":"Mine, Vibrabomb","subCategory":"Mines","skill":"Demolitions","ar":"D/B-D-C/E","ordnanceClass":"E","ammoType":"mine","cost":500,"aff":"","massKg":1,"img":IMG_MINE,"notes":"Triggered by a tonnage setting (see p.177, TO:AR)"},
+  {"name":"Sea Mines (deployment)","subCategory":"Mines","skill":"Demolitions","ar":"","ap":0,"apFactor":"","bd":0,"bdFactor":"","cost":0,"aff":"","massKg":0,"img":IMG_MINE,"notes":"Minefield deployment option: ×2 cost, ×1 mass of the base mine; deployable in water up to 72 m deep. Uses the deployed mine's stats."},
+  {"name":"Land Mines (deployment)","subCategory":"Mines","skill":"Demolitions","ar":"","ap":0,"apFactor":"","bd":0,"bdFactor":"","cost":0,"aff":"","massKg":0,"img":IMG_MINE,"notes":"Minefield deployment option: ×1 cost, ×1 mass of the base mine; deployable on land or underwater (on the water-feature floor) to a max depth of 15 m. Uses the deployed mine's stats."}
+];
+
+/**
+ * Demolitions — Charges & tools (ATOW p.277). Skill: Demolitions. `explosives`
+ * weaponType. Self-contained explosives with fixed AP/BD (X/A factors) that
+ * shed damage with distance; the Demolition Kit is a rigging tool (no damage).
+ */
+export const CHARGES = [
+  {"name":"C8, Blasting Block","subCategory":"Charges","skill":"Demolitions","ar":"D/B-B-B/D","ap":7,"apFactor":"X","bd":10,"bdFactor":"A","shots":1,"cost":50,"aff":"","massKg":1,"img":IMG_CHARGE,"notes":"-4 AP/-4 BD per metre from the blast"},
+  {"name":"C8, Satchel Charge","subCategory":"Charges","skill":"Demolitions","ar":"D/B-D-C/E","ap":8,"apFactor":"X","bd":12,"bdFactor":"A","shots":1,"cost":210,"aff":"","massKg":4.5,"img":IMG_CHARGE,"notes":"-2 AP/-2 BD per metre; STR-based throw range (×0.5/1/1.5/2 for S/M/L/E) applies when thrown as a grenade"},
+  {"name":"Demolition Kit","subCategory":"Charges","skill":"Demolitions","ar":"C/A-C-B/D","ap":0,"apFactor":"","bd":0,"bdFactor":"","shots":12,"cost":200,"aff":"","massKg":2,"img":IMG_CHARGE,"notes":"Rigs up to 12 explosives for remote or timed detonation; +1 to the Demolitions roll to rig explosives (no direct damage)"},
+  {"name":"Pentaglycerine","subCategory":"Charges","skill":"Demolitions","ar":"D/C-E-D/D","ap":7,"apFactor":"X","bd":10,"bdFactor":"A","shots":1,"cost":150,"aff":"","massKg":0.2,"img":IMG_CHARGE,"notes":"-2 AP/-2 BD per metre from the blast"}
+];
+
 /** All weapon seed entries (expanded), consumed by the weapon seeder. */
 export const WEAPON_SEED = [
   ...SMALL_ARMS.map(r => ({ skill: 'Small Arms', weaponType: 'smallarms', ...r })),
-  ...SUPPORT_WEAPONS.map(r => ({ weaponType: 'support', ...r }))
+  ...SUPPORT_WEAPONS.map(r => ({ weaponType: 'support', ...r })),
+  ...ARCHAIC_MELEE.map(r => ({ skill: 'Melee Weapons', weaponType: 'melee', ...r })),
+  ...MODERN_MELEE.map(r => ({ skill: 'Melee Weapons', weaponType: 'melee', ...r })),
+  ...ARCHERY.map(r => ({ skill: 'Archery', weaponType: 'archaic', ...r })),
+  ...THROWN.map(r => ({ skill: 'Thrown Weapons', weaponType: 'archaic', ...r })),
+  ...GRENADES.map(r => ({ skill: 'Thrown Weapons', weaponType: 'explosives', ...r })),
+  ...MINES.map(r => ({ weaponType: 'explosives', ...r })),
+  ...CHARGES.map(r => ({ weaponType: 'explosives', ...r }))
 ].map(toWeaponSeed);

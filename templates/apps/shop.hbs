@@ -1,0 +1,104 @@
+<div class="shop">
+  {{#unless hasTabs}}
+    <div class="shop-notice">No equipment compendia are available yet. Seed the Weapons and Ammunition packs to start shopping.</div>
+  {{else}}
+
+  {{!-- Tabs (one per equipment type) --}}
+  <nav class="shop-tabs">
+    {{#each tabs}}
+    <a class="shop-tab {{#if this.active}}active{{/if}}" data-action="selectTab" data-tab="{{this.id}}">
+      <i class="{{this.icon}}"></i> <span>{{this.label}}</span> <span class="shop-tab-count">{{this.count}}</span>
+    </a>
+    {{/each}}
+  </nav>
+
+  <div class="shop-main">
+    {{!-- LEFT: catalog browser --}}
+    <section class="shop-browser">
+      <div class="shop-searchbar">
+        <i class="fa-solid fa-magnifying-glass"></i>
+        <input type="text" class="shop-search" placeholder="Search this tab…" value="{{search}}" spellcheck="false"/>
+      </div>
+
+      <div class="shop-catalog">
+        {{#each groups}}
+        <div class="shop-group">
+          <h3 class="shop-group-title">{{this.name}}</h3>
+          <div class="shop-group-items">
+            {{#each this.items}}
+            <div class="shop-item" data-name="{{this.nameKey}}">
+              <img class="shop-item-img" src="{{this.img}}" alt=""/>
+              <div class="shop-item-main">
+                <span class="shop-item-name">{{this.name}}</span>
+                <span class="shop-item-meta">{{#if this.mass}}{{this.mass}} kg{{/if}}</span>
+              </div>
+              <span class="shop-item-cost">{{this.cost}} C</span>
+              <button type="button" class="shop-add" data-action="addToCart" data-uuid="{{this.uuid}}" {{#unless ../../editable}}disabled{{/unless}}>
+                <i class="fa-solid fa-plus"></i>{{#if this.inCart}} <span class="shop-in-cart">{{this.inCart}}</span>{{/if}}
+              </button>
+            </div>
+            {{/each}}
+          </div>
+        </div>
+        {{/each}}
+        <div class="shop-empty hidden">No items match your search.</div>
+        {{#unless hasCatalog}}<div class="shop-empty">This compendium is empty.</div>{{/unless}}
+      </div>
+    </section>
+
+    {{!-- RIGHT: cart --}}
+    <aside class="shop-cart">
+      <header class="shop-cart-head">
+        <div class="shop-actor">
+          <span class="shop-actor-name">{{#if hasActor}}{{actorName}}{{else}}No character{{/if}}</span>
+          <span class="shop-balance"><i class="fa-solid fa-coins"></i> {{cbills}} C-bills</span>
+        </div>
+        <h3>Cart {{#if cartCount}}<span class="shop-cart-count">{{cartCount}}</span>{{/if}}</h3>
+      </header>
+
+      <div class="shop-cart-lines">
+        {{#if hasCart}}
+          {{#each lines}}
+          <div class="shop-cart-line">
+            <span class="shop-cart-name" title="{{this.name}}">{{this.name}}</span>
+            <div class="shop-qty">
+              <button type="button" data-action="decCart" data-uuid="{{this.uuid}}" {{#unless ../editable}}disabled{{/unless}}><i class="fa-solid fa-minus"></i></button>
+              <span class="shop-qty-val">{{this.qty}}</span>
+              <button type="button" data-action="incCart" data-uuid="{{this.uuid}}" {{#unless ../editable}}disabled{{/unless}}><i class="fa-solid fa-plus"></i></button>
+            </div>
+            <span class="shop-cart-linecost">{{this.lineCost}} C</span>
+            <button type="button" class="shop-remove" data-action="removeCart" data-uuid="{{this.uuid}}" title="Remove"><i class="fa-solid fa-xmark"></i></button>
+          </div>
+          {{/each}}
+        {{else}}
+          <div class="shop-cart-empty">Cart is empty — add items from the catalog.</div>
+        {{/if}}
+      </div>
+
+      <footer class="shop-cart-foot">
+        {{#if isGM}}
+        <label class="shop-free">
+          <input type="checkbox" data-action="toggleFree" {{#if free}}checked{{/if}}/>
+          GM: gift (ignore cost)
+        </label>
+        {{/if}}
+
+        <div class="shop-totals">
+          <div class="shop-total-row"><span>Subtotal</span><span>{{subtotal}} C</span></div>
+          <div class="shop-total-row {{#unless affordable}}shop-negative{{/unless}}">
+            <span>Balance after</span><span>{{after}} C</span>
+          </div>
+        </div>
+
+        <div class="shop-cart-actions">
+          <button type="button" class="shop-clear" data-action="clearCart" {{#unless hasCart}}disabled{{/unless}}>Clear</button>
+          <button type="button" class="shop-checkout" data-action="checkout" {{#unless hasCart}}disabled{{/unless}} {{#unless affordable}}disabled{{/unless}} {{#unless editable}}disabled{{/unless}}>
+            {{#if affordable}}Buy{{else}}Can't afford{{/if}}
+          </button>
+        </div>
+      </footer>
+    </aside>
+  </div>
+
+  {{/unless}}
+</div>

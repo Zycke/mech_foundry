@@ -26,9 +26,23 @@
           </select>
         </div>
         <div class="form-group">
-          <label>Ammo Type</label>
-          <input type="text" name="system.ammoType" value="{{system.ammoType}}" placeholder="e.g., Slug-Thrower, Power Pack"/>
+          <label>Ammo Type <span class="hint-inline">(weapon family)</span></label>
+          <select name="system.ammoType">
+            {{#each ammoTypeOptions}}
+            <option value="{{this.value}}" {{#if this.selected}}selected{{/if}}>{{this.label}}</option>
+            {{/each}}
+          </select>
         </div>
+        {{#if isOrdnance}}
+        <div class="form-group">
+          <label>Ordnance Class</label>
+          <select name="system.ordnanceClass">
+            {{#each ordnanceClassOptions}}
+            <option value="{{this.value}}" {{#if this.selected}}selected{{/if}}>{{this.label}}</option>
+            {{/each}}
+          </select>
+        </div>
+        {{/if}}
       </div>
 
       {{!-- Quantity --}}
@@ -154,22 +168,6 @@
             </select>
           </div>
         </div>
-      </div>
-
-      {{!-- Weapon Compatibility Tags --}}
-      <h3>Weapon Compatibility</h3>
-      <div class="form-group full-width">
-        <label>Compatibility Tags</label>
-        <div class="compatibility-tags">
-          {{#each system.weaponCompatibility}}
-          <div class="tag-item" data-index="{{@index}}">
-            <input type="text" name="system.weaponCompatibility.{{@index}}" value="{{this}}"/>
-            <a class="remove-tag" data-action="removeWeaponTag" data-index="{{@index}}" title="Remove"><i class="fas fa-times"></i></a>
-          </div>
-          {{/each}}
-          <a class="add-tag" data-action="addWeaponTag" title="Add Tag"><i class="fas fa-plus"></i> Add Tag</a>
-        </div>
-        <p class="hint">Tags like: slug-thrower, rifle, shotgun, energy, laser, grenade-launcher, mortar, gauss, gyrojet</p>
       </div>
 
       {{!-- Special Effects --}}

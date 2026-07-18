@@ -2,6 +2,7 @@ import { MechFoundryActor } from '../documents/actor.mjs';
 import { OpposedRollHelper } from '../helpers/opposed-rolls.mjs';
 import { ItemEffectsHelper } from '../helpers/effects-helper.mjs';
 import { CharacterWizard } from '../apps/character-wizard.mjs';
+import { ShopApplication } from '../apps/shop.mjs';
 
 const { HandlebarsApplicationMixin } = foundry.applications.api;
 const { ActorSheetV2 } = foundry.applications.sheets;
@@ -38,7 +39,8 @@ export class MechFoundryActorSheet extends HandlebarsApplicationMixin(ActorSheet
     window: { resizable: true },
     actions: {
       editImage: MechFoundryActorSheet._onEditImage,
-      launchWizard: MechFoundryActorSheet._onLaunchWizard
+      launchWizard: MechFoundryActorSheet._onLaunchWizard,
+      openShop: MechFoundryActorSheet._onOpenShop
     },
     dragDrop: [{ dragSelector: ".item", dropSelector: null }]
   };
@@ -52,6 +54,11 @@ export class MechFoundryActorSheet extends HandlebarsApplicationMixin(ActorSheet
         label: 'MECHFOUNDRY.WizardTitle',
         action: 'launchWizard'
       });
+      controls.push({
+        icon: 'fa-solid fa-cart-shopping',
+        label: 'MECHFOUNDRY.ShopTitle',
+        action: 'openShop'
+      });
     }
     return controls;
   }
@@ -59,6 +66,11 @@ export class MechFoundryActorSheet extends HandlebarsApplicationMixin(ActorSheet
   /** Open the step-by-step character-creation wizard for this actor. */
   static _onLaunchWizard() {
     new CharacterWizard({ actor: this.actor }).render(true);
+  }
+
+  /** Open the equipment shop bound to this actor. */
+  static _onOpenShop() {
+    new ShopApplication({ actor: this.actor }).render(true);
   }
 
   /** Placeholder; real template chosen per actor type in _configureRenderParts. */
@@ -267,6 +279,7 @@ export class MechFoundryActorSheet extends HandlebarsApplicationMixin(ActorSheet
       drugpoisons: [],
       vehicles: [],
       fuel: [],
+      gear: [],
       ammo: []
     };
 
@@ -414,6 +427,13 @@ export class MechFoundryActorSheet extends HandlebarsApplicationMixin(ActorSheet
       }
       else if (i.type === 'fuel') {
         inventory.fuel.push(i);
+        const status = i.system.carryStatus || 'carried';
+        if (status !== 'stored') {
+          totalWeight += parseFloat(i.system.mass) || 0;
+        }
+      }
+      else if (i.type === 'supplies') {
+        inventory.gear.push(i);
         const status = i.system.carryStatus || 'carried';
         if (status !== 'stored') {
           totalWeight += parseFloat(i.system.mass) || 0;

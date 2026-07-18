@@ -2208,28 +2208,33 @@ export class MechFoundryActor extends Actor {
   /* -------------------------------------------- */
 
   /**
-   * Check if ammo is compatible with a weapon based on their tags.
+   * Check if ammo is compatible with a weapon.
+   *
+   * Compatibility is a single controlled match: the weapon and ammo must share
+   * the same `ammoType` family (e.g. both "ballistic"), and for ordnance
+   * families (grenade / mortar / missile / recoilless) their ordnance class
+   * (A-E) must also match. Weapon ammoType is auto-derived from the seed, so no
+   * per-item tagging is needed.
    * @param {Item} weapon The weapon item
    * @param {Item} ammo The ammo item
    * @returns {boolean} True if compatible
    */
   _isAmmoCompatible(weapon, ammo) {
-    const weaponTags = weapon.system.ammoCompatibility || [];
-    const ammoTags = ammo.system.weaponCompatibility || [];
-
-    // If weapon has no compatibility tags, it doesn't use ammo
-    if (weaponTags.length === 0) return false;
-
-    // If ammo has no compatibility tags, it's incompatible
-    if (ammoTags.length === 0) return false;
-
-    // Energy ammo only for weapons with PPS > 0
-    if (ammo.system.ammoCategory === 'energy' && !weapon.system.pps) {
-      return false;
+    const wType = weapon.system.ammoType || '';
+    const aType = ammo.system.ammoType || '';
+    // A weapon (or ammo) with no family doesn't take loose ammo (single-use).
+    if (!wType || !aType) return false;
+    const ordFam = game.mechfoundry?.config?.ordnanceAmmoTypes || ['grenade', 'mortar', 'missile', 'recoilless'];
+    // Ordnance weapons take generic ordnance ammo (ATOW ordnance is classified
+    // by class, not weapon type): any ordnance family (or the "ordnance"
+    // catch-all) whose ordnance class matches the weapon's.
+    if (ordFam.includes(wType)) {
+      const ammoIsOrdnance = aType === 'ordnance' || ordFam.includes(aType) || ammo.system.ammoCategory === 'ordnance';
+      if (!ammoIsOrdnance) return false;
+      return (weapon.system.ordnanceClass || '') === (ammo.system.ordnanceClass || '');
     }
-
-    // Check for any matching tag
-    return weaponTags.some(tag => ammoTags.includes(tag));
+    // Non-ordnance weapons: exact ammo-family match.
+    return wType === aType;
   }
 
   /**
