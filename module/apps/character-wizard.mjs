@@ -1468,12 +1468,22 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     }
     if (lumpChanged) {
       for (const [sk, rows] of Object.entries(lump)) {
-        // Keep a row once it has EITHER a target or an amount, so a dropdown
-        // choice sticks before the amount is typed (and vice-versa). The amount
-        // is only actually allocated in #rebuildState when key && amount > 0.
+        // Keep a row once it has a kind, a target, OR an amount, so any one of
+        // the three dropdowns/fields sticks before the others are filled in.
+        // Including `kind` is what lets the Attribute/Skill/Trait selector hold
+        // its choice while the target is still empty (an 'any' pool renders that
+        // extra select). #rebuildState only actually allocates a row when it has
+        // both a key and amount > 0, so a kind-only row spends nothing.
+        const prev = this.#choices.lumpFlexible[sk] || [];
         this.#choices.lumpFlexible[sk] = rows
-          .map(r => ({ kind: r?.kind || '', key: r?.key || '', amount: Number(r?.amount) || 0 }))
-          .filter(r => r.key || r.amount > 0);
+          .map((r, i) => {
+            const kind = r?.kind || '';
+            let key = r?.key || '';
+            // If an 'any' row's kind just changed, the old target no longer fits.
+            if (kind && prev[i]?.kind && prev[i].kind !== kind) key = '';
+            return { kind, key, amount: Number(r?.amount) || 0 };
+          })
+          .filter(r => r.kind || r.key || r.amount > 0);
       }
     }
     // Keep a row once it has EITHER a target or an amount, so a dropdown choice
