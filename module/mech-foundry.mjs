@@ -28,6 +28,7 @@ import { seedReferenceCompendia, rebuildReferenceConfig, registerReferenceSeeder
 import { seedWeapons } from "./helpers/weapon-seeder.mjs";
 import { seedAmmo } from "./helpers/ammo-seeder.mjs";
 import { CharacterWizard } from "./apps/character-wizard.mjs";
+import { ShopApplication } from "./apps/shop.mjs";
 import { ATOW_SKILLS, ATOW_TRAITS, ATOW_TRAIT_DESCRIPTIONS } from "./data/atow-lists.mjs";
 import { SocketHandler, SOCKET_EVENTS } from "./helpers/socket-handler.mjs";
 import { OpposedRollHelper } from "./helpers/opposed-rolls.mjs";
@@ -52,6 +53,11 @@ Hooks.once('init', function() {
     CharacterWizard,
     /** Open the character-creation wizard, optionally bound to an actor. */
     openCharacterWizard: (actor = null) => new CharacterWizard({ actor }).render(true),
+    /** Open the equipment shop bound to an actor (defaults to the selected token/character). */
+    openShop: (actor = null) => new ShopApplication({
+      actor: actor ?? game.user?.character ?? canvas?.tokens?.controlled?.[0]?.actor ?? null
+    }).render(true),
+    ShopApplication,
     /** Manually (re)seed the Life Modules compendium, adding any missing starters. */
     reseedLifeModules: () => seedLifeModules({ force: true }),
     /** Manually (re)seed the Skills/Traits reference compendia, then refresh config. */

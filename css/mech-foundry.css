@@ -6065,3 +6065,133 @@
 .mech-foundry.item-sheet .weapon-modes th { color: var(--mf-warning); }
 .mech-foundry.item-sheet .weapon-modes td { color: var(--mf-light); }
 .mech-foundry.item-sheet .weapon-modes tr.active { background: rgba(211, 160, 60, 0.22); }
+
+/* ============================================================
+   Equipment Shop (ApplicationV2)
+   ============================================================ */
+.mech-foundry-shop .window-content { padding: 0; background: var(--mf-bg); }
+.mech-foundry-shop .shop {
+  display: flex; flex-direction: column; height: 100%; min-height: 0;
+  color: var(--mf-ink); font-family: var(--mf-font-body);
+}
+.mech-foundry-shop .shop-notice { padding: 24px; color: var(--mf-ink-dim); text-align: center; }
+.mech-foundry-shop .hidden { display: none !important; }
+
+/* ---- Tabs -------------------------------------------------- */
+.mech-foundry-shop .shop-tabs {
+  display: flex; gap: 4px; padding: 8px 10px 0;
+  background: linear-gradient(180deg, #10151a 0%, #202a33 60%, #171d23 100%);
+  border-bottom: 2px solid var(--mf-amber);
+}
+.mech-foundry-shop .shop-tab {
+  display: flex; align-items: center; gap: 6px; padding: 6px 12px;
+  border: 1px solid var(--mf-line); border-bottom: none;
+  border-radius: 4px 4px 0 0; color: var(--mf-ink-dim);
+  font-family: var(--mf-font-head); text-transform: uppercase;
+  letter-spacing: 0.04em; font-size: 0.82em; cursor: pointer;
+}
+.mech-foundry-shop .shop-tab:hover { color: var(--mf-amber-2); }
+.mech-foundry-shop .shop-tab.active {
+  color: var(--mf-amber-2); border-color: var(--mf-amber);
+  background: var(--mf-panel);
+}
+.mech-foundry-shop .shop-tab-count {
+  font-size: 0.85em; color: var(--mf-ink-dim);
+  background: #0f1317; border: 1px solid var(--mf-line);
+  border-radius: 8px; padding: 0 6px;
+}
+
+/* ---- Main split -------------------------------------------- */
+.mech-foundry-shop .shop-main { display: flex; flex: 1 1 auto; min-height: 0; }
+.mech-foundry-shop .shop-browser {
+  flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; min-height: 0;
+  border-right: 1px solid var(--mf-line);
+}
+
+/* ---- Search ------------------------------------------------ */
+.mech-foundry-shop .shop-searchbar {
+  display: flex; align-items: center; gap: 8px; padding: 8px 12px;
+  border-bottom: 1px solid var(--mf-line); background: var(--mf-panel); color: var(--mf-ink-dim);
+}
+.mech-foundry-shop .shop-search {
+  flex: 1 1 auto; background: #0f1317; border: 1px solid var(--mf-line);
+  border-radius: 2px; color: var(--mf-ink); padding: 5px 8px;
+}
+.mech-foundry-shop .shop-search:focus { outline: none; border-color: var(--mf-amber); box-shadow: 0 0 0 1px rgba(242,165,58,0.35); }
+
+/* ---- Catalog ----------------------------------------------- */
+.mech-foundry-shop .shop-catalog { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 8px 12px; }
+.mech-foundry-shop .shop-group { margin-bottom: 14px; }
+.mech-foundry-shop .shop-group-title {
+  margin: 0 0 6px; padding-left: 8px; font-family: var(--mf-font-head);
+  color: var(--mf-amber-2); text-transform: uppercase; letter-spacing: 0.05em;
+  font-size: 0.9em; border-left: 3px solid var(--mf-amber);
+}
+.mech-foundry-shop .shop-item {
+  display: grid; grid-template-columns: 28px 1fr auto auto; align-items: center;
+  gap: 10px; padding: 4px 6px; border: 1px solid transparent; border-radius: 3px;
+}
+.mech-foundry-shop .shop-item:hover { background: var(--mf-panel); border-color: var(--mf-line); }
+.mech-foundry-shop .shop-item-img { width: 28px; height: 28px; object-fit: contain; border: 1px solid var(--mf-line); border-radius: 3px; background: #0f1317; }
+.mech-foundry-shop .shop-item-main { display: flex; flex-direction: column; min-width: 0; }
+.mech-foundry-shop .shop-item-name { color: var(--mf-ink); font-size: 0.92em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mech-foundry-shop .shop-item-meta { color: var(--mf-ink-dim); font-size: 0.72em; }
+.mech-foundry-shop .shop-item-cost { color: var(--mf-amber-2); font-family: var(--mf-font-mono); font-size: 0.85em; white-space: nowrap; }
+.mech-foundry-shop .shop-add {
+  display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px;
+  background: var(--mf-primary); color: #fff; border: none; border-radius: 3px; cursor: pointer;
+  font-size: 0.85em; line-height: 1;
+}
+.mech-foundry-shop .shop-add:hover:not(:disabled) { background: var(--mf-amber); color: #14181c; }
+.mech-foundry-shop .shop-add:disabled { opacity: 0.4; cursor: default; }
+.mech-foundry-shop .shop-in-cart { background: rgba(0,0,0,0.35); border-radius: 8px; padding: 0 5px; font-size: 0.85em; }
+.mech-foundry-shop .shop-empty { color: var(--mf-ink-dim); text-align: center; padding: 20px; font-size: 0.9em; }
+
+/* ---- Cart -------------------------------------------------- */
+.mech-foundry-shop .shop-cart {
+  flex: 0 0 300px; display: flex; flex-direction: column; min-height: 0; background: var(--mf-panel);
+}
+.mech-foundry-shop .shop-cart-head { padding: 10px 12px; border-bottom: 1px solid var(--mf-line); }
+.mech-foundry-shop .shop-actor { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.mech-foundry-shop .shop-actor-name { font-family: var(--mf-font-head); color: var(--mf-ink); text-transform: uppercase; letter-spacing: 0.04em; }
+.mech-foundry-shop .shop-balance { color: var(--mf-amber-2); font-family: var(--mf-font-mono); font-size: 0.85em; white-space: nowrap; }
+.mech-foundry-shop .shop-cart-head h3 { margin: 8px 0 0; font-family: var(--mf-font-head); color: var(--mf-amber-2); text-transform: uppercase; letter-spacing: 0.05em; font-size: 0.9em; }
+.mech-foundry-shop .shop-cart-count { background: var(--mf-amber); color: #14181c; border-radius: 8px; padding: 0 6px; font-size: 0.8em; }
+.mech-foundry-shop .shop-cart-lines { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 6px 10px; }
+.mech-foundry-shop .shop-cart-empty { color: var(--mf-ink-dim); text-align: center; padding: 24px 10px; font-size: 0.85em; }
+.mech-foundry-shop .shop-cart-line {
+  display: grid; grid-template-columns: 1fr auto auto auto; align-items: center; gap: 8px;
+  padding: 4px 0; border-bottom: 1px solid var(--mf-line);
+}
+.mech-foundry-shop .shop-cart-name { color: var(--mf-ink); font-size: 0.85em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mech-foundry-shop .shop-qty { display: inline-flex; align-items: center; gap: 4px; }
+.mech-foundry-shop .shop-qty button {
+  width: 20px; height: 20px; display: inline-flex; align-items: center; justify-content: center;
+  background: #0f1317; color: var(--mf-ink); border: 1px solid var(--mf-line); border-radius: 3px; cursor: pointer; font-size: 0.7em; padding: 0;
+}
+.mech-foundry-shop .shop-qty button:hover:not(:disabled) { border-color: var(--mf-amber); color: var(--mf-amber-2); }
+.mech-foundry-shop .shop-qty-val { min-width: 18px; text-align: center; font-family: var(--mf-font-mono); font-size: 0.85em; }
+.mech-foundry-shop .shop-cart-linecost { color: var(--mf-amber-2); font-family: var(--mf-font-mono); font-size: 0.8em; white-space: nowrap; }
+.mech-foundry-shop .shop-remove { background: none; border: none; color: var(--mf-ink-dim); cursor: pointer; padding: 2px; }
+.mech-foundry-shop .shop-remove:hover { color: var(--mf-danger); }
+
+/* ---- Cart footer ------------------------------------------- */
+.mech-foundry-shop .shop-cart-foot { padding: 10px 12px; border-top: 1px solid var(--mf-line); }
+.mech-foundry-shop .shop-free { display: flex; align-items: center; gap: 6px; color: var(--mf-ink-dim); font-size: 0.8em; margin-bottom: 8px; }
+.mech-foundry-shop .shop-totals { margin-bottom: 10px; }
+.mech-foundry-shop .shop-total-row { display: flex; justify-content: space-between; font-size: 0.9em; padding: 2px 0; }
+.mech-foundry-shop .shop-total-row span:last-child { font-family: var(--mf-font-mono); color: var(--mf-ink); }
+.mech-foundry-shop .shop-total-row.shop-negative span { color: var(--mf-danger); }
+.mech-foundry-shop .shop-cart-actions { display: flex; gap: 8px; }
+.mech-foundry-shop .shop-clear {
+  flex: 0 0 auto; padding: 7px 12px; background: transparent; color: var(--mf-ink-dim);
+  border: 1px solid var(--mf-line); border-radius: 3px; cursor: pointer; font-size: 0.85em;
+}
+.mech-foundry-shop .shop-clear:hover:not(:disabled) { color: var(--mf-ink); border-color: var(--mf-steel); }
+.mech-foundry-shop .shop-checkout {
+  flex: 1 1 auto; padding: 7px 12px; background: var(--mf-amber); color: #14181c;
+  border: none; border-radius: 3px; cursor: pointer; font-family: var(--mf-font-head);
+  text-transform: uppercase; letter-spacing: 0.05em; font-size: 0.9em;
+}
+.mech-foundry-shop .shop-checkout:hover:not(:disabled) { background: var(--mf-amber-2); }
+.mech-foundry-shop .shop-checkout:disabled, .mech-foundry-shop .shop-clear:disabled { opacity: 0.4; cursor: default; }

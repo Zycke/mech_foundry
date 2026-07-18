@@ -15,12 +15,21 @@
 
 const AMMO_IMG = 'icons/weapons/ammunition/bullets-cartridge-brass.webp';
 
+/** Base price of a standard box/load per family, used to turn a specialty
+ *  round's cost *multiplier* into an absolute price for the shop. */
+const STANDARD_COST_BY_TYPE = { ballistic: 5, flechette: 5, gauss: 10, gyrojet: 10 };
+
 /**
  * Expand a raw ammo record into a seed entry { folder, subfolder?, item }.
  * Specialty rounds carry ap/bd *modifiers*; ordnance carries absolute ap/bd.
  */
 export function toAmmoSeed(r) {
   const cap = r.quantityMax ?? 1;
+  // Specialty rounds price as a multiplier of the standard box; resolve to an
+  // absolute cost so the shop can total them (the ×N stays in the notes).
+  const cost = r.cost ?? (r.costMultiplier
+    ? Math.round(r.costMultiplier * (STANDARD_COST_BY_TYPE[r.ammoType] ?? 5))
+    : 0);
   const noteParts = [];
   if (r.ar) noteParts.push(`AR ${r.ar}`);
   if (r.aff) noteParts.push(`Affiliation: ${r.aff}`);
@@ -40,7 +49,7 @@ export function toAmmoSeed(r) {
         ordnanceClass: r.ordnanceClass || '',
         quantity: { value: cap, max: cap },
         mass: r.massKg ?? 0,
-        cost: r.cost ?? 0,
+        cost,
         costMultiplier: r.costMultiplier ?? 1.0,
         apModifier: r.apModifier ?? 0,
         apFactorOverride: r.apFactorOverride || '',
