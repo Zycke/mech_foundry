@@ -201,6 +201,24 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     return map;
   }
 
+  /**
+   * Aggregate the attribute minimums required by every currently-selected module
+   * (most-restrictive-wins). Feeds the top bar so a player can see the target
+   * each attribute must reach, even before it's met.
+   * @returns {Promise<Record<string, number>>} lowercase attr → highest minimum
+   */
+  async #requiredAttributes() {
+    const req = {};
+    for (const sys of Object.values(await this.#modulesByRecordId())) {
+      const pre = sys?.prerequisites?.attributes || {};
+      for (const [k, min] of Object.entries(pre)) {
+        const n = Number(min) || 0;
+        if (n > (req[k] || 0)) req[k] = n;
+      }
+    }
+    return req;
+  }
+
   /** Stage-4 instances whose categorical prerequisite broke after they were
    *  added (their XP is not applied) — surfaced as errors on Review/Finish. */
   async #stageFourUnmetIssues() {
@@ -539,6 +557,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     const stepId = step.id;
     const remaining = CharacterBuilder.remaining(this.#state);
     const derived = CharacterBuilder.derive(this.#state, this.#phenotypeEntry());
+    const requiredAttrs = await this.#requiredAttributes();
     const context = {
       steps: STEPS.map((s, i) => ({ ...s, number: i + 1, active: i === this.#step, done: i < this.#step })),
       stepId,
@@ -552,9 +571,15 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       remainingClass: remaining < 0 ? 'over' : '',
       age: this.#state.age,
       // Live attribute totals for the top bar (so players can read prereqs).
+      // `required` is the highest minimum any chosen module needs; `short` flags
+      // attributes still below their target so the player knows what to raise.
       attributeBar: ATTRIBUTE_KEYS.map(k => {
         const a = derived.attributes[k];
-        return { key: k.toUpperCase(), total: a.total, capped: !!a.cappedBy };
+        const required = requiredAttrs[k] || 0;
+        return {
+          key: k.toUpperCase(), total: a.total, capped: !!a.cappedBy,
+          required, hasReq: required > 0, short: required > 0 && a.total < required
+        };
       }),
       moduleCount: this.#state.modules.filter(m => {
         const id = String(m.id);

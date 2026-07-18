@@ -10,10 +10,13 @@
     {{/each}}
   </nav>
 
-  {{!-- Live attribute totals (for reading prerequisites at a glance) --}}
-  <div class="wizard-attrbar" data-tooltip="Current attribute scores as built so far">
+  {{!-- Live attribute totals vs. the minimums your chosen modules require --}}
+  <div class="wizard-attrbar" data-tooltip="Current attribute score / minimum required by your chosen modules. Red = still below the minimum.">
     {{#each attributeBar}}
-    <span class="ab-cell {{#if this.capped}}capped{{/if}}"><span class="ab-key">{{this.key}}</span><span class="ab-val">{{this.total}}</span></span>
+    <span class="ab-cell {{#if this.capped}}capped{{/if}} {{#if this.short}}short{{/if}} {{#if this.hasReq}}has-req{{/if}}">
+      <span class="ab-key">{{this.key}}</span>
+      <span class="ab-val">{{this.total}}{{#if this.hasReq}}<span class="ab-req">/{{this.required}}</span>{{/if}}</span>
+    </span>
     {{/each}}
   </div>
 

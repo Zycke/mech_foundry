@@ -2,7 +2,7 @@
   "id": "mech-foundry",
   "title": "Mech Foundry",
   "description": "A mech-based TTRPG system inspired by A Time of War and the BattleTech universe.",
-  "version": "0.9.5",
+  "version": "0.9.7",
   "compatibility": {
     "minimum": "14",
     "verified": "14"
@@ -125,6 +125,17 @@
         "PLAYER": "OBSERVER",
         "ASSISTANT": "OWNER"
       }
+    },
+    {
+      "name": "vehicles",
+      "label": "Vehicles",
+      "path": "packs/vehicles",
+      "type": "Item",
+      "system": "mech-foundry",
+      "ownership": {
+        "PLAYER": "OBSERVER",
+        "ASSISTANT": "OWNER"
+      }
     }
   ],
   "packFolders": [
@@ -146,7 +157,8 @@
         "armor",
         "electronics",
         "gear",
-        "medical"
+        "medical",
+        "vehicles"
       ]
     }
   ],
