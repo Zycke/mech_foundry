@@ -13,8 +13,8 @@
 export const SHOP_TABS = [
   { id: 'weapons', label: 'Weapons', icon: 'fa-solid fa-gun', pack: 'mech-foundry.weapons', types: ['weapon'] },
   { id: 'ammunition', label: 'Ammunition', icon: 'fa-solid fa-boxes-stacked', pack: 'mech-foundry.ammunition', types: ['ammo'] },
+  { id: 'armor', label: 'Armor', icon: 'fa-solid fa-shield-halved', pack: 'mech-foundry.armor', types: ['armor'] },
   // Future equipment tabs — uncomment as each compendium is added:
-  // { id: 'armor', label: 'Armor', icon: 'fa-solid fa-shield-halved', pack: 'mech-foundry.armor', types: ['armor'] },
   // { id: 'electronics', label: 'Electronics', icon: 'fa-solid fa-microchip', pack: 'mech-foundry.electronics', types: ['electronics'] },
   // { id: 'medical', label: 'Medical', icon: 'fa-solid fa-kit-medical', pack: 'mech-foundry.medical', types: ['healthcare', 'drugpoison'] },
   // { id: 'gear', label: 'Field Gear', icon: 'fa-solid fa-toolbox', pack: 'mech-foundry.gear', types: ['supplies', 'fuel'] }
