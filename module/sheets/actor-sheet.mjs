@@ -73,6 +73,18 @@ export class MechFoundryActorSheet extends HandlebarsApplicationMixin(ActorSheet
     new ShopApplication({ actor: this.actor }).render(true);
   }
 
+  /** @override — C-Bills is a comma-formatted text field for readability; strip
+   *  the separators back to a plain number before it is written to the actor. */
+  _processFormData(event, form, formData) {
+    const data = super._processFormData(event, form, formData);
+    const raw = foundry.utils.getProperty(data, 'system.cbills');
+    if (typeof raw === 'string') {
+      const n = Number(raw.replace(/[,\s]/g, ''));
+      foundry.utils.setProperty(data, 'system.cbills', Number.isFinite(n) ? n : 0);
+    }
+    return data;
+  }
+
   /** Placeholder; real template chosen per actor type in _configureRenderParts. */
   static PARTS = {
     form: { template: "systems/mech-foundry/templates/actor/actor-character-sheet.hbs" }

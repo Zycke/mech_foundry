@@ -758,7 +758,7 @@
       <div class="inventory-header-bar">
         <div class="cbills-section">
           <label>C-Bills</label>
-          <input type="number" name="system.cbills" value="{{system.cbills}}" data-dtype="Number" min="0"/>
+          <input type="text" inputmode="numeric" name="system.cbills" value="{{numberFormat system.cbills}}"/>
         </div>
         <div class="weight-section">
           <label>Carried Weight</label>

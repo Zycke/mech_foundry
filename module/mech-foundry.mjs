@@ -359,6 +359,26 @@ function _registerHandlebarsHelpers() {
     return `${value}`;
   });
 
+  // Thousands-separated number (e.g. 1000000 -> "1,000,000"), used for C-bill and
+  // other large-number displays. Overrides Foundry's core `numberFormat` as a
+  // safe superset: adds comma grouping while still honouring the `decimals` and
+  // `sign` hash options and preserving precision when no decimals are requested.
+  Handlebars.registerHelper('numberFormat', function(value, options) {
+    const hash = (options && options.hash) || {};
+    const n = Number(value);
+    if (!Number.isFinite(n)) return value ?? '';
+    const opts = { useGrouping: true };
+    if (Number.isInteger(hash.decimals)) {
+      opts.minimumFractionDigits = hash.decimals;
+      opts.maximumFractionDigits = hash.decimals;
+    } else {
+      opts.maximumFractionDigits = 20; // don't lose precision when unspecified
+    }
+    let str = n.toLocaleString('en-US', opts);
+    if (hash.sign && n >= 0) str = `+${str}`;
+    return str;
+  });
+
   // Calculate damage capacity from BOD
   Handlebars.registerHelper('damageCapacity', function(bod) {
     return bod * 2;
