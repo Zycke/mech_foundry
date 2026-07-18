@@ -343,8 +343,16 @@ export class MechFoundryActorSheet extends HandlebarsApplicationMixin(ActorSheet
         const cfg = game.mechfoundry?.config || {};
         const baseName = String(i.name).split('/')[0].trim();
         const meta = (cfg.traitsList || []).find(t => t.name === baseName);
-        let descHTML = (i.system.description || '').trim();
-        if (!descHTML) {
+        const stored = (i.system.description || '').trim();
+        // Auto-generated short form written by earlier seeds/grants; if the item
+        // still carries that (or nothing), upgrade it to the richer longDesc.
+        const autoShort = meta ? `<p>${meta.desc}</p>` : '';
+        let descHTML;
+        if (meta?.longDesc && (!stored || stored === autoShort)) {
+          descHTML = meta.longDesc;
+        } else if (stored) {
+          descHTML = stored;
+        } else {
           const summary = (cfg.traitDescriptions || {})[baseName] || meta?.desc || '';
           descHTML = summary ? `<p>${summary}</p>` : '<p><em>No description recorded for this trait.</em></p>';
         }
