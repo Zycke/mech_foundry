@@ -147,7 +147,7 @@ export async function grantCharacter(actor, { state, derived, choices, phenotype
     remaining: derived.remaining,
     cbills: wealth.cbills,
     equipmentRating: wealth.rating,
-    modules: state.modules.map(m => ({ stage: m.stage, name: m.name })),
+    modules: state.modules.map(m => ({ stage: m.stage, name: m.name, xp: Number(m.xpCost) || 0 })),
     choices
   });
 

@@ -199,6 +199,7 @@ Hooks.once('ready', async function() {
 
   // Initialize socket handler for cross-player communication
   SocketHandler.initialize();
+  ShopApplication.initSocket();
 
   // Make OpposedRollHelper available globally
   game.mechfoundry.OpposedRollHelper = OpposedRollHelper;

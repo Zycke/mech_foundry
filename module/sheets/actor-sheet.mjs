@@ -245,8 +245,37 @@ export class MechFoundryActorSheet extends HandlebarsApplicationMixin(ActorSheet
     // Read-only summary of a character-wizard build (if this actor was created
     // or rebuilt through the wizard).
     context.creation = this.actor.getFlag('mech-foundry', 'creation') || null;
+    context.creationCards = this._prepareCreationCards(context.creation);
 
     return context;
+  }
+
+  /**
+   * Group a creation snapshot's modules into per-stage cards for the biography
+   * tab (replaces the old flat text list). Returns [] when the actor was not
+   * built through the wizard.
+   * @param {Object|null} creation The stored `creation` flag
+   * @returns {Array<{stage:number,label:string,modules:Array}>}
+   */
+  _prepareCreationCards(creation) {
+    if (!creation?.modules?.length) return [];
+    const STAGE_LABELS = {
+      0: 'Affiliation', 1: 'Early Childhood', 2: 'Late Childhood',
+      3: 'Higher Education', 4: 'Real Life'
+    };
+    const byStage = new Map();
+    for (const m of creation.modules) {
+      const stage = Number(m.stage) || 0;
+      if (!byStage.has(stage)) byStage.set(stage, []);
+      byStage.get(stage).push({ name: m.name, xp: Number(m.xp) || 0 });
+    }
+    return [...byStage.entries()]
+      .sort((a, b) => a[0] - b[0])
+      .map(([stage, modules]) => ({
+        stage,
+        label: STAGE_LABELS[stage] || `Stage ${stage}`,
+        modules
+      }));
   }
 
   /**

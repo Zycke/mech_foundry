@@ -90,9 +90,20 @@
           </div>
         </div>
 
+        {{#if needsApproval}}
+        <div class="shop-approval shop-approval-{{approvalState}}">
+          {{#if approvalPending}}<i class="fa-solid fa-hourglass-half"></i> Awaiting GM approval…{{else if approved}}<i class="fa-solid fa-circle-check"></i> Approved by GM — you may buy.{{else if approvalDenied}}<i class="fa-solid fa-circle-xmark"></i> GM denied this cart. Adjust it and re-request.{{else}}<i class="fa-solid fa-user-shield"></i> A GM must approve this cart before you can buy.{{/if}}
+        </div>
+        {{/if}}
+
         <div class="shop-cart-actions">
           <button type="button" class="shop-clear" data-action="clearCart" {{#unless hasCart}}disabled{{/unless}}>Clear</button>
-          <button type="button" class="shop-checkout" data-action="checkout" {{#unless hasCart}}disabled{{/unless}} {{#unless affordable}}disabled{{/unless}} {{#unless editable}}disabled{{/unless}}>
+          {{#if needsApproval}}
+          <button type="button" class="shop-approve-btn" data-action="requestApproval" {{#unless canRequest}}disabled{{/unless}}>
+            {{#if approvalPending}}Requested…{{else}}Request Approval{{/if}}
+          </button>
+          {{/if}}
+          <button type="button" class="shop-checkout" data-action="checkout" {{#unless canBuy}}disabled{{/unless}}>
             {{#if affordable}}Buy{{else}}Can't afford{{/if}}
           </button>
         </div>
