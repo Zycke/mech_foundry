@@ -348,7 +348,8 @@
           <tbody>
             {{#each traits}}
             <tr class="item trait-row {{this.system.traitType}}" data-item-id="{{this._id}}">
-              <td class="trait-name">
+              <td class="trait-name trait-toggle" data-trait-id="{{this._id}}" data-tooltip="Click for details">
+                <i class="fas fa-caret-right trait-caret"></i>
                 <span class="trait-indicator">{{#if (eq this.system.traitType "positive")}}+{{else}}-{{/if}}</span>
                 {{this.name}}
               </td>
@@ -364,6 +365,18 @@
               <td class="item-controls">
                 <a class="item-edit" data-tooltip="Edit item"><i class="fas fa-edit"></i></a>
                 <a class="item-delete" data-tooltip="Delete this item"><i class="fas fa-trash"></i></a>
+              </td>
+            </tr>
+            <tr class="trait-detail-row hidden" data-detail-for="{{this._id}}">
+              <td colspan="6">
+                <div class="trait-detail">
+                  <div class="trait-detail-meta">
+                    <span class="td-type {{this.system.traitType}}">{{this.detail.typeLabel}}</span>
+                    <span class="td-rank">Current rank: <strong>{{this.detail.levelSigned}} TP</strong>{{#if this.detail.range}} <span class="td-range">(range {{this.detail.range}})</span>{{/if}}</span>
+                    <span class="td-note">{{this.detail.rankNote}}</span>
+                  </div>
+                  <div class="trait-detail-desc">{{{this.detail.descHTML}}}</div>
+                </div>
               </td>
             </tr>
             {{/each}}

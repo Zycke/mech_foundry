@@ -524,6 +524,33 @@
 }
 
 /* Traits Table */
+/* Click-to-expand trait detail */
+.mech-foundry .trait-toggle { cursor: pointer; user-select: none; }
+.mech-foundry .trait-caret { margin-right: 4px; opacity: 0.7; transition: transform 0.1s; }
+.mech-foundry .trait-toggle:hover { color: var(--mf-accent, #c38154); }
+.mech-foundry .trait-detail-row.hidden { display: none; }
+.mech-foundry .trait-detail-row > td { padding: 0; }
+.mech-foundry .trait-detail {
+  padding: 8px 12px 10px 26px;
+  background: rgba(0, 0, 0, 0.18);
+  border-left: 3px solid var(--mf-accent, #c38154);
+}
+.mech-foundry .trait-detail-meta {
+  display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: baseline;
+  margin-bottom: 6px; font-size: 0.85em;
+}
+.mech-foundry .trait-detail-meta .td-type {
+  text-transform: uppercase; letter-spacing: 0.04em; font-size: 0.85em;
+  padding: 1px 7px; border-radius: 3px; border: 1px solid var(--mf-border, #888);
+}
+.mech-foundry .trait-detail-meta .td-type.positive { color: var(--mf-success); border-color: var(--mf-success); }
+.mech-foundry .trait-detail-meta .td-type.negative { color: var(--mf-danger); border-color: var(--mf-danger); }
+.mech-foundry .trait-detail-meta .td-range { opacity: 0.7; }
+.mech-foundry .trait-detail-meta .td-note { opacity: 0.75; font-style: italic; }
+.mech-foundry .trait-detail-desc { font-size: 0.9em; line-height: 1.4; }
+.mech-foundry .trait-detail-desc p { margin: 0 0 6px; }
+.mech-foundry .trait-detail-desc p:last-child { margin-bottom: 0; }
+
 .mech-foundry .trait-row.positive .trait-indicator {
   color: var(--mf-success);
   font-weight: bold;

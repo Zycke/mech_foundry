@@ -337,6 +337,31 @@ export class MechFoundryActorSheet extends HandlebarsApplicationMixin(ActorSheet
         // Positive traits cost XP, negative traits give XP back
         const tp = Math.abs(i.system.cost || 0);
         i.xpCost = tp * 100; // 100 XP per Trait Point
+
+        // Expandable detail: the trait's own description (falling back to the
+        // canonical ATOW summary) plus what its current rank/TP means.
+        const cfg = game.mechfoundry?.config || {};
+        const baseName = String(i.name).split('/')[0].trim();
+        const meta = (cfg.traitsList || []).find(t => t.name === baseName);
+        let descHTML = (i.system.description || '').trim();
+        if (!descHTML) {
+          const summary = (cfg.traitDescriptions || {})[baseName] || meta?.desc || '';
+          descHTML = summary ? `<p>${summary}</p>` : '<p><em>No description recorded for this trait.</em></p>';
+        }
+        const level = Number(i.system.cost) || 0;
+        i.detail = {
+          descHTML,
+          level,
+          levelSigned: `${level > 0 ? '+' : ''}${level}`,
+          range: meta?.tp ? `${meta.tp} TP` : '',
+          typeLabel: meta?.type
+            ? meta.type.charAt(0).toUpperCase() + meta.type.slice(1)
+            : (i.system.traitType === 'negative' ? 'Negative' : 'Positive'),
+          // For flexible traits the sign of the rank flips benefit ↔ penalty.
+          rankNote: level === 0 ? 'Not yet ranked.'
+            : (level > 0 ? 'A beneficial rank (higher is stronger).'
+                         : 'A detrimental rank (more negative is worse).')
+        };
         traits.push(i);
       }
       else if (i.type === 'weapon') {
@@ -798,6 +823,17 @@ export class MechFoundryActorSheet extends HandlebarsApplicationMixin(ActorSheet
     html.on('change', '.attr-xp-input', this._onAttributeXPChange.bind(this));
     html.on('change', '.skill-xp-input', this._onSkillXPChange.bind(this));
     html.on('change', '.trait-xp-input', this._onTraitXPChange.bind(this));
+
+    // Click a trait name to expand/collapse its description + current-rank detail.
+    html.on('click', '.trait-toggle', (ev) => {
+      const id = ev.currentTarget.dataset.traitId;
+      const detail = this.element.querySelector(`.trait-detail-row[data-detail-for="${id}"]`);
+      if (!detail) return;
+      const nowHidden = detail.classList.toggle('hidden');
+      const caret = ev.currentTarget.querySelector('.trait-caret');
+      caret?.classList.toggle('fa-caret-down', !nowHidden);
+      caret?.classList.toggle('fa-caret-right', nowHidden);
+    });
 
     // Condition monitor max validation
     html.on('change', '.condition-input', this._onConditionChange.bind(this));
