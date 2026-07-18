@@ -52,7 +52,8 @@ export class ShopApplication extends HandlebarsApplicationMixin(ApplicationV2) {
   /** Socket event names for the GM-approval handshake. */
   static SHOP_EVENTS = {
     REQUEST: 'shopApprovalRequest',
-    RESPONSE: 'shopApprovalResponse'
+    RESPONSE: 'shopApprovalResponse',
+    REMOVE: 'shopApprovalRemove'
   };
 
   /** Open shop instances on this client, so socket responses can find them. */
@@ -114,6 +115,8 @@ export class ShopApplication extends HandlebarsApplicationMixin(ApplicationV2) {
         ShopApplication.#onApprovalRequestReceived(data);
       } else if (data.eventType === ShopApplication.SHOP_EVENTS.RESPONSE) {
         ShopApplication.#onApprovalResponseReceived(data);
+      } else if (data.eventType === ShopApplication.SHOP_EVENTS.REMOVE) {
+        ShopApplication.#onApprovalRemoveReceived(data);
       }
     });
   }
@@ -122,41 +125,99 @@ export class ShopApplication extends HandlebarsApplicationMixin(ApplicationV2) {
     game.socket.emit(SocketHandler.SOCKET_NAME, { eventType, ...payload });
   }
 
-  /** GM side: a player asked to buy — show an approve/deny popup. */
+  /** GM side: a player asked to buy — show an approve/deny popup. The GM can
+   *  strike individual items ("approve all but X"); each strike drops the item
+   *  from the player's cart while the request stays pending. */
   static async #onApprovalRequestReceived(data) {
     if (!game.user.isGM) return;
     const esc = foundry.utils.escapeHTML;
-    const rows = (data.lines || []).map(l =>
-      `<tr><td>${esc(String(l.name))}</td><td class="mf-ap-qty">${l.qty}</td>`
-      + `<td class="mf-ap-cost">${Number(l.lineCost).toLocaleString()} C</td></tr>`).join('');
+    // Mutable working copy so removals update both the dialog and the total.
+    const lines = (data.lines || []).map(l => ({ ...l }));
+    const total = () => lines.reduce((n, l) => n + (Number(l.lineCost) || 0), 0);
+    const rowHTML = (l) =>
+      `<tr data-uuid="${esc(String(l.uuid))}">`
+      + `<td>${esc(String(l.name))}</td>`
+      + `<td class="mf-ap-qty">${l.qty}</td>`
+      + `<td class="mf-ap-cost">${Number(l.lineCost).toLocaleString()} C</td>`
+      + `<td class="mf-ap-rm-cell"><a class="mf-ap-remove" data-uuid="${esc(String(l.uuid))}" data-tooltip="Remove from cart"><i class="fa-solid fa-xmark"></i></a></td>`
+      + `</tr>`;
     const content = `
       <div class="mf-approval">
         <p><strong>${esc(String(data.fromUserName || 'A player'))}</strong> requests approval to purchase
-        equipment for <strong>${esc(String(data.actorName || 'a character'))}</strong>.</p>
+        equipment for <strong>${esc(String(data.actorName || 'a character'))}</strong>. Remove any items you
+        won't approve — they are dropped from the player's cart too.</p>
         <table class="mf-approval-table">
-          <thead><tr><th>Item</th><th class="mf-ap-qty">Qty</th><th class="mf-ap-cost">Cost</th></tr></thead>
-          <tbody>${rows}</tbody>
-          <tfoot><tr><td colspan="2">Total</td><td class="mf-ap-cost">${Number(data.subtotal).toLocaleString()} C</td></tr></tfoot>
+          <thead><tr><th>Item</th><th class="mf-ap-qty">Qty</th><th class="mf-ap-cost">Cost</th><th></th></tr></thead>
+          <tbody class="mf-ap-body">${lines.map(rowHTML).join('')}</tbody>
+          <tfoot><tr><td colspan="2">Total</td><td class="mf-ap-cost mf-ap-total">${total().toLocaleString()} C</td><td></td></tr></tfoot>
         </table>
       </div>`;
-    let approved = false;
+
+    // Wire the per-row remove buttons once the dialog renders.
+    const wire = (_event, dialog) => {
+      const root = dialog?.element instanceof HTMLElement ? dialog.element : dialog;
+      if (!root?.querySelectorAll) return;
+      for (const btn of root.querySelectorAll('.mf-ap-remove')) {
+        btn.addEventListener('click', (ev) => {
+          ev.preventDefault();
+          const uuid = ev.currentTarget.dataset.uuid;
+          const idx = lines.findIndex(l => String(l.uuid) === uuid);
+          if (idx < 0) return;
+          const [removed] = lines.splice(idx, 1);
+          ShopApplication.#emit(ShopApplication.SHOP_EVENTS.REMOVE, {
+            requestId: data.requestId,
+            toUserId: data.fromUserId,
+            uuid,
+            name: removed.name,
+            gmId: game.user.id
+          });
+          root.querySelector(`tr[data-uuid="${CSS.escape(uuid)}"]`)?.remove();
+          const totalCell = root.querySelector('.mf-ap-total');
+          if (totalCell) totalCell.textContent = `${total().toLocaleString()} C`;
+          if (!lines.length) {
+            const body = root.querySelector('.mf-ap-body');
+            if (body) body.innerHTML = '<tr><td colspan="4"><em>All items removed — nothing left to buy.</em></td></tr>';
+          }
+        });
+      }
+    };
+
+    let result = null;
     try {
-      approved = await DialogV2.confirm({
+      result = await DialogV2.wait({
         window: { title: 'Purchase Approval', icon: 'fa-solid fa-cart-shopping' },
         content,
-        yes: { label: 'Approve', icon: 'fa-solid fa-check' },
-        no: { label: 'Deny', icon: 'fa-solid fa-xmark' },
+        buttons: [
+          { action: 'approve', label: 'Approve', icon: 'fa-solid fa-check', default: true },
+          { action: 'deny', label: 'Deny', icon: 'fa-solid fa-xmark' }
+        ],
+        render: wire,
         rejectClose: false,
         modal: false
-      }) === true;
-    } catch (_e) { approved = false; }
+      });
+    } catch (_e) { result = null; }
+
     ShopApplication.#emit(ShopApplication.SHOP_EVENTS.RESPONSE, {
       requestId: data.requestId,
       toUserId: data.fromUserId,
-      approved,
+      approved: result === 'approve',
       gmId: game.user.id,
       gmName: game.user.name
     });
+  }
+
+  /** Shopper side: the GM struck an item from the pending request — drop it
+   *  from the cart without invalidating the (still-pending) approval. */
+  static #onApprovalRemoveReceived(data) {
+    if (data.toUserId !== game.user.id) return;
+    if (!game.users.get(data.gmId)?.isGM) return;
+    for (const app of ShopApplication.#openInstances) {
+      if (app.#approvalState !== 'pending' || app.#pendingRequestId !== data.requestId) continue;
+      if (app.#cart.delete(data.uuid)) {
+        ui.notifications.info(`GM removed ${data.name || 'an item'} from your cart.`);
+        app.render();
+      }
+    }
   }
 
   /** Shopper side: the GM responded. First response for a request id wins. */
@@ -550,7 +611,7 @@ export class ShopApplication extends HandlebarsApplicationMixin(ApplicationV2) {
       fromUserName: game.user.name,
       actorId: this.#actor.id,
       actorName: this.#actor.name,
-      lines: lines.map(l => ({ name: l.name, qty: l.qty, lineCost: l.lineCost })),
+      lines: lines.map(l => ({ uuid: l.uuid, name: l.name, qty: l.qty, lineCost: l.lineCost })),
       subtotal
     });
     ui.notifications.info('Approval request sent to the GM.');

@@ -6275,6 +6275,9 @@
 .mf-approval-table .mf-ap-qty { text-align: center; }
 .mf-approval-table .mf-ap-cost { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .mf-approval-table tfoot td { font-weight: bold; border-top: 2px solid rgba(128,128,128,0.4); border-bottom: none; }
+.mf-approval-table .mf-ap-rm-cell { text-align: center; width: 24px; }
+.mf-approval-table .mf-ap-remove { color: var(--mf-ink-dim, #8a929b); cursor: pointer; }
+.mf-approval-table .mf-ap-remove:hover { color: var(--mf-danger, #d9534f); }
 
 /* ---- Hover stats card -------------------------------------- */
 .mech-foundry-shop .shop-hovercard {
