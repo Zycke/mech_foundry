@@ -31,9 +31,11 @@ import { seedArmor } from "./helpers/armor-seeder.mjs";
 import { makeFolderedSeeder } from "./helpers/pack-seeder.mjs";
 import { ELECTRONICS_SEED } from "./data/electronics.mjs";
 import { FIELD_GEAR_SEED } from "./data/field-gear.mjs";
+import { MEDICAL_SEED } from "./data/medical.mjs";
 
 const seedElectronics = makeFolderedSeeder("mech-foundry.electronics", () => ELECTRONICS_SEED, "Electronics");
 const seedFieldGear = makeFolderedSeeder("mech-foundry.gear", () => FIELD_GEAR_SEED, "Field Gear");
+const seedMedical = makeFolderedSeeder("mech-foundry.medical", () => MEDICAL_SEED, "Medical");
 import { CharacterWizard } from "./apps/character-wizard.mjs";
 import { ShopApplication } from "./apps/shop.mjs";
 import { ATOW_SKILLS, ATOW_TRAITS, ATOW_TRAIT_DESCRIPTIONS } from "./data/atow-lists.mjs";
@@ -90,6 +92,9 @@ Hooks.once('init', function() {
     /** Manually (re)seed the Field Gear compendium, adding any missing entries. */
     reseedFieldGear: () => seedFieldGear({ force: true }),
     refreshFieldGear: () => seedFieldGear({ refresh: true }),
+    /** Manually (re)seed the Medical compendium, adding any missing entries. */
+    reseedMedical: () => seedMedical({ force: true }),
+    refreshMedical: () => seedMedical({ refresh: true }),
     config: MECHFOUNDRY
   };
 
@@ -176,6 +181,7 @@ Hooks.once('ready', async function() {
     added += await seedArmor({ force: reconcile, quiet: reconcile });
     added += await seedElectronics({ force: reconcile, quiet: reconcile });
     added += await seedFieldGear({ force: reconcile, quiet: reconcile });
+    added += await seedMedical({ force: reconcile, quiet: reconcile });
     if (reconcile) {
       await game.settings.set('mech-foundry', 'referenceSeedVersion', current);
       if (added > 0) {

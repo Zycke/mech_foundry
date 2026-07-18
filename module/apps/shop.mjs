@@ -72,7 +72,7 @@ export class ShopApplication extends HandlebarsApplicationMixin(ApplicationV2) {
     if (this.#catalogCache.has(tab.id)) return this.#catalogCache.get(tab.id);
     const pack = game.packs.get(tab.pack);
     if (!pack) return [];
-    const index = await pack.getIndex({ fields: ['type', 'system.cost', 'system.mass'] });
+    const index = await pack.getIndex({ fields: ['type', 'system.cost', 'system.basePrice', 'system.mass'] });
 
     // Map each folder id to a "Parent › Child" display label.
     const folderLabel = new Map();
@@ -90,7 +90,8 @@ export class ShopApplication extends HandlebarsApplicationMixin(ApplicationV2) {
         name: e.name,
         nameKey: e.name.toLowerCase(),
         img: e.img,
-        cost: Number(e.system?.cost) || 0,
+        // Most items price via system.cost; drugs/poisons use system.basePrice.
+        cost: Number(e.system?.cost) || Number(e.system?.basePrice) || 0,
         mass: Number(e.system?.mass) || 0,
         group: e.folder ? (folderLabel.get(e.folder) ?? 'Other') : 'Other'
       });
