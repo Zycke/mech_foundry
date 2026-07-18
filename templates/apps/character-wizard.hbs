@@ -351,7 +351,7 @@
       <div class="spend-skills">
         {{#each spend.boughtRows}}
         <div class="spend-skill-row">
-          <select name="buytrait::{{this.idx}}::name" class="value-select">
+          <select name="buytrait::{{this.idx}}::name" class="value-select" data-value="{{this.name}}">
             <option value="">— negative Trait —</option>
             {{#each ../spend.negativeTraitOptions}}
             <option value="{{this.value}}" {{#if (eq this.value ../name)}}selected{{/if}}>{{this.label}}</option>
@@ -386,7 +386,7 @@
       <div class="spend-skills">
         {{#each spend.skills}}
         <div class="spend-skill-row">
-          <select name="spendskill::{{this.idx}}::key" class="value-select">
+          <select name="spendskill::{{this.idx}}::key" class="value-select" data-value="{{this.key}}">
             <option value="">— choose skill —</option>
             {{#each ../spend.skillOptions}}
             <option value="{{this.value}}" {{#if (eq this.value ../key)}}selected{{/if}}>{{this.label}}</option>
@@ -401,7 +401,7 @@
       <div class="spend-skills">
         {{#each spend.traits}}
         <div class="spend-skill-row">
-          <select name="spendtrait::{{this.idx}}::key" class="value-select">
+          <select name="spendtrait::{{this.idx}}::key" class="value-select" data-value="{{this.key}}">
             <option value="">— choose Trait —</option>
             {{#each ../spend.traitOptions}}
             <option value="{{this.value}}" {{#if (eq this.value ../key)}}selected{{/if}}>{{this.label}}</option>
