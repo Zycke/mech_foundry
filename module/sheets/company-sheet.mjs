@@ -59,33 +59,28 @@ const UNIT_SKILLS = {
 
 const UNIT_LEADER_SKILLS = ['leadership', 'tactics', 'strategy'];
 
+const { HandlebarsApplicationMixin } = foundry.applications.api;
+const { ActorSheetV2 } = foundry.applications.sheets;
+
 /**
  * Company Actor Sheet - Represents a mercenary or military organization
  * Tabs: Personnel, Organization, Status, Logistics, MTOE, Assets, Finances
- * @extends {ActorSheet}
+ *
+ * Foundry v14 ApplicationV2 sheet. Tab switching, delegated jQuery listeners,
+ * and drag/drop follow the same pattern as the character sheet (actor-sheet.mjs).
+ * @extends {ActorSheetV2}
  */
-export class MechFoundryCompanySheet extends foundry.appv1.sheets.ActorSheet {
+export class MechFoundryCompanySheet extends HandlebarsApplicationMixin(ActorSheetV2) {
 
-  /** @override */
-  static get defaultOptions() {
-    return foundry.utils.mergeObject(super.defaultOptions, {
-      classes: ["mech-foundry", "sheet", "actor", "company-sheet"],
-      width: 900,
-      height: 800,
-      tabs: [{ navSelector: ".sheet-tabs", contentSelector: ".sheet-body", initial: "personnel" }],
-      dragDrop: [{ dragSelector: ".item", dropSelector: null }]
-    });
-  }
+  /** Active tab id, preserved across submitOnChange re-renders. */
+  #activeTab = null;
+  #dragDrop;
+  /** The frame element the delegated listeners are currently bound to. */
+  #boundElement = null;
 
-  /** @override */
-  get template() {
-    return "systems/mech-foundry/templates/actor/actor-company-sheet.hbs";
-  }
-
-  /* -------------------------------------------- */
-
-  constructor(...args) {
-    super(...args);
+  constructor(options = {}) {
+    super(options);
+    this.#dragDrop = this.#createDragDropHandlers();
     this._deptCollapsed = new Map();
     this._unitCollapsed = new Map();
     // Initialize departments as collapsed by default
@@ -94,19 +89,40 @@ export class MechFoundryCompanySheet extends foundry.appv1.sheets.ActorSheet {
     }
   }
 
+  /** @override */
+  static DEFAULT_OPTIONS = {
+    classes: ["mech-foundry", "sheet", "actor", "company-sheet"],
+    position: { width: 900, height: 800 },
+    tag: "form",
+    form: { submitOnChange: true, closeOnSubmit: false },
+    window: { resizable: true },
+    actions: {
+      editImage: MechFoundryCompanySheet._onEditImage
+    },
+    dragDrop: [{ dragSelector: ".item", dropSelector: null }]
+  };
+
+  /** @override */
+  static PARTS = {
+    form: {
+      template: "systems/mech-foundry/templates/actor/actor-company-sheet.hbs",
+      scrollable: [".sheet-body"]
+    }
+  };
+
   /* -------------------------------------------- */
 
   /** @override */
-  async getData() {
-    const context = await super.getData();
-    const actorData = this.document.toObject(false);
-
-    context.system = actorData.system;
-    context.flags = actorData.flags;
-    context.config = game.mechfoundry?.config || {};
-    context.owner = this.document.isOwner;
-    context.editable = this.isEditable;
-    context.isGM = game.user.isGM;
+  async _prepareContext(options) {
+    const context = {
+      editable: this.isEditable,
+      owner: this.document.isOwner,
+      isGM: game.user.isGM,
+      actor: this.actor,
+      system: this.actor.system,
+      flags: this.actor.flags,
+      config: game.mechfoundry?.config || {}
+    };
 
     // Pass skill config constants to template
     context.personnelSkills = PERSONNEL_SKILLS;
@@ -143,6 +159,21 @@ export class MechFoundryCompanySheet extends foundry.appv1.sheets.ActorSheet {
     );
 
     return context;
+  }
+
+  /* -------------------------------------------- */
+  /*  Image action                                */
+  /* -------------------------------------------- */
+
+  static async _onEditImage(event, target) {
+    const attr = target.dataset.edit || "img";
+    const current = foundry.utils.getProperty(this.document, attr);
+    const fp = new foundry.applications.apps.FilePicker.implementation({
+      type: "image",
+      current,
+      callback: (path) => this.document.update({ [attr]: path })
+    });
+    return fp.browse();
   }
 
   /* -------------------------------------------- */
@@ -538,10 +569,84 @@ export class MechFoundryCompanySheet extends foundry.appv1.sheets.ActorSheet {
 
   /* -------------------------------------------- */
 
-  /** @override */
-  activateListeners(html) {
-    super.activateListeners(html);
+  /* -------------------------------------------- */
+  /*  Render: tabs, drag/drop, delegated listeners */
+  /* -------------------------------------------- */
 
+  /** @override */
+  _onRender(context, options) {
+    super._onRender?.(context, options);
+    // Bind the delegated jQuery listeners once per frame element.
+    if (this.#boundElement !== this.element) {
+      this._activateSheetListeners($(this.element));
+      this.#boundElement = this.element;
+    }
+    this._applyActiveTab();
+    this.#dragDrop.forEach((d) => d.bind(this.element));
+  }
+
+  /** Apply/restore the active tab and (re)bind tab clicks. */
+  _applyActiveTab() {
+    const navs = this.element.querySelectorAll(".sheet-tabs .item[data-tab]");
+    const bodies = this.element.querySelectorAll(".sheet-body .tab[data-tab]");
+    if (!navs.length || !bodies.length) return;
+
+    if (!this.#activeTab || ![...bodies].some(b => b.dataset.tab === this.#activeTab)) {
+      this.#activeTab = bodies[0].dataset.tab;
+    }
+    for (const n of navs) {
+      n.classList.toggle("active", n.dataset.tab === this.#activeTab);
+      n.onclick = (ev) => { ev.preventDefault(); this.#activeTab = n.dataset.tab; this._applyActiveTab(); };
+    }
+    for (const b of bodies) {
+      b.classList.toggle("active", b.dataset.tab === this.#activeTab);
+    }
+  }
+
+  /* -------------------------------------------- */
+  /*  Drag and Drop                               */
+  /* -------------------------------------------- */
+
+  #createDragDropHandlers() {
+    return this.options.dragDrop.map((d) => {
+      d.permissions = {
+        dragstart: () => this.isEditable,
+        drop: () => this.isEditable
+      };
+      d.callbacks = {
+        dragstart: this._onDragStart.bind(this),
+        dragover: this._onDragOver.bind(this),
+        drop: this._onDrop.bind(this)
+      };
+      return new foundry.applications.ux.DragDrop.implementation(d);
+    });
+  }
+
+  _onDragStart(event) {
+    const el = event.currentTarget;
+    const itemId = el.dataset.itemId || el.closest("[data-item-id]")?.dataset.itemId;
+    const item = itemId ? this.actor.items.get(itemId) : null;
+    if (!item) return;
+    event.dataTransfer.setData("text/plain", JSON.stringify(item.toDragData()));
+  }
+
+  _onDragOver(event) {}
+
+  async _onDrop(event) {
+    const data = foundry.applications.ux.TextEditor.implementation.getDragEventData(event);
+    const allowed = Hooks.call("dropActorSheetData", this.actor, this, data);
+    if (allowed === false) return;
+    switch (data.type) {
+      case "Item": return this._onDropItem(event, data);
+      case "Actor": return this._onDropActor(event, data);
+      case "ActiveEffect": return this._onDropActiveEffect?.(event, data);
+      case "Folder": return this._onDropFolder?.(event, data);
+    }
+  }
+
+  /* -------------------------------------------- */
+
+  _activateSheetListeners(html) {
     // Rollable skill checks
     html.on('click', '.personnel-roll', this._onPersonnelRoll.bind(this));
     html.on('click', '.summary-skill-roll', this._onSummarySkillRoll.bind(this));
@@ -592,29 +697,25 @@ export class MechFoundryCompanySheet extends foundry.appv1.sheets.ActorSheet {
 
   /** @override */
   async _onDropItem(event, data) {
-    if (!this.isEditable) return false;
+    if (!this.actor.isOwner) return false;
 
     const item = await Item.implementation.fromDropData(data);
     if (!item) return false;
 
-    // Personnel items: allow all (each is unique individual)
-    if (item.type === 'personnel') {
-      return super._onDropItem(event, data);
+    // Dropping an item already on this company (a re-drag): no-op, don't dupe.
+    if (this.actor.uuid === item.parent?.uuid) return false;
+
+    // Personnel & supplies (each unique) plus the Assets-tab item types.
+    const allowedTypes = ['personnel', 'supplies', 'weapon', 'armor', 'ammo',
+      'electronics', 'healthcare', 'prosthetics', 'drugpoison', 'fuel'];
+    if (!allowedTypes.includes(item.type)) {
+      ui.notifications.warn("This item type cannot be added to the company sheet.");
+      return false;
     }
 
-    // Supplies items
-    if (item.type === 'supplies') {
-      return super._onDropItem(event, data);
-    }
-
-    // Asset item types (for the Assets tab)
-    const assetItemTypes = ['weapon', 'armor', 'ammo', 'electronics', 'healthcare', 'prosthetics', 'drugpoison', 'fuel'];
-    if (assetItemTypes.includes(item.type)) {
-      return super._onDropItem(event, data);
-    }
-
-    ui.notifications.warn("This item type cannot be added to the company sheet.");
-    return false;
+    const created = await this.actor.createEmbeddedDocuments("Item", [item.toObject()]);
+    this.render(false);
+    return created;
   }
 
   /** @override */
