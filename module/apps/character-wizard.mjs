@@ -102,7 +102,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       selectPhenotype: CharacterWizard.#onSelectPhenotype,
       selectStageModule: CharacterWizard.#onSelectStageModule,
       toggleStageModule: CharacterWizard.#onToggleStageModule,
-      addStageModule: CharacterWizard.#onAddStageModule,
+      addStageModule: { handler: CharacterWizard.#onAddStageModule, buttons: [0, 2] },
       removeStageInstance: CharacterWizard.#onRemoveStageInstance,
       selectVariant: CharacterWizard.#onSelectVariant,
       selectFieldBasic: CharacterWizard.#onSelectFieldBasic,
@@ -209,13 +209,16 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
    */
   async #requiredAttributes() {
     const req = {};
-    for (const sys of Object.values(await this.#modulesByRecordId())) {
-      const pre = sys?.prerequisites?.attributes || {};
-      for (const [k, min] of Object.entries(pre)) {
+    const bump = (obj) => {
+      for (const [k, min] of Object.entries(obj || {})) {
         const n = Number(min) || 0;
         if (n > (req[k] || 0)) req[k] = n;
       }
-    }
+    };
+    // Module-level minimums (affiliation, Stage 1-4 modules).
+    for (const sys of Object.values(await this.#modulesByRecordId())) bump(sys?.prerequisites?.attributes);
+    // Stage-3 Skill Fields carry their own attribute minimums under `req.attrs`.
+    for (const fname of this.#chosenFieldNames()) bump(SKILL_FIELDS[fname]?.req?.attrs);
     return req;
   }
 
@@ -1653,6 +1656,16 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
   /** Stage 4: add an instance of a Real Life module (repeatable → multiple). */
   static async #onAddStageModule(event, target) {
     const id = target.dataset.id;
+    // Right-click removes one instance of this module (mirrors left-click adding
+    // one), so players can dial a repeatable Stage-4 module up and down in place.
+    if (event.type === 'contextmenu' || event.button === 2) {
+      event.preventDefault();
+      const taken = this.#choices.modules[4];
+      for (let i = taken.length - 1; i >= 0; i--) {
+        if (taken[i].id === id) { taken.splice(i, 1); await this.#rebuildState(); this.render(); return; }
+      }
+      return;
+    }
     const list = (await this.#loadModules())[4] || [];
     const m = list.find(x => x.id === id);
     if (!m) return;
