@@ -5689,6 +5689,12 @@
 .mech-foundry .wizard-attrbar .ab-val { font-family: var(--mf-font-head); font-size: 1.05em; color: var(--mf-amber-2); line-height: 1; }
 .mech-foundry .wizard-attrbar .ab-cell.capped { border-color: var(--mf-amber); }
 .mech-foundry .wizard-attrbar .ab-cell.capped .ab-val { color: var(--mf-amber); }
+/* Required-minimum readout: "score/required". Dim the target; flag shortfalls. */
+.mech-foundry .wizard-attrbar .ab-req { font-size: 0.72em; color: var(--mf-ink-dim); margin-left: 1px; }
+.mech-foundry .wizard-attrbar .ab-cell.has-req { border-color: var(--mf-steel); }
+.mech-foundry .wizard-attrbar .ab-cell.short { border-color: var(--mf-danger); background: rgba(217, 72, 59, 0.12); }
+.mech-foundry .wizard-attrbar .ab-cell.short .ab-val { color: var(--mf-danger); }
+.mech-foundry .wizard-attrbar .ab-cell.short .ab-req { color: var(--mf-danger); }
 
 /* ---- Body ------------------------------------------------- */
 .mech-foundry .wizard-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 14px 16px; }
