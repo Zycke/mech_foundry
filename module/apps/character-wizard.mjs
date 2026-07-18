@@ -123,6 +123,18 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     }
   };
 
+  /** @override — after each render, force every stamped `<select>` to the value
+   *  the state says it should hold. A submitOnChange re-render can otherwise
+   *  leave a reused/refocused select showing a stale option (e.g. the flexible-XP
+   *  kind reverting to "Attribute" when no target is picked yet). */
+  _onRender(context, options) {
+    super._onRender?.(context, options);
+    for (const sel of this.element.querySelectorAll('select[data-value]')) {
+      const want = sel.dataset.value ?? '';
+      if (sel.value !== want) sel.value = want;
+    }
+  }
+
   /* ---------------------------------------------------------------------- */
   /*  State & data                                                           */
   /* ---------------------------------------------------------------------- */
@@ -1444,7 +1456,9 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       for (const [sk, slots] of Object.entries(collected)) {
         const prev = this.#choices.flexible[sk] || [];
         this.#choices.flexible[sk] = slots.map((s, i) => {
-          const kind = s?.kind || '';
+          // Fall back to the previously-stored kind so a re-serialization that
+          // omits the kind field never silently resets it to empty (→ Attribute).
+          const kind = s?.kind || prev[i]?.kind || '';
           let key = s?.key || '';
           // If an 'any' pool's kind just changed, the old value no longer fits.
           if (kind && prev[i]?.kind && prev[i].kind !== kind) key = '';
