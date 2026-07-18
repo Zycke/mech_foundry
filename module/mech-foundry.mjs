@@ -203,10 +203,11 @@ const MECHFOUNDRY = {
     mortar: "Mortar (ordnance)",
     missile: "Missile (ordnance)",
     recoilless: "Recoilless (ordnance)",
+    mine: "Mine (ordnance)",
     ordnance: "Ordnance (generic, by class)"
   },
   // Ordnance families require a matching class letter (A-E) between weapon & ammo.
-  ordnanceAmmoTypes: ["grenade", "mortar", "missile", "recoilless"],
+  ordnanceAmmoTypes: ["grenade", "mortar", "missile", "recoilless", "mine"],
   ordnanceClasses: ["", "A", "B", "C", "D", "E"],
   weaponTypes: {
     melee: "MECHFOUNDRY.WeaponMelee",

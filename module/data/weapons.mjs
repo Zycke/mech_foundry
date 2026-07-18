@@ -30,6 +30,9 @@ const IMG_CROSSBOW = 'icons/weapons/crossbows/crossbow-simple-brown.webp';
 const IMG_THROWN = 'icons/weapons/thrown/dagger-thrown-jeweled-green.webp';
 const IMG_VIBRO = 'icons/weapons/swords/greatsword-blue.webp';
 const IMG_STUN = 'icons/weapons/staves/staff-simple-gold.webp';
+const IMG_GRENADE = 'icons/weapons/thrown/grenade-round.webp';
+const IMG_MINE = 'icons/weapons/thrown/bomb-timed-red.webp';
+const IMG_CHARGE = 'icons/weapons/thrown/bomb-fuse-black.webp';
 
 /** Weapon sub-category → ammunition family (see CONFIG.mechfoundry.ammoTypes).
  *  Drives ammo compatibility automatically so seeded weapons need no tagging. */
@@ -394,6 +397,48 @@ export const THROWN = [
   {"name":"Spear","subCategory":"Bladed","ar":"A/B-B-B/B","ap":2,"apFactor":"M","bd":2,"bdFactor":"","cost":15,"aff":"","massKg":5,"img":IMG_THROWN,"notes":`Double thrown-weapon range. ${THROWN_RANGE_NOTE}`}
 ];
 
+/**
+ * Standard Explosives — Grenades (ATOW p.277). Skill: Thrown Weapons.
+ * `explosives` weaponType. The three basic grenades carry an ordnance class
+ * (A/B/C) and take their AP/BD from the loaded munition (like a launcher, but
+ * thrown); the rocket-assisted grenade is self-contained with fixed AP/BD.
+ * Throw range is STR-based (STR ×1/2/3/4), captured in notes.
+ */
+const GRENADE_RANGE_NOTE = 'Range = STR m: ×1 Short, ×2 Medium, ×3 Long, ×4 Extreme.';
+export const GRENADES = [
+  {"name":"Grenade, Micro","subCategory":"Grenades","ar":"C/B-C-C/E","ordnanceClass":"A","ammoType":"grenade","shots":1,"cost":2,"aff":"","massKg":0.2,"img":IMG_GRENADE,"notes":`Indirect. ${GRENADE_RANGE_NOTE}`},
+  {"name":"Grenade, Mini","subCategory":"Grenades","ar":"C/B-B-B/E","ordnanceClass":"B","ammoType":"grenade","shots":1,"cost":10,"aff":"","massKg":0.45,"img":IMG_GRENADE,"notes":`Indirect. ${GRENADE_RANGE_NOTE}`},
+  {"name":"Grenade","subCategory":"Grenades","ar":"C/A-A-A/E","ordnanceClass":"C","ammoType":"grenade","shots":1,"cost":20,"aff":"","massKg":0.6,"img":IMG_GRENADE,"notes":`Indirect. ${GRENADE_RANGE_NOTE}`},
+  {"name":"Grenade, Rocket-Assisted","subCategory":"Grenades","ar":"C/X-X-D/E","ap":5,"apFactor":"X","bd":10,"bdFactor":"A","shots":1,"cost":50,"aff":"","massKg":0.6,"img":IMG_GRENADE,"notes":`Indirect; -2 to attack; in rocket-assisted mode range ×5 and BD -2. ${GRENADE_RANGE_NOTE}`}
+];
+
+/**
+ * Standard Explosives — Mines (ATOW p.277). Skill: Demolitions. `explosives`
+ * weaponType. Each mine detonates as an ordnance class (D/E) — attach the
+ * ordnance munition (anti-personnel, HE, inferno, …) to set its payload. The
+ * Sea/Land entries are minefield deployment options, not standalone items.
+ */
+export const MINES = [
+  {"name":"Mine, Active","subCategory":"Mines","skill":"Demolitions","ar":"E/X-X-D/E","ordnanceClass":"D","ammoType":"mine","cost":1000,"aff":"CC","massKg":5,"img":IMG_MINE,"notes":"-4 to detonation check vs. jumping units or hovercraft immediately overhead"},
+  {"name":"Mine, Command-Detonated","subCategory":"Mines","skill":"Demolitions","ar":"C/B-B-B/E","ordnanceClass":"E","ammoType":"mine","cost":75,"aff":"","massKg":0.6,"img":IMG_MINE,"notes":"Will not detonate unless triggered by a friendly unit with working comms"},
+  {"name":"Mine, Standard","subCategory":"Mines","skill":"Demolitions","ar":"B/A-A-A/E","ordnanceClass":"E","ammoType":"mine","cost":50,"aff":"","massKg":0.5,"img":IMG_MINE,"notes":"+4 to detonation check vs. hovercraft; may not attack jumping units overhead"},
+  {"name":"Mine, Vibrabomb","subCategory":"Mines","skill":"Demolitions","ar":"D/B-D-C/E","ordnanceClass":"E","ammoType":"mine","cost":500,"aff":"","massKg":1,"img":IMG_MINE,"notes":"Triggered by a tonnage setting (see p.177, TO:AR)"},
+  {"name":"Sea Mines (deployment)","subCategory":"Mines","skill":"Demolitions","ar":"","ap":0,"apFactor":"","bd":0,"bdFactor":"","cost":0,"aff":"","massKg":0,"img":IMG_MINE,"notes":"Minefield deployment option: ×2 cost, ×1 mass of the base mine; deployable in water up to 72 m deep. Uses the deployed mine's stats."},
+  {"name":"Land Mines (deployment)","subCategory":"Mines","skill":"Demolitions","ar":"","ap":0,"apFactor":"","bd":0,"bdFactor":"","cost":0,"aff":"","massKg":0,"img":IMG_MINE,"notes":"Minefield deployment option: ×1 cost, ×1 mass of the base mine; deployable on land or underwater (on the water-feature floor) to a max depth of 15 m. Uses the deployed mine's stats."}
+];
+
+/**
+ * Demolitions — Charges & tools (ATOW p.277). Skill: Demolitions. `explosives`
+ * weaponType. Self-contained explosives with fixed AP/BD (X/A factors) that
+ * shed damage with distance; the Demolition Kit is a rigging tool (no damage).
+ */
+export const CHARGES = [
+  {"name":"C8, Blasting Block","subCategory":"Charges","skill":"Demolitions","ar":"D/B-B-B/D","ap":7,"apFactor":"X","bd":10,"bdFactor":"A","shots":1,"cost":50,"aff":"","massKg":1,"img":IMG_CHARGE,"notes":"-4 AP/-4 BD per metre from the blast"},
+  {"name":"C8, Satchel Charge","subCategory":"Charges","skill":"Demolitions","ar":"D/B-D-C/E","ap":8,"apFactor":"X","bd":12,"bdFactor":"A","shots":1,"cost":210,"aff":"","massKg":4.5,"img":IMG_CHARGE,"notes":"-2 AP/-2 BD per metre; STR-based throw range (×0.5/1/1.5/2 for S/M/L/E) applies when thrown as a grenade"},
+  {"name":"Demolition Kit","subCategory":"Charges","skill":"Demolitions","ar":"C/A-C-B/D","ap":0,"apFactor":"","bd":0,"bdFactor":"","shots":12,"cost":200,"aff":"","massKg":2,"img":IMG_CHARGE,"notes":"Rigs up to 12 explosives for remote or timed detonation; +1 to the Demolitions roll to rig explosives (no direct damage)"},
+  {"name":"Pentaglycerine","subCategory":"Charges","skill":"Demolitions","ar":"D/C-E-D/D","ap":7,"apFactor":"X","bd":10,"bdFactor":"A","shots":1,"cost":150,"aff":"","massKg":0.2,"img":IMG_CHARGE,"notes":"-2 AP/-2 BD per metre from the blast"}
+];
+
 /** All weapon seed entries (expanded), consumed by the weapon seeder. */
 export const WEAPON_SEED = [
   ...SMALL_ARMS.map(r => ({ skill: 'Small Arms', weaponType: 'smallarms', ...r })),
@@ -401,5 +446,8 @@ export const WEAPON_SEED = [
   ...ARCHAIC_MELEE.map(r => ({ skill: 'Melee Weapons', weaponType: 'melee', ...r })),
   ...MODERN_MELEE.map(r => ({ skill: 'Melee Weapons', weaponType: 'melee', ...r })),
   ...ARCHERY.map(r => ({ skill: 'Archery', weaponType: 'archaic', ...r })),
-  ...THROWN.map(r => ({ skill: 'Thrown Weapons', weaponType: 'archaic', ...r }))
+  ...THROWN.map(r => ({ skill: 'Thrown Weapons', weaponType: 'archaic', ...r })),
+  ...GRENADES.map(r => ({ skill: 'Thrown Weapons', weaponType: 'explosives', ...r })),
+  ...MINES.map(r => ({ weaponType: 'explosives', ...r })),
+  ...CHARGES.map(r => ({ weaponType: 'explosives', ...r }))
 ].map(toWeaponSeed);
