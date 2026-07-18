@@ -17,7 +17,7 @@ export const SHOP_TABS = [
   // Future equipment tabs — uncomment as each compendium is added:
   { id: 'electronics', label: 'Electronics', icon: 'fa-solid fa-microchip', pack: 'mech-foundry.electronics', types: ['electronics'] },
   // { id: 'medical', label: 'Medical', icon: 'fa-solid fa-kit-medical', pack: 'mech-foundry.medical', types: ['healthcare', 'drugpoison'] },
-  // { id: 'gear', label: 'Field Gear', icon: 'fa-solid fa-toolbox', pack: 'mech-foundry.gear', types: ['supplies', 'fuel'] }
+  { id: 'gear', label: 'Field Gear', icon: 'fa-solid fa-toolbox', pack: 'mech-foundry.gear', types: ['supplies', 'fuel'] }
 ];
 
 /**

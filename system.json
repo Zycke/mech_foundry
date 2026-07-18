@@ -2,7 +2,7 @@
   "id": "mech-foundry",
   "title": "Mech Foundry",
   "description": "A mech-based TTRPG system inspired by A Time of War and the BattleTech universe.",
-  "version": "0.9.3",
+  "version": "0.9.4",
   "compatibility": {
     "minimum": "14",
     "verified": "14"
@@ -13,8 +13,12 @@
       "url": "https://github.com/Zycke"
     }
   ],
-  "esmodules": ["module/mech-foundry.mjs"],
-  "styles": ["css/mech-foundry.css"],
+  "esmodules": [
+    "module/mech-foundry.mjs"
+  ],
+  "styles": [
+    "css/mech-foundry.css"
+  ],
   "languages": [
     {
       "lang": "en",
@@ -99,18 +103,39 @@
         "PLAYER": "OBSERVER",
         "ASSISTANT": "OWNER"
       }
+    },
+    {
+      "name": "gear",
+      "label": "Field Gear",
+      "path": "packs/gear",
+      "type": "Item",
+      "system": "mech-foundry",
+      "ownership": {
+        "PLAYER": "OBSERVER",
+        "ASSISTANT": "OWNER"
+      }
     }
   ],
   "packFolders": [
     {
       "name": "Character Creation",
       "sorting": "m",
-      "packs": ["life-modules", "skills", "traits"]
+      "packs": [
+        "life-modules",
+        "skills",
+        "traits"
+      ]
     },
     {
       "name": "Equipment",
       "sorting": "m",
-      "packs": ["weapons", "ammunition", "armor", "electronics"]
+      "packs": [
+        "weapons",
+        "ammunition",
+        "armor",
+        "electronics",
+        "gear"
+      ]
     }
   ],
   "grid": {

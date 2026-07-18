@@ -279,6 +279,7 @@ export class MechFoundryActorSheet extends HandlebarsApplicationMixin(ActorSheet
       drugpoisons: [],
       vehicles: [],
       fuel: [],
+      gear: [],
       ammo: []
     };
 
@@ -426,6 +427,13 @@ export class MechFoundryActorSheet extends HandlebarsApplicationMixin(ActorSheet
       }
       else if (i.type === 'fuel') {
         inventory.fuel.push(i);
+        const status = i.system.carryStatus || 'carried';
+        if (status !== 'stored') {
+          totalWeight += parseFloat(i.system.mass) || 0;
+        }
+      }
+      else if (i.type === 'supplies') {
+        inventory.gear.push(i);
         const status = i.system.carryStatus || 'carried';
         if (status !== 'stored') {
           totalWeight += parseFloat(i.system.mass) || 0;

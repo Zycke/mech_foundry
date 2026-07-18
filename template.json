@@ -1,6 +1,12 @@
 {
   "Actor": {
-    "types": ["character", "npc", "company", "vehicle_actor", "ship"],
+    "types": [
+      "character",
+      "npc",
+      "company",
+      "vehicle_actor",
+      "ship"
+    ],
     "templates": {
       "base": {
         "damage": {
@@ -68,7 +74,10 @@
       }
     },
     "character": {
-      "templates": ["base", "attributes"],
+      "templates": [
+        "base",
+        "attributes"
+      ],
       "personalData": {
         "height": "",
         "weight": "",
@@ -88,16 +97,29 @@
       "cbills": 0,
       "languages": {},
       "lifeStages": {
-        "stage0": { "modules": {} },
-        "stage1": { "modules": {} },
-        "stage2": { "modules": {} },
-        "stage3": { "modules": {} },
-        "stage4": { "modules": {} }
+        "stage0": {
+          "modules": {}
+        },
+        "stage1": {
+          "modules": {}
+        },
+        "stage2": {
+          "modules": {}
+        },
+        "stage3": {
+          "modules": {}
+        },
+        "stage4": {
+          "modules": {}
+        }
       },
       "vehicles": []
     },
     "npc": {
-      "templates": ["base", "attributes"],
+      "templates": [
+        "base",
+        "attributes"
+      ],
       "threat": 1,
       "role": ""
     },
@@ -120,7 +142,23 @@
     }
   },
   "Item": {
-    "types": ["skill", "trait", "weapon", "armor", "vehicle", "fuel", "electronics", "healthcare", "prosthetics", "drugpoison", "activeEffect", "ammo", "personnel", "supplies", "lifeModule"],
+    "types": [
+      "skill",
+      "trait",
+      "weapon",
+      "armor",
+      "vehicle",
+      "fuel",
+      "electronics",
+      "healthcare",
+      "prosthetics",
+      "drugpoison",
+      "activeEffect",
+      "ammo",
+      "personnel",
+      "supplies",
+      "lifeModule"
+    ],
     "templates": {
       "base": {
         "description": ""
@@ -138,7 +176,9 @@
       }
     },
     "skill": {
-      "templates": ["base"],
+      "templates": [
+        "base"
+      ],
       "level": 0,
       "linkedAttribute1": "int",
       "linkedAttribute2": "",
@@ -149,7 +189,9 @@
       "pageRef": ""
     },
     "trait": {
-      "templates": ["base"],
+      "templates": [
+        "base"
+      ],
       "cost": 0,
       "traitType": "positive",
       "xp": 0,
@@ -157,7 +199,9 @@
       "pageRef": ""
     },
     "lifeModule": {
-      "templates": ["base"],
+      "templates": [
+        "base"
+      ],
       "stage": 0,
       "moduleType": "affiliation",
       "affiliationKey": "",
@@ -231,7 +275,11 @@
       "pageRef": ""
     },
     "weapon": {
-      "templates": ["base", "equipment_base", "has_effects"],
+      "templates": [
+        "base",
+        "equipment_base",
+        "has_effects"
+      ],
       "weaponType": "smallarms",
       "ap": 0,
       "apFactor": "B",
@@ -267,7 +315,11 @@
       "animationDuration": 0
     },
     "armor": {
-      "templates": ["base", "equipment_base", "has_effects"],
+      "templates": [
+        "base",
+        "equipment_base",
+        "has_effects"
+      ],
       "armorType": "",
       "bar": {
         "m": 0,
@@ -286,7 +338,9 @@
       "equipped": true
     },
     "vehicle": {
-      "templates": ["base"],
+      "templates": [
+        "base"
+      ],
       "vehicleType": "wheeled",
       "equipmentRating": "",
       "cost": 0,
@@ -311,7 +365,9 @@
       "notes": ""
     },
     "fuel": {
-      "templates": ["base"],
+      "templates": [
+        "base"
+      ],
       "fuelType": "petrochemical",
       "equipmentRating": "",
       "costPerKg": 0,
@@ -320,12 +376,20 @@
       "notes": ""
     },
     "electronics": {
-      "templates": ["base", "equipment_base", "has_effects"],
+      "templates": [
+        "base",
+        "equipment_base",
+        "has_effects"
+      ],
       "range": "",
       "powerUse": 0
     },
     "healthcare": {
-      "templates": ["base", "equipment_base", "has_effects"],
+      "templates": [
+        "base",
+        "equipment_base",
+        "has_effects"
+      ],
       "powerUse": 0,
       "charges": {
         "value": 0,
@@ -335,7 +399,10 @@
       "surgeryBonus": 0
     },
     "prosthetics": {
-      "templates": ["base", "has_effects"],
+      "templates": [
+        "base",
+        "has_effects"
+      ],
       "equipmentRating": "",
       "cost": 0,
       "affiliation": "",
@@ -343,7 +410,9 @@
       "notes": ""
     },
     "drugpoison": {
-      "templates": ["base"],
+      "templates": [
+        "base"
+      ],
       "equipmentRating": "",
       "basePrice": 0,
       "mass": 0,
@@ -360,7 +429,9 @@
       "notes": ""
     },
     "activeEffect": {
-      "templates": ["base"],
+      "templates": [
+        "base"
+      ],
       "effectType": "persistent",
       "active": true,
       "continuousDamage": {
@@ -370,7 +441,9 @@
       "persistentModifiers": []
     },
     "ammo": {
-      "templates": ["base"],
+      "templates": [
+        "base"
+      ],
       "ammoCategory": "ballistics",
       "ammoType": "",
       "ordnanceClass": "",
@@ -395,7 +468,9 @@
       "loadedInWeapon": null
     },
     "personnel": {
-      "templates": ["base"],
+      "templates": [
+        "base"
+      ],
       "personnelType": "crewmember",
       "payRate": 0,
       "xp": 0,
@@ -430,10 +505,13 @@
       }
     },
     "supplies": {
-      "templates": ["base"],
+      "templates": [
+        "base",
+        "equipment_base"
+      ],
       "supplyType": "",
-      "cost": 0,
-      "quantity": 1
+      "quantity": 1,
+      "powerUse": 0
     }
   }
 }
