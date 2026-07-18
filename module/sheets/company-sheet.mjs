@@ -59,7 +59,7 @@ const UNIT_SKILLS = {
 
 const UNIT_LEADER_SKILLS = ['leadership', 'tactics', 'strategy'];
 
-const { HandlebarsApplicationMixin } = foundry.applications.api;
+const { HandlebarsApplicationMixin, DialogV2 } = foundry.applications.api;
 const { ActorSheetV2 } = foundry.applications.sheets;
 
 /**
@@ -803,73 +803,78 @@ export class MechFoundryCompanySheet extends HandlebarsApplicationMixin(ActorShe
     });
   }
 
+  /** Read a named field's value from the form owning the clicked dialog button. */
+  static _fieldValue(button, name) {
+    return button?.form?.elements?.[name]?.value ?? '';
+  }
+
   async _onAddFunds(event) {
     event.preventDefault();
-    const dialogContent = `
-      <form>
-        <div class="form-group">
-          <label>Amount (C-Bills)</label>
-          <input type="number" name="amount" value="0" min="0" />
-        </div>
-        <div class="form-group">
-          <label>Reason</label>
-          <input type="text" name="reason" value="" placeholder="Reason for deposit" />
-        </div>
-      </form>`;
+    const content = `
+      <div class="form-group">
+        <label>Amount (C-Bills)</label>
+        <input type="number" name="amount" value="0" min="0" autofocus />
+      </div>
+      <div class="form-group">
+        <label>Reason</label>
+        <input type="text" name="reason" value="" placeholder="Reason for deposit" />
+      </div>`;
 
-    new Dialog({
-      title: "Add Funds",
-      content: dialogContent,
-      buttons: {
-        confirm: {
-          icon: '<i class="fas fa-check"></i>',
-          label: "Confirm",
-          callback: async (html) => {
-            const amount = Math.abs(parseInt(html.find('[name="amount"]').val()) || 0);
-            const reason = html.find('[name="reason"]').val() || "";
-            if (amount <= 0) return;
-            await this._processTransaction(amount, 'add', reason);
-          }
+    const result = await DialogV2.wait({
+      window: { title: "Add Funds", icon: "fa-solid fa-coins" },
+      content,
+      buttons: [
+        {
+          action: "confirm", label: "Confirm", icon: "fa-solid fa-check", default: true,
+          callback: (event, button) => ({
+            amount: MechFoundryCompanySheet._fieldValue(button, 'amount'),
+            reason: MechFoundryCompanySheet._fieldValue(button, 'reason')
+          })
         },
-        cancel: { icon: '<i class="fas fa-times"></i>', label: "Cancel" }
-      },
-      default: "confirm"
-    }).render(true);
+        { action: "cancel", label: "Cancel", icon: "fa-solid fa-times" }
+      ],
+      rejectClose: false
+    });
+
+    if (!result || result === "cancel") return;
+    const amount = Math.abs(parseInt(result.amount) || 0);
+    if (amount <= 0) return;
+    await this._processTransaction(amount, 'add', result.reason || "");
   }
 
   async _onRemoveFunds(event) {
     event.preventDefault();
     const currentCBills = this.actor.system.cbills || 0;
-    const dialogContent = `
-      <form>
-        <div class="form-group">
-          <label>Amount (C-Bills) — Current balance: ${currentCBills}</label>
-          <input type="number" name="amount" value="0" min="0" />
-        </div>
-        <div class="form-group">
-          <label>Reason</label>
-          <input type="text" name="reason" value="" placeholder="Reason for withdrawal" />
-        </div>
-      </form>`;
+    const content = `
+      <div class="form-group">
+        <label>Amount (C-Bills) — Current balance: ${currentCBills.toLocaleString()}</label>
+        <input type="number" name="amount" value="0" min="0" autofocus />
+      </div>
+      <div class="form-group">
+        <label>Reason</label>
+        <input type="text" name="reason" value="" placeholder="Reason for withdrawal" />
+      </div>`;
 
-    new Dialog({
-      title: "Remove Funds",
-      content: dialogContent,
-      buttons: {
-        confirm: {
-          icon: '<i class="fas fa-check"></i>',
-          label: "Confirm",
-          callback: async (html) => {
-            const amount = Math.abs(parseInt(html.find('[name="amount"]').val()) || 0);
-            const reason = html.find('[name="reason"]').val() || "";
-            if (amount <= 0) return;
-            await this._processTransaction(amount, 'remove', reason);
-          }
+    const result = await DialogV2.wait({
+      window: { title: "Remove Funds", icon: "fa-solid fa-coins" },
+      content,
+      buttons: [
+        {
+          action: "confirm", label: "Confirm", icon: "fa-solid fa-check", default: true,
+          callback: (event, button) => ({
+            amount: MechFoundryCompanySheet._fieldValue(button, 'amount'),
+            reason: MechFoundryCompanySheet._fieldValue(button, 'reason')
+          })
         },
-        cancel: { icon: '<i class="fas fa-times"></i>', label: "Cancel" }
-      },
-      default: "confirm"
-    }).render(true);
+        { action: "cancel", label: "Cancel", icon: "fa-solid fa-times" }
+      ],
+      rejectClose: false
+    });
+
+    if (!result || result === "cancel") return;
+    const amount = Math.abs(parseInt(result.amount) || 0);
+    if (amount <= 0) return;
+    await this._processTransaction(amount, 'remove', result.reason || "");
   }
 
   async _onPayMonthlyExpenses(event) {
@@ -887,12 +892,11 @@ export class MechFoundryCompanySheet extends HandlebarsApplicationMixin(ActorShe
       return;
     }
 
-    const confirmed = await Dialog.confirm({
-      title: "Pay Monthly Expenses",
-      content: `<p>Deduct <strong>${totalExpenses} C-Bills</strong> for monthly personnel expenses?</p>`,
-      yes: () => true,
-      no: () => false,
-      defaultYes: false
+    const confirmed = await DialogV2.confirm({
+      window: { title: "Pay Monthly Expenses", icon: "fa-solid fa-coins" },
+      content: `<p>Deduct <strong>${totalExpenses.toLocaleString()} C-Bills</strong> for monthly personnel expenses?</p>`,
+      rejectClose: false,
+      modal: true
     });
 
     if (confirmed) {
@@ -930,28 +934,27 @@ export class MechFoundryCompanySheet extends HandlebarsApplicationMixin(ActorShe
       `<option value="${d.name}" ${d.name === currentAssignment ? 'selected' : ''}>${d.name}</option>`
     ).join('');
 
-    new Dialog({
-      title: `Assign ${item.name} to Department`,
-      content: `<form><div class="form-group">
+    const result = await DialogV2.wait({
+      window: { title: `Assign ${item.name} to Department`, icon: "fa-solid fa-sitemap" },
+      content: `<div class="form-group">
         <label>Department</label>
         <select name="department">
           <option value="">-- Unassigned --</option>
           ${options}
         </select>
-      </div></form>`,
-      buttons: {
-        assign: {
-          icon: '<i class="fas fa-check"></i>',
-          label: "Assign",
-          callback: async (html) => {
-            const dept = html.find('[name="department"]').val();
-            await item.update({ 'system.assignment': dept });
-          }
+      </div>`,
+      buttons: [
+        {
+          action: "assign", label: "Assign", icon: "fa-solid fa-check", default: true,
+          callback: (event, button) => MechFoundryCompanySheet._fieldValue(button, 'department')
         },
-        cancel: { label: "Cancel" }
-      },
-      default: "assign"
-    }).render(true);
+        { action: "cancel", label: "Cancel" }
+      ],
+      rejectClose: false
+    });
+
+    if (result === null || result === "cancel") return;
+    await item.update({ 'system.assignment': result });
   }
 
   /**
@@ -977,28 +980,27 @@ export class MechFoundryCompanySheet extends HandlebarsApplicationMixin(ActorShe
       `<option value="${u.id}" ${u.id === currentAssignment ? 'selected' : ''}>${u.name} (${u.unitType})</option>`
     ).join('');
 
-    new Dialog({
-      title: `Assign ${item.name} to Unit`,
-      content: `<form><div class="form-group">
+    const result = await DialogV2.wait({
+      window: { title: `Assign ${item.name} to Unit`, icon: "fa-solid fa-users" },
+      content: `<div class="form-group">
         <label>Unit</label>
         <select name="unitId">
           <option value="">-- Unassigned --</option>
           ${options}
         </select>
-      </div></form>`,
-      buttons: {
-        assign: {
-          icon: '<i class="fas fa-check"></i>',
-          label: "Assign",
-          callback: async (html) => {
-            const unitId = html.find('[name="unitId"]').val();
-            await item.update({ 'system.assignment': unitId });
-          }
+      </div>`,
+      buttons: [
+        {
+          action: "assign", label: "Assign", icon: "fa-solid fa-check", default: true,
+          callback: (event, button) => MechFoundryCompanySheet._fieldValue(button, 'unitId')
         },
-        cancel: { label: "Cancel" }
-      },
-      default: "assign"
-    }).render(true);
+        { action: "cancel", label: "Cancel" }
+      ],
+      rejectClose: false
+    });
+
+    if (result === null || result === "cancel") return;
+    await item.update({ 'system.assignment': result });
   }
 
   /* -------------------------------------------- */
@@ -1239,42 +1241,43 @@ export class MechFoundryCompanySheet extends HandlebarsApplicationMixin(ActorShe
       return `<option value="${s.key}" data-rating="${val}">${SKILL_DISPLAY_NAMES[s.key]} (${val})</option>`;
     }).join('');
 
-    const dialogContent = `
-      <form>
-        <div class="form-group">
-          <label>Skill</label>
-          <select name="skillKey">${skillOptions}</select>
-        </div>
-        <div class="form-group">
-          <label>Target Number (TN)</label>
-          <input type="number" name="tn" value="8" min="1" />
-        </div>
-        <div class="form-group">
-          <label>Additional Modifier</label>
-          <input type="number" name="modifier" value="0" />
-        </div>
-      </form>`;
+    const content = `
+      <div class="form-group">
+        <label>Skill</label>
+        <select name="skillKey">${skillOptions}</select>
+      </div>
+      <div class="form-group">
+        <label>Target Number (TN)</label>
+        <input type="number" name="tn" value="8" min="1" />
+      </div>
+      <div class="form-group">
+        <label>Additional Modifier</label>
+        <input type="number" name="modifier" value="0" />
+      </div>`;
 
-    new Dialog({
-      title: `${item.name} - Skill Roll`,
-      content: dialogContent,
-      buttons: {
-        roll: {
-          icon: '<i class="fas fa-dice"></i>',
-          label: "Roll",
-          callback: async (html) => {
-            const skillKey = html.find('[name="skillKey"]').val();
-            const skillValue = item.system.skills?.[skillKey] || 0;
-            const tn = parseInt(html.find('[name="tn"]').val()) || 8;
-            const modifier = parseInt(html.find('[name="modifier"]').val()) || 0;
-            const skillName = SKILL_DISPLAY_NAMES[skillKey] || skillKey;
-            await this._executeSummaryRoll(`${item.name} - ${skillName}`, skillValue, modifier, tn);
-          }
+    const result = await DialogV2.wait({
+      window: { title: `${item.name} - Skill Roll`, icon: "fa-solid fa-dice" },
+      content,
+      buttons: [
+        {
+          action: "roll", label: "Roll", icon: "fa-solid fa-dice", default: true,
+          callback: (event, button) => ({
+            skillKey: MechFoundryCompanySheet._fieldValue(button, 'skillKey'),
+            tn: MechFoundryCompanySheet._fieldValue(button, 'tn'),
+            modifier: MechFoundryCompanySheet._fieldValue(button, 'modifier')
+          })
         },
-        cancel: { icon: '<i class="fas fa-times"></i>', label: "Cancel" }
-      },
-      default: "roll"
-    }).render(true);
+        { action: "cancel", label: "Cancel", icon: "fa-solid fa-times" }
+      ],
+      rejectClose: false
+    });
+
+    if (!result || result === "cancel") return;
+    const skillValue = item.system.skills?.[result.skillKey] || 0;
+    const tn = parseInt(result.tn) || 8;
+    const modifier = parseInt(result.modifier) || 0;
+    const skillName = SKILL_DISPLAY_NAMES[result.skillKey] || result.skillKey;
+    await this._executeSummaryRoll(`${item.name} - ${skillName}`, skillValue, modifier, tn);
   }
 
   /**
@@ -1286,38 +1289,39 @@ export class MechFoundryCompanySheet extends HandlebarsApplicationMixin(ActorShe
     const label = el.dataset.label || "Skill Roll";
     const rating = parseFloat(el.dataset.rating) || 0;
 
-    const dialogContent = `
-      <form>
-        <div class="form-group">
-          <label>${label} (Rating: ${rating.toFixed(1)})</label>
-        </div>
-        <div class="form-group">
-          <label>Target Number (TN)</label>
-          <input type="number" name="tn" value="8" min="1" />
-        </div>
-        <div class="form-group">
-          <label>Additional Modifier</label>
-          <input type="number" name="modifier" value="0" />
-        </div>
-      </form>`;
+    const content = `
+      <div class="form-group">
+        <label>${label} (Rating: ${rating.toFixed(1)})</label>
+      </div>
+      <div class="form-group">
+        <label>Target Number (TN)</label>
+        <input type="number" name="tn" value="8" min="1" />
+      </div>
+      <div class="form-group">
+        <label>Additional Modifier</label>
+        <input type="number" name="modifier" value="0" />
+      </div>`;
 
-    new Dialog({
-      title: label,
-      content: dialogContent,
-      buttons: {
-        roll: {
-          icon: '<i class="fas fa-dice"></i>',
-          label: "Roll",
-          callback: async (html) => {
-            const tn = parseInt(html.find('[name="tn"]').val()) || 8;
-            const modifier = parseInt(html.find('[name="modifier"]').val()) || 0;
-            await this._executeSummaryRoll(label, rating, modifier, tn);
-          }
+    const result = await DialogV2.wait({
+      window: { title: label, icon: "fa-solid fa-dice" },
+      content,
+      buttons: [
+        {
+          action: "roll", label: "Roll", icon: "fa-solid fa-dice", default: true,
+          callback: (event, button) => ({
+            tn: MechFoundryCompanySheet._fieldValue(button, 'tn'),
+            modifier: MechFoundryCompanySheet._fieldValue(button, 'modifier')
+          })
         },
-        cancel: { icon: '<i class="fas fa-times"></i>', label: "Cancel" }
-      },
-      default: "roll"
-    }).render(true);
+        { action: "cancel", label: "Cancel", icon: "fa-solid fa-times" }
+      ],
+      rejectClose: false
+    });
+
+    if (!result || result === "cancel") return;
+    const tn = parseInt(result.tn) || 8;
+    const modifier = parseInt(result.modifier) || 0;
+    await this._executeSummaryRoll(label, rating, modifier, tn);
   }
 
   /**
