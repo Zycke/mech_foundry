@@ -319,9 +319,11 @@ export class MechFoundryCompanySheet extends HandlebarsApplicationMixin(ActorShe
         const assignedTotal = crew.reduce((s, c) => s + c.assigned, 0);
         const vet = MechFoundryCompanySheet.veterancy(a.xp);
         const staff = MechFoundryCompanySheet.staffing(assignedTotal, reqTotal);
-        let penaltyLabel = '', hasPenalty = false;
-        if (!staff.canRoll) { penaltyLabel = 'Understaffed — cannot roll'; hasPenalty = true; }
-        else if (staff.mod < 0) { penaltyLabel = `Short-crew penalty: ${staff.mod}`; hasPenalty = true; }
+        // Fold the short-crew penalty into the staffing badge so it stays on one
+        // line (no extra row height for understaffed departments).
+        let penaltyLabel = 'Staffing', staffSuffix = '', staffWarn = false;
+        if (!staff.canRoll) { penaltyLabel = 'Understaffed — cannot roll'; staffSuffix = ' ✕'; staffWarn = true; }
+        else if (staff.mod < 0) { penaltyLabel = `Short-crew penalty ${staff.mod}`; staffSuffix = ` ${staff.mod}`; staffWarn = true; }
         return {
           id: sd.id,
           type: typeDef.key,
@@ -331,19 +333,17 @@ export class MechFoundryCompanySheet extends HandlebarsApplicationMixin(ActorShe
           xp: vet.xp, veterancy: vet.label, vetMod: vet.mod, xpPct: vet.pct, xpInto: vet.into, atMax: vet.atMax,
           staffPct: staff.pct, staffMod: staff.mod, canRoll: staff.canRoll,
           rollMod: vet.mod + staff.mod,
-          hasPenalty, penaltyLabel
+          penaltyLabel, staffSuffix, staffWarn
         };
       });
       const hasDeptSupport = Array.isArray(actor?.system?.departments);
 
-      // Armor summary from the ship's arcs: total damage / total max armor.
+      // Armor summary from the ship's arcs: current armor / total max armor.
       const arcs = actor?.system?.armor || {};
-      let armorDamage = 0, armorMax = 0;
+      let armorValue = 0, armorMax = 0;
       for (const arc of Object.values(arcs)) {
-        const max = Number(arc?.max) || 0;
-        const val = Number(arc?.value) || 0;
-        armorMax += max;
-        armorDamage += Math.max(0, max - val);
+        armorMax += Number(arc?.max) || 0;
+        armorValue += Number(arc?.value) || 0;
       }
 
       locations.push({
@@ -357,7 +357,7 @@ export class MechFoundryCompanySheet extends HandlebarsApplicationMixin(ActorShe
         departments,
         deptSupported: hasDeptSupport,
         expanded: this.#locExpanded.has(loc.id),
-        armorDamage, armorMax,
+        armorValue, armorMax,
         crewAssignedTotal: departments.reduce((s, d) => s + d.assignedTotal, 0),
         crewRequiredTotal: departments.reduce((s, d) => s + d.reqTotal, 0)
       });

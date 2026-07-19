@@ -42,13 +42,17 @@
           {{/each}}
         </div>
 
-        {{!-- Movement / vital stats --}}
+        {{!-- Movement / vital stats — stacked pairs per column --}}
         <div class="items-header"><h3>Movement &amp; Vitals</h3></div>
-        <div class="ship-stats-grid">
-          {{#each movementFields}}
-          <div class="ship-stat">
-            <label>{{this.label}}</label>
-            <input type="number" name="system.movement.{{this.key}}" value="{{lookup ../system.movement this.key}}" {{#unless ../editable}}disabled{{/unless}} />
+        <div class="ship-stats-cols">
+          {{#each movementColumns}}
+          <div class="ship-stats-col">
+            {{#each this}}
+            <div class="ship-stat">
+              <label>{{this.label}}</label>
+              <input type="number" name="system.movement.{{this.key}}" value="{{lookup ../../system.movement this.key}}" {{#unless ../../editable}}disabled{{/unless}} />
+            </div>
+            {{/each}}
           </div>
           {{/each}}
         </div>
@@ -149,47 +153,46 @@
         <div class="bay-panel" data-bay-id="{{this.id}}">
           <div class="bay-panel-head">
             <input type="text" class="bay-name" data-bay-id="{{this.id}}" value="{{this.name}}" placeholder="Bay name" {{#unless ../editable}}disabled{{/unless}} />
-            {{#if ../editable}}<a class="remove-bay" data-bay-id="{{this.id}}" title="Remove Bay"><i class="fas fa-trash"></i></a>{{/if}}
-          </div>
-
-          <div class="bay-components">
-            {{#each this.components}}
-            <div class="bay-component">
-              <span class="comp-label">{{this.label}}</span>
-              {{#if this.assignable}}
-                {{#if this.mtoe}}
-                <span class="comp-mtoe" title="Assigned from MTOE unit {{this.mtoe.unitName}}">
-                  <a class="component-open" data-actor-id="{{this.mtoe.actorId}}">{{this.mtoe.name}}</a>
-                  <span class="comp-mtoe-unit">({{this.mtoe.unitName}})</span>
-                  <span class="comp-mtoe-status vstatus-{{this.mtoe.status}}">{{this.mtoe.status}}</span>
-                </span>
-                {{else}}
-                <select class="component-unit" data-bay-id="{{../id}}" data-component-id="{{this.id}}" {{#unless ../../editable}}disabled{{/unless}}>
-                  <option value="">— empty —</option>
-                  {{#each this.options}}<option value="{{this.id}}" {{#if this.selected}}selected{{/if}}>{{this.name}}</option>{{/each}}
-                </select>
-                {{#if this.assignedExists}}<a class="component-open" data-actor-id="{{this.unitId}}" title="Open sheet"><i class="fas fa-up-right-from-square"></i></a>{{/if}}
-                {{/if}}
-              {{/if}}
-              {{#if this.hasSquadSize}}
-              <label class="comp-num">Squad size <input type="number" min="0" class="component-squad" data-bay-id="{{../id}}" data-component-id="{{this.id}}" data-field="squadSize" value="{{this.squadSize}}" {{#unless ../../editable}}disabled{{/unless}} /></label>
-              {{/if}}
-              {{#if this.hasTonnage}}
-              <label class="comp-num">Tonnage <input type="number" min="0" class="component-tonnage" data-bay-id="{{../id}}" data-component-id="{{this.id}}" data-field="tonnage" value="{{this.tonnage}}" {{#unless ../../editable}}disabled{{/unless}} /></label>
-              {{/if}}
-              {{#if ../../editable}}<a class="remove-component" data-bay-id="{{../id}}" data-component-id="{{this.id}}" title="Remove"><i class="fas fa-times"></i></a>{{/if}}
-            </div>
-            {{/each}}
-            {{#unless this.components.length}}<p class="empty-notice small">Empty bay. Add a cubicle or cargo hold below.</p>{{/unless}}
-          </div>
-
-          {{#if ../editable}}
-          <div class="bay-add-row">
-            <select class="add-component" data-bay-id="{{this.id}}">
-              <option value="">+ Add component…</option>
+            <span class="bay-count">{{this.components.length}} slot{{#unless (eq this.components.length 1)}}s{{/unless}}</span>
+            {{#if ../editable}}
+            <select class="add-component" data-bay-id="{{this.id}}" title="Add a cubicle or cargo hold">
+              <option value="">+ Add…</option>
               {{#each ../bayComponentTypes}}<option value="{{this.key}}">{{this.label}}</option>{{/each}}
             </select>
+            <a class="remove-bay" data-bay-id="{{this.id}}" title="Remove Bay"><i class="fas fa-trash"></i></a>
+            {{/if}}
           </div>
+
+          {{#if this.components.length}}
+          <table class="bay-table">
+            <tbody>
+              {{#each this.components}}
+              <tr>
+                <td class="bt-type">{{this.label}}</td>
+                <td class="bt-contents">
+                  {{#if this.assignable}}
+                    {{#if this.mtoe}}
+                    <a class="component-open" data-actor-id="{{this.mtoe.actorId}}">{{this.mtoe.name}}</a>
+                    <span class="comp-mtoe-unit">({{this.mtoe.unitName}})</span>
+                    <span class="comp-mtoe-status vstatus-{{this.mtoe.status}}">{{this.mtoe.status}}</span>
+                    {{else}}
+                    <select class="component-unit" data-bay-id="{{../id}}" data-component-id="{{this.id}}" {{#unless ../../editable}}disabled{{/unless}}>
+                      <option value="">— empty —</option>
+                      {{#each this.options}}<option value="{{this.id}}" {{#if this.selected}}selected{{/if}}>{{this.name}}</option>{{/each}}
+                    </select>
+                    {{#if this.assignedExists}}<a class="component-open" data-actor-id="{{this.unitId}}" title="Open sheet"><i class="fas fa-up-right-from-square"></i></a>{{/if}}
+                    {{/if}}
+                  {{/if}}
+                  {{#if this.hasSquadSize}}<span class="bt-inline">Squad <input type="number" min="0" class="component-squad" data-bay-id="{{../id}}" data-component-id="{{this.id}}" data-field="squadSize" value="{{this.squadSize}}" {{#unless ../../editable}}disabled{{/unless}} /></span>{{/if}}
+                  {{#if this.hasTonnage}}<span class="bt-inline">Tonnage <input type="number" min="0" class="component-tonnage" data-bay-id="{{../id}}" data-component-id="{{this.id}}" data-field="tonnage" value="{{this.tonnage}}" {{#unless ../../editable}}disabled{{/unless}} /></span>{{/if}}
+                </td>
+                <td class="bt-remove">{{#if ../../editable}}<a class="remove-component" data-bay-id="{{../id}}" data-component-id="{{this.id}}" title="Remove"><i class="fas fa-times"></i></a>{{/if}}</td>
+              </tr>
+              {{/each}}
+            </tbody>
+          </table>
+          {{else}}
+          <p class="empty-notice small">Empty bay. Use “+ Add…” to add a cubicle or cargo hold.</p>
           {{/if}}
         </div>
         {{/each}}
