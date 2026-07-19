@@ -1,6 +1,6 @@
 import { DEPARTMENT_TYPES } from "./company-sheet.mjs";
 import {
-  BAY_COMPONENT_TYPES, bayComponentDef, cargoCapacity, cargoUsed,
+  BAY_COMPONENT_TYPES, bayComponentDef, bayList, cargoCapacity, cargoUsed,
   VEHICLE_CUBICLE_TYPES, shipCubiclesByVehicle, mtoeVehiclesAtShip
 } from "../helpers/cargo.mjs";
 
@@ -137,7 +137,7 @@ export class MechFoundryNavalShipSheet extends HandlebarsApplicationMixin(ActorS
       }
     }
 
-    context.bays = (system.bays || []).map(bay => ({
+    context.bays = bayList(this.actor).map(bay => ({
       id: bay.id,
       name: bay.name || 'Bay',
       components: (bay.components || []).map(c => {
@@ -249,7 +249,7 @@ export class MechFoundryNavalShipSheet extends HandlebarsApplicationMixin(ActorS
   /* -------------------------------------------- */
 
   async _updateBays(mutator) {
-    const bays = foundry.utils.deepClone(this.actor.system.bays || []);
+    const bays = foundry.utils.deepClone(bayList(this.actor));
     if (mutator(bays) === false) return;
     await this.actor.update({ 'system.bays': bays });
   }

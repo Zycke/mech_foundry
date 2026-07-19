@@ -60,6 +60,15 @@ export function bayComponentDef(key) {
   return BAY_COMPONENT_TYPES.find(t => t.key === key) || null;
 }
 
+/**
+ * A location actor's bays as an array. Older ship actors stored `bays` as an
+ * object ({bay1, bay2, bay3}); those are treated as no bays until re-saved.
+ */
+export function bayList(actor) {
+  const b = actor?.system?.bays;
+  return Array.isArray(b) ? b : [];
+}
+
 /** A fresh, zeroed cargo-supplies structure. */
 export function blankCargoSupplies() {
   const ship = {};
@@ -78,7 +87,7 @@ export function cargoCapacity(actor) {
   if (!actor) return 0;
   if (actor.type !== 'naval_ship') return Infinity;
   let cap = 0;
-  for (const bay of (actor.system.bays || [])) {
+  for (const bay of bayList(actor)) {
     for (const c of (bay.components || [])) {
       if (c.type === 'cargo') cap += Number(c.tonnage) || 0;
     }
@@ -120,7 +129,7 @@ export const VEHICLE_CUBICLE_TYPES = {
 export function shipCubiclesByVehicle(actor) {
   const out = {};
   for (const vt of Object.keys(VEHICLE_CUBICLE_TYPES)) out[vt] = [];
-  for (const bay of (actor?.system?.bays || [])) {
+  for (const bay of bayList(actor)) {
     for (const c of (bay.components || [])) {
       for (const vt of Object.keys(VEHICLE_CUBICLE_TYPES)) {
         if (VEHICLE_CUBICLE_TYPES[vt].includes(c.type)) {
