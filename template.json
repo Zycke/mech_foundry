@@ -171,7 +171,39 @@
       "biography": ""
     },
     "naval_ship": {
-      "biography": ""
+      "biography": "",
+      "vessel": { "class": "", "role": "" },
+      "armor": {
+        "nose": { "value": 0, "max": 0 },
+        "aft": { "value": 0, "max": 0 },
+        "left": { "value": 0, "max": 0 },
+        "right": { "value": 0, "max": 0 }
+      },
+      "movement": {
+        "safeThrust": 0,
+        "maxThrust": 0,
+        "initialFuel": 0,
+        "currentFuel": 0,
+        "tonsBurnDay": 0,
+        "fighters": 0,
+        "marinePoints": 0,
+        "heatSinks": 0
+      },
+      "track": {
+        "t1": { "thrust": 0, "velocity": 0 },
+        "t2": { "thrust": 0, "velocity": 0 },
+        "t3": { "thrust": 0, "velocity": 0 },
+        "t4": { "thrust": 0, "velocity": 0 },
+        "t5": { "thrust": 0, "velocity": 0 },
+        "t6": { "thrust": 0, "velocity": 0 },
+        "t7": { "thrust": 0, "velocity": 0 },
+        "t8": { "thrust": 0, "velocity": 0 },
+        "t9": { "thrust": 0, "velocity": 0 },
+        "t10": { "thrust": 0, "velocity": 0 }
+      },
+      "bays": { "bay1": "", "bay2": "", "bay3": "" },
+      "weapons": [],
+      "departments": []
     },
     "mech": {
       "biography": ""

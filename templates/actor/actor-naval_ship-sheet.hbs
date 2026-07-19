@@ -1,19 +1,193 @@
-{{!-- ApplicationV2 supplies the <form> frame (tag: "form"); this part is inner content. --}}
-<header class="sheet-header">
-  <img class="profile-img" src="{{actor.img}}" data-action="editImage" data-edit="img" title="{{actor.name}}" height="70" width="70" />
-  <div class="header-fields">
-    <h1>
-      <input name="name" type="text" value="{{actor.name}}" placeholder="Naval Ship Name" />
-    </h1>
-  </div>
-</header>
+<div class="naval-ship-content actor-sheet-content">
 
-<section class="sheet-body">
-  <div class="placeholder-content">
-    <h3>Naval Ship Sheet</h3>
-    <p>This naval ship sheet is a placeholder and will be expanded in a future update.</p>
-    {{#if editable}}
-    <prose-mirror name="system.biography" data-document-uuid="{{actor.uuid}}" value="{{system.biography}}" collaborate="false" toggled="true">{{{enrichedBiography}}}</prose-mirror>
-    {{else}}{{{enrichedBiography}}}{{/if}}
-  </div>
-</section>
+  {{!-- Header --}}
+  <header class="sheet-header ship-header">
+    <img class="profile-img" src="{{actor.img}}" data-action="editImage" data-edit="img" title="{{actor.name}}" height="70" width="70" />
+    <div class="header-fields">
+      <h1><input name="name" type="text" value="{{actor.name}}" placeholder="Vessel Name" /></h1>
+      <div class="ship-idfields">
+        <label>Class <input type="text" name="system.vessel.class" value="{{system.vessel.class}}" placeholder="e.g. Union" /></label>
+        <label>Role <input type="text" name="system.vessel.role" value="{{system.vessel.role}}" placeholder="e.g. Assault Transport" /></label>
+      </div>
+    </div>
+  </header>
+
+  {{!-- Tabs --}}
+  <nav class="sheet-tabs tabs" data-group="primary">
+    <a class="item" data-tab="vessel">Vessel</a>
+    <a class="item" data-tab="weapons">Weapons</a>
+    <a class="item" data-tab="crew">Crew &amp; Departments</a>
+    <a class="item" data-tab="notes">Notes</a>
+  </nav>
+
+  <section class="sheet-body">
+
+    {{!-- ==================== VESSEL TAB ==================== --}}
+    <div class="tab" data-tab="vessel" data-group="primary">
+      <div class="tab-content">
+
+        {{!-- Armor arcs --}}
+        <div class="items-header"><h3>Armor</h3></div>
+        <div class="ship-armor-grid">
+          {{#each arcFields}}
+          <div class="armor-arc">
+            <span class="arc-label">{{this.label}}</span>
+            <div class="arc-inputs">
+              <input type="number" min="0" name="system.armor.{{this.key}}.value" value="{{lookup (lookup ../system.armor this.key) 'value'}}" title="Current" {{#unless ../editable}}disabled{{/unless}} />
+              <span class="arc-sep">/</span>
+              <input type="number" min="0" name="system.armor.{{this.key}}.max" value="{{lookup (lookup ../system.armor this.key) 'max'}}" title="Max" {{#unless ../editable}}disabled{{/unless}} />
+            </div>
+          </div>
+          {{/each}}
+        </div>
+
+        {{!-- Movement / vital stats --}}
+        <div class="items-header"><h3>Movement &amp; Vitals</h3></div>
+        <div class="ship-stats-grid">
+          {{#each movementFields}}
+          <div class="ship-stat">
+            <label>{{this.label}}</label>
+            <input type="number" name="system.movement.{{this.key}}" value="{{lookup ../system.movement this.key}}" {{#unless ../editable}}disabled{{/unless}} />
+          </div>
+          {{/each}}
+        </div>
+
+        {{!-- Turn track --}}
+        <div class="items-header"><h3>Turn Record</h3></div>
+        <div class="track-scroll">
+          <table class="ship-track">
+            <thead>
+              <tr><th>Turn</th>{{#each trackTurns}}<th>{{this.num}}</th>{{/each}}</tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="track-label">Thrust</td>
+                {{#each trackTurns}}
+                <td><input type="number" name="system.track.{{this.key}}.thrust" value="{{lookup (lookup ../system.track this.key) 'thrust'}}" {{#unless ../editable}}disabled{{/unless}} /></td>
+                {{/each}}
+              </tr>
+              <tr>
+                <td class="track-label">Velocity</td>
+                {{#each trackTurns}}
+                <td><input type="number" name="system.track.{{this.key}}.velocity" value="{{lookup (lookup ../system.track this.key) 'velocity'}}" {{#unless ../editable}}disabled{{/unless}} /></td>
+                {{/each}}
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        {{!-- Bay data --}}
+        <div class="items-header"><h3>Bay Data</h3></div>
+        <div class="ship-bays">
+          <div class="bay-row"><label>Bay 1 Contents</label><input type="text" name="system.bays.bay1" value="{{system.bays.bay1}}" {{#unless editable}}disabled{{/unless}} /></div>
+          <div class="bay-row"><label>Bay 2 Contents</label><input type="text" name="system.bays.bay2" value="{{system.bays.bay2}}" {{#unless editable}}disabled{{/unless}} /></div>
+          <div class="bay-row"><label>Bay 3 Contents</label><input type="text" name="system.bays.bay3" value="{{system.bays.bay3}}" {{#unless editable}}disabled{{/unless}} /></div>
+        </div>
+
+        {{!-- Critical-hit reference --}}
+        <div class="items-header"><h3>Critical Hit Reference</h3></div>
+        <div class="crit-legend">Die #1: 1–3 selects the left set, 4–6 the right; Die #2 (1–6) selects the column below.</div>
+        <div class="track-scroll">
+          <table class="ship-crit">
+            <thead>
+              <tr><th>Die #2 →</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>6</th></tr>
+            </thead>
+            <tbody>
+              {{#each critTable}}
+              <tr>
+                <td class="crit-row-label">Row {{add @index 1}}</td>
+                {{#each this}}<td>{{this}}</td>{{/each}}
+              </tr>
+              {{/each}}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    {{!-- ==================== WEAPONS TAB ==================== --}}
+    <div class="tab" data-tab="weapons" data-group="primary">
+      <div class="tab-content">
+        <div class="items-header weapons-bar">
+          <h3>Weapon Bays</h3>
+          {{#if editable}}<button type="button" class="add-weapon"><i class="fas fa-plus"></i> Add Weapon</button>{{/if}}
+        </div>
+        <div class="track-scroll">
+          <table class="ship-weapons">
+            <thead>
+              <tr>
+                <th class="w-name">Weapons</th>
+                {{#each weaponColumns}}<th>{{this.label}}</th>{{/each}}
+                {{#if editable}}<th></th>{{/if}}
+              </tr>
+            </thead>
+            <tbody>
+              {{#each weapons}}
+              <tr>
+                <td class="w-name"><input type="text" class="weapon-field" data-weapon-id="{{this.id}}" data-field="name" value="{{this.name}}" placeholder="Weapon" {{#unless ../editable}}disabled{{/unless}} /></td>
+                {{#each ../weaponColumns}}
+                <td><input type="text" class="weapon-field" data-weapon-id="{{../id}}" data-field="{{this.key}}" value="{{lookup .. this.key}}" {{#unless ../../editable}}disabled{{/unless}} /></td>
+                {{/each}}
+                {{#if ../editable}}<td><a class="remove-weapon" data-weapon-id="{{this.id}}" title="Remove"><i class="fas fa-trash"></i></a></td>{{/if}}
+              </tr>
+              {{/each}}
+            </tbody>
+          </table>
+        </div>
+        {{#unless weapons.length}}<p class="empty-notice">No weapons. Click "Add Weapon".</p>{{/unless}}
+      </div>
+    </div>
+
+    {{!-- ==================== CREW & DEPARTMENTS TAB ==================== --}}
+    <div class="tab" data-tab="crew" data-group="primary">
+      <div class="tab-content">
+        <div class="items-header weapons-bar">
+          <h3>Departments &amp; Crew Requirements</h3>
+          {{#if editable}}<button type="button" class="add-ship-dept"><i class="fas fa-plus"></i> Add Department</button>{{/if}}
+        </div>
+        <p class="logi-note">Define this vessel's departments and how many crew each needs. Crew are assigned to these departments from the owning company's Locations tab.</p>
+
+        <table class="ship-depts">
+          <thead>
+            <tr><th>Department</th><th>Primary Crew</th><th>Req. Primary</th><th>Req. Officers</th>{{#if editable}}<th></th>{{/if}}</tr>
+          </thead>
+          <tbody>
+            {{#each departments}}
+            <tr>
+              <td>
+                <select class="ship-dept-type" data-dept-id="{{this.id}}" {{#unless ../editable}}disabled{{/unless}}>
+                  {{#each ../departmentTypes}}
+                  <option value="{{this.key}}" {{#if (eq this.key ../type)}}selected{{/if}}>{{this.label}}</option>
+                  {{/each}}
+                </select>
+              </td>
+              <td class="dept-primary">{{this.primaryLabel}}</td>
+              <td><input type="number" min="0" class="ship-dept-req" data-dept-id="{{this.id}}" data-field="requiredPrimary" value="{{this.requiredPrimary}}" {{#unless ../editable}}disabled{{/unless}} /></td>
+              <td><input type="number" min="0" class="ship-dept-req" data-dept-id="{{this.id}}" data-field="requiredOfficers" value="{{this.requiredOfficers}}" {{#unless ../editable}}disabled{{/unless}} /></td>
+              {{#if ../editable}}<td><a class="remove-ship-dept" data-dept-id="{{this.id}}" title="Remove"><i class="fas fa-trash"></i></a></td>{{/if}}
+            </tr>
+            {{/each}}
+            {{#if departments.length}}
+            <tr class="dept-total-row">
+              <td>Total</td><td></td><td>{{totalReqPrimary}}</td><td>{{totalReqOfficers}}</td>{{#if editable}}<td></td>{{/if}}
+            </tr>
+            {{/if}}
+          </tbody>
+        </table>
+        {{#unless departments.length}}<p class="empty-notice">No departments defined. Click "Add Department".</p>{{/unless}}
+      </div>
+    </div>
+
+    {{!-- ==================== NOTES TAB ==================== --}}
+    <div class="tab" data-tab="notes" data-group="primary">
+      <div class="tab-content">
+        <div class="editor-container">
+          {{#if editable}}
+          <prose-mirror name="system.biography" data-document-uuid="{{actor.uuid}}" value="{{system.biography}}" collaborate="false" toggled="true">{{{enrichedBiography}}}</prose-mirror>
+          {{else}}{{{enrichedBiography}}}{{/if}}
+        </div>
+      </div>
+    </div>
+
+  </section>
+</div>

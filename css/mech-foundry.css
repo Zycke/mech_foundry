@@ -6776,11 +6776,12 @@
 /* ---- Assets: uniform grid alignment ------------------------ */
 .mech-foundry.company-sheet .asset-grid {
   display: grid;
-  grid-template-columns: minmax(0, 2.6fr) minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) 74px;
+  grid-template-columns: minmax(0, 2.6fr) minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1fr) 52px minmax(0, 1fr) 74px;
   align-items: center;
   gap: 8px;
   padding: 4px 10px;
 }
+.mech-foundry.company-sheet .asset-grid .ac-qty { text-align: center; font-family: var(--mf-font-mono); }
 .mech-foundry.company-sheet .asset-header {
   background: linear-gradient(90deg, var(--mf-panel-2), var(--mf-panel));
   border: 1px solid var(--mf-line);
@@ -6805,3 +6806,103 @@
 .mech-foundry.company-sheet .asset-grid .ac-ctrl a { cursor: pointer; color: var(--mf-ink-dim); }
 .mech-foundry.company-sheet .asset-grid .ac-ctrl a:hover { color: var(--mf-amber-2); }
 .mech-foundry.company-sheet .asset-category { margin-bottom: 12px; }
+
+/* ============================================================= */
+/* Company round 3 — dept read-only labels; Naval Ship sheet     */
+/* ============================================================= */
+
+/* Locations: department type/required now read-only (defined on vessel) */
+.mech-foundry.company-sheet .dept-type-label {
+  flex: 0 0 130px;
+  font-family: var(--mf-font-head);
+  font-size: 0.8em;
+  color: var(--mf-amber-2);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.mech-foundry.company-sheet .dept-req-val {
+  display: inline-block;
+  min-width: 26px;
+  text-align: center;
+  color: var(--mf-ink-dim);
+  font-family: var(--mf-font-mono);
+}
+.mech-foundry.company-sheet .dept-assign { width: 44px; text-align: center; }
+.mech-foundry.company-sheet .dept-block-note { color: var(--mf-ink-dim); font-size: 0.72em; font-style: italic; }
+
+/* ---- Naval Ship sheet -------------------------------------- */
+.mech-foundry.naval-ship-sheet .ship-idfields { display: flex; gap: 14px; margin-top: 4px; flex-wrap: wrap; }
+.mech-foundry.naval-ship-sheet .ship-idfields label {
+  display: flex; align-items: center; gap: 5px;
+  color: var(--mf-ink-dim); font-size: 0.75em; text-transform: uppercase; letter-spacing: 0.04em;
+}
+.mech-foundry.naval-ship-sheet .ship-idfields input { background: var(--mf-bg); color: var(--mf-ink); border: 1px solid var(--mf-steel); border-radius: 2px; padding: 2px 6px; }
+
+.mech-foundry.naval-ship-sheet .ship-armor-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.mech-foundry.naval-ship-sheet .armor-arc {
+  display: flex; flex-direction: column; gap: 4px; align-items: center;
+  padding: 8px; background: var(--mf-panel); border: 1px solid var(--mf-line);
+  border-top: 3px solid var(--mf-amber); border-radius: 3px;
+}
+.mech-foundry.naval-ship-sheet .arc-label { color: var(--mf-amber); font-family: var(--mf-font-head); text-transform: uppercase; letter-spacing: 0.06em; font-size: 0.78em; }
+.mech-foundry.naval-ship-sheet .arc-inputs { display: flex; align-items: center; gap: 4px; }
+.mech-foundry.naval-ship-sheet .arc-inputs input { width: 54px; text-align: center; }
+.mech-foundry.naval-ship-sheet .arc-sep { color: var(--mf-ink-dim); }
+
+.mech-foundry.naval-ship-sheet .ship-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 6px;
+}
+.mech-foundry.naval-ship-sheet .ship-stat {
+  display: flex; flex-direction: column; gap: 2px;
+  padding: 5px 8px; background: var(--mf-panel-2); border: 1px solid var(--mf-line); border-radius: 2px;
+}
+.mech-foundry.naval-ship-sheet .ship-stat label { color: var(--mf-ink-dim); font-size: 0.7em; text-transform: uppercase; letter-spacing: 0.04em; }
+
+.mech-foundry.naval-ship-sheet .track-scroll { overflow-x: auto; }
+.mech-foundry.naval-ship-sheet table.ship-track,
+.mech-foundry.naval-ship-sheet table.ship-crit,
+.mech-foundry.naval-ship-sheet table.ship-weapons,
+.mech-foundry.naval-ship-sheet table.ship-depts {
+  width: 100%; border-collapse: collapse; background: var(--mf-panel); border: 1px solid var(--mf-line);
+}
+.mech-foundry.naval-ship-sheet table th,
+.mech-foundry.naval-ship-sheet table td {
+  border: 1px solid var(--mf-line); padding: 3px 6px; text-align: center; font-size: 0.82em; color: var(--mf-ink);
+}
+.mech-foundry.naval-ship-sheet table th {
+  background: var(--mf-panel-2); color: var(--mf-amber);
+  font-family: var(--mf-font-head); text-transform: uppercase; font-size: 0.72em; letter-spacing: 0.03em;
+}
+.mech-foundry.naval-ship-sheet .track-label,
+.mech-foundry.naval-ship-sheet .crit-row-label { color: var(--mf-amber); font-family: var(--mf-font-head); text-transform: uppercase; font-size: 0.72em; }
+.mech-foundry.naval-ship-sheet table.ship-track input { width: 42px; text-align: center; }
+.mech-foundry.naval-ship-sheet table.ship-weapons input,
+.mech-foundry.naval-ship-sheet table.ship-depts input { width: 100%; text-align: center; background: var(--mf-bg); color: var(--mf-ink); border: 1px solid var(--mf-steel); border-radius: 2px; padding: 1px 4px; }
+.mech-foundry.naval-ship-sheet table.ship-weapons .w-name input { text-align: left; }
+.mech-foundry.naval-ship-sheet table.ship-weapons .w-name { text-align: left; min-width: 130px; }
+.mech-foundry.naval-ship-sheet .dept-primary { color: var(--mf-ink-dim); }
+.mech-foundry.naval-ship-sheet .dept-total-row td { background: var(--mf-panel-2); font-weight: 700; color: var(--mf-amber-2); }
+.mech-foundry.naval-ship-sheet .crit-legend { color: var(--mf-ink-dim); font-size: 0.74em; margin: 2px 0 6px; }
+
+.mech-foundry.naval-ship-sheet .ship-bays { display: flex; flex-direction: column; gap: 5px; }
+.mech-foundry.naval-ship-sheet .bay-row { display: flex; align-items: center; gap: 8px; }
+.mech-foundry.naval-ship-sheet .bay-row label { flex: 0 0 130px; color: var(--mf-ink-dim); font-size: 0.75em; text-transform: uppercase; }
+.mech-foundry.naval-ship-sheet .bay-row input { flex: 1 1 auto; background: var(--mf-bg); color: var(--mf-ink); border: 1px solid var(--mf-steel); border-radius: 2px; padding: 2px 6px; }
+
+.mech-foundry.naval-ship-sheet .weapons-bar { display: flex; align-items: center; justify-content: space-between; }
+.mech-foundry.naval-ship-sheet .add-weapon,
+.mech-foundry.naval-ship-sheet .add-ship-dept {
+  padding: 3px 10px; background: var(--mf-panel-2); color: var(--mf-amber-2);
+  border: 1px solid var(--mf-steel); border-radius: 2px; font-size: 0.74em; cursor: pointer; width: auto;
+}
+.mech-foundry.naval-ship-sheet .add-weapon:hover,
+.mech-foundry.naval-ship-sheet .add-ship-dept:hover { border-color: var(--mf-amber); }
+.mech-foundry.naval-ship-sheet .remove-weapon,
+.mech-foundry.naval-ship-sheet .remove-ship-dept { color: var(--mf-danger); cursor: pointer; }

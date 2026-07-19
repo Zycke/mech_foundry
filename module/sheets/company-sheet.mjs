@@ -40,7 +40,7 @@ const BASE_SALARY = {
 };
 
 /** Ship / installation department types and the primary crew pool each draws. */
-const DEPARTMENT_TYPES = [
+export const DEPARTMENT_TYPES = [
   { key: 'gunnery', label: 'Gunnery', primary: 'enlisted' },
   { key: 'engineering', label: 'Engineering', primary: 'enlisted' },
   { key: 'medical', label: 'Medical', primary: 'enlisted' },
@@ -269,8 +269,13 @@ export class MechFoundryCompanySheet extends HandlebarsApplicationMixin(ActorShe
     const crewAssigned = {};
     for (const t of CREW_TYPES) crewAssigned[t.key] = 0;
     for (const loc of locations) {
-      for (const dept of (loc.departments || [])) {
-        for (const t of CREW_TYPES) crewAssigned[t.key] += Number(dept.assigned?.[t.key]) || 0;
+      const shipDepts = game.actors.get(loc.actorId)?.system?.departments || [];
+      const assignments = loc.deptAssignments || {};
+      for (const sd of shipDepts) {
+        const primary = (DEPARTMENT_TYPES.find(d => d.key === sd.type) || DEPARTMENT_TYPES[0]).primary;
+        const a = assignments[sd.id] || {};
+        crewAssigned[primary] += Number(a.primary) || 0;
+        crewAssigned.officers += Number(a.officers) || 0;
       }
     }
 
@@ -314,29 +319,35 @@ export class MechFoundryCompanySheet extends HandlebarsApplicationMixin(ActorShe
 
     for (const loc of stored) {
       const actor = game.actors.get(loc.actorId);
-      const departments = (loc.departments || []).map(dept => {
-        const typeDef = DEPARTMENT_TYPES.find(d => d.key === dept.type) || DEPARTMENT_TYPES[0];
+      // Departments + their crew requirements are defined on the location actor
+      // (e.g. the naval ship). The company stores only the crew assignments
+      // (and per-company veterancy XP) keyed by the actor's department id.
+      const shipDepts = actor?.system?.departments || [];
+      const assignments = loc.deptAssignments || {};
+      const departments = shipDepts.map(sd => {
+        const typeDef = DEPARTMENT_TYPES.find(d => d.key === sd.type) || DEPARTMENT_TYPES[0];
         const primary = typeDef.primary;
         const primaryLabel = CREW_TYPES.find(c => c.key === primary)?.label || primary;
+        const a = assignments[sd.id] || {};
         const crew = [
           {
-            key: primary, label: primaryLabel,
-            required: Number(dept.required?.[primary]) || 0,
-            assigned: Number(dept.assigned?.[primary]) || 0
+            slot: 'primary', key: primary, label: primaryLabel,
+            required: Number(sd.requiredPrimary) || 0,
+            assigned: Number(a.primary) || 0
           },
           {
-            key: 'officers', label: 'Officers',
-            required: Number(dept.required?.officers) || 0,
-            assigned: Number(dept.assigned?.officers) || 0
+            slot: 'officers', key: 'officers', label: 'Officers',
+            required: Number(sd.requiredOfficers) || 0,
+            assigned: Number(a.officers) || 0
           }
         ];
         const reqTotal = crew.reduce((s, c) => s + c.required, 0);
         const assignedTotal = crew.reduce((s, c) => s + c.assigned, 0);
-        const vet = MechFoundryCompanySheet.veterancy(dept.xp);
+        const vet = MechFoundryCompanySheet.veterancy(a.xp);
         const staff = MechFoundryCompanySheet.staffing(assignedTotal, reqTotal);
         return {
-          id: dept.id,
-          type: dept.type || typeDef.key,
+          id: sd.id,
+          type: typeDef.key,
           typeLabel: typeDef.label,
           crew, reqTotal, assignedTotal,
           understaffed: assignedTotal < reqTotal,
@@ -345,6 +356,7 @@ export class MechFoundryCompanySheet extends HandlebarsApplicationMixin(ActorShe
           rollMod: vet.mod + staff.mod
         };
       });
+      const hasDeptSupport = Array.isArray(actor?.system?.departments);
 
       const supplies = SHIP_SUPPLY_FIELDS.map(f => ({
         key: f.key, label: f.label, value: Number(loc.supplies?.[f.key]) || 0
@@ -362,6 +374,7 @@ export class MechFoundryCompanySheet extends HandlebarsApplicationMixin(ActorShe
         typeLabel: actor ? (LOCATION_ACTOR_TYPES[actor.type] || 'Location') : 'Missing',
         status: loc.status || '',
         departments, supplies, ammo,
+        deptSupported: hasDeptSupport,
         crewAssignedTotal: departments.reduce((s, d) => s + d.assignedTotal, 0)
       });
     }
@@ -427,19 +440,33 @@ export class MechFoundryCompanySheet extends HandlebarsApplicationMixin(ActorShe
     context.mtoe = boxes;
   }
 
+  /**
+   * Organize equipment items for the Assets tab, stacking identical items
+   * (same type + name) into one row with a quantity.
+   */
   _prepareAssets(context) {
-    const companyAssets = {
+    const buckets = {
       weapon: [], armor: [], ammo: [], electronics: [],
       healthcare: [], prosthetics: [], drugpoison: [], fuel: []
     };
     for (const item of this.actor.items) {
-      if (companyAssets.hasOwnProperty(item.type)) {
-        companyAssets[item.type].push(item.toObject(false));
+      if (!buckets.hasOwnProperty(item.type)) continue;
+      const arr = buckets[item.type];
+      const stack = arr.find(s => s._stackKey === item.name);
+      if (stack) {
+        stack.qty += 1;
+        stack._ids.push(item.id);
+      } else {
+        const data = item.toObject(false);
+        data.qty = 1;
+        data._stackKey = item.name;
+        data._ids = [item.id];
+        arr.push(data);
       }
     }
-    companyAssets.hasItems = Object.entries(companyAssets)
+    buckets.hasItems = Object.entries(buckets)
       .some(([key, arr]) => key !== 'hasItems' && Array.isArray(arr) && arr.length > 0);
-    context.companyAssets = companyAssets;
+    context.companyAssets = buckets;
   }
 
   /* -------------------------------------------- */
@@ -639,13 +666,10 @@ export class MechFoundryCompanySheet extends HandlebarsApplicationMixin(ActorShe
     html.on('click', '.ledger-delete', this._onLedgerDelete.bind(this));
     html.on('click', '.pay-monthly-expenses', this._onPayMonthlyExpenses.bind(this));
 
-    // Locations
+    // Locations (departments are defined on the ship actor; here we only assign)
     html.on('click', '.location-remove', this._onLocationRemove.bind(this));
     html.on('change', '.location-status', this._onLocationStatusChange.bind(this));
-    html.on('click', '.add-department', this._onAddDepartment.bind(this));
-    html.on('click', '.remove-department', this._onRemoveDepartment.bind(this));
-    html.on('change', '.dept-type', this._onDeptTypeChange.bind(this));
-    html.on('change', '.dept-crew', this._onDeptCrewChange.bind(this));
+    html.on('change', '.dept-assign', this._onDeptAssignChange.bind(this));
     html.on('change', '.dept-xp', this._onDeptXpChange.bind(this));
     html.on('click', '.dept-roll', this._onDeptRoll.bind(this));
 
@@ -693,54 +717,56 @@ export class MechFoundryCompanySheet extends HandlebarsApplicationMixin(ActorShe
     await this._updateLocation(locId, loc => { loc.status = value; });
   }
 
-  async _onAddDepartment(event) {
-    event.preventDefault();
-    const locId = event.currentTarget.dataset.locId;
-    await this._updateLocation(locId, loc => {
-      if (!Array.isArray(loc.departments)) loc.departments = [];
-      loc.departments.push({
-        id: foundry.utils.randomID(),
-        type: 'gunnery', xp: 0,
-        required: { enlisted: 0, officers: 0, bayTechs: 0 },
-        assigned: { enlisted: 0, officers: 0, bayTechs: 0 }
-      });
-    });
+  /** The crew pool key a department slot draws from (primary depends on type). */
+  _deptSlotPoolKey(actorId, deptId, slot) {
+    if (slot === 'officers') return 'officers';
+    const sd = (game.actors.get(actorId)?.system?.departments || []).find(d => d.id === deptId);
+    const typeDef = DEPARTMENT_TYPES.find(d => d.key === sd?.type) || DEPARTMENT_TYPES[0];
+    return typeDef.primary;
   }
 
-  async _onRemoveDepartment(event) {
-    event.preventDefault();
-    const { locId, deptId } = event.currentTarget.dataset;
-    await this._updateLocation(locId, loc => {
-      loc.departments = (loc.departments || []).filter(d => d.id !== deptId);
-    });
+  /** Total already-assigned for a crew pool across all locations/departments. */
+  _totalCrewAssigned(poolKey) {
+    let total = 0;
+    for (const loc of (this.actor.system.locations || [])) {
+      const shipDepts = game.actors.get(loc.actorId)?.system?.departments || [];
+      const assignments = loc.deptAssignments || {};
+      for (const sd of shipDepts) {
+        const a = assignments[sd.id] || {};
+        const primary = (DEPARTMENT_TYPES.find(d => d.key === sd.type) || DEPARTMENT_TYPES[0]).primary;
+        if (poolKey === 'officers') total += Number(a.officers) || 0;
+        else if (primary === poolKey) total += Number(a.primary) || 0;
+      }
+    }
+    return total;
   }
 
-  /** Change department type; zero the crew pool no longer used by the new type. */
-  async _onDeptTypeChange(event) {
-    const { locId, deptId } = event.currentTarget.dataset;
-    const value = event.currentTarget.value;
-    await this._updateLocation(locId, loc => {
-      const dept = (loc.departments || []).find(d => d.id === deptId);
-      if (!dept) return;
-      const newDef = DEPARTMENT_TYPES.find(d => d.key === value) || DEPARTMENT_TYPES[0];
-      dept.type = newDef.key;
-      // Only 'primary' + officers are relevant; zero the other primary pool.
-      const drop = newDef.primary === 'bayTechs' ? 'enlisted' : 'bayTechs';
-      if (!dept.required) dept.required = {};
-      if (!dept.assigned) dept.assigned = {};
-      dept.required[drop] = 0;
-      dept.assigned[drop] = 0;
-    });
-  }
+  /**
+   * Assign crew to a ship department. Clamps so the total assigned for that
+   * crew pool never exceeds the company pool total (can't assign what you
+   * don't have).
+   */
+  async _onDeptAssignChange(event) {
+    const { locId, deptId, slot } = event.currentTarget.dataset;
+    let value = MechFoundryCompanySheet._int(event.currentTarget.value);
 
-  async _onDeptCrewChange(event) {
-    const { locId, deptId, group, type } = event.currentTarget.dataset;
-    const value = MechFoundryCompanySheet._int(event.currentTarget.value);
-    await this._updateLocation(locId, loc => {
-      const dept = (loc.departments || []).find(d => d.id === deptId);
-      if (!dept) return;
-      if (!dept[group]) dept[group] = {};
-      dept[group][type] = value;
+    const loc = (this.actor.system.locations || []).find(l => l.id === locId);
+    if (!loc) return;
+    const poolKey = this._deptSlotPoolKey(loc.actorId, deptId, slot);
+    const poolTotal = Number(this.actor.system.personnel?.[poolKey]) || 0;
+    const current = Number(loc.deptAssignments?.[deptId]?.[slot]) || 0;
+    const otherAssigned = this._totalCrewAssigned(poolKey) - current;
+    const maxAllowed = Math.max(0, poolTotal - otherAssigned);
+    if (value > maxAllowed) {
+      value = maxAllowed;
+      const label = CREW_TYPES.find(c => c.key === poolKey)?.label || poolKey;
+      ui.notifications.warn(`Not enough ${label} in the pool — capped at ${maxAllowed}.`);
+    }
+
+    await this._updateLocation(locId, l => {
+      if (!l.deptAssignments) l.deptAssignments = {};
+      if (!l.deptAssignments[deptId]) l.deptAssignments[deptId] = { primary: 0, officers: 0, xp: 0 };
+      l.deptAssignments[deptId][slot] = value;
     });
   }
 
@@ -748,8 +774,9 @@ export class MechFoundryCompanySheet extends HandlebarsApplicationMixin(ActorShe
     const { locId, deptId } = event.currentTarget.dataset;
     const value = MechFoundryCompanySheet._int(event.currentTarget.value);
     await this._updateLocation(locId, loc => {
-      const dept = (loc.departments || []).find(d => d.id === deptId);
-      if (dept) dept.xp = value;
+      if (!loc.deptAssignments) loc.deptAssignments = {};
+      if (!loc.deptAssignments[deptId]) loc.deptAssignments[deptId] = { primary: 0, officers: 0, xp: 0 };
+      loc.deptAssignments[deptId].xp = value;
     });
   }
 
@@ -757,14 +784,15 @@ export class MechFoundryCompanySheet extends HandlebarsApplicationMixin(ActorShe
     event.preventDefault();
     const { locId, deptId } = event.currentTarget.dataset;
     const loc = (this.actor.system.locations || []).find(l => l.id === locId);
-    const dept = loc?.departments?.find(d => d.id === deptId);
-    if (!dept) return;
+    if (!loc) return;
+    const sd = (game.actors.get(loc.actorId)?.system?.departments || []).find(d => d.id === deptId);
+    if (!sd) return;
 
-    const typeDef = DEPARTMENT_TYPES.find(d => d.key === dept.type) || DEPARTMENT_TYPES[0];
-    const primary = typeDef.primary;
-    const reqTotal = (Number(dept.required?.[primary]) || 0) + (Number(dept.required?.officers) || 0);
-    const assignedTotal = (Number(dept.assigned?.[primary]) || 0) + (Number(dept.assigned?.officers) || 0);
-    const vet = MechFoundryCompanySheet.veterancy(dept.xp);
+    const typeDef = DEPARTMENT_TYPES.find(d => d.key === sd.type) || DEPARTMENT_TYPES[0];
+    const a = loc.deptAssignments?.[deptId] || {};
+    const reqTotal = (Number(sd.requiredPrimary) || 0) + (Number(sd.requiredOfficers) || 0);
+    const assignedTotal = (Number(a.primary) || 0) + (Number(a.officers) || 0);
+    const vet = MechFoundryCompanySheet.veterancy(a.xp);
     const staff = MechFoundryCompanySheet.staffing(assignedTotal, reqTotal);
     const locName = game.actors.get(loc.actorId)?.name || 'Location';
 
