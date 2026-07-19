@@ -65,23 +65,28 @@
         <p class="drop-hint"><i class="fas fa-anchor"></i> Drag a Naval Ship or Installation actor here to add it as a location.</p>
 
         {{#each locations}}
-        <div class="location-card" data-loc-id="{{this.id}}">
+        <div class="location-card {{#if this.expanded}}expanded{{else}}collapsed{{/if}}" data-loc-id="{{this.id}}">
           <div class="location-head">
-            <img src="{{this.img}}" width="40" height="40" />
-            <div class="location-title">
+            <span class="location-toggle" data-loc-id="{{this.id}}" title="Expand / collapse">
+              <i class="fas {{#if this.expanded}}fa-chevron-down{{else}}fa-chevron-right{{/if}}"></i>
+            </span>
+            <img class="location-toggle" data-loc-id="{{this.id}}" src="{{this.img}}" width="40" height="40" />
+            <div class="location-title location-toggle" data-loc-id="{{this.id}}">
               <span class="location-name">{{this.name}}</span>
               <span class="location-type">{{this.typeLabel}}{{#unless this.exists}} — actor deleted{{/unless}}</span>
             </div>
+            <span class="loc-sum" title="Assigned crew / required"><i class="fas fa-users"></i> {{this.crewAssignedTotal}}/{{this.crewRequiredTotal}}</span>
+            <span class="loc-sum" title="Armor damage / max armor"><i class="fas fa-shield-halved"></i> {{this.armorDamage}}/{{this.armorMax}}</span>
             <div class="location-status-field">
               <label>Status</label>
               <input type="text" class="location-status" data-loc-id="{{this.id}}" value="{{this.status}}" placeholder="e.g. On station" {{#unless ../editable}}disabled{{/unless}} />
             </div>
-            <span class="location-crew-total"><i class="fas fa-users"></i> {{this.crewAssignedTotal}} crew</span>
             {{#if ../editable}}
             <a class="location-remove" data-loc-id="{{this.id}}" title="Remove Location"><i class="fas fa-times"></i></a>
             {{/if}}
           </div>
 
+          {{#if this.expanded}}
           <div class="location-body">
             <div class="dept-block-header">
               <span><i class="fas fa-sitemap"></i> Departments</span>
@@ -100,6 +105,7 @@
                 <input type="number" class="dept-xp xp-input" min="0" data-loc-id="{{../id}}" data-dept-id="{{this.id}}" value="{{this.xp}}" title="Total XP" {{#unless ../../editable}}disabled{{/unless}} />
 
                 <span class="staff-badge {{#unless this.canRoll}}disabled{{/unless}}">{{this.staffPct}}%</span>
+                {{#if this.hasPenalty}}<span class="dept-penalty">{{this.penaltyLabel}}</span>{{/if}}
                 <button type="button" class="dept-roll" data-loc-id="{{../id}}" data-dept-id="{{this.id}}"
                         title="{{#if this.canRoll}}Roll a department task{{else}}Below 50% staffing — cannot roll{{/if}}"
                         {{#unless this.canRoll}}disabled{{/unless}}><i class="fas fa-dice"></i></button>
@@ -130,6 +136,7 @@
             {{/if}}
             {{/unless}}
           </div>
+          {{/if}}
         </div>
         {{/each}}
 

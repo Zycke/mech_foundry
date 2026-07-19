@@ -6906,3 +6906,34 @@
 .mech-foundry.naval-ship-sheet .add-ship-dept:hover { border-color: var(--mf-amber); }
 .mech-foundry.naval-ship-sheet .remove-weapon,
 .mech-foundry.naval-ship-sheet .remove-ship-dept { color: var(--mf-danger); cursor: pointer; }
+
+/* ============================================================= */
+/* Company round 4 — collapsible location cards, summary badges  */
+/* ============================================================= */
+.mech-foundry.company-sheet .location-toggle { cursor: pointer; }
+.mech-foundry.company-sheet .location-head > .location-toggle > i { color: var(--mf-amber); width: 12px; }
+.mech-foundry.company-sheet .location-card.collapsed .location-head { border-bottom: none; }
+.mech-foundry.company-sheet .loc-sum {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  background: var(--mf-panel-2);
+  border: 1px solid var(--mf-line);
+  border-radius: 2px;
+  font-family: var(--mf-font-mono);
+  font-size: 0.78em;
+  color: var(--mf-ink);
+  white-space: nowrap;
+}
+.mech-foundry.company-sheet .loc-sum i { color: var(--mf-amber); }
+.mech-foundry.company-sheet .dept-penalty {
+  padding: 1px 6px;
+  border: 1px solid var(--mf-danger);
+  border-radius: 2px;
+  color: #f0a59d;
+  font-size: 0.7em;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}

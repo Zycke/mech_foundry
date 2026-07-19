@@ -141,6 +141,8 @@ export class MechFoundryCompanySheet extends HandlebarsApplicationMixin(ActorShe
   #activeTab = null;
   #dragDrop;
   #boundElement = null;
+  /** Ids of location cards currently expanded (collapsed by default). */
+  #locExpanded = new Set();
 
   constructor(options = {}) {
     super(options);
@@ -345,6 +347,9 @@ export class MechFoundryCompanySheet extends HandlebarsApplicationMixin(ActorShe
         const assignedTotal = crew.reduce((s, c) => s + c.assigned, 0);
         const vet = MechFoundryCompanySheet.veterancy(a.xp);
         const staff = MechFoundryCompanySheet.staffing(assignedTotal, reqTotal);
+        let penaltyLabel = '', hasPenalty = false;
+        if (!staff.canRoll) { penaltyLabel = 'Understaffed — cannot roll'; hasPenalty = true; }
+        else if (staff.mod < 0) { penaltyLabel = `Short-crew penalty: ${staff.mod}`; hasPenalty = true; }
         return {
           id: sd.id,
           type: typeDef.key,
@@ -353,10 +358,21 @@ export class MechFoundryCompanySheet extends HandlebarsApplicationMixin(ActorShe
           understaffed: assignedTotal < reqTotal,
           xp: vet.xp, veterancy: vet.label, vetMod: vet.mod, xpPct: vet.pct, xpInto: vet.into, atMax: vet.atMax,
           staffPct: staff.pct, staffMod: staff.mod, canRoll: staff.canRoll,
-          rollMod: vet.mod + staff.mod
+          rollMod: vet.mod + staff.mod,
+          hasPenalty, penaltyLabel
         };
       });
       const hasDeptSupport = Array.isArray(actor?.system?.departments);
+
+      // Armor summary from the ship's arcs: total damage / total max armor.
+      const arcs = actor?.system?.armor || {};
+      let armorDamage = 0, armorMax = 0;
+      for (const arc of Object.values(arcs)) {
+        const max = Number(arc?.max) || 0;
+        const val = Number(arc?.value) || 0;
+        armorMax += max;
+        armorDamage += Math.max(0, max - val);
+      }
 
       const supplies = SHIP_SUPPLY_FIELDS.map(f => ({
         key: f.key, label: f.label, value: Number(loc.supplies?.[f.key]) || 0
@@ -375,7 +391,10 @@ export class MechFoundryCompanySheet extends HandlebarsApplicationMixin(ActorShe
         status: loc.status || '',
         departments, supplies, ammo,
         deptSupported: hasDeptSupport,
-        crewAssignedTotal: departments.reduce((s, d) => s + d.assignedTotal, 0)
+        expanded: this.#locExpanded.has(loc.id),
+        armorDamage, armorMax,
+        crewAssignedTotal: departments.reduce((s, d) => s + d.assignedTotal, 0),
+        crewRequiredTotal: departments.reduce((s, d) => s + d.reqTotal, 0)
       });
     }
     context.locations = locations;
@@ -654,6 +673,9 @@ export class MechFoundryCompanySheet extends HandlebarsApplicationMixin(ActorShe
   /* -------------------------------------------- */
 
   _activateSheetListeners(html) {
+    // Expand/collapse works for viewers too (pure UI state).
+    html.on('click', '.location-toggle', this._onToggleLocation.bind(this));
+
     if (!this.isEditable) return;
 
     // Assets
@@ -704,10 +726,19 @@ export class MechFoundryCompanySheet extends HandlebarsApplicationMixin(ActorShe
   /*  Location / department handlers               */
   /* -------------------------------------------- */
 
+  _onToggleLocation(event) {
+    event.preventDefault();
+    const locId = event.currentTarget.dataset.locId;
+    if (this.#locExpanded.has(locId)) this.#locExpanded.delete(locId);
+    else this.#locExpanded.add(locId);
+    this.render(false);
+  }
+
   async _onLocationRemove(event) {
     event.preventDefault();
     const locId = event.currentTarget.dataset.locId;
     const locations = (this.actor.system.locations || []).filter(l => l.id !== locId);
+    this.#locExpanded.delete(locId);
     await this.actor.update({ 'system.locations': locations });
   }
 
