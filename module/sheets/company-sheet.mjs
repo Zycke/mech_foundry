@@ -1,4 +1,8 @@
 import { DiceMechanics } from '../helpers/dice-mechanics.mjs';
+import {
+  SHIP_SUPPLY_FIELDS, GROUND_SUPPLY_GROUPS, GROUND_SUPPLY_FIELDS,
+  cargoCapacity, cargoUsed, blankCargoSupplies
+} from '../helpers/cargo.mjs';
 
 /* -------------------------------------------- */
 /*  Constants                                    */
@@ -88,42 +92,6 @@ const MEDICAL_STATUSES = [
   { key: 'kia', label: 'KIA' }
 ];
 
-/** Per-location numeric supply fields. */
-const SHIP_SUPPLY_FIELDS = [
-  { key: 'fuel', label: 'Ship Fuel' },
-  { key: 'consumables', label: 'Ship Consumables' },
-  { key: 'lifeSupport', label: 'Life Support' },
-  { key: 'medicalSustainment', label: 'Medical Sustainment' },
-  { key: 'emergencyMedical', label: 'Emergency Medical' },
-  { key: 'spareParts', label: 'Spare Parts' }
-];
-
-/** Company-wide ground-forces supply numeric fields, grouped for display. */
-const GROUND_SUPPLY_GROUPS = [
-  {
-    label: 'Spare Parts', fields: [
-      { key: 'sparePartsMech', label: 'Mechs' },
-      { key: 'sparePartsAero', label: 'Aerospace' },
-      { key: 'sparePartsVehicle', label: 'Vehicles' },
-      { key: 'sparePartsBA', label: 'Battle Armor' }
-    ]
-  },
-  {
-    label: 'Maintenance Consumables', fields: [
-      { key: 'maintMech', label: 'Mechs' },
-      { key: 'maintAero', label: 'Aerospace' },
-      { key: 'maintVehicle', label: 'Vehicles' },
-      { key: 'maintBA', label: 'Battle Armor' },
-      { key: 'maintTroops', label: 'Troops' }
-    ]
-  },
-  {
-    label: 'Fuel', fields: [
-      { key: 'fuel', label: 'Ground Fuel' }
-    ]
-  }
-];
-
 const { HandlebarsApplicationMixin, DialogV2 } = foundry.applications.api;
 const { ActorSheetV2 } = foundry.applications.sheets;
 
@@ -143,6 +111,8 @@ export class MechFoundryCompanySheet extends HandlebarsApplicationMixin(ActorShe
   #boundElement = null;
   /** Ids of location cards currently expanded (collapsed by default). */
   #locExpanded = new Set();
+  /** Ids of logistics rows currently expanded (collapsed by default). */
+  #logiExpanded = new Set();
 
   constructor(options = {}) {
     super(options);
@@ -236,6 +206,7 @@ export class MechFoundryCompanySheet extends HandlebarsApplicationMixin(ActorShe
     this._preparePersonnel(context);
     this._prepareMedical(context);
     this._prepareLocations(context);
+    this._prepareLogistics(context);
     this._prepareMTOE(context);
 
     context.totalPersonnel = context.crewPools.reduce((s, p) => s + p.total, 0)
@@ -374,13 +345,6 @@ export class MechFoundryCompanySheet extends HandlebarsApplicationMixin(ActorShe
         armorDamage += Math.max(0, max - val);
       }
 
-      const supplies = SHIP_SUPPLY_FIELDS.map(f => ({
-        key: f.key, label: f.label, value: Number(loc.supplies?.[f.key]) || 0
-      }));
-      const ammo = (loc.supplies?.ammo || []).map(a => ({
-        id: a.id, name: a.name || '', value: Number(a.value) || 0
-      }));
-
       locations.push({
         id: loc.id,
         actorId: loc.actorId,
@@ -389,7 +353,7 @@ export class MechFoundryCompanySheet extends HandlebarsApplicationMixin(ActorShe
         img: actor ? actor.img : 'icons/svg/hazard.svg',
         typeLabel: actor ? (LOCATION_ACTOR_TYPES[actor.type] || 'Location') : 'Missing',
         status: loc.status || '',
-        departments, supplies, ammo,
+        departments,
         deptSupported: hasDeptSupport,
         expanded: this.#locExpanded.has(loc.id),
         armorDamage, armorMax,
@@ -398,7 +362,72 @@ export class MechFoundryCompanySheet extends HandlebarsApplicationMixin(ActorShe
       });
     }
     context.locations = locations;
-    context.shipLocations = locations;
+  }
+
+  /**
+   * Logistics: supplies live on each location actor (cargoSupplies). This tab is
+   * the management interface — it reads/writes the actors and shows company-wide
+   * summary totals.
+   */
+  _prepareLogistics(context) {
+    const summaryShip = {};
+    for (const f of SHIP_SUPPLY_FIELDS) summaryShip[f.key] = 0;
+    const summaryGround = {};
+    for (const f of GROUND_SUPPLY_FIELDS) summaryGround[f.key] = 0;
+    const ammoSummary = {};
+
+    const logiLocations = [];
+    for (const loc of (this.actor.system.locations || [])) {
+      const actor = game.actors.get(loc.actorId);
+      if (!actor) continue;
+      const cs = actor.system.cargoSupplies || blankCargoSupplies();
+      const cap = cargoCapacity(actor);
+      const used = cargoUsed(actor);
+
+      const ship = SHIP_SUPPLY_FIELDS.map(f => {
+        const v = Number(cs.ship?.[f.key]) || 0;
+        summaryShip[f.key] += v;
+        return { key: f.key, label: f.label, value: v };
+      });
+      const ground = GROUND_SUPPLY_GROUPS.map(g => ({
+        label: g.label,
+        fields: g.fields.map(f => {
+          const v = Number(cs.ground?.[f.key]) || 0;
+          summaryGround[f.key] += v;
+          return { key: f.key, label: f.label, value: v };
+        })
+      }));
+      const shipAmmo = (cs.shipAmmo || []).map(a => ({ id: a.id, name: a.name || '', value: Number(a.value) || 0 }));
+      const groundAmmo = (cs.groundAmmo || []).map(a => ({ id: a.id, name: a.name || '', usedBy: a.usedBy || '', value: Number(a.value) || 0 }));
+      for (const a of [...shipAmmo, ...groundAmmo]) {
+        const key = a.name || '(unnamed)';
+        ammoSummary[key] = (ammoSummary[key] || 0) + a.value;
+      }
+
+      logiLocations.push({
+        id: loc.id,
+        actorId: loc.actorId,
+        name: actor.name,
+        img: actor.img,
+        typeLabel: LOCATION_ACTOR_TYPES[actor.type] || 'Location',
+        expanded: this.#logiExpanded.has(loc.id),
+        uncapped: cap === Infinity,
+        capacity: cap === Infinity ? '∞' : cap,
+        used,
+        free: cap === Infinity ? '∞' : Math.max(0, cap - used),
+        full: cap !== Infinity && used >= cap,
+        ship, ground, shipAmmo, groundAmmo
+      });
+    }
+
+    context.logiLocations = logiLocations;
+    context.hasLogiLocations = logiLocations.length > 0;
+    context.logiSummaryShip = SHIP_SUPPLY_FIELDS.map(f => ({ label: f.label, value: summaryShip[f.key] }));
+    context.logiSummaryGround = GROUND_SUPPLY_GROUPS.map(g => ({
+      label: g.label,
+      fields: g.fields.map(f => ({ label: f.label, value: summaryGround[f.key] }))
+    }));
+    context.logiAmmoSummary = Object.entries(ammoSummary).map(([name, tons]) => ({ name, tons }));
   }
 
   _prepareMTOE(context) {
@@ -604,7 +633,7 @@ export class MechFoundryCompanySheet extends HandlebarsApplicationMixin(ActorShe
       }
       locations.push({
         id: foundry.utils.randomID(), actorId: actor.id, status: '',
-        departments: [], supplies: this._blankShipSupplies()
+        deptAssignments: {}
       });
       await this.actor.update({ 'system.locations': locations });
       ui.notifications.info(`${actor.name} added as a company location.`);
@@ -642,12 +671,6 @@ export class MechFoundryCompanySheet extends HandlebarsApplicationMixin(ActorShe
     return false;
   }
 
-  _blankShipSupplies() {
-    const s = { ammo: [] };
-    for (const f of SHIP_SUPPLY_FIELDS) s[f.key] = 0;
-    return s;
-  }
-
   /* -------------------------------------------- */
   /*  Array update helpers                         */
   /* -------------------------------------------- */
@@ -675,6 +698,7 @@ export class MechFoundryCompanySheet extends HandlebarsApplicationMixin(ActorShe
   _activateSheetListeners(html) {
     // Expand/collapse works for viewers too (pure UI state).
     html.on('click', '.location-toggle', this._onToggleLocation.bind(this));
+    html.on('click', '.logi-toggle', this._onToggleLogi.bind(this));
 
     if (!this.isEditable) return;
 
@@ -695,11 +719,13 @@ export class MechFoundryCompanySheet extends HandlebarsApplicationMixin(ActorShe
     html.on('change', '.dept-xp', this._onDeptXpChange.bind(this));
     html.on('click', '.dept-roll', this._onDeptRoll.bind(this));
 
-    // Ship supplies
-    html.on('change', '.ship-supply', this._onShipSupplyChange.bind(this));
-    html.on('click', '.add-ship-ammo', this._onAddShipAmmo.bind(this));
-    html.on('click', '.remove-ship-ammo', this._onRemoveShipAmmo.bind(this));
-    html.on('change', '.ship-ammo-field', this._onShipAmmoFieldChange.bind(this));
+    // Logistics (supplies are stored on the location actors)
+    html.on('click', '.transfer-supplies', this._onTransferSupplies.bind(this));
+    html.on('change', '.cargo-ship', this._onCargoScalarChange.bind(this));
+    html.on('change', '.cargo-ground', this._onCargoScalarChange.bind(this));
+    html.on('click', '.add-cargo-ammo', this._onAddCargoAmmo.bind(this));
+    html.on('click', '.remove-cargo-ammo', this._onRemoveCargoAmmo.bind(this));
+    html.on('change', '.cargo-ammo-field', this._onCargoAmmoFieldChange.bind(this));
 
     // MTOE
     html.on('click', '.add-mtoe-box', this._onAddBox.bind(this));
@@ -715,11 +741,6 @@ export class MechFoundryCompanySheet extends HandlebarsApplicationMixin(ActorShe
     html.on('change', '.vehicle-status', this._onVehicleStatusChange.bind(this));
     html.on('click', '.mtoe-unit-open', this._onUnitOpen.bind(this));
     html.on('click', '.mtoe-unit-remove', this._onBoxUnitRemove.bind(this));
-
-    // Ground supplies ammo
-    html.on('click', '.add-ground-ammo', this._onAddGroundAmmo.bind(this));
-    html.on('click', '.remove-ground-ammo', this._onRemoveGroundAmmo.bind(this));
-    html.on('change', '.ground-ammo-field', this._onGroundAmmoFieldChange.bind(this));
   }
 
   /* -------------------------------------------- */
@@ -835,43 +856,173 @@ export class MechFoundryCompanySheet extends HandlebarsApplicationMixin(ActorShe
   }
 
   /* -------------------------------------------- */
-  /*  Ship supply handlers                         */
+  /*  Logistics — supplies stored on location actors */
   /* -------------------------------------------- */
 
-  async _onShipSupplyChange(event) {
-    const { locId, key } = event.currentTarget.dataset;
-    const value = MechFoundryCompanySheet._int(event.currentTarget.value);
-    await this._updateLocation(locId, loc => {
-      if (!loc.supplies) loc.supplies = this._blankShipSupplies();
-      loc.supplies[key] = value;
-    });
-  }
-
-  async _onAddShipAmmo(event) {
+  _onToggleLogi(event) {
     event.preventDefault();
     const locId = event.currentTarget.dataset.locId;
-    await this._updateLocation(locId, loc => {
-      if (!loc.supplies) loc.supplies = this._blankShipSupplies();
-      if (!Array.isArray(loc.supplies.ammo)) loc.supplies.ammo = [];
-      loc.supplies.ammo.push({ id: foundry.utils.randomID(), name: '', value: 0 });
-    });
+    if (this.#logiExpanded.has(locId)) this.#logiExpanded.delete(locId);
+    else this.#logiExpanded.add(locId);
+    this.render(false);
   }
 
-  async _onRemoveShipAmmo(event) {
+  /** Resolve the location actor for a logistics control, or warn. */
+  _logiActor(actorId) {
+    const actor = game.actors.get(actorId);
+    if (!actor) { ui.notifications.warn("That location's actor no longer exists."); return null; }
+    return actor;
+  }
+
+  /** Update a location actor's cargoSupplies via a mutator, then re-render. */
+  async _updateCargo(actor, mutator) {
+    const cs = foundry.utils.deepClone(actor.system.cargoSupplies || blankCargoSupplies());
+    if (!cs.ship) cs.ship = {};
+    if (!cs.ground) cs.ground = {};
+    if (!Array.isArray(cs.shipAmmo)) cs.shipAmmo = [];
+    if (!Array.isArray(cs.groundAmmo)) cs.groundAmmo = [];
+    if (mutator(cs) === false) return;
+    await actor.update({ 'system.cargoSupplies': cs });
+    this.render(false);
+  }
+
+  /**
+   * The maximum a supply value can rise to on an actor without exceeding cargo
+   * capacity, given the current value being edited.
+   */
+  _cargoCap(actor, currentValue) {
+    const cap = cargoCapacity(actor);
+    if (cap === Infinity) return Infinity;
+    return Math.max(0, cap - (cargoUsed(actor) - currentValue));
+  }
+
+  /** Change a ship- or ground-supply scalar (class carries which). */
+  async _onCargoScalarChange(event) {
+    const el = event.currentTarget;
+    const { actorId, group, key } = el.dataset; // group: 'ship' | 'ground'
+    let value = MechFoundryCompanySheet._int(el.value);
+    const actor = this._logiActor(actorId);
+    if (!actor) return;
+    const current = Number(actor.system.cargoSupplies?.[group]?.[key]) || 0;
+    const max = this._cargoCap(actor, current);
+    if (value > max) { value = max; ui.notifications.warn(`Cargo full — capped at ${max} t.`); }
+    await this._updateCargo(actor, cs => { cs[group][key] = value; });
+  }
+
+  async _onAddCargoAmmo(event) {
     event.preventDefault();
-    const { locId, ammoId } = event.currentTarget.dataset;
-    await this._updateLocation(locId, loc => {
-      if (loc.supplies?.ammo) loc.supplies.ammo = loc.supplies.ammo.filter(a => a.id !== ammoId);
+    const { actorId, group } = event.currentTarget.dataset; // group: 'shipAmmo' | 'groundAmmo'
+    const actor = this._logiActor(actorId);
+    if (!actor) return;
+    await this._updateCargo(actor, cs => {
+      const entry = { id: foundry.utils.randomID(), name: '', value: 0 };
+      if (group === 'groundAmmo') entry.usedBy = '';
+      cs[group].push(entry);
     });
   }
 
-  async _onShipAmmoFieldChange(event) {
-    const { locId, ammoId, field } = event.currentTarget.dataset;
-    const raw = event.currentTarget.value;
-    await this._updateLocation(locId, loc => {
-      const ammo = loc.supplies?.ammo?.find(a => a.id === ammoId);
-      if (!ammo) return;
-      ammo[field] = field === 'value' ? MechFoundryCompanySheet._int(raw) : raw;
+  async _onRemoveCargoAmmo(event) {
+    event.preventDefault();
+    const { actorId, group, ammoId } = event.currentTarget.dataset;
+    const actor = this._logiActor(actorId);
+    if (!actor) return;
+    await this._updateCargo(actor, cs => { cs[group] = cs[group].filter(a => a.id !== ammoId); });
+  }
+
+  async _onCargoAmmoFieldChange(event) {
+    const el = event.currentTarget;
+    const { actorId, group, ammoId, field } = el.dataset;
+    const actor = this._logiActor(actorId);
+    if (!actor) return;
+    const raw = el.value;
+    await this._updateCargo(actor, cs => {
+      const ammo = cs[group].find(a => a.id === ammoId);
+      if (!ammo) return false;
+      if (field === 'value') {
+        let value = MechFoundryCompanySheet._int(raw);
+        const max = this._cargoCap(actor, Number(ammo.value) || 0);
+        if (value > max) { value = max; ui.notifications.warn(`Cargo full — capped at ${max} t.`); }
+        ammo.value = value;
+      } else {
+        ammo[field] = raw;
+      }
+    });
+  }
+
+  /* -------------------------------------------- */
+  /*  Supply transfer between locations            */
+  /* -------------------------------------------- */
+
+  /** Flat list of transferable scalar categories with labels. */
+  _transferCategories() {
+    const cats = SHIP_SUPPLY_FIELDS.map(f => ({ group: 'ship', key: f.key, label: `Ship: ${f.label}` }));
+    for (const f of GROUND_SUPPLY_FIELDS) cats.push({ group: 'ground', key: f.key, label: `Ground: ${f.label}` });
+    return cats;
+  }
+
+  async _onTransferSupplies(event) {
+    event.preventDefault();
+    const locs = (this.actor.system.locations || [])
+      .map(l => game.actors.get(l.actorId)).filter(Boolean);
+    if (locs.length < 2) { ui.notifications.warn("Need at least two locations to transfer between."); return; }
+
+    const cats = this._transferCategories();
+    const locOpts = locs.map(a => `<option value="${a.id}">${a.name}</option>`).join('');
+    const catOpts = cats.map((c, i) => `<option value="${i}">${c.label}</option>`).join('');
+    const content = `
+      <div class="form-group"><label>From</label><select name="from">${locOpts}</select></div>
+      <div class="form-group"><label>To</label><select name="to">${locOpts}</select></div>
+      <div class="form-group"><label>Supply</label><select name="cat">${catOpts}</select></div>
+      <div class="form-group"><label>Amount (tons)</label><input type="number" name="amount" value="0" min="0" /></div>`;
+
+    const result = await DialogV2.wait({
+      window: { title: "Transfer Supplies", icon: "fa-solid fa-right-left" },
+      content,
+      buttons: [
+        {
+          action: "transfer", label: "Transfer", icon: "fa-solid fa-right-left", default: true,
+          callback: (event, button) => ({
+            from: button.form.elements.from.value,
+            to: button.form.elements.to.value,
+            cat: button.form.elements.cat.value,
+            amount: button.form.elements.amount.value
+          })
+        },
+        { action: "cancel", label: "Cancel", icon: "fa-solid fa-times" }
+      ],
+      rejectClose: false
+    });
+    if (!result || result === "cancel") return;
+
+    const fromActor = game.actors.get(result.from);
+    const toActor = game.actors.get(result.to);
+    const cat = cats[parseInt(result.cat)];
+    let amount = MechFoundryCompanySheet._int(result.amount);
+    if (!fromActor || !toActor || !cat || amount <= 0) return;
+    if (fromActor.id === toActor.id) { ui.notifications.warn("Pick two different locations."); return; }
+
+    const fromBefore = Number(fromActor.system.cargoSupplies?.[cat.group]?.[cat.key]) || 0;
+    const toBefore = Number(toActor.system.cargoSupplies?.[cat.group]?.[cat.key]) || 0;
+
+    // Clamp by what the source has and what the destination can hold.
+    amount = Math.min(amount, fromBefore);
+    const destFree = this._cargoCap(toActor, toBefore) - toBefore;
+    if (destFree !== Infinity) amount = Math.min(amount, Math.max(0, destFree));
+    if (amount <= 0) { ui.notifications.warn("Nothing transferred (source empty or destination full)."); return; }
+
+    await this._updateCargo(fromActor, cs => { cs[cat.group][cat.key] = fromBefore - amount; });
+    await this._updateCargo(toActor, cs => { cs[cat.group][cat.key] = toBefore + amount; });
+
+    ChatMessage.create({
+      speaker: ChatMessage.getSpeaker({ actor: this.actor }),
+      content: `<div class="mech-foundry chat-card">
+        <h3>Supply Transfer — ${cat.label.replace(/^(Ship|Ground): /, '')}</h3>
+        <div class="roll-details">
+          <div>Moved <strong>${amount} t</strong> from <strong>${fromActor.name}</strong> to <strong>${toActor.name}</strong></div>
+          <div>${fromActor.name}: ${fromBefore} → ${fromBefore - amount}</div>
+          <div>${toActor.name}: ${toBefore} → ${toBefore + amount}</div>
+        </div>
+      </div>`
     });
   }
 
@@ -985,36 +1136,6 @@ export class MechFoundryCompanySheet extends HandlebarsApplicationMixin(ActorShe
     await this._updateBox(boxId, box => {
       box.units = (box.units || []).filter(u => u.actorId !== actorId);
     });
-  }
-
-  /* -------------------------------------------- */
-  /*  Ground supply ammo handlers                  */
-  /* -------------------------------------------- */
-
-  async _onAddGroundAmmo(event) {
-    event.preventDefault();
-    const ground = foundry.utils.deepClone(this.actor.system.groundSupplies || {});
-    if (!Array.isArray(ground.ammo)) ground.ammo = [];
-    ground.ammo.push({ id: foundry.utils.randomID(), name: '', usedBy: '', value: 0 });
-    await this.actor.update({ 'system.groundSupplies': ground });
-  }
-
-  async _onRemoveGroundAmmo(event) {
-    event.preventDefault();
-    const ammoId = event.currentTarget.dataset.ammoId;
-    const ground = foundry.utils.deepClone(this.actor.system.groundSupplies || {});
-    ground.ammo = (ground.ammo || []).filter(a => a.id !== ammoId);
-    await this.actor.update({ 'system.groundSupplies': ground });
-  }
-
-  async _onGroundAmmoFieldChange(event) {
-    const { ammoId, field } = event.currentTarget.dataset;
-    const raw = event.currentTarget.value;
-    const ground = foundry.utils.deepClone(this.actor.system.groundSupplies || {});
-    const ammo = (ground.ammo || []).find(a => a.id === ammoId);
-    if (!ammo) return;
-    ammo[field] = field === 'value' ? MechFoundryCompanySheet._int(raw) : raw;
-    await this.actor.update({ 'system.groundSupplies': ground });
   }
 
   /* -------------------------------------------- */

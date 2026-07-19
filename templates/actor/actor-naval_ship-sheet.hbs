@@ -16,6 +16,7 @@
   <nav class="sheet-tabs tabs" data-group="primary">
     <a class="item" data-tab="vessel">Vessel</a>
     <a class="item" data-tab="weapons">Weapons</a>
+    <a class="item" data-tab="bays">Bays</a>
     <a class="item" data-tab="crew">Crew &amp; Departments</a>
     <a class="item" data-tab="notes">Notes</a>
   </nav>
@@ -76,14 +77,6 @@
           </table>
         </div>
 
-        {{!-- Bay data --}}
-        <div class="items-header"><h3>Bay Data</h3></div>
-        <div class="ship-bays">
-          <div class="bay-row"><label>Bay 1 Contents</label><input type="text" name="system.bays.bay1" value="{{system.bays.bay1}}" {{#unless editable}}disabled{{/unless}} /></div>
-          <div class="bay-row"><label>Bay 2 Contents</label><input type="text" name="system.bays.bay2" value="{{system.bays.bay2}}" {{#unless editable}}disabled{{/unless}} /></div>
-          <div class="bay-row"><label>Bay 3 Contents</label><input type="text" name="system.bays.bay3" value="{{system.bays.bay3}}" {{#unless editable}}disabled{{/unless}} /></div>
-        </div>
-
         {{!-- Critical-hit reference --}}
         <div class="items-header"><h3>Critical Hit Reference</h3></div>
         <div class="crit-legend">Die #1: 1–3 selects the left set, 4–6 the right; Die #2 (1–6) selects the column below.</div>
@@ -135,6 +128,64 @@
           </table>
         </div>
         {{#unless weapons.length}}<p class="empty-notice">No weapons. Click "Add Weapon".</p>{{/unless}}
+      </div>
+    </div>
+
+    {{!-- ==================== BAYS TAB ==================== --}}
+    <div class="tab" data-tab="bays" data-group="primary">
+      <div class="tab-content">
+        <div class="items-header weapons-bar">
+          <h3>Bays &amp; Cubicles</h3>
+          {{#if editable}}<button type="button" class="add-bay"><i class="fas fa-plus"></i> Add Bay</button>{{/if}}
+        </div>
+        <div class="cargo-readout">
+          <span>Cargo capacity: <strong>{{cargoCapacity}}</strong> t</span>
+          <span>Used: <strong>{{cargoUsed}}</strong> t</span>
+          <span>Free: <strong>{{cargoFree}}</strong> t</span>
+          <span class="logi-note">Supplies (1 t each) are managed from the company Logistics tab.</span>
+        </div>
+
+        {{#each bays}}
+        <div class="bay-panel" data-bay-id="{{this.id}}">
+          <div class="bay-panel-head">
+            <input type="text" class="bay-name" data-bay-id="{{this.id}}" value="{{this.name}}" placeholder="Bay name" {{#unless ../editable}}disabled{{/unless}} />
+            {{#if ../editable}}<a class="remove-bay" data-bay-id="{{this.id}}" title="Remove Bay"><i class="fas fa-trash"></i></a>{{/if}}
+          </div>
+
+          <div class="bay-components">
+            {{#each this.components}}
+            <div class="bay-component">
+              <span class="comp-label">{{this.label}}</span>
+              {{#if this.assignable}}
+              <select class="component-unit" data-bay-id="{{../id}}" data-component-id="{{this.id}}" {{#unless ../../editable}}disabled{{/unless}}>
+                <option value="">— empty —</option>
+                {{#each this.options}}<option value="{{this.id}}" {{#if this.selected}}selected{{/if}}>{{this.name}}</option>{{/each}}
+              </select>
+              {{#if this.assignedExists}}<a class="component-open" data-actor-id="{{this.unitId}}" title="Open sheet"><i class="fas fa-up-right-from-square"></i></a>{{/if}}
+              {{/if}}
+              {{#if this.hasSquadSize}}
+              <label class="comp-num">Squad size <input type="number" min="0" class="component-squad" data-bay-id="{{../id}}" data-component-id="{{this.id}}" data-field="squadSize" value="{{this.squadSize}}" {{#unless ../../editable}}disabled{{/unless}} /></label>
+              {{/if}}
+              {{#if this.hasTonnage}}
+              <label class="comp-num">Tonnage <input type="number" min="0" class="component-tonnage" data-bay-id="{{../id}}" data-component-id="{{this.id}}" data-field="tonnage" value="{{this.tonnage}}" {{#unless ../../editable}}disabled{{/unless}} /></label>
+              {{/if}}
+              {{#if ../../editable}}<a class="remove-component" data-bay-id="{{../id}}" data-component-id="{{this.id}}" title="Remove"><i class="fas fa-times"></i></a>{{/if}}
+            </div>
+            {{/each}}
+            {{#unless this.components.length}}<p class="empty-notice small">Empty bay. Add a cubicle or cargo hold below.</p>{{/unless}}
+          </div>
+
+          {{#if ../editable}}
+          <div class="bay-add-row">
+            <select class="add-component" data-bay-id="{{this.id}}">
+              <option value="">+ Add component…</option>
+              {{#each ../bayComponentTypes}}<option value="{{this.key}}">{{this.label}}</option>{{/each}}
+            </select>
+          </div>
+          {{/if}}
+        </div>
+        {{/each}}
+        {{#unless bays.length}}<p class="empty-notice">No bays. Click "Add Bay" to create one.</p>{{/unless}}
       </div>
     </div>
 

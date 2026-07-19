@@ -1,4 +1,5 @@
 import { DEPARTMENT_TYPES } from "./company-sheet.mjs";
+import { BAY_COMPONENT_TYPES, bayComponentDef, cargoCapacity, cargoUsed } from "../helpers/cargo.mjs";
 
 const { HandlebarsApplicationMixin } = foundry.applications.api;
 const { ActorSheetV2 } = foundry.applications.sheets;
@@ -117,6 +118,41 @@ export class MechFoundryNavalShipSheet extends HandlebarsApplicationMixin(ActorS
     context.totalReqPrimary = totalPrimary;
     context.totalReqOfficers = totalOfficers;
 
+    // Bays + components
+    context.bayComponentTypes = BAY_COMPONENT_TYPES;
+    context.bays = (system.bays || []).map(bay => ({
+      id: bay.id,
+      name: bay.name || 'Bay',
+      components: (bay.components || []).map(c => {
+        const def = bayComponentDef(c.type) || {};
+        const comp = {
+          id: c.id,
+          type: c.type,
+          label: def.label || c.type,
+          assignable: !!def.unitType,
+          hasSquadSize: !!def.hasSquadSize,
+          hasTonnage: !!def.hasTonnage
+        };
+        if (def.unitType) {
+          const assigned = c.unitId ? game.actors.get(c.unitId) : null;
+          comp.unitId = c.unitId || '';
+          comp.assignedName = assigned?.name || '';
+          comp.assignedExists = !!assigned;
+          comp.options = game.actors
+            .filter(a => a.type === def.unitType)
+            .map(a => ({ id: a.id, name: a.name, selected: a.id === c.unitId }));
+        }
+        if (def.hasSquadSize) comp.squadSize = Number(c.squadSize) || 0;
+        if (def.hasTonnage) comp.tonnage = Number(c.tonnage) || 0;
+        return comp;
+      })
+    }));
+    const cap = cargoCapacity(this.actor);
+    const used = cargoUsed(this.actor);
+    context.cargoCapacity = cap === Infinity ? '∞' : cap;
+    context.cargoUsed = used;
+    context.cargoFree = cap === Infinity ? '∞' : Math.max(0, cap - used);
+
     context.enrichedBiography = await foundry.applications.ux.TextEditor.implementation.enrichHTML(
       system.biography ?? "",
       { secrets: this.document.isOwner, relativeTo: this.actor }
@@ -174,6 +210,99 @@ export class MechFoundryNavalShipSheet extends HandlebarsApplicationMixin(ActorS
     html.on('click', '.remove-ship-dept', this._onRemoveDept.bind(this));
     html.on('change', '.ship-dept-type', this._onDeptTypeChange.bind(this));
     html.on('change', '.ship-dept-req', this._onDeptReqChange.bind(this));
+    // Bays
+    html.on('click', '.add-bay', this._onAddBay.bind(this));
+    html.on('click', '.remove-bay', this._onRemoveBay.bind(this));
+    html.on('change', '.bay-name', this._onBayNameChange.bind(this));
+    html.on('change', '.add-component', this._onAddComponent.bind(this));
+    html.on('click', '.remove-component', this._onRemoveComponent.bind(this));
+    html.on('change', '.component-unit', this._onComponentUnitChange.bind(this));
+    html.on('change', '.component-squad', this._onComponentNumChange.bind(this));
+    html.on('change', '.component-tonnage', this._onComponentNumChange.bind(this));
+    html.on('click', '.component-open', this._onComponentOpen.bind(this));
+  }
+
+  /* -------------------------------------------- */
+  /*  Bays                                        */
+  /* -------------------------------------------- */
+
+  async _updateBays(mutator) {
+    const bays = foundry.utils.deepClone(this.actor.system.bays || []);
+    if (mutator(bays) === false) return;
+    await this.actor.update({ 'system.bays': bays });
+  }
+
+  async _onAddBay(event) {
+    event.preventDefault();
+    await this._updateBays(bays => {
+      bays.push({ id: foundry.utils.randomID(), name: `Bay ${bays.length + 1}`, components: [] });
+    });
+  }
+
+  async _onRemoveBay(event) {
+    event.preventDefault();
+    const bayId = event.currentTarget.dataset.bayId;
+    await this._updateBays(bays => {
+      const i = bays.findIndex(b => b.id === bayId);
+      if (i >= 0) bays.splice(i, 1);
+    });
+  }
+
+  async _onBayNameChange(event) {
+    const bayId = event.currentTarget.dataset.bayId;
+    const value = event.currentTarget.value;
+    await this._updateBays(bays => {
+      const bay = bays.find(b => b.id === bayId);
+      if (bay) bay.name = value;
+    });
+  }
+
+  /** Fired when a bay's "add component" dropdown is changed to a real type. */
+  async _onAddComponent(event) {
+    const bayId = event.currentTarget.dataset.bayId;
+    const type = event.currentTarget.value;
+    if (!type) return;
+    if (!BAY_COMPONENT_TYPES.some(t => t.key === type)) return;
+    await this._updateBays(bays => {
+      const bay = bays.find(b => b.id === bayId);
+      if (!bay) return false;
+      if (!Array.isArray(bay.components)) bay.components = [];
+      bay.components.push({ id: foundry.utils.randomID(), type, unitId: '', squadSize: 0, tonnage: 0 });
+    });
+  }
+
+  async _onRemoveComponent(event) {
+    event.preventDefault();
+    const { bayId, componentId } = event.currentTarget.dataset;
+    await this._updateBays(bays => {
+      const bay = bays.find(b => b.id === bayId);
+      if (bay) bay.components = (bay.components || []).filter(c => c.id !== componentId);
+    });
+  }
+
+  async _onComponentUnitChange(event) {
+    const { bayId, componentId } = event.currentTarget.dataset;
+    const value = event.currentTarget.value;
+    await this._updateBays(bays => {
+      const c = bays.find(b => b.id === bayId)?.components?.find(x => x.id === componentId);
+      if (c) c.unitId = value;
+    });
+  }
+
+  async _onComponentNumChange(event) {
+    const { bayId, componentId, field } = event.currentTarget.dataset;
+    const value = Math.max(0, parseInt(event.currentTarget.value) || 0);
+    await this._updateBays(bays => {
+      const c = bays.find(b => b.id === bayId)?.components?.find(x => x.id === componentId);
+      if (c) c[field] = value;
+    });
+  }
+
+  _onComponentOpen(event) {
+    event.preventDefault();
+    const actorId = event.currentTarget.dataset.actorId;
+    const actor = game.actors.get(actorId);
+    if (actor) actor.sheet.render(true);
   }
 
   /* -------------------------------------------- */

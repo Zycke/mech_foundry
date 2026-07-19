@@ -150,85 +150,105 @@
     <div class="tab" data-tab="logistics" data-group="primary">
       <div class="tab-content">
 
-        <div class="logi-section">
-          <h3><i class="fas fa-ship"></i> Ship Supplies</h3>
-          {{#each shipLocations}}
-          <div class="logi-location" data-loc-id="{{this.id}}">
-            <div class="logi-location-head">
-              <img src="{{this.img}}" width="24" height="24" />
-              <span class="location-name">{{this.name}}</span>
-              <span class="location-type">{{this.typeLabel}}</span>
-            </div>
+        {{!-- Company-wide summary (read-only) --}}
+        <div class="items-header logi-summary-head">
+          <h3><i class="fas fa-boxes-stacked"></i> Total Supplies — all locations</h3>
+          {{#if editable}}<button type="button" class="transfer-supplies"><i class="fas fa-right-left"></i> Transfer</button>{{/if}}
+        </div>
+        <div class="logi-summary">
+          <div class="logi-sum-group">
+            <span class="logi-sum-title">Ship</span>
+            {{#each logiSummaryShip}}<span class="sum-chip">{{this.label}} <strong>{{this.value}}</strong></span>{{/each}}
+          </div>
+          {{#each logiSummaryGround}}
+          <div class="logi-sum-group">
+            <span class="logi-sum-title">{{this.label}}</span>
+            {{#each this.fields}}<span class="sum-chip">{{this.label}} <strong>{{this.value}}</strong></span>{{/each}}
+          </div>
+          {{/each}}
+          {{#if logiAmmoSummary.length}}
+          <div class="logi-sum-group">
+            <span class="logi-sum-title">Ammo</span>
+            {{#each logiAmmoSummary}}<span class="sum-chip">{{this.name}} <strong>{{this.tons}}</strong></span>{{/each}}
+          </div>
+          {{/if}}
+        </div>
+
+        {{!-- Per-location cargo (expandable) --}}
+        {{#each logiLocations}}
+        <div class="logi-card {{#if this.expanded}}expanded{{else}}collapsed{{/if}}" data-loc-id="{{this.id}}">
+          <div class="logi-card-head logi-toggle" data-loc-id="{{this.id}}">
+            <i class="fas {{#if this.expanded}}fa-chevron-down{{else}}fa-chevron-right{{/if}}"></i>
+            <img src="{{this.img}}" width="24" height="24" />
+            <span class="location-name">{{this.name}}</span>
+            <span class="location-type">{{this.typeLabel}}</span>
+            <span class="logi-cap {{#if this.full}}full{{/if}}"><i class="fas fa-weight-hanging"></i> {{this.used}} / {{this.capacity}} t</span>
+          </div>
+
+          {{#if this.expanded}}
+          <div class="logi-card-body">
+            {{#if this.full}}<p class="logi-note warn">Cargo full — free space or add cargo bays on the vessel to store more.</p>{{/if}}
+
+            <h4 class="category-title">Ship Supplies</h4>
             <div class="supply-grid">
-              {{#each this.supplies}}
+              {{#each this.ship}}
               <div class="supply-cell">
                 <label>{{this.label}}</label>
-                <input type="number" class="ship-supply" min="0" data-loc-id="{{../id}}" data-key="{{this.key}}" value="{{this.value}}" {{#unless ../../editable}}disabled{{/unless}} />
+                <input type="number" min="0" class="cargo-ship" data-actor-id="{{../actorId}}" data-group="ship" data-key="{{this.key}}" value="{{this.value}}" {{#unless ../../editable}}disabled{{/unless}} />
               </div>
               {{/each}}
             </div>
+
             <div class="ammo-block">
               <div class="ammo-block-head">
-                <span><i class="fas fa-box"></i> Ammo Types</span>
-                {{#if ../editable}}
-                <button type="button" class="add-ship-ammo" data-loc-id="{{this.id}}"><i class="fas fa-plus"></i> Add Ammo</button>
-                {{/if}}
+                <span><i class="fas fa-box"></i> Ship Ammo</span>
+                {{#if ../editable}}<button type="button" class="add-cargo-ammo" data-actor-id="{{this.actorId}}" data-group="shipAmmo"><i class="fas fa-plus"></i> Add</button>{{/if}}
               </div>
-              {{#each this.ammo}}
+              {{#each this.shipAmmo}}
               <div class="ammo-row">
-                <input type="text" class="ship-ammo-field" data-loc-id="{{../id}}" data-ammo-id="{{this.id}}" data-field="name" value="{{this.name}}" placeholder="Ammo type" {{#unless ../../editable}}disabled{{/unless}} />
-                <input type="number" class="ship-ammo-field" min="0" data-loc-id="{{../id}}" data-ammo-id="{{this.id}}" data-field="value" value="{{this.value}}" placeholder="Qty" {{#unless ../../editable}}disabled{{/unless}} />
-                {{#if ../../editable}}
-                <a class="remove-ship-ammo" data-loc-id="{{../id}}" data-ammo-id="{{this.id}}" title="Remove"><i class="fas fa-times"></i></a>
-                {{/if}}
-              </div>
-              {{/each}}
-              <p class="logi-note">Auto-population of needed ammo types from ship sheets will be wired once those sheets carry weapon data.</p>
-            </div>
-          </div>
-          {{/each}}
-          {{#unless shipLocations.length}}
-          <p class="empty-notice">Add ship / installation locations first (Locations tab).</p>
-          {{/unless}}
-        </div>
-
-        <div class="logi-section">
-          <h3><i class="fas fa-truck-field"></i> Ground Forces Supplies</h3>
-          <p class="logi-note">Stored in ship cargo, used by deployed troops.</p>
-          {{#each groundSupplyGroups}}
-          <div class="ground-group">
-            <h4 class="category-title">{{this.label}}</h4>
-            <div class="supply-grid">
-              {{#each this.fields}}
-              <div class="supply-cell">
-                <label>{{this.label}}</label>
-                <input type="number" min="0" name="system.groundSupplies.{{this.key}}" value="{{lookup ../../system.groundSupplies this.key}}" {{#unless ../../editable}}disabled{{/unless}} />
+                <input type="text" class="cargo-ammo-field" data-actor-id="{{../actorId}}" data-group="shipAmmo" data-ammo-id="{{this.id}}" data-field="name" value="{{this.name}}" placeholder="Ammo type" {{#unless ../../editable}}disabled{{/unless}} />
+                <input type="number" min="0" class="cargo-ammo-field" data-actor-id="{{../actorId}}" data-group="shipAmmo" data-ammo-id="{{this.id}}" data-field="value" value="{{this.value}}" placeholder="t" {{#unless ../../editable}}disabled{{/unless}} />
+                {{#if ../../editable}}<a class="remove-cargo-ammo" data-actor-id="{{../actorId}}" data-group="shipAmmo" data-ammo-id="{{this.id}}" title="Remove"><i class="fas fa-times"></i></a>{{/if}}
               </div>
               {{/each}}
             </div>
-          </div>
-          {{/each}}
 
-          <div class="ammo-block">
-            <div class="ammo-block-head">
-              <span><i class="fas fa-box"></i> Ammo Types</span>
-              {{#if editable}}
-              <button type="button" class="add-ground-ammo"><i class="fas fa-plus"></i> Add Ammo</button>
-              {{/if}}
-            </div>
-            {{#each system.groundSupplies.ammo}}
-            <div class="ammo-row wide">
-              <input type="text" class="ground-ammo-field" data-ammo-id="{{this.id}}" data-field="name" value="{{this.name}}" placeholder="Ammo type" {{#unless ../editable}}disabled{{/unless}} />
-              <input type="text" class="ground-ammo-field" data-ammo-id="{{this.id}}" data-field="usedBy" value="{{this.usedBy}}" placeholder="Used by (unit)" {{#unless ../editable}}disabled{{/unless}} />
-              <input type="number" class="ground-ammo-field" min="0" data-ammo-id="{{this.id}}" data-field="value" value="{{this.value}}" placeholder="Qty" {{#unless ../editable}}disabled{{/unless}} />
-              {{#if ../editable}}
-              <a class="remove-ground-ammo" data-ammo-id="{{this.id}}" title="Remove"><i class="fas fa-times"></i></a>
-              {{/if}}
+            <h4 class="category-title">Ground Forces Supplies</h4>
+            {{#each this.ground}}
+            <div class="ground-group">
+              <span class="ground-group-title">{{this.label}}</span>
+              <div class="supply-grid">
+                {{#each this.fields}}
+                <div class="supply-cell">
+                  <label>{{this.label}}</label>
+                  <input type="number" min="0" class="cargo-ground" data-actor-id="{{../../actorId}}" data-group="ground" data-key="{{this.key}}" value="{{this.value}}" {{#unless ../../../editable}}disabled{{/unless}} />
+                </div>
+                {{/each}}
+              </div>
             </div>
             {{/each}}
-            <p class="logi-note">Auto-summing ammo needs from assigned units will be wired once unit sheets carry weapon data.</p>
+
+            <div class="ammo-block">
+              <div class="ammo-block-head">
+                <span><i class="fas fa-box"></i> Ground Ammo</span>
+                {{#if ../editable}}<button type="button" class="add-cargo-ammo" data-actor-id="{{this.actorId}}" data-group="groundAmmo"><i class="fas fa-plus"></i> Add</button>{{/if}}
+              </div>
+              {{#each this.groundAmmo}}
+              <div class="ammo-row wide">
+                <input type="text" class="cargo-ammo-field" data-actor-id="{{../actorId}}" data-group="groundAmmo" data-ammo-id="{{this.id}}" data-field="name" value="{{this.name}}" placeholder="Ammo type" {{#unless ../../editable}}disabled{{/unless}} />
+                <input type="text" class="cargo-ammo-field" data-actor-id="{{../actorId}}" data-group="groundAmmo" data-ammo-id="{{this.id}}" data-field="usedBy" value="{{this.usedBy}}" placeholder="Used by (unit)" {{#unless ../../editable}}disabled{{/unless}} />
+                <input type="number" min="0" class="cargo-ammo-field" data-actor-id="{{../actorId}}" data-group="groundAmmo" data-ammo-id="{{this.id}}" data-field="value" value="{{this.value}}" placeholder="t" {{#unless ../../editable}}disabled{{/unless}} />
+                {{#if ../../editable}}<a class="remove-cargo-ammo" data-actor-id="{{../actorId}}" data-group="groundAmmo" data-ammo-id="{{this.id}}" title="Remove"><i class="fas fa-times"></i></a>{{/if}}
+              </div>
+              {{/each}}
+            </div>
           </div>
+          {{/if}}
         </div>
+        {{/each}}
+        {{#unless hasLogiLocations}}
+        <p class="empty-notice">No locations yet. Add ships/installations on the Locations tab — supplies live in their cargo bays.</p>
+        {{/unless}}
       </div>
     </div>
 
