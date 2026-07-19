@@ -201,7 +201,20 @@
         "t9": { "thrust": 0, "velocity": 0 },
         "t10": { "thrust": 0, "velocity": 0 }
       },
-      "bays": { "bay1": "", "bay2": "", "bay3": "" },
+      "bays": [],
+      "cargoSupplies": {
+        "ship": {
+          "fuel": 0, "consumables": 0, "lifeSupport": 0,
+          "medicalSustainment": 0, "emergencyMedical": 0, "spareParts": 0
+        },
+        "ground": {
+          "sparePartsMech": 0, "sparePartsAero": 0, "sparePartsVehicle": 0, "sparePartsBA": 0,
+          "maintMech": 0, "maintAero": 0, "maintVehicle": 0, "maintBA": 0, "maintTroops": 0,
+          "fuel": 0
+        },
+        "shipAmmo": [],
+        "groundAmmo": []
+      },
       "weapons": [],
       "departments": []
     },
