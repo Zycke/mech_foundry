@@ -1,7 +1,8 @@
 import { DiceMechanics } from '../helpers/dice-mechanics.mjs';
 import {
   SHIP_SUPPLY_FIELDS, GROUND_SUPPLY_GROUPS, GROUND_SUPPLY_FIELDS,
-  cargoCapacity, cargoUsed, blankCargoSupplies
+  cargoCapacity, cargoUsed, blankCargoSupplies,
+  canFitBoxAtShip, freeCubicles
 } from '../helpers/cargo.mjs';
 
 /* -------------------------------------------- */
@@ -471,6 +472,8 @@ export class MechFoundryCompanySheet extends HandlebarsApplicationMixin(ActorShe
         mismatch = 'This personnel type has no combat vehicles.';
       }
 
+      const locActor = box.locationId ? game.actors.get(box.locationId) : null;
+
       boxes.push({
         id: box.id,
         name: box.name || 'Unit',
@@ -482,10 +485,20 @@ export class MechFoundryCompanySheet extends HandlebarsApplicationMixin(ActorShe
         troopTotal: personnel.length,
         vehicleTotal: units.length,
         mismatch,
+        locationId: box.locationId || '',
+        locationName: locActor ? locActor.name : '',
+        locationMissing: !!box.locationId && !locActor,
         xp: vet.xp, veterancy: vet.label, vetMod: vet.mod, xpPct: vet.pct, xpInto: vet.into, atMax: vet.atMax
       });
     }
     context.mtoe = boxes;
+    // Locations this company can base MTOE units at (ships / installations).
+    context.mtoeLocationOptions = (this.actor.system.locations || [])
+      .map(l => {
+        const a = game.actors.get(l.actorId);
+        return a ? { actorId: a.id, name: a.name } : null;
+      })
+      .filter(Boolean);
   }
 
   /**
@@ -656,6 +669,15 @@ export class MechFoundryCompanySheet extends HandlebarsApplicationMixin(ActorShe
         ui.notifications.warn(`This unit (${TROOP_TYPES.find(t => t.key === box.personnelType)?.label}) accepts ${label} only.`);
         return false;
       }
+      // If the box is based at a location, the ship must have a free cubicle.
+      if (box.locationId) {
+        const ship = game.actors.get(box.locationId);
+        const already = (box.units || []).filter(u => game.actors.get(u.actorId)?.type === actor.type).length;
+        if (already + 1 > freeCubicles(ship, actor.type, box.id)) {
+          ui.notifications.warn(`${ship?.name || 'The assigned location'} has no free ${UNIT_ACTOR_TYPE_LABELS[actor.type]} cubicle for ${actor.name}. Free a cubicle or reassign the unit.`);
+          return false;
+        }
+      }
       await this._updateBox(boxId, b => {
         if (!Array.isArray(b.units)) b.units = [];
         if (b.units.some(u => u.actorId === actor.id)) {
@@ -733,6 +755,7 @@ export class MechFoundryCompanySheet extends HandlebarsApplicationMixin(ActorShe
     html.on('change', '.mtoe-box-name', this._onBoxNameChange.bind(this));
     html.on('change', '.mtoe-box-status', this._onBoxStatusChange.bind(this));
     html.on('change', '.mtoe-personnel-type', this._onBoxTypeChange.bind(this));
+    html.on('change', '.mtoe-location', this._onBoxLocationChange.bind(this));
     html.on('change', '.mtoe-xp', this._onBoxXpChange.bind(this));
     html.on('click', '.mtoe-roll', this._onBoxRoll.bind(this));
     html.on('click', '.add-personnel', this._onAddPersonnel.bind(this));
@@ -1035,7 +1058,7 @@ export class MechFoundryCompanySheet extends HandlebarsApplicationMixin(ActorShe
     const boxes = foundry.utils.deepClone(this.actor.system.mtoe || []);
     boxes.push({
       id: foundry.utils.randomID(), name: 'New Unit', status: 'Combat Ready',
-      personnelType: 'mechPilots', xp: 0, personnel: [], units: []
+      personnelType: 'mechPilots', xp: 0, personnel: [], units: [], locationId: ''
     });
     await this.actor.update({ 'system.mtoe': boxes });
   }
@@ -1076,6 +1099,26 @@ export class MechFoundryCompanySheet extends HandlebarsApplicationMixin(ActorShe
     const boxId = event.currentTarget.dataset.boxId;
     const value = MechFoundryCompanySheet._int(event.currentTarget.value);
     await this._updateBox(boxId, box => { box.xp = value; });
+  }
+
+  /** Assign a unit box to a location, if the ship has room for its equipment. */
+  async _onBoxLocationChange(event) {
+    const boxId = event.currentTarget.dataset.boxId;
+    const value = event.currentTarget.value; // ship actor id or ''
+    const box = (this.actor.system.mtoe || []).find(b => b.id === boxId);
+    if (!box) return;
+
+    if (value) {
+      const ship = game.actors.get(value);
+      const fit = canFitBoxAtShip(ship, box, box.id);
+      if (!fit.ok) {
+        const vLabel = UNIT_ACTOR_TYPE_LABELS[fit.vehicleType] || 'unit';
+        ui.notifications.warn(`${ship?.name || 'That location'} lacks free ${vLabel} cubicles (needs ${fit.need}, ${Math.max(0, fit.free)} free).`);
+        this.render(false); // revert the select
+        return;
+      }
+    }
+    await this._updateBox(boxId, b => { b.locationId = value; });
   }
 
   async _onBoxRoll(event) {

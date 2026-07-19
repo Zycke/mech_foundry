@@ -103,3 +103,89 @@ export function cargoFree(actor) {
   if (cap === Infinity) return Infinity;
   return Math.max(0, cap - cargoUsed(actor));
 }
+
+/* -------------------------------------------- */
+/*  Cubicle occupancy (MTOE units ↔ ship bays)  */
+/* -------------------------------------------- */
+
+/** Each combat vehicle actor type → the cubicle component types that hold it. */
+export const VEHICLE_CUBICLE_TYPES = {
+  aerospace_fighter: ['aeroCubicle'],
+  mech: ['mechCubicle'],
+  ground_vehicle: ['heavyVeeCubicle', 'lightVeeCubicle'],
+  battle_armor: ['baSquadBay']
+};
+
+/** Ship cubicles grouped by the vehicle type they accept. */
+export function shipCubiclesByVehicle(actor) {
+  const out = {};
+  for (const vt of Object.keys(VEHICLE_CUBICLE_TYPES)) out[vt] = [];
+  for (const bay of (actor?.system?.bays || [])) {
+    for (const c of (bay.components || [])) {
+      for (const vt of Object.keys(VEHICLE_CUBICLE_TYPES)) {
+        if (VEHICLE_CUBICLE_TYPES[vt].includes(c.type)) {
+          out[vt].push({ bayId: bay.id, bayName: bay.name, compId: c.id, manualUnitId: c.unitId || '' });
+        }
+      }
+    }
+  }
+  return out;
+}
+
+/**
+ * Every MTOE vehicle currently assigned to a ship (by any company), grouped by
+ * vehicle type. Optionally exclude one MTOE box (used when re-checking that box).
+ */
+export function mtoeVehiclesAtShip(shipId, excludeBoxId = null) {
+  const out = {};
+  for (const vt of Object.keys(VEHICLE_CUBICLE_TYPES)) out[vt] = [];
+  for (const company of game.actors) {
+    if (company.type !== 'company') continue;
+    for (const box of (company.system?.mtoe || [])) {
+      if (box.locationId !== shipId) continue;
+      if (excludeBoxId && box.id === excludeBoxId) continue;
+      for (const u of (box.units || [])) {
+        const a = game.actors.get(u.actorId);
+        const vt = a?.type;
+        if (out[vt]) out[vt].push({
+          actorId: u.actorId, name: a?.name || 'Unit', status: u.status || 'Undamaged',
+          unitName: box.name || 'Unit', companyName: company.name
+        });
+      }
+    }
+  }
+  return out;
+}
+
+/** Count a box's vehicles by actor type. */
+export function boxVehicleNeeds(box) {
+  const need = {};
+  for (const u of (box.units || [])) {
+    const a = game.actors.get(u.actorId);
+    const vt = a?.type;
+    if (vt) need[vt] = (need[vt] || 0) + 1;
+  }
+  return need;
+}
+
+/** Free cubicles of a vehicle type on a ship (total − manual − other MTOE). */
+export function freeCubicles(shipActor, vehicleType, excludeBoxId = null) {
+  const cubs = shipCubiclesByVehicle(shipActor)[vehicleType] || [];
+  const manual = cubs.filter(c => c.manualUnitId).length;
+  const mtoe = (mtoeVehiclesAtShip(shipActor.id, excludeBoxId)[vehicleType] || []).length;
+  return cubs.length - manual - mtoe;
+}
+
+/**
+ * Whether a ship has room for a box's equipment. Returns {ok} or
+ * {ok:false, vehicleType, need, free} describing the shortfall.
+ */
+export function canFitBoxAtShip(shipActor, box, excludeBoxId = null) {
+  if (!shipActor) return { ok: false, reason: 'no-ship' };
+  const need = boxVehicleNeeds(box);
+  for (const vt of Object.keys(need)) {
+    const free = freeCubicles(shipActor, vt, excludeBoxId);
+    if (need[vt] > free) return { ok: false, vehicleType: vt, need: need[vt], free };
+  }
+  return { ok: true };
+}

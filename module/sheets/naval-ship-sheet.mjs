@@ -1,5 +1,8 @@
 import { DEPARTMENT_TYPES } from "./company-sheet.mjs";
-import { BAY_COMPONENT_TYPES, bayComponentDef, cargoCapacity, cargoUsed } from "../helpers/cargo.mjs";
+import {
+  BAY_COMPONENT_TYPES, bayComponentDef, cargoCapacity, cargoUsed,
+  VEHICLE_CUBICLE_TYPES, shipCubiclesByVehicle, mtoeVehiclesAtShip
+} from "../helpers/cargo.mjs";
 
 const { HandlebarsApplicationMixin } = foundry.applications.api;
 const { ActorSheetV2 } = foundry.applications.sheets;
@@ -118,8 +121,22 @@ export class MechFoundryNavalShipSheet extends HandlebarsApplicationMixin(ActorS
     context.totalReqPrimary = totalPrimary;
     context.totalReqOfficers = totalOfficers;
 
-    // Bays + components
+    // Bays + components. Free cubicles are auto-filled by MTOE units based here.
     context.bayComponentTypes = BAY_COMPONENT_TYPES;
+
+    // Build a map of compId → MTOE-derived occupant for empty cubicles.
+    const cubs = shipCubiclesByVehicle(this.actor);
+    const mtoe = mtoeVehiclesAtShip(this.actor.id);
+    const mtoeByComp = {};
+    for (const vt of Object.keys(cubs)) {
+      const queue = [...(mtoe[vt] || [])];
+      for (const cub of cubs[vt]) {
+        if (cub.manualUnitId) continue; // manual assignment keeps the slot
+        const occ = queue.shift();
+        if (occ) mtoeByComp[cub.compId] = occ;
+      }
+    }
+
     context.bays = (system.bays || []).map(bay => ({
       id: bay.id,
       name: bay.name || 'Bay',
@@ -141,6 +158,11 @@ export class MechFoundryNavalShipSheet extends HandlebarsApplicationMixin(ActorS
           comp.options = game.actors
             .filter(a => a.type === def.unitType)
             .map(a => ({ id: a.id, name: a.name, selected: a.id === c.unitId }));
+          // MTOE occupant only when no manual unit is set.
+          const occ = !c.unitId ? mtoeByComp[c.id] : null;
+          if (occ) {
+            comp.mtoe = { actorId: occ.actorId, name: occ.name, unitName: occ.unitName, status: occ.status };
+          }
         }
         if (def.hasSquadSize) comp.squadSize = Number(c.squadSize) || 0;
         if (def.hasTonnage) comp.tonnage = Number(c.tonnage) || 0;

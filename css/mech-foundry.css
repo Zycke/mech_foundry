@@ -7011,3 +7011,25 @@
 .mech-foundry.naval-ship-sheet .remove-component { color: var(--mf-danger); cursor: pointer; margin-left: auto; }
 .mech-foundry.naval-ship-sheet .bay-add-row { display: flex; align-items: center; gap: 8px; padding: 0 10px 10px; }
 .mech-foundry.naval-ship-sheet .bay-add-row select { flex: 0 0 auto; background: var(--mf-bg); color: var(--mf-ink); border: 1px solid var(--mf-steel); border-radius: 2px; padding: 2px 6px; }
+
+/* ============================================================= */
+/* Company round 6 — MTOE ↔ location assignment                  */
+/* ============================================================= */
+.mech-foundry.company-sheet .mtoe-location-tag {
+  margin: 0 10px 6px;
+  padding: 3px 8px;
+  background: var(--mf-panel-2);
+  border: 1px solid var(--mf-line);
+  border-left: 3px solid var(--mf-amber);
+  border-radius: 2px;
+  font-size: 0.76em;
+  color: var(--mf-ink);
+}
+.mech-foundry.company-sheet .mtoe-location-tag i { color: var(--mf-amber); }
+
+/* Ship cubicle occupied by an MTOE unit (read-only) */
+.mech-foundry.naval-ship-sheet .comp-mtoe { display: inline-flex; align-items: center; gap: 6px; flex: 1 1 auto; }
+.mech-foundry.naval-ship-sheet .comp-mtoe a { color: var(--mf-amber-2); cursor: pointer; }
+.mech-foundry.naval-ship-sheet .comp-mtoe a:hover { text-decoration: underline; }
+.mech-foundry.naval-ship-sheet .comp-mtoe-unit { color: var(--mf-ink-dim); font-size: 0.82em; }
+.mech-foundry.naval-ship-sheet .comp-mtoe-status { font-size: 0.78em; }

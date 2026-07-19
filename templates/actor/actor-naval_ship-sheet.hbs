@@ -157,11 +157,19 @@
             <div class="bay-component">
               <span class="comp-label">{{this.label}}</span>
               {{#if this.assignable}}
-              <select class="component-unit" data-bay-id="{{../id}}" data-component-id="{{this.id}}" {{#unless ../../editable}}disabled{{/unless}}>
-                <option value="">— empty —</option>
-                {{#each this.options}}<option value="{{this.id}}" {{#if this.selected}}selected{{/if}}>{{this.name}}</option>{{/each}}
-              </select>
-              {{#if this.assignedExists}}<a class="component-open" data-actor-id="{{this.unitId}}" title="Open sheet"><i class="fas fa-up-right-from-square"></i></a>{{/if}}
+                {{#if this.mtoe}}
+                <span class="comp-mtoe" title="Assigned from MTOE unit {{this.mtoe.unitName}}">
+                  <a class="component-open" data-actor-id="{{this.mtoe.actorId}}">{{this.mtoe.name}}</a>
+                  <span class="comp-mtoe-unit">({{this.mtoe.unitName}})</span>
+                  <span class="comp-mtoe-status vstatus-{{this.mtoe.status}}">{{this.mtoe.status}}</span>
+                </span>
+                {{else}}
+                <select class="component-unit" data-bay-id="{{../id}}" data-component-id="{{this.id}}" {{#unless ../../editable}}disabled{{/unless}}>
+                  <option value="">— empty —</option>
+                  {{#each this.options}}<option value="{{this.id}}" {{#if this.selected}}selected{{/if}}>{{this.name}}</option>{{/each}}
+                </select>
+                {{#if this.assignedExists}}<a class="component-open" data-actor-id="{{this.unitId}}" title="Open sheet"><i class="fas fa-up-right-from-square"></i></a>{{/if}}
+                {{/if}}
               {{/if}}
               {{#if this.hasSquadSize}}
               <label class="comp-num">Squad size <input type="number" min="0" class="component-squad" data-bay-id="{{../id}}" data-component-id="{{this.id}}" data-field="squadSize" value="{{this.squadSize}}" {{#unless ../../editable}}disabled{{/unless}} /></label>

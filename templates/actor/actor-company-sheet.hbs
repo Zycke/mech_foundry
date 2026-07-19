@@ -381,7 +381,17 @@
                 {{/each}}
               </select>
             </label>
+            <label class="ctl">Location
+              <select class="mtoe-location" data-box-id="{{this.id}}" {{#unless ../editable}}disabled{{/unless}}>
+                <option value="">— Unassigned —</option>
+                {{#each ../mtoeLocationOptions}}
+                <option value="{{this.actorId}}" {{#if (eq this.actorId ../locationId)}}selected{{/if}}>{{this.name}}</option>
+                {{/each}}
+              </select>
+            </label>
           </div>
+          {{#if this.locationName}}<div class="mtoe-location-tag"><i class="fas fa-location-dot"></i> Based at {{this.locationName}}</div>{{/if}}
+          {{#if this.locationMissing}}<div class="mtoe-warning"><i class="fas fa-triangle-exclamation"></i> Assigned location actor is missing.</div>{{/if}}
 
           <div class="mtoe-box-vet">
             <span class="vet-badge vet-{{this.veterancy}}">{{this.veterancy}} ({{#if (gte this.vetMod 0)}}+{{/if}}{{this.vetMod}})</span>
