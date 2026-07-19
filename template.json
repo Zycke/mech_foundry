@@ -4,8 +4,12 @@
       "character",
       "npc",
       "company",
-      "vehicle_actor",
-      "ship"
+      "naval_ship",
+      "mech",
+      "ground_vehicle",
+      "aerospace_fighter",
+      "battle_armor",
+      "installation"
     ],
     "templates": {
       "base": {
@@ -125,19 +129,53 @@
     },
     "company": {
       "cbills": 0,
-      "totalPersonnel": 0,
-      "totalMonthlyExpenses": 0,
+      "monthlyExpenses": 0,
       "reputation": "",
       "notes": "",
-      "departments": [],
-      "units": [],
+      "personnel": {
+        "enlisted": 0,
+        "officers": 0,
+        "bayTechs": 0,
+        "infantry": 0,
+        "aeroPilots": 0,
+        "mechPilots": 0,
+        "vehicleCrew": 0,
+        "installationCrew": 0
+      },
+      "locations": [],
+      "mtoe": [],
+      "groundSupplies": {
+        "sparePartsMech": 0,
+        "sparePartsAero": 0,
+        "sparePartsVehicle": 0,
+        "sparePartsBA": 0,
+        "maintMech": 0,
+        "maintAero": 0,
+        "maintVehicle": 0,
+        "maintBA": 0,
+        "maintTroops": 0,
+        "fuel": 0,
+        "ammo": []
+      },
       "financialLedger": [],
       "biography": ""
     },
-    "vehicle_actor": {
+    "naval_ship": {
       "biography": ""
     },
-    "ship": {
+    "mech": {
+      "biography": ""
+    },
+    "ground_vehicle": {
+      "biography": ""
+    },
+    "aerospace_fighter": {
+      "biography": ""
+    },
+    "battle_armor": {
+      "biography": ""
+    },
+    "installation": {
       "biography": ""
     }
   },

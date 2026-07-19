@@ -9,8 +9,12 @@ export const preloadHandlebarsTemplates = async function() {
     "systems/mech-foundry/templates/actor/actor-character-sheet.hbs",
     "systems/mech-foundry/templates/actor/actor-npc-sheet.hbs",
     "systems/mech-foundry/templates/actor/actor-company-sheet.hbs",
-    "systems/mech-foundry/templates/actor/actor-vehicle_actor-sheet.hbs",
-    "systems/mech-foundry/templates/actor/actor-ship-sheet.hbs",
+    "systems/mech-foundry/templates/actor/actor-naval_ship-sheet.hbs",
+    "systems/mech-foundry/templates/actor/actor-mech-sheet.hbs",
+    "systems/mech-foundry/templates/actor/actor-ground_vehicle-sheet.hbs",
+    "systems/mech-foundry/templates/actor/actor-aerospace_fighter-sheet.hbs",
+    "systems/mech-foundry/templates/actor/actor-battle_armor-sheet.hbs",
+    "systems/mech-foundry/templates/actor/actor-installation-sheet.hbs",
 
     // Item sheets
     "systems/mech-foundry/templates/item/item-skill-sheet.hbs",

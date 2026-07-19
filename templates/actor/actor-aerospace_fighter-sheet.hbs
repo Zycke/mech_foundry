@@ -1,0 +1,19 @@
+{{!-- ApplicationV2 supplies the <form> frame (tag: "form"); this part is inner content. --}}
+<header class="sheet-header">
+  <img class="profile-img" src="{{actor.img}}" data-action="editImage" data-edit="img" title="{{actor.name}}" height="70" width="70" />
+  <div class="header-fields">
+    <h1>
+      <input name="name" type="text" value="{{actor.name}}" placeholder="Aerospace Fighter Name" />
+    </h1>
+  </div>
+</header>
+
+<section class="sheet-body">
+  <div class="placeholder-content">
+    <h3>Aerospace Fighter Sheet</h3>
+    <p>This aerospace fighter sheet is a placeholder and will be expanded in a future update.</p>
+    {{#if editable}}
+    <prose-mirror name="system.biography" data-document-uuid="{{actor.uuid}}" value="{{system.biography}}" collaborate="false" toggled="true">{{{enrichedBiography}}}</prose-mirror>
+    {{else}}{{{enrichedBiography}}}{{/if}}
+  </div>
+</section>

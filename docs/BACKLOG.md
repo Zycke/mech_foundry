@@ -30,7 +30,10 @@ Priority things to test in a real v14 world:
 - [x] `MechFoundryActorSheetV2` base + Ship/Vehicle stubs — **tested, loads & works**.
 - [x] **Item sheet** → V2 (class + all 14 templates + effects partial) — **tested & working**
       (single-root part fix; combat-tab equipped filter fixed for plain-object items).
-- [ ] **Company sheet** → V2 (departments/units/ledger, drag-drop zones).
+- [x] **Company sheet** → V2 + full overhaul (Locations/Logistics/Status/MTOE/Assets/
+      Finances; numeric crew+troop pools, per-location departments, MTOE unit boxes,
+      structured logistics). Personnel/Organization tabs and the old personnel-item /
+      skill-averaging model retired.
 - [ ] **Character/NPC sheet** → V2 — the big one (~3,200 lines of jQuery
       `activateListeners` → V2 `actions` + `_onRender`; drag/drop; inline dialogs).
 - [ ] Move the large **inline-HTML dialogs** (First Aid/Stabilize/Surgery, weapon
@@ -40,13 +43,17 @@ Priority things to test in a real v14 world:
 
 ## 2. Design decisions needed (do NOT auto-fix)
 
-- [?] **Company sheet math (H4/B2)**: unit readiness/health averaging is wrong
-      (`_prepareUnits` never sums readiness for actor members but divides by member
-      count; `avgHealth` mixes damage-taken and health-remaining). Needs the intended
-      semantics of "readiness"/"health" for mixed actor + personnel units.
+- [x] ~~**Company sheet math (H4/B2)**: unit readiness/health averaging is wrong~~ —
+      obsolete; the personnel-item averaging model was removed in the company overhaul
+      (personnel are now numeric pools, no per-member skill/health averaging).
+- [ ] **Logistics auto-population**: Ship/ground ammo needs and per-chassis spare-parts/
+      maintenance sums should pull from unit sheets' weapon/equipment data once those
+      placeholder unit sheets carry real data models. Currently manual entry.
 - [?] **Token bars (M1)**: `system.json` sets `primaryTokenAttribute: "damage"` /
-      `secondaryTokenAttribute: "fatigue"`, but `company` / `vehicle_actor` / `ship`
-      lack those fields → empty bars. Decide what (if anything) those bars should show.
+      `secondaryTokenAttribute: "fatigue"`, but `company` and the unit actor types
+      (`naval_ship` / `mech` / `ground_vehicle` / `aerospace_fighter` / `battle_armor` /
+      `installation`) lack those fields → empty bars. Decide what (if anything) those
+      bars should show.
 
 ## 3. Intentional divergences (leave as-is)
 

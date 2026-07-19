@@ -18,8 +18,12 @@ import { MechFoundryCombat } from "./documents/combat.mjs";
 import { MechFoundryActorSheet } from "./sheets/actor-sheet.mjs";
 import { MechFoundryItemSheet } from "./sheets/item-sheet.mjs";
 import { MechFoundryCompanySheet } from "./sheets/company-sheet.mjs";
-import { MechFoundryVehicleActorSheet } from "./sheets/vehicle-actor-sheet.mjs";
-import { MechFoundryShipSheet } from "./sheets/ship-sheet.mjs";
+import { MechFoundryNavalShipSheet } from "./sheets/naval-ship-sheet.mjs";
+import { MechFoundryMechSheet } from "./sheets/mech-sheet.mjs";
+import { MechFoundryGroundVehicleSheet } from "./sheets/ground-vehicle-sheet.mjs";
+import { MechFoundryAerospaceFighterSheet } from "./sheets/aerospace-fighter-sheet.mjs";
+import { MechFoundryBattleArmorSheet } from "./sheets/battle-armor-sheet.mjs";
+import { MechFoundryInstallationSheet } from "./sheets/installation-sheet.mjs";
 
 // Import helper/utility classes
 import { preloadHandlebarsTemplates } from "./helpers/templates.mjs";
@@ -131,15 +135,35 @@ Hooks.once('init', function() {
     makeDefault: true,
     label: "MECHFOUNDRY.SheetCompany"
   });
-  ActorsCollection.registerSheet("mech-foundry", MechFoundryVehicleActorSheet, {
-    types: ["vehicle_actor"],
+  ActorsCollection.registerSheet("mech-foundry", MechFoundryNavalShipSheet, {
+    types: ["naval_ship"],
     makeDefault: true,
-    label: "MECHFOUNDRY.SheetVehicleActor"
+    label: "MECHFOUNDRY.SheetNavalShip"
   });
-  ActorsCollection.registerSheet("mech-foundry", MechFoundryShipSheet, {
-    types: ["ship"],
+  ActorsCollection.registerSheet("mech-foundry", MechFoundryMechSheet, {
+    types: ["mech"],
     makeDefault: true,
-    label: "MECHFOUNDRY.SheetShip"
+    label: "MECHFOUNDRY.SheetMech"
+  });
+  ActorsCollection.registerSheet("mech-foundry", MechFoundryGroundVehicleSheet, {
+    types: ["ground_vehicle"],
+    makeDefault: true,
+    label: "MECHFOUNDRY.SheetGroundVehicle"
+  });
+  ActorsCollection.registerSheet("mech-foundry", MechFoundryAerospaceFighterSheet, {
+    types: ["aerospace_fighter"],
+    makeDefault: true,
+    label: "MECHFOUNDRY.SheetAerospaceFighter"
+  });
+  ActorsCollection.registerSheet("mech-foundry", MechFoundryBattleArmorSheet, {
+    types: ["battle_armor"],
+    makeDefault: true,
+    label: "MECHFOUNDRY.SheetBattleArmor"
+  });
+  ActorsCollection.registerSheet("mech-foundry", MechFoundryInstallationSheet, {
+    types: ["installation"],
+    makeDefault: true,
+    label: "MECHFOUNDRY.SheetInstallation"
   });
 
   ItemsCollection.unregisterSheet("core", foundry.appv1.sheets.ItemSheet);

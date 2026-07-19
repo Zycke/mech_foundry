@@ -1,73 +1,91 @@
-import { DiceMechanics } from '../helpers/dice-mechanics.mjs';
-
 /* -------------------------------------------- */
 /*  Constants                                    */
 /* -------------------------------------------- */
 
-const PERSONNEL_SKILLS = {
-  crewmember: [
-    { key: 'technician', label: 'Tech' },
-    { key: 'engineering', label: 'Eng' },
-    { key: 'medical', label: 'Med' },
-    { key: 'crew', label: 'Crew' },
-    { key: 'admin', label: 'Admin' },
-    { key: 'leadership', label: 'Ldr' }
-  ],
-  infantry: [
-    { key: 'smallArms', label: 'SA' },
-    { key: 'demolitions', label: 'Demo' },
-    { key: 'supportWeapons', label: 'SW' },
-    { key: 'stealth', label: 'Stlth' },
-    { key: 'zeroG', label: '0-G' },
-    { key: 'leadership', label: 'Ldr' },
-    { key: 'tactics', label: 'Tac' },
-    { key: 'strategy', label: 'Str' }
-  ],
-  pilot: [
-    { key: 'gunnery', label: 'Gun' },
-    { key: 'pilotAero', label: 'P-Ae' },
-    { key: 'pilotMech', label: 'P-Me' },
-    { key: 'pilotVehicle', label: 'P-Ve' },
-    { key: 'navigation', label: 'Nav' },
-    { key: 'leadership', label: 'Ldr' },
-    { key: 'tactics', label: 'Tac' },
-    { key: 'strategy', label: 'Str' }
-  ]
-};
-
-const SKILL_DISPLAY_NAMES = {
-  technician: "Technician", engineering: "Engineering", medical: "Medical",
-  crew: "Crew", admin: "Admin", leadership: "Leadership",
-  smallArms: "Small Arms", demolitions: "Demolitions", supportWeapons: "Support Weapons",
-  stealth: "Stealth", zeroG: "Zero-G", tactics: "Tactics", strategy: "Strategy",
-  gunnery: "Gunnery", pilotAero: "Pilot (Aero)", pilotMech: "Pilot (Mech)",
-  pilotVehicle: "Pilot (Vehicle)", navigation: "Navigation"
-};
-
-const DEPARTMENT_DEFS = [
-  { name: 'Technicians', primarySkill: 'technician' },
-  { name: 'Engineering', primarySkill: 'engineering' },
-  { name: 'Medical', primarySkill: 'medical' },
-  { name: 'Crew', primarySkill: 'crew' },
-  { name: 'Admin', primarySkill: 'admin' }
+/**
+ * Ship crew types. These are numeric company-wide pools staffed into ship /
+ * installation departments (they are NOT individual actors or items).
+ */
+const CREW_TYPES = [
+  { key: 'enlisted', label: 'Enlisted' },
+  { key: 'officers', label: 'Officers' },
+  { key: 'bayTechs', label: 'Bay Techs' }
 ];
 
-const UNIT_SKILLS = {
-  infantry: ['smallArms', 'demolitions', 'supportWeapons', 'stealth', 'zeroG'],
-  vehicle: ['gunnery', 'pilotAero', 'pilotMech', 'pilotVehicle', 'navigation']
+/**
+ * Combat troop types. Numeric company-wide pools assigned into MTOE unit boxes
+ * (distinct from ship crew).
+ */
+const TROOP_TYPES = [
+  { key: 'infantry', label: 'Infantry' },
+  { key: 'aeroPilots', label: 'Aerospace Pilots' },
+  { key: 'mechPilots', label: 'Mech Pilots' },
+  { key: 'vehicleCrew', label: 'Vehicle Crew' },
+  { key: 'installationCrew', label: 'Installation Crew' }
+];
+
+/** Actor types that can be linked to the company as Locations. */
+const LOCATION_ACTOR_TYPES = {
+  naval_ship: 'Naval Ship',
+  installation: 'Installation'
 };
 
-const UNIT_LEADER_SKILLS = ['leadership', 'tactics', 'strategy'];
+/** Actor types that can be dropped into MTOE unit boxes as equipment. */
+const UNIT_ACTOR_TYPES = {
+  mech: 'Mech',
+  ground_vehicle: 'Ground Vehicle',
+  aerospace_fighter: 'Aerospace Fighter',
+  battle_armor: 'Battle Armor'
+};
+
+/** Per-location (ship / installation) numeric supply fields. */
+const SHIP_SUPPLY_FIELDS = [
+  { key: 'fuel', label: 'Ship Fuel' },
+  { key: 'consumables', label: 'Ship Consumables' },
+  { key: 'lifeSupport', label: 'Life Support' },
+  { key: 'medicalSustainment', label: 'Medical Sustainment' },
+  { key: 'emergencyMedical', label: 'Emergency Medical' },
+  { key: 'spareParts', label: 'Spare Parts' }
+];
+
+/** Company-wide ground-forces supply numeric fields, grouped for display. */
+const GROUND_SUPPLY_GROUPS = [
+  {
+    label: 'Spare Parts', fields: [
+      { key: 'sparePartsMech', label: 'Mechs' },
+      { key: 'sparePartsAero', label: 'Aerospace' },
+      { key: 'sparePartsVehicle', label: 'Vehicles' },
+      { key: 'sparePartsBA', label: 'Battle Armor' }
+    ]
+  },
+  {
+    label: 'Maintenance Consumables', fields: [
+      { key: 'maintMech', label: 'Mechs' },
+      { key: 'maintAero', label: 'Aerospace' },
+      { key: 'maintVehicle', label: 'Vehicles' },
+      { key: 'maintBA', label: 'Battle Armor' },
+      { key: 'maintTroops', label: 'Troops' }
+    ]
+  },
+  {
+    label: 'Fuel', fields: [
+      { key: 'fuel', label: 'Ground Fuel' }
+    ]
+  }
+];
 
 const { HandlebarsApplicationMixin, DialogV2 } = foundry.applications.api;
 const { ActorSheetV2 } = foundry.applications.sheets;
 
 /**
- * Company Actor Sheet - Represents a mercenary or military organization
- * Tabs: Personnel, Organization, Status, Logistics, MTOE, Assets, Finances
+ * Company Actor Sheet - Represents a mercenary or military organization.
+ * Tabs: Locations, Logistics, Status, MTOE, Assets, Finances.
  *
- * Foundry v14 ApplicationV2 sheet. Tab switching, delegated jQuery listeners,
- * and drag/drop follow the same pattern as the character sheet (actor-sheet.mjs).
+ * Personnel are tracked as numeric company-wide pools (crew + troops) that are
+ * assigned into ship/installation departments (crew) and MTOE unit boxes
+ * (troops). Locations and MTOE equipment are linked unit actors.
+ *
+ * Foundry v14 ApplicationV2 sheet.
  * @extends {ActorSheetV2}
  */
 export class MechFoundryCompanySheet extends HandlebarsApplicationMixin(ActorSheetV2) {
@@ -81,12 +99,6 @@ export class MechFoundryCompanySheet extends HandlebarsApplicationMixin(ActorShe
   constructor(options = {}) {
     super(options);
     this.#dragDrop = this.#createDragDropHandlers();
-    this._deptCollapsed = new Map();
-    this._unitCollapsed = new Map();
-    // Initialize departments as collapsed by default
-    for (const d of DEPARTMENT_DEFS) {
-      this._deptCollapsed.set(d.name, true);
-    }
   }
 
   /** @override */
@@ -114,34 +126,34 @@ export class MechFoundryCompanySheet extends HandlebarsApplicationMixin(ActorShe
 
   /** @override */
   async _prepareContext(options) {
+    const system = this.actor.system;
     const context = {
       editable: this.isEditable,
       owner: this.document.isOwner,
       isGM: game.user.isGM,
       actor: this.actor,
-      system: this.actor.system,
+      system,
       flags: this.actor.flags,
-      config: game.mechfoundry?.config || {}
+      config: game.mechfoundry?.config || {},
+      crewTypes: CREW_TYPES,
+      troopTypes: TROOP_TYPES,
+      shipSupplyFields: SHIP_SUPPLY_FIELDS,
+      groundSupplyGroups: GROUND_SUPPLY_GROUPS
     };
 
-    // Pass skill config constants to template
-    context.personnelSkills = PERSONNEL_SKILLS;
-    context.skillDisplayNames = SKILL_DISPLAY_NAMES;
+    this._prepareAssets(context);
+    this._preparePersonnel(context);
+    this._prepareLocations(context);
+    this._prepareMTOE(context);
 
-    // Prepare items by type
-    this._prepareItems(context);
+    // Company rollups
+    context.totalPersonnel = context.crewPools.reduce((s, p) => s + p.total, 0)
+      + context.troopPools.reduce((s, p) => s + p.total, 0);
+    context.locationCount = context.locations.length;
+    context.unitBoxCount = context.mtoe.length;
 
-    // Calculate derived company data
-    this._calculateCompanyTotals(context);
-
-    // Prepare departments for organization tab
-    this._prepareDepartments(context);
-
-    // Prepare unit data for organization tab
-    this._prepareUnits(context);
-
-    // Prepare financial ledger for display
-    context.financialLedger = (this.actor.system.financialLedger || []).map(entry => ({
+    // Financial ledger for display
+    context.financialLedger = (system.financialLedger || []).map(entry => ({
       ...entry,
       formattedDate: new Date(entry.date).toLocaleDateString(game.i18n.lang || 'en', {
         year: 'numeric', month: 'short', day: 'numeric',
@@ -149,16 +161,171 @@ export class MechFoundryCompanySheet extends HandlebarsApplicationMixin(ActorShe
       })
     }));
 
-    // Prepare MTOE actor assets (vehicle_actor and ship actors linked via flag)
-    this._prepareMTOEActors(context);
-
-    // Enrich biography
     context.enrichedBiography = await foundry.applications.ux.TextEditor.implementation.enrichHTML(
-      this.actor.system.biography || "",
+      system.biography || "",
       { relativeTo: this.actor }
     );
 
     return context;
+  }
+
+  /* -------------------------------------------- */
+  /*  Context preparation                          */
+  /* -------------------------------------------- */
+
+  /**
+   * Personnel pools with derived assigned / available counts.
+   * Crew are assigned across location departments; troops across MTOE boxes.
+   */
+  _preparePersonnel(context) {
+    const pools = this.actor.system.personnel || {};
+    const locations = this.actor.system.locations || [];
+    const boxes = this.actor.system.mtoe || [];
+
+    // Sum crew assigned across every department of every location.
+    const crewAssigned = {};
+    for (const t of CREW_TYPES) crewAssigned[t.key] = 0;
+    for (const loc of locations) {
+      for (const dept of (loc.departments || [])) {
+        for (const t of CREW_TYPES) {
+          crewAssigned[t.key] += Number(dept.assigned?.[t.key]) || 0;
+        }
+      }
+    }
+
+    // Sum troops assigned across every MTOE box.
+    const troopAssigned = {};
+    for (const t of TROOP_TYPES) troopAssigned[t.key] = 0;
+    for (const box of boxes) {
+      for (const t of TROOP_TYPES) {
+        troopAssigned[t.key] += Number(box.troops?.[t.key]) || 0;
+      }
+    }
+
+    context.crewPools = CREW_TYPES.map(t => {
+      const total = Number(pools[t.key]) || 0;
+      const assigned = crewAssigned[t.key];
+      return { ...t, total, assigned, available: total - assigned, over: assigned > total };
+    });
+    context.troopPools = TROOP_TYPES.map(t => {
+      const total = Number(pools[t.key]) || 0;
+      const assigned = troopAssigned[t.key];
+      return { ...t, total, assigned, available: total - assigned, over: assigned > total };
+    });
+  }
+
+  /**
+   * Resolve linked location actors and their departments / supplies.
+   */
+  _prepareLocations(context) {
+    const stored = this.actor.system.locations || [];
+    const locations = [];
+
+    for (const loc of stored) {
+      const actor = game.actors.get(loc.actorId);
+      const departments = (loc.departments || []).map(dept => {
+        const reqTotal = CREW_TYPES.reduce((s, t) => s + (Number(dept.required?.[t.key]) || 0), 0);
+        const assignedTotal = CREW_TYPES.reduce((s, t) => s + (Number(dept.assigned?.[t.key]) || 0), 0);
+        return {
+          id: dept.id,
+          name: dept.name || 'Department',
+          crew: CREW_TYPES.map(t => ({
+            key: t.key,
+            label: t.label,
+            required: Number(dept.required?.[t.key]) || 0,
+            assigned: Number(dept.assigned?.[t.key]) || 0
+          })),
+          reqTotal,
+          assignedTotal,
+          understaffed: assignedTotal < reqTotal
+        };
+      });
+
+      const supplies = SHIP_SUPPLY_FIELDS.map(f => ({
+        key: f.key,
+        label: f.label,
+        value: Number(loc.supplies?.[f.key]) || 0
+      }));
+      const ammo = (loc.supplies?.ammo || []).map(a => ({
+        id: a.id, name: a.name || '', value: Number(a.value) || 0
+      }));
+
+      locations.push({
+        id: loc.id,
+        actorId: loc.actorId,
+        exists: !!actor,
+        name: actor ? actor.name : (loc.name || 'Missing Location'),
+        img: actor ? actor.img : 'icons/svg/hazard.svg',
+        typeLabel: actor ? (LOCATION_ACTOR_TYPES[actor.type] || 'Location') : 'Missing',
+        status: loc.status || '',
+        departments,
+        supplies,
+        ammo,
+        crewAssignedTotal: departments.reduce((s, d) => s + d.assignedTotal, 0)
+      });
+    }
+
+    context.locations = locations;
+    // Ship-type locations only, for the Logistics ship-supplies section.
+    context.shipLocations = locations;
+  }
+
+  /**
+   * Resolve MTOE unit boxes: linked equipment actors + assigned troop counts.
+   */
+  _prepareMTOE(context) {
+    const stored = this.actor.system.mtoe || [];
+    const boxes = [];
+
+    for (const box of stored) {
+      const units = (box.unitActorIds || []).map(id => {
+        const actor = game.actors.get(id);
+        if (!actor) return { id, exists: false, name: 'Missing Unit', img: 'icons/svg/hazard.svg', typeLabel: 'Missing' };
+        return {
+          id: actor.id,
+          exists: true,
+          name: actor.name,
+          img: actor.img,
+          typeLabel: UNIT_ACTOR_TYPES[actor.type] || 'Unit'
+        };
+      });
+
+      const troops = TROOP_TYPES.map(t => ({
+        key: t.key,
+        label: t.label,
+        value: Number(box.troops?.[t.key]) || 0
+      }));
+      const troopTotal = troops.reduce((s, t) => s + t.value, 0);
+
+      boxes.push({
+        id: box.id,
+        name: box.name || 'Unit',
+        status: box.status || '',
+        units,
+        troops,
+        troopTotal
+      });
+    }
+
+    context.mtoe = boxes;
+  }
+
+  /**
+   * Organize equipment items for the Assets tab (item-based, unchanged).
+   */
+  _prepareAssets(context) {
+    const companyAssets = {
+      weapon: [], armor: [], ammo: [], electronics: [],
+      healthcare: [], prosthetics: [], drugpoison: [], fuel: []
+    };
+    for (const item of this.actor.items) {
+      if (companyAssets.hasOwnProperty(item.type)) {
+        companyAssets[item.type].push(item.toObject(false));
+      }
+    }
+    companyAssets.hasItems = Object.entries(companyAssets)
+      .some(([key, arr]) => key !== 'hasItems' && Array.isArray(arr) && arr.length > 0);
+    context.companyAssets = companyAssets;
   }
 
   /* -------------------------------------------- */
@@ -177,406 +344,12 @@ export class MechFoundryCompanySheet extends HandlebarsApplicationMixin(ActorShe
   }
 
   /* -------------------------------------------- */
-
-  /**
-   * Organize items into categories for the sheet, split personnel by type
-   */
-  _prepareItems(context) {
-    const crewmemberPersonnel = [];
-    const infantryPersonnel = [];
-    const pilotPersonnel = [];
-    const supplies = [];
-
-    const companyAssets = {
-      weapon: [], armor: [], ammo: [], electronics: [],
-      healthcare: [], prosthetics: [], drugpoison: [], fuel: []
-    };
-
-    for (const item of this.actor.items) {
-      const itemData = item.toObject(false);
-
-      if (item.type === 'personnel') {
-        const pType = item.system.personnelType || 'crewmember';
-        if (pType === 'crewmember') crewmemberPersonnel.push(itemData);
-        else if (pType === 'infantry') infantryPersonnel.push(itemData);
-        else if (pType === 'pilot') pilotPersonnel.push(itemData);
-      } else if (item.type === 'supplies') {
-        supplies.push(itemData);
-      } else if (companyAssets.hasOwnProperty(item.type)) {
-        companyAssets[item.type].push(itemData);
-      }
-    }
-
-    companyAssets.hasItems = Object.entries(companyAssets)
-      .some(([key, arr]) => key !== 'hasItems' && Array.isArray(arr) && arr.length > 0);
-
-    // Build unit ID → name map for display
-    const unitNameMap = {};
-    for (const u of (this.actor.system.units || [])) {
-      if (u.id) unitNameMap[u.id] = u.name || 'Unnamed Unit';
-    }
-    for (const arr of [infantryPersonnel, pilotPersonnel]) {
-      for (const p of arr) {
-        p.assignmentDisplay = unitNameMap[p.system.assignment] || p.system.assignment || '';
-      }
-    }
-
-    context.crewmemberPersonnel = crewmemberPersonnel;
-    context.infantryPersonnel = infantryPersonnel;
-    context.pilotPersonnel = pilotPersonnel;
-    context.personnel = [...crewmemberPersonnel, ...infantryPersonnel, ...pilotPersonnel];
-    context.supplies = supplies;
-    context.companyAssets = companyAssets;
-  }
-
-  /**
-   * Prepare MTOE actors (vehicle_actor and ship actors linked via flag)
-   */
-  _prepareMTOEActors(context) {
-    const mtoeActors = [];
-    const linkedAssets = this.actor.getFlag('mech-foundry', 'linkedAssets') || [];
-    for (const assetId of linkedAssets) {
-      const actor = game.actors.get(assetId);
-      if (actor && (actor.type === 'vehicle_actor' || actor.type === 'ship')) {
-        mtoeActors.push({
-          id: actor.id,
-          name: actor.name,
-          img: actor.img,
-          type: actor.type
-        });
-      }
-    }
-    context.mtoeActors = mtoeActors;
-  }
-
-  /**
-   * Calculate company-wide totals from personnel items (each item = 1 person)
-   */
-  _calculateCompanyTotals(context) {
-    let totalPersonnel = context.personnel.length;
-    let totalMonthlyExpenses = 0;
-
-    for (const p of context.personnel) {
-      totalMonthlyExpenses += p.system.payRate || 0;
-    }
-
-    context.totalPersonnel = totalPersonnel;
-    context.totalMonthlyExpenses = totalMonthlyExpenses;
-  }
-
-  /* -------------------------------------------- */
-  /*  Departments                                  */
-  /* -------------------------------------------- */
-
-  /**
-   * Prepare department data for the Organization tab
-   */
-  _prepareDepartments(context) {
-    const storedDepts = foundry.utils.deepClone(this.actor.system.departments || []);
-
-    const departments = DEPARTMENT_DEFS.map(def => {
-      const stored = storedDepts.find(d => d.name === def.name) || {};
-
-      // Find crewmember personnel assigned to this department
-      const members = [];
-      for (const item of this.actor.items) {
-        if (item.type === 'personnel' &&
-            item.system.personnelType === 'crewmember' &&
-            item.system.assignment === def.name) {
-          const mData = item.toObject(false);
-          mData.primarySkillValue = item.system.skills?.[def.primarySkill] || 0;
-          members.push(mData);
-        }
-      }
-
-      // Calculate averages from members
-      let skillTotal = 0;
-      let healthTotal = 0, healthMaxTotal = 0;
-      let readinessTotal = 0, readinessMaxTotal = 0;
-
-      for (const m of members) {
-        skillTotal += m.primarySkillValue;
-        healthTotal += m.system.health?.value || 0;
-        healthMaxTotal += m.system.health?.max || 1;
-        readinessTotal += m.system.readiness?.value || 0;
-        readinessMaxTotal += m.system.readiness?.max || 1;
-      }
-
-      // Resolve leader (can be actor or personnel item)
-      let leaderData = null;
-      let leaderSkillValue = 0;
-      let leaderLeadership = 0;
-
-      if (stored.leaderId) {
-        if (stored.leaderType === 'item') {
-          // Leader is a personnel item
-          const leaderItem = this.actor.items.get(stored.leaderId);
-          if (leaderItem) {
-            leaderData = {
-              id: leaderItem.id,
-              name: leaderItem.name,
-              img: leaderItem.img,
-              isItem: true
-            };
-            leaderSkillValue = leaderItem.system.skills?.[def.primarySkill] || 0;
-            leaderLeadership = leaderItem.system.skills?.leadership || 0;
-          }
-        } else {
-          // Leader is a character/NPC actor
-          const leaderActor = game.actors.get(stored.leaderId);
-          if (leaderActor) {
-            leaderData = {
-              id: leaderActor.id,
-              name: leaderActor.name,
-              img: leaderActor.img,
-              isItem: false
-            };
-            // Look up skills on the actor
-            const primarySkillItem = leaderActor.items.find(
-              i => i.type === 'skill' && i.name.toLowerCase() === (SKILL_DISPLAY_NAMES[def.primarySkill] || '').toLowerCase()
-            );
-            leaderSkillValue = primarySkillItem ? primarySkillItem.system.level : 0;
-            const leadershipItem = leaderActor.items.find(
-              i => i.type === 'skill' && i.name.toLowerCase() === 'leadership'
-            );
-            leaderLeadership = leadershipItem ? leadershipItem.system.level : 0;
-          }
-        }
-      }
-
-      // Include leader in the primary skill average
-      const allSkillValues = members.map(m => m.primarySkillValue);
-      if (leaderData) {
-        allSkillValues.push(leaderSkillValue);
-        healthTotal += 1; // Approximate for leader
-        healthMaxTotal += 1;
-        readinessTotal += 1;
-        readinessMaxTotal += 1;
-      }
-
-      const totalCount = allSkillValues.length;
-      const totalSkill = allSkillValues.reduce((sum, v) => sum + v, 0);
-      const rating = totalCount > 0 ? (totalSkill / totalCount).toFixed(1) : "0.0";
-      const avgHealth = totalCount > 0
-        ? `${(healthTotal / totalCount).toFixed(1)}/${(healthMaxTotal / totalCount).toFixed(1)}`
-        : "--";
-      const avgReadiness = totalCount > 0
-        ? `${(readinessTotal / totalCount).toFixed(1)}/${(readinessMaxTotal / totalCount).toFixed(1)}`
-        : "--";
-
-      return {
-        name: def.name,
-        primarySkill: def.primarySkill,
-        primarySkillDisplay: SKILL_DISPLAY_NAMES[def.primarySkill],
-        leaderId: stored.leaderId || null,
-        leaderType: stored.leaderType || 'actor',
-        collapsed: this._deptCollapsed.get(def.name) !== false,
-        rating: rating,
-        ratingNum: totalCount > 0 ? (totalSkill / totalCount) : 0,
-        leaderData: leaderData,
-        leaderLeadership: leaderLeadership,
-        avgHealth: avgHealth,
-        avgReadiness: avgReadiness,
-        memberCount: members.length + (leaderData ? 1 : 0),
-        members: members
-      };
-    });
-
-    context.departments = departments;
-  }
-
-  /* -------------------------------------------- */
-  /*  Units                                        */
-  /* -------------------------------------------- */
-
-  /**
-   * Prepare unit data for the Organization tab.
-   * Units now have a unitType (vehicle/infantry) with auto-determined skills.
-   * Members come from two sources: actor IDs and personnel items assigned by `assignment`.
-   */
-  _prepareUnits(context) {
-    const units = foundry.utils.deepClone(this.actor.system.units || []);
-
-    for (const unit of units) {
-      // Migrate old format
-      if (unit.commanderId && !unit.leaderId) {
-        unit.leaderId = unit.commanderId;
-        delete unit.commanderId;
-        delete unit.assignedPersonnel;
-      }
-      if (!unit.members) unit.members = [];
-      if (!unit.id) unit.id = foundry.utils.randomID();
-      if (!unit.unitType) unit.unitType = 'vehicle';
-
-      // Determine tracked skills from unit type
-      const memberSkillKeys = UNIT_SKILLS[unit.unitType] || [];
-      const leaderSkillKeys = UNIT_LEADER_SKILLS;
-
-      // Collapse state
-      unit.collapsed = this._unitCollapsed.get(unit.id) !== false;
-
-      // Resolve leader (supports both actor and personnel item leaders)
-      if (unit.leaderId) {
-        if (unit.leaderType === 'item') {
-          // Personnel item leader
-          const leaderItem = this.actor.items.get(unit.leaderId);
-          if (leaderItem) {
-            unit.leaderData = {
-              id: leaderItem.id,
-              name: leaderItem.name,
-              img: leaderItem.img || 'icons/svg/mystery-man.svg',
-              isItem: true,
-              health: leaderItem.system.health || { value: 1, max: 1 },
-              readiness: leaderItem.system.readiness || { value: 1, max: 1 }
-            };
-            unit.leaderSkills = {};
-            for (const key of leaderSkillKeys) {
-              unit.leaderSkills[key] = leaderItem.system.skills?.[key] || 0;
-            }
-          } else {
-            unit.leaderData = null;
-            unit.leaderId = null;
-            unit.leaderType = null;
-            unit.leaderSkills = {};
-          }
-        } else {
-          // Character actor leader
-          const leader = game.actors.get(unit.leaderId);
-          if (leader) {
-            unit.leaderData = this._getActorSummary(leader);
-            unit.leaderData.isItem = false;
-            unit.leaderSkills = {};
-            for (const key of leaderSkillKeys) {
-              const displayName = SKILL_DISPLAY_NAMES[key];
-              const skillItem = leader.items.find(i => i.type === 'skill' && i.name.toLowerCase() === displayName.toLowerCase());
-              unit.leaderSkills[key] = skillItem ? skillItem.system.level : 0;
-            }
-          } else {
-            unit.leaderData = null;
-            unit.leaderId = null;
-            unit.leaderSkills = {};
-          }
-        }
-      } else {
-        unit.leaderSkills = {};
-      }
-
-      // Collect all member data from two sources:
-      // 1. Character/NPC actors in members array
-      unit.actorMemberData = unit.members.map(memberId => {
-        const actor = game.actors.get(memberId);
-        if (!actor) return null;
-        const summary = this._getActorSummary(actor);
-        // Get member skill levels
-        summary.skillLevels = {};
-        for (const key of memberSkillKeys) {
-          const displayName = SKILL_DISPLAY_NAMES[key];
-          const skillItem = actor.items.find(i => i.type === 'skill' && i.name.toLowerCase() === displayName.toLowerCase());
-          summary.skillLevels[key] = skillItem ? skillItem.system.level : 0;
-        }
-        return summary;
-      }).filter(Boolean);
-
-      // 2. Personnel items assigned to this unit
-      unit.personnelMemberData = [];
-      const matchingType = unit.unitType === 'infantry' ? 'infantry' : 'pilot';
-      for (const item of this.actor.items) {
-        if (item.type === 'personnel' &&
-            item.system.personnelType === matchingType &&
-            item.system.assignment === unit.id) {
-          const pData = item.toObject(false);
-          pData.skillLevels = {};
-          for (const key of memberSkillKeys) {
-            pData.skillLevels[key] = item.system.skills?.[key] || 0;
-          }
-          pData.isPersonnelItem = true;
-          unit.personnelMemberData.push(pData);
-        }
-      }
-
-      // Calculate skill averages for member skills (from all sources)
-      const allMemberSkills = [...unit.actorMemberData, ...unit.personnelMemberData];
-
-      unit.skillSummary = memberSkillKeys.map(key => {
-        let total = 0;
-        let count = 0;
-        for (const m of allMemberSkills) {
-          const val = m.skillLevels?.[key] || 0;
-          total += val;
-          count++;
-        }
-        return {
-          key: key,
-          name: SKILL_DISPLAY_NAMES[key],
-          average: count > 0 ? (total / count).toFixed(1) : "0.0",
-          averageNum: count > 0 ? (total / count) : 0
-        };
-      });
-
-      // Leader-only skill summary
-      unit.leaderSkillSummary = leaderSkillKeys.map(key => ({
-        key: key,
-        name: SKILL_DISPLAY_NAMES[key],
-        value: unit.leaderSkills[key] || 0
-      }));
-
-      // Calculate health/readiness averages
-      let healthTotal = 0, healthMaxTotal = 0, readinessTotal = 0, readinessMaxTotal = 0, memberCount = 0;
-      for (const m of unit.actorMemberData) {
-        healthTotal += m.damage?.value || 0;
-        healthMaxTotal += m.damageCapacity || 10;
-        memberCount++;
-      }
-      for (const m of unit.personnelMemberData) {
-        healthTotal += m.system.health?.value || 0;
-        healthMaxTotal += m.system.health?.max || 1;
-        readinessTotal += m.system.readiness?.value || 0;
-        readinessMaxTotal += m.system.readiness?.max || 1;
-        memberCount++;
-      }
-
-      unit.totalMembers = memberCount;
-      unit.avgHealth = memberCount > 0
-        ? `${(healthTotal / memberCount).toFixed(1)}/${(healthMaxTotal / memberCount).toFixed(1)}`
-        : "--";
-      unit.avgReadiness = memberCount > 0
-        ? `${(readinessTotal / memberCount).toFixed(1)}/${(readinessMaxTotal / memberCount).toFixed(1)}`
-        : "--";
-
-      // Provide display info
-      unit.unitTypeDisplay = unit.unitType === 'infantry' ? 'Infantry' : 'Vehicle';
-    }
-
-    context.units = units;
-  }
-
-  /**
-   * Get a summary of an actor's key stats for unit display
-   */
-  _getActorSummary(actor) {
-    const bod = actor.system.attributes?.bod?.total || actor.system.attributes?.bod?.value || 5;
-    const wil = actor.system.attributes?.wil?.total || actor.system.attributes?.wil?.value || 5;
-    return {
-      id: actor.id,
-      name: actor.name,
-      img: actor.img,
-      damage: actor.system.damage || { value: 0, max: 10 },
-      fatigue: actor.system.fatigue || { value: 0, max: 10 },
-      damageCapacity: actor.system.damageCapacity || (bod * 2),
-      fatigueCapacity: actor.system.fatigueCapacity || (wil * 2)
-    };
-  }
-
-  /* -------------------------------------------- */
-
-  /* -------------------------------------------- */
   /*  Render: tabs, drag/drop, delegated listeners */
   /* -------------------------------------------- */
 
   /** @override */
   _onRender(context, options) {
     super._onRender?.(context, options);
-    // Bind the delegated jQuery listeners once per frame element.
     if (this.#boundElement !== this.element) {
       this._activateSheetListeners($(this.element));
       this.#boundElement = this.element;
@@ -644,75 +417,20 @@ export class MechFoundryCompanySheet extends HandlebarsApplicationMixin(ActorShe
     }
   }
 
-  /* -------------------------------------------- */
-
-  _activateSheetListeners(html) {
-    // Rollable skill checks
-    html.on('click', '.personnel-roll', this._onPersonnelRoll.bind(this));
-    html.on('click', '.summary-skill-roll', this._onSummarySkillRoll.bind(this));
-
-    // Everything below here is only needed if the sheet is editable
-    if (!this.isEditable) return;
-
-    // Item CRUD
-    html.on('click', '.item-edit', this._onItemEdit.bind(this));
-    html.on('click', '.item-delete', this._onItemDelete.bind(this));
-
-    // C-Bills fund management
-    html.on('click', '.cbills-add', this._onAddFunds.bind(this));
-    html.on('click', '.cbills-remove', this._onRemoveFunds.bind(this));
-
-    // Finance management
-    html.on('click', '.ledger-delete', this._onLedgerDelete.bind(this));
-    html.on('click', '.pay-monthly-expenses', this._onPayMonthlyExpenses.bind(this));
-
-    // MTOE asset management
-    html.on('click', '.mtoe-remove', this._onMTOERemove.bind(this));
-
-    // Personnel assignment
-    html.on('click', '.assign-department', this._onAssignDepartment.bind(this));
-    html.on('click', '.assign-unit', this._onAssignUnit.bind(this));
-
-    // Department management
-    html.on('click', '.department-toggle', this._onToggleDepartment.bind(this));
-    html.on('click', '.remove-dept-leader', this._onRemoveDeptLeader.bind(this));
-    html.on('click', '.remove-from-department', this._onRemoveFromDepartment.bind(this));
-    html.on('click', '.promote-dept-leader', this._onPromoteDeptLeader.bind(this));
-
-    // Unit management (Organization tab)
-    html.on('click', '.add-unit', this._onAddUnit.bind(this));
-    html.on('click', '.delete-unit', this._onDeleteUnit.bind(this));
-    html.on('change', '.unit-name-input', this._onUnitNameChange.bind(this));
-    html.on('click', '.unit-toggle', this._onToggleUnit.bind(this));
-    html.on('click', '.remove-leader', this._onRemoveLeader.bind(this));
-    html.on('click', '.remove-member', this._onRemoveMember.bind(this));
-    html.on('click', '.remove-unit-personnel', this._onRemoveUnitPersonnel.bind(this));
-    html.on('click', '.promote-unit-leader-actor', this._onPromoteUnitLeaderActor.bind(this));
-    html.on('click', '.promote-unit-leader-item', this._onPromoteUnitLeaderItem.bind(this));
-  }
-
-  /* -------------------------------------------- */
-  /*  Drag & Drop                                 */
-  /* -------------------------------------------- */
-
   /** @override */
   async _onDropItem(event, data) {
     if (!this.actor.isOwner) return false;
-
     const item = await Item.implementation.fromDropData(data);
     if (!item) return false;
-
-    // Dropping an item already on this company (a re-drag): no-op, don't dupe.
     if (this.actor.uuid === item.parent?.uuid) return false;
 
-    // Personnel & supplies (each unique) plus the Assets-tab item types.
-    const allowedTypes = ['personnel', 'supplies', 'weapon', 'armor', 'ammo',
-      'electronics', 'healthcare', 'prosthetics', 'drugpoison', 'fuel'];
+    // Only equipment item types (Assets tab) are stored on the company now.
+    const allowedTypes = ['weapon', 'armor', 'ammo', 'electronics',
+      'healthcare', 'prosthetics', 'drugpoison', 'fuel'];
     if (!allowedTypes.includes(item.type)) {
-      ui.notifications.warn("This item type cannot be added to the company sheet.");
+      ui.notifications.warn("Only equipment items can be added to the company (Assets tab).");
       return false;
     }
-
     const created = await this.actor.createEmbeddedDocuments("Item", [item.toObject()]);
     this.render(false);
     return created;
@@ -721,86 +439,331 @@ export class MechFoundryCompanySheet extends HandlebarsApplicationMixin(ActorShe
   /** @override */
   async _onDropActor(event, data) {
     if (!this.isEditable) return false;
-
     const actor = await Actor.implementation.fromDropData(data);
     if (!actor) return false;
 
-    const dropTarget = event.target.closest('.tab');
-    const tabName = dropTarget?.dataset?.tab;
-
-    // Handle dropping character/NPC actors onto Organization tab
-    if (tabName === 'organization') {
-      if (actor.type === 'character' || actor.type === 'npc') {
-        // Check for department leader zone
-        const deptLeaderZone = event.target.closest('.dept-leader-zone');
-        if (deptLeaderZone) {
-          const deptName = deptLeaderZone.dataset.department;
-          await this._assignDeptLeaderActor(deptName, actor.id);
-          return false;
-        }
-
-        // Check for unit panel
-        const unitPanel = event.target.closest('.unit-panel');
-        if (unitPanel) {
-          const unitIndex = parseInt(unitPanel.dataset.unitIndex);
-          const leaderZone = event.target.closest('.unit-leader-zone');
-          if (leaderZone) {
-            await this._assignLeaderToUnit(unitIndex, actor.id);
-          } else {
-            await this._addMemberToUnit(unitIndex, actor.id);
-          }
-          return false;
-        }
-      }
-    }
-
-    // Handle dropping vehicle_actor/ship onto MTOE tab
-    if (actor.type === 'vehicle_actor' || actor.type === 'ship') {
-      const linkedAssets = this.actor.getFlag('mech-foundry', 'linkedAssets') || [];
-      if (linkedAssets.includes(actor.id)) {
-        ui.notifications.warn(`${actor.name} is already linked to this company.`);
+    // Location actors → Locations list.
+    if (LOCATION_ACTOR_TYPES.hasOwnProperty(actor.type)) {
+      const locations = foundry.utils.deepClone(this.actor.system.locations || []);
+      if (locations.some(l => l.actorId === actor.id)) {
+        ui.notifications.warn(`${actor.name} is already a company location.`);
         return false;
       }
-      linkedAssets.push(actor.id);
-      await this.actor.setFlag('mech-foundry', 'linkedAssets', linkedAssets);
-      ui.notifications.info(`${actor.name} added to company MTOE.`);
+      locations.push({
+        id: foundry.utils.randomID(),
+        actorId: actor.id,
+        status: '',
+        departments: [],
+        supplies: this._blankShipSupplies()
+      });
+      await this.actor.update({ 'system.locations': locations });
+      ui.notifications.info(`${actor.name} added as a company location.`);
       return false;
     }
 
-    ui.notifications.warn("Drag character/NPC actors to the Organization tab. Drag Vehicle/Ship actors to the MTOE tab.");
+    // Unit actors → the MTOE box they were dropped onto.
+    if (UNIT_ACTOR_TYPES.hasOwnProperty(actor.type)) {
+      const boxEl = event.target.closest('.mtoe-box[data-box-id]');
+      if (!boxEl) {
+        ui.notifications.warn("Drop unit actors onto a specific MTOE unit box. Create one first.");
+        return false;
+      }
+      const boxId = boxEl.dataset.boxId;
+      await this._updateBox(boxId, box => {
+        if (!Array.isArray(box.unitActorIds)) box.unitActorIds = [];
+        if (box.unitActorIds.includes(actor.id)) {
+          ui.notifications.warn(`${actor.name} is already in this unit.`);
+          return false;
+        }
+        box.unitActorIds.push(actor.id);
+      });
+      return false;
+    }
+
+    ui.notifications.warn("Drop Naval Ships / Installations on the Locations tab, and Mechs / Vehicles / Fighters / Battle Armor onto an MTOE unit box.");
     return false;
   }
 
+  _blankShipSupplies() {
+    const s = { ammo: [] };
+    for (const f of SHIP_SUPPLY_FIELDS) s[f.key] = 0;
+    return s;
+  }
+
   /* -------------------------------------------- */
-  /*  C-Bills / Fund Management                   */
+  /*  Array update helpers                         */
+  /* -------------------------------------------- */
+
+  async _updateLocation(locId, mutator) {
+    const locations = foundry.utils.deepClone(this.actor.system.locations || []);
+    const loc = locations.find(l => l.id === locId);
+    if (!loc) return;
+    if (mutator(loc) === false) return;
+    await this.actor.update({ 'system.locations': locations });
+  }
+
+  async _updateBox(boxId, mutator) {
+    const boxes = foundry.utils.deepClone(this.actor.system.mtoe || []);
+    const box = boxes.find(b => b.id === boxId);
+    if (!box) return;
+    if (mutator(box) === false) return;
+    await this.actor.update({ 'system.mtoe': boxes });
+  }
+
+  static _int(value) {
+    return Math.max(0, parseInt(value) || 0);
+  }
+
+  /* -------------------------------------------- */
+  /*  Listeners                                    */
+  /* -------------------------------------------- */
+
+  _activateSheetListeners(html) {
+    if (!this.isEditable) return;
+
+    // Assets (equipment items)
+    html.on('click', '.item-edit', this._onItemEdit.bind(this));
+    html.on('click', '.item-delete', this._onItemDelete.bind(this));
+
+    // Finances
+    html.on('click', '.cbills-add', this._onAddFunds.bind(this));
+    html.on('click', '.cbills-remove', this._onRemoveFunds.bind(this));
+    html.on('click', '.ledger-delete', this._onLedgerDelete.bind(this));
+    html.on('click', '.pay-monthly-expenses', this._onPayMonthlyExpenses.bind(this));
+
+    // Locations
+    html.on('click', '.location-remove', this._onLocationRemove.bind(this));
+    html.on('change', '.location-status', this._onLocationStatusChange.bind(this));
+    html.on('click', '.add-department', this._onAddDepartment.bind(this));
+    html.on('click', '.remove-department', this._onRemoveDepartment.bind(this));
+    html.on('change', '.dept-name', this._onDeptNameChange.bind(this));
+    html.on('change', '.dept-crew', this._onDeptCrewChange.bind(this));
+
+    // Location (ship) supplies
+    html.on('change', '.ship-supply', this._onShipSupplyChange.bind(this));
+    html.on('click', '.add-ship-ammo', this._onAddShipAmmo.bind(this));
+    html.on('click', '.remove-ship-ammo', this._onRemoveShipAmmo.bind(this));
+    html.on('change', '.ship-ammo-field', this._onShipAmmoFieldChange.bind(this));
+
+    // MTOE
+    html.on('click', '.add-mtoe-box', this._onAddBox.bind(this));
+    html.on('click', '.remove-mtoe-box', this._onRemoveBox.bind(this));
+    html.on('change', '.mtoe-box-name', this._onBoxNameChange.bind(this));
+    html.on('change', '.mtoe-box-status', this._onBoxStatusChange.bind(this));
+    html.on('change', '.mtoe-troop', this._onBoxTroopChange.bind(this));
+    html.on('click', '.mtoe-unit-remove', this._onBoxUnitRemove.bind(this));
+
+    // Ground supplies (company-wide) ammo list
+    html.on('click', '.add-ground-ammo', this._onAddGroundAmmo.bind(this));
+    html.on('click', '.remove-ground-ammo', this._onRemoveGroundAmmo.bind(this));
+    html.on('change', '.ground-ammo-field', this._onGroundAmmoFieldChange.bind(this));
+  }
+
+  /* -------------------------------------------- */
+  /*  Location handlers                            */
+  /* -------------------------------------------- */
+
+  async _onLocationRemove(event) {
+    event.preventDefault();
+    const locId = event.currentTarget.dataset.locId;
+    const locations = (this.actor.system.locations || []).filter(l => l.id !== locId);
+    await this.actor.update({ 'system.locations': locations });
+  }
+
+  async _onLocationStatusChange(event) {
+    const locId = event.currentTarget.dataset.locId;
+    const value = event.currentTarget.value;
+    await this._updateLocation(locId, loc => { loc.status = value; });
+  }
+
+  async _onAddDepartment(event) {
+    event.preventDefault();
+    const locId = event.currentTarget.dataset.locId;
+    await this._updateLocation(locId, loc => {
+      if (!Array.isArray(loc.departments)) loc.departments = [];
+      loc.departments.push({
+        id: foundry.utils.randomID(),
+        name: 'New Department',
+        required: { enlisted: 0, officers: 0, bayTechs: 0 },
+        assigned: { enlisted: 0, officers: 0, bayTechs: 0 }
+      });
+    });
+  }
+
+  async _onRemoveDepartment(event) {
+    event.preventDefault();
+    const { locId, deptId } = event.currentTarget.dataset;
+    await this._updateLocation(locId, loc => {
+      loc.departments = (loc.departments || []).filter(d => d.id !== deptId);
+    });
+  }
+
+  async _onDeptNameChange(event) {
+    const { locId, deptId } = event.currentTarget.dataset;
+    const value = event.currentTarget.value;
+    await this._updateLocation(locId, loc => {
+      const dept = (loc.departments || []).find(d => d.id === deptId);
+      if (dept) dept.name = value;
+    });
+  }
+
+  /** Change a department's required/assigned count for a crew type. */
+  async _onDeptCrewChange(event) {
+    const { locId, deptId, group, type } = event.currentTarget.dataset;
+    const value = MechFoundryCompanySheet._int(event.currentTarget.value);
+    await this._updateLocation(locId, loc => {
+      const dept = (loc.departments || []).find(d => d.id === deptId);
+      if (!dept) return;
+      if (!dept[group]) dept[group] = {};
+      dept[group][type] = value;
+    });
+  }
+
+  /* -------------------------------------------- */
+  /*  Ship supply handlers                         */
+  /* -------------------------------------------- */
+
+  async _onShipSupplyChange(event) {
+    const { locId, key } = event.currentTarget.dataset;
+    const value = MechFoundryCompanySheet._int(event.currentTarget.value);
+    await this._updateLocation(locId, loc => {
+      if (!loc.supplies) loc.supplies = this._blankShipSupplies();
+      loc.supplies[key] = value;
+    });
+  }
+
+  async _onAddShipAmmo(event) {
+    event.preventDefault();
+    const locId = event.currentTarget.dataset.locId;
+    await this._updateLocation(locId, loc => {
+      if (!loc.supplies) loc.supplies = this._blankShipSupplies();
+      if (!Array.isArray(loc.supplies.ammo)) loc.supplies.ammo = [];
+      loc.supplies.ammo.push({ id: foundry.utils.randomID(), name: '', value: 0 });
+    });
+  }
+
+  async _onRemoveShipAmmo(event) {
+    event.preventDefault();
+    const { locId, ammoId } = event.currentTarget.dataset;
+    await this._updateLocation(locId, loc => {
+      if (loc.supplies?.ammo) loc.supplies.ammo = loc.supplies.ammo.filter(a => a.id !== ammoId);
+    });
+  }
+
+  async _onShipAmmoFieldChange(event) {
+    const { locId, ammoId, field } = event.currentTarget.dataset;
+    const raw = event.currentTarget.value;
+    await this._updateLocation(locId, loc => {
+      const ammo = loc.supplies?.ammo?.find(a => a.id === ammoId);
+      if (!ammo) return;
+      ammo[field] = field === 'value' ? MechFoundryCompanySheet._int(raw) : raw;
+    });
+  }
+
+  /* -------------------------------------------- */
+  /*  MTOE handlers                                */
+  /* -------------------------------------------- */
+
+  async _onAddBox(event) {
+    event.preventDefault();
+    const boxes = foundry.utils.deepClone(this.actor.system.mtoe || []);
+    boxes.push({
+      id: foundry.utils.randomID(),
+      name: 'New Unit',
+      status: '',
+      unitActorIds: [],
+      troops: { infantry: 0, aeroPilots: 0, mechPilots: 0, vehicleCrew: 0, installationCrew: 0 }
+    });
+    await this.actor.update({ 'system.mtoe': boxes });
+  }
+
+  async _onRemoveBox(event) {
+    event.preventDefault();
+    const boxId = event.currentTarget.dataset.boxId;
+    const boxes = (this.actor.system.mtoe || []).filter(b => b.id !== boxId);
+    await this.actor.update({ 'system.mtoe': boxes });
+  }
+
+  async _onBoxNameChange(event) {
+    const boxId = event.currentTarget.dataset.boxId;
+    const value = event.currentTarget.value;
+    await this._updateBox(boxId, box => { box.name = value; });
+  }
+
+  async _onBoxStatusChange(event) {
+    const boxId = event.currentTarget.dataset.boxId;
+    const value = event.currentTarget.value;
+    await this._updateBox(boxId, box => { box.status = value; });
+  }
+
+  async _onBoxTroopChange(event) {
+    const { boxId, type } = event.currentTarget.dataset;
+    const value = MechFoundryCompanySheet._int(event.currentTarget.value);
+    await this._updateBox(boxId, box => {
+      if (!box.troops) box.troops = {};
+      box.troops[type] = value;
+    });
+  }
+
+  async _onBoxUnitRemove(event) {
+    event.preventDefault();
+    const { boxId, actorId } = event.currentTarget.dataset;
+    await this._updateBox(boxId, box => {
+      box.unitActorIds = (box.unitActorIds || []).filter(id => id !== actorId);
+    });
+  }
+
+  /* -------------------------------------------- */
+  /*  Ground supply ammo handlers                  */
+  /* -------------------------------------------- */
+
+  async _onAddGroundAmmo(event) {
+    event.preventDefault();
+    const ground = foundry.utils.deepClone(this.actor.system.groundSupplies || {});
+    if (!Array.isArray(ground.ammo)) ground.ammo = [];
+    ground.ammo.push({ id: foundry.utils.randomID(), name: '', usedBy: '', value: 0 });
+    await this.actor.update({ 'system.groundSupplies': ground });
+  }
+
+  async _onRemoveGroundAmmo(event) {
+    event.preventDefault();
+    const ammoId = event.currentTarget.dataset.ammoId;
+    const ground = foundry.utils.deepClone(this.actor.system.groundSupplies || {});
+    ground.ammo = (ground.ammo || []).filter(a => a.id !== ammoId);
+    await this.actor.update({ 'system.groundSupplies': ground });
+  }
+
+  async _onGroundAmmoFieldChange(event) {
+    const { ammoId, field } = event.currentTarget.dataset;
+    const raw = event.currentTarget.value;
+    const ground = foundry.utils.deepClone(this.actor.system.groundSupplies || {});
+    const ammo = (ground.ammo || []).find(a => a.id === ammoId);
+    if (!ammo) return;
+    ammo[field] = field === 'value' ? MechFoundryCompanySheet._int(raw) : raw;
+    await this.actor.update({ 'system.groundSupplies': ground });
+  }
+
+  /* -------------------------------------------- */
+  /*  C-Bills / Fund Management                    */
   /* -------------------------------------------- */
 
   async _processTransaction(amount, type, reason) {
     const currentCBills = this.actor.system.cbills || 0;
-    const newCBills = type === 'add'
-      ? currentCBills + amount
-      : currentCBills - amount;
-
+    const newCBills = type === 'add' ? currentCBills + amount : currentCBills - amount;
     if (newCBills < 0) {
       ui.notifications.warn("Insufficient funds for this transaction.");
       return;
     }
-
     const ledger = foundry.utils.deepClone(this.actor.system.financialLedger || []);
     ledger.unshift({
       id: foundry.utils.randomID(),
       date: new Date().toISOString(),
       submittedBy: game.user.name,
-      amount: amount,
-      type: type,
+      amount, type,
       reason: reason || "",
       balance: newCBills
     });
-
-    await this.actor.update({
-      'system.cbills': newCBills,
-      'system.financialLedger': ledger
-    });
+    await this.actor.update({ 'system.cbills': newCBills, 'system.financialLedger': ledger });
   }
 
   /** Read a named field's value from the form owning the clicked dialog button. */
@@ -819,7 +782,6 @@ export class MechFoundryCompanySheet extends HandlebarsApplicationMixin(ActorShe
         <label>Reason</label>
         <input type="text" name="reason" value="" placeholder="Reason for deposit" />
       </div>`;
-
     const result = await DialogV2.wait({
       window: { title: "Add Funds", icon: "fa-solid fa-coins" },
       content,
@@ -835,7 +797,6 @@ export class MechFoundryCompanySheet extends HandlebarsApplicationMixin(ActorShe
       ],
       rejectClose: false
     });
-
     if (!result || result === "cancel") return;
     const amount = Math.abs(parseInt(result.amount) || 0);
     if (amount <= 0) return;
@@ -854,7 +815,6 @@ export class MechFoundryCompanySheet extends HandlebarsApplicationMixin(ActorShe
         <label>Reason</label>
         <input type="text" name="reason" value="" placeholder="Reason for withdrawal" />
       </div>`;
-
     const result = await DialogV2.wait({
       window: { title: "Remove Funds", icon: "fa-solid fa-coins" },
       content,
@@ -870,7 +830,6 @@ export class MechFoundryCompanySheet extends HandlebarsApplicationMixin(ActorShe
       ],
       rejectClose: false
     });
-
     if (!result || result === "cancel") return;
     const amount = Math.abs(parseInt(result.amount) || 0);
     if (amount <= 0) return;
@@ -879,29 +838,18 @@ export class MechFoundryCompanySheet extends HandlebarsApplicationMixin(ActorShe
 
   async _onPayMonthlyExpenses(event) {
     event.preventDefault();
-
-    let totalExpenses = 0;
-    for (const item of this.actor.items) {
-      if (item.type === 'personnel') {
-        totalExpenses += item.system.payRate || 0;
-      }
-    }
-
+    const totalExpenses = Number(this.actor.system.monthlyExpenses) || 0;
     if (totalExpenses <= 0) {
-      ui.notifications.warn("No monthly expenses to pay.");
+      ui.notifications.warn("Set a monthly expenses amount first (Status tab).");
       return;
     }
-
     const confirmed = await DialogV2.confirm({
       window: { title: "Pay Monthly Expenses", icon: "fa-solid fa-coins" },
-      content: `<p>Deduct <strong>${totalExpenses.toLocaleString()} C-Bills</strong> for monthly personnel expenses?</p>`,
+      content: `<p>Deduct <strong>${totalExpenses.toLocaleString()} C-Bills</strong> for monthly expenses?</p>`,
       rejectClose: false,
       modal: true
     });
-
-    if (confirmed) {
-      await this._processTransaction(totalExpenses, 'remove', 'Monthly Expenses (Wages)');
-    }
+    if (confirmed) await this._processTransaction(totalExpenses, 'remove', 'Monthly Expenses');
   }
 
   async _onLedgerDelete(event) {
@@ -917,478 +865,7 @@ export class MechFoundryCompanySheet extends HandlebarsApplicationMixin(ActorShe
   }
 
   /* -------------------------------------------- */
-  /*  Personnel Assignment                        */
-  /* -------------------------------------------- */
-
-  /**
-   * Assign a crewmember to a department via dialog
-   */
-  async _onAssignDepartment(event) {
-    event.preventDefault();
-    const itemId = event.currentTarget.closest('.item').dataset.itemId;
-    const item = this.actor.items.get(itemId);
-    if (!item || item.system.personnelType !== 'crewmember') return;
-
-    const currentAssignment = item.system.assignment || '';
-    const options = DEPARTMENT_DEFS.map(d =>
-      `<option value="${d.name}" ${d.name === currentAssignment ? 'selected' : ''}>${d.name}</option>`
-    ).join('');
-
-    const result = await DialogV2.wait({
-      window: { title: `Assign ${item.name} to Department`, icon: "fa-solid fa-sitemap" },
-      content: `<div class="form-group">
-        <label>Department</label>
-        <select name="department">
-          <option value="">-- Unassigned --</option>
-          ${options}
-        </select>
-      </div>`,
-      buttons: [
-        {
-          action: "assign", label: "Assign", icon: "fa-solid fa-check", default: true,
-          callback: (event, button) => MechFoundryCompanySheet._fieldValue(button, 'department')
-        },
-        { action: "cancel", label: "Cancel" }
-      ],
-      rejectClose: false
-    });
-
-    if (result === null || result === "cancel") return;
-    await item.update({ 'system.assignment': result });
-  }
-
-  /**
-   * Assign infantry/pilot personnel to a unit via dialog
-   */
-  async _onAssignUnit(event) {
-    event.preventDefault();
-    const itemId = event.currentTarget.closest('.item').dataset.itemId;
-    const item = this.actor.items.get(itemId);
-    if (!item) return;
-
-    const pType = item.system.personnelType;
-    const compatibleUnitType = pType === 'infantry' ? 'infantry' : 'vehicle';
-    const units = (this.actor.system.units || []).filter(u => u.unitType === compatibleUnitType);
-    const currentAssignment = item.system.assignment || '';
-
-    if (units.length === 0) {
-      ui.notifications.warn(`No ${compatibleUnitType} units exist. Create one in the Organization tab first.`);
-      return;
-    }
-
-    const options = units.map(u =>
-      `<option value="${u.id}" ${u.id === currentAssignment ? 'selected' : ''}>${u.name} (${u.unitType})</option>`
-    ).join('');
-
-    const result = await DialogV2.wait({
-      window: { title: `Assign ${item.name} to Unit`, icon: "fa-solid fa-users" },
-      content: `<div class="form-group">
-        <label>Unit</label>
-        <select name="unitId">
-          <option value="">-- Unassigned --</option>
-          ${options}
-        </select>
-      </div>`,
-      buttons: [
-        {
-          action: "assign", label: "Assign", icon: "fa-solid fa-check", default: true,
-          callback: (event, button) => MechFoundryCompanySheet._fieldValue(button, 'unitId')
-        },
-        { action: "cancel", label: "Cancel" }
-      ],
-      rejectClose: false
-    });
-
-    if (result === null || result === "cancel") return;
-    await item.update({ 'system.assignment': result });
-  }
-
-  /* -------------------------------------------- */
-  /*  Department Management                       */
-  /* -------------------------------------------- */
-
-  async _onToggleDepartment(event) {
-    event.preventDefault();
-    const deptName = event.currentTarget.dataset.department;
-    const current = this._deptCollapsed.get(deptName);
-    this._deptCollapsed.set(deptName, !current);
-    this.render(false);
-  }
-
-  /**
-   * Assign a character/NPC actor as department leader (via drag-drop)
-   */
-  async _assignDeptLeaderActor(deptName, actorId) {
-    const departments = foundry.utils.deepClone(this.actor.system.departments || []);
-    this._ensureDepartments(departments);
-    const dept = departments.find(d => d.name === deptName);
-    if (dept) {
-      dept.leaderId = actorId;
-      dept.leaderType = 'actor';
-      await this.actor.update({ 'system.departments': departments });
-    }
-  }
-
-  /**
-   * Promote a personnel item to department leader
-   */
-  async _onPromoteDeptLeader(event) {
-    event.preventDefault();
-    const deptName = event.currentTarget.dataset.department;
-    const itemId = event.currentTarget.dataset.itemId;
-    const departments = foundry.utils.deepClone(this.actor.system.departments || []);
-    this._ensureDepartments(departments);
-    const dept = departments.find(d => d.name === deptName);
-    if (dept) {
-      dept.leaderId = itemId;
-      dept.leaderType = 'item';
-      await this.actor.update({ 'system.departments': departments });
-    }
-  }
-
-  async _onRemoveDeptLeader(event) {
-    event.preventDefault();
-    const deptName = event.currentTarget.dataset.department;
-    const departments = foundry.utils.deepClone(this.actor.system.departments || []);
-    this._ensureDepartments(departments);
-    const dept = departments.find(d => d.name === deptName);
-    if (dept) {
-      dept.leaderId = null;
-      dept.leaderType = 'actor';
-      await this.actor.update({ 'system.departments': departments });
-    }
-  }
-
-  async _onRemoveFromDepartment(event) {
-    event.preventDefault();
-    const itemId = event.currentTarget.dataset.itemId;
-    const item = this.actor.items.get(itemId);
-    if (item) {
-      await item.update({ 'system.assignment': '' });
-    }
-  }
-
-  /**
-   * Ensure all 5 departments exist in the stored array
-   */
-  _ensureDepartments(departments) {
-    for (const def of DEPARTMENT_DEFS) {
-      if (!departments.find(d => d.name === def.name)) {
-        departments.push({ name: def.name, leaderId: null, leaderType: 'actor' });
-      }
-    }
-  }
-
-  /* -------------------------------------------- */
-  /*  Unit Management                             */
-  /* -------------------------------------------- */
-
-  async _onAddUnit(event) {
-    event.preventDefault();
-    const unitType = event.currentTarget.dataset.unitType || 'vehicle';
-    const units = foundry.utils.deepClone(this.actor.system.units || []);
-    const newUnit = {
-      id: foundry.utils.randomID(),
-      name: `New ${unitType === 'infantry' ? 'Infantry' : 'Vehicle'} Unit`,
-      unitType: unitType,
-      leaderId: null,
-      members: []
-    };
-    units.push(newUnit);
-    await this.actor.update({ 'system.units': units });
-  }
-
-  async _onDeleteUnit(event) {
-    event.preventDefault();
-    const unitIndex = parseInt(event.currentTarget.dataset.unitIndex);
-    const units = foundry.utils.deepClone(this.actor.system.units || []);
-    if (unitIndex >= 0 && unitIndex < units.length) {
-      // Clear assignments for personnel in this unit
-      const unitId = units[unitIndex].id;
-      for (const item of this.actor.items) {
-        if (item.type === 'personnel' && item.system.assignment === unitId) {
-          await item.update({ 'system.assignment': '' });
-        }
-      }
-      units.splice(unitIndex, 1);
-      await this.actor.update({ 'system.units': units });
-    }
-  }
-
-  async _onUnitNameChange(event) {
-    event.preventDefault();
-    const unitIndex = parseInt(event.currentTarget.dataset.unitIndex);
-    const units = foundry.utils.deepClone(this.actor.system.units || []);
-    if (unitIndex >= 0 && unitIndex < units.length) {
-      units[unitIndex].name = event.currentTarget.value;
-      await this.actor.update({ 'system.units': units });
-    }
-  }
-
-  async _onToggleUnit(event) {
-    event.preventDefault();
-    const unitId = event.currentTarget.dataset.unitId;
-    const current = this._unitCollapsed.get(unitId);
-    this._unitCollapsed.set(unitId, !current);
-    this.render(false);
-  }
-
-  async _assignLeaderToUnit(unitIndex, actorId) {
-    const units = foundry.utils.deepClone(this.actor.system.units || []);
-    if (unitIndex >= 0 && unitIndex < units.length) {
-      units[unitIndex].leaderId = actorId;
-      await this.actor.update({ 'system.units': units });
-    }
-  }
-
-  async _addMemberToUnit(unitIndex, actorId) {
-    const units = foundry.utils.deepClone(this.actor.system.units || []);
-    if (unitIndex >= 0 && unitIndex < units.length) {
-      if (!units[unitIndex].members) units[unitIndex].members = [];
-      if (units[unitIndex].members.includes(actorId) || units[unitIndex].leaderId === actorId) {
-        ui.notifications.warn("This character is already in this unit.");
-        return;
-      }
-      units[unitIndex].members.push(actorId);
-      await this.actor.update({ 'system.units': units });
-    }
-  }
-
-  async _onRemoveLeader(event) {
-    event.preventDefault();
-    const unitIndex = parseInt(event.currentTarget.dataset.unitIndex);
-    const units = foundry.utils.deepClone(this.actor.system.units || []);
-    if (unitIndex >= 0 && unitIndex < units.length) {
-      units[unitIndex].leaderId = null;
-      units[unitIndex].leaderType = null;
-      await this.actor.update({ 'system.units': units });
-    }
-  }
-
-  async _onRemoveMember(event) {
-    event.preventDefault();
-    const unitIndex = parseInt(event.currentTarget.dataset.unitIndex);
-    const memberIndex = parseInt(event.currentTarget.dataset.memberIndex);
-    const units = foundry.utils.deepClone(this.actor.system.units || []);
-    if (unitIndex >= 0 && unitIndex < units.length) {
-      if (units[unitIndex].members && memberIndex >= 0 && memberIndex < units[unitIndex].members.length) {
-        units[unitIndex].members.splice(memberIndex, 1);
-        await this.actor.update({ 'system.units': units });
-      }
-    }
-  }
-
-  async _onRemoveUnitPersonnel(event) {
-    event.preventDefault();
-    const itemId = event.currentTarget.dataset.itemId;
-    const item = this.actor.items.get(itemId);
-    if (item) {
-      await item.update({ 'system.assignment': '' });
-    }
-  }
-
-  /**
-   * Promote a character actor member to unit leader
-   */
-  async _onPromoteUnitLeaderActor(event) {
-    event.preventDefault();
-    const unitIndex = parseInt(event.currentTarget.dataset.unitIndex);
-    const actorId = event.currentTarget.dataset.actorId;
-    const units = foundry.utils.deepClone(this.actor.system.units || []);
-    if (unitIndex >= 0 && unitIndex < units.length) {
-      units[unitIndex].leaderId = actorId;
-      units[unitIndex].leaderType = 'actor';
-      // Remove from members array since they're now the leader
-      units[unitIndex].members = (units[unitIndex].members || []).filter(id => id !== actorId);
-      await this.actor.update({ 'system.units': units });
-    }
-  }
-
-  /**
-   * Promote a personnel item member to unit leader
-   */
-  async _onPromoteUnitLeaderItem(event) {
-    event.preventDefault();
-    const unitIndex = parseInt(event.currentTarget.dataset.unitIndex);
-    const itemId = event.currentTarget.dataset.itemId;
-    const units = foundry.utils.deepClone(this.actor.system.units || []);
-    if (unitIndex >= 0 && unitIndex < units.length) {
-      units[unitIndex].leaderId = itemId;
-      units[unitIndex].leaderType = 'item';
-      await this.actor.update({ 'system.units': units });
-    }
-  }
-
-  /* -------------------------------------------- */
-  /*  Skill Rolls                                 */
-  /* -------------------------------------------- */
-
-  /**
-   * Roll a personnel item's skill from the Personnel tab
-   */
-  async _onPersonnelRoll(event) {
-    event.preventDefault();
-    const itemId = event.currentTarget.closest('.item').dataset.itemId;
-    const item = this.actor.items.get(itemId);
-    if (!item) return;
-
-    const pType = item.system.personnelType || 'crewmember';
-    const skills = PERSONNEL_SKILLS[pType] || [];
-
-    // Build skill options for the dialog
-    const skillOptions = skills.map(s => {
-      const val = item.system.skills?.[s.key] || 0;
-      return `<option value="${s.key}" data-rating="${val}">${SKILL_DISPLAY_NAMES[s.key]} (${val})</option>`;
-    }).join('');
-
-    const content = `
-      <div class="form-group">
-        <label>Skill</label>
-        <select name="skillKey">${skillOptions}</select>
-      </div>
-      <div class="form-group">
-        <label>Target Number (TN)</label>
-        <input type="number" name="tn" value="8" min="1" />
-      </div>
-      <div class="form-group">
-        <label>Additional Modifier</label>
-        <input type="number" name="modifier" value="0" />
-      </div>`;
-
-    const result = await DialogV2.wait({
-      window: { title: `${item.name} - Skill Roll`, icon: "fa-solid fa-dice" },
-      content,
-      buttons: [
-        {
-          action: "roll", label: "Roll", icon: "fa-solid fa-dice", default: true,
-          callback: (event, button) => ({
-            skillKey: MechFoundryCompanySheet._fieldValue(button, 'skillKey'),
-            tn: MechFoundryCompanySheet._fieldValue(button, 'tn'),
-            modifier: MechFoundryCompanySheet._fieldValue(button, 'modifier')
-          })
-        },
-        { action: "cancel", label: "Cancel", icon: "fa-solid fa-times" }
-      ],
-      rejectClose: false
-    });
-
-    if (!result || result === "cancel") return;
-    const skillValue = item.system.skills?.[result.skillKey] || 0;
-    const tn = parseInt(result.tn) || 8;
-    const modifier = parseInt(result.modifier) || 0;
-    const skillName = SKILL_DISPLAY_NAMES[result.skillKey] || result.skillKey;
-    await this._executeSummaryRoll(`${item.name} - ${skillName}`, skillValue, modifier, tn);
-  }
-
-  /**
-   * Roll a skill from a department or unit summary
-   */
-  async _onSummarySkillRoll(event) {
-    event.preventDefault();
-    const el = event.currentTarget;
-    const label = el.dataset.label || "Skill Roll";
-    const rating = parseFloat(el.dataset.rating) || 0;
-
-    const content = `
-      <div class="form-group">
-        <label>${label} (Rating: ${rating.toFixed(1)})</label>
-      </div>
-      <div class="form-group">
-        <label>Target Number (TN)</label>
-        <input type="number" name="tn" value="8" min="1" />
-      </div>
-      <div class="form-group">
-        <label>Additional Modifier</label>
-        <input type="number" name="modifier" value="0" />
-      </div>`;
-
-    const result = await DialogV2.wait({
-      window: { title: label, icon: "fa-solid fa-dice" },
-      content,
-      buttons: [
-        {
-          action: "roll", label: "Roll", icon: "fa-solid fa-dice", default: true,
-          callback: (event, button) => ({
-            tn: MechFoundryCompanySheet._fieldValue(button, 'tn'),
-            modifier: MechFoundryCompanySheet._fieldValue(button, 'modifier')
-          })
-        },
-        { action: "cancel", label: "Cancel", icon: "fa-solid fa-times" }
-      ],
-      rejectClose: false
-    });
-
-    if (!result || result === "cancel") return;
-    const tn = parseInt(result.tn) || 8;
-    const modifier = parseInt(result.modifier) || 0;
-    await this._executeSummaryRoll(label, rating, modifier, tn);
-  }
-
-  /**
-   * Execute a summary roll: 2d6 + floor(rating) + modifier vs TN
-   */
-  async _executeSummaryRoll(label, rating, modifier, tn = 8) {
-    const ratingMod = Math.floor(rating);
-    const totalMod = ratingMod + modifier;
-
-    const roll = await new Roll("2d6").evaluate();
-    const dice = roll.dice[0].results.map(r => r.result);
-    const specialRoll = await DiceMechanics.evaluateSpecialRoll(dice);
-    const rollTotal = roll.total + totalMod;
-    const result = DiceMechanics.determineSuccess(rollTotal, tn, specialRoll);
-
-    let resultText = "";
-    let cssClass = "";
-
-    if (specialRoll.isFumble) {
-      resultText = game.i18n.localize("MECHFOUNDRY.Fumble");
-      cssClass = "fumble";
-    } else if (specialRoll.isMiraculousFeat) {
-      resultText = game.i18n.localize("MECHFOUNDRY.MiraculousFeat");
-      cssClass = "miraculous";
-    } else if (specialRoll.isStunningSuccess) {
-      resultText = game.i18n.localize("MECHFOUNDRY.StunningSuccess");
-      cssClass = "stunning";
-    } else {
-      resultText = result.success
-        ? game.i18n.localize("MECHFOUNDRY.Success")
-        : game.i18n.localize("MECHFOUNDRY.Failure");
-      cssClass = result.success ? "success" : "failure";
-    }
-
-    const mos = Math.abs(result.mos);
-    const modParts = [];
-    if (ratingMod !== 0) modParts.push(`Rating: +${ratingMod}`);
-    if (modifier !== 0) modParts.push(`Modifier: ${modifier >= 0 ? '+' : ''}${modifier}`);
-
-    const bonusDiceStr = specialRoll.bonusDice.length > 0
-      ? `<div>Bonus Dice: ${DiceMechanics.formatBonusDice(specialRoll.bonusDice)}</div>`
-      : '';
-
-    const chatContent = `
-      <div class="mech-foundry chat-card skill-roll">
-        <h3>${label}</h3>
-        <div class="roll-details">
-          <div>Dice: ${dice.join(', ')}</div>
-          ${bonusDiceStr}
-          ${modParts.length > 0 ? `<div>Modifiers: ${modParts.join(', ')}</div>` : ''}
-          <div>Total: ${result.finalTotal} vs TN ${tn}</div>
-        </div>
-        <div class="roll-result ${cssClass}">
-          <strong>${resultText}</strong>
-          ${!specialRoll.isFumble ? `<div>MoS: ${mos}</div>` : ''}
-        </div>
-      </div>`;
-
-    await ChatMessage.create({
-      speaker: ChatMessage.getSpeaker({ actor: this.actor }),
-      content: chatContent,
-      rolls: [roll]
-    });
-  }
-
-  /* -------------------------------------------- */
-  /*  Item Event Handlers                         */
+  /*  Item Event Handlers (Assets)                */
   /* -------------------------------------------- */
 
   _onItemEdit(event) {
@@ -1404,12 +881,5 @@ export class MechFoundryCompanySheet extends HandlebarsApplicationMixin(ActorShe
     const item = this.actor.items.get(li.dataset.itemId);
     if (!item) return;
     await item.delete();
-  }
-
-  async _onMTOERemove(event) {
-    event.preventDefault();
-    const actorId = event.currentTarget.dataset.actorId;
-    const linkedAssets = (this.actor.getFlag('mech-foundry', 'linkedAssets') || []).filter(id => id !== actorId);
-    await this.actor.setFlag('mech-foundry', 'linkedAssets', linkedAssets);
   }
 }
