@@ -14,15 +14,12 @@ const ARC_FIELDS = [
   { key: 'right', label: 'Right' }
 ];
 
-const MOVEMENT_FIELDS = [
-  { key: 'safeThrust', label: 'Safe Thrust' },
-  { key: 'maxThrust', label: 'Max Thrust' },
-  { key: 'initialFuel', label: 'Initial Fuel' },
-  { key: 'currentFuel', label: 'Current Fuel' },
-  { key: 'tonsBurnDay', label: 'Tons / Burn Day' },
-  { key: 'fighters', label: 'Fighters' },
-  { key: 'marinePoints', label: 'Marine Points' },
-  { key: 'heatSinks', label: 'Heat Sinks' }
+// Movement & Vitals arranged as columns of stacked pairs.
+const MOVEMENT_COLUMNS = [
+  [{ key: 'safeThrust', label: 'Safe Thrust' }, { key: 'maxThrust', label: 'Max Thrust' }],
+  [{ key: 'currentFuel', label: 'Current Fuel' }, { key: 'initialFuel', label: 'Initial Fuel' }],
+  [{ key: 'marinePoints', label: 'Marine Points' }, { key: 'fighters', label: 'Fighters' }],
+  [{ key: 'tonsBurnDay', label: 'Tons / Burn Day' }, { key: 'heatSinks', label: 'Heat Sinks' }]
 ];
 
 const WEAPON_COLUMNS = [
@@ -96,7 +93,7 @@ export class MechFoundryNavalShipSheet extends HandlebarsApplicationMixin(ActorS
       system,
       flags: this.actor.flags,
       arcFields: ARC_FIELDS,
-      movementFields: MOVEMENT_FIELDS,
+      movementColumns: MOVEMENT_COLUMNS,
       weaponColumns: WEAPON_COLUMNS,
       trackTurns: TRACK_TURNS.map((key, i) => ({ key, num: i + 1 })),
       critTable: CRIT_TABLE,

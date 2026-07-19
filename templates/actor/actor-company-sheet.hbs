@@ -76,7 +76,7 @@
               <span class="location-type">{{this.typeLabel}}{{#unless this.exists}} — actor deleted{{/unless}}</span>
             </div>
             <span class="loc-sum" title="Assigned crew / required"><i class="fas fa-users"></i> {{this.crewAssignedTotal}}/{{this.crewRequiredTotal}}</span>
-            <span class="loc-sum" title="Armor damage / max armor"><i class="fas fa-shield-halved"></i> {{this.armorDamage}}/{{this.armorMax}}</span>
+            <span class="loc-sum" title="Current armor / max armor"><i class="fas fa-shield-halved"></i> {{this.armorValue}}/{{this.armorMax}}</span>
             <div class="location-status-field">
               <label>Status</label>
               <input type="text" class="location-status" data-loc-id="{{this.id}}" value="{{this.status}}" placeholder="e.g. On station" {{#unless ../editable}}disabled{{/unless}} />
@@ -104,8 +104,7 @@
                 </div>
                 <input type="number" class="dept-xp xp-input" min="0" data-loc-id="{{../id}}" data-dept-id="{{this.id}}" value="{{this.xp}}" title="Total XP" {{#unless ../../editable}}disabled{{/unless}} />
 
-                <span class="staff-badge {{#unless this.canRoll}}disabled{{/unless}}">{{this.staffPct}}%</span>
-                {{#if this.hasPenalty}}<span class="dept-penalty">{{this.penaltyLabel}}</span>{{/if}}
+                <span class="staff-badge {{#if this.staffWarn}}warn{{/if}}" title="{{this.penaltyLabel}}">{{this.staffPct}}%{{this.staffSuffix}}</span>
                 <button type="button" class="dept-roll" data-loc-id="{{../id}}" data-dept-id="{{this.id}}"
                         title="{{#if this.canRoll}}Roll a department task{{else}}Below 50% staffing — cannot roll{{/if}}"
                         {{#unless this.canRoll}}disabled{{/unless}}><i class="fas fa-dice"></i></button>
