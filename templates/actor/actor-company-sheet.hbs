@@ -1,8 +1,8 @@
-<form class="{{cssClass}} mech-foundry company-sheet" autocomplete="off">
+<div class="company-sheet-content actor-sheet-content">
 
   {{!-- Company Header --}}
   <header class="sheet-header company-header">
-    <img class="profile-img" src="{{actor.img}}" data-edit="img" title="{{actor.name}}" height="70" width="70" />
+    <img class="profile-img" src="{{actor.img}}" data-action="editImage" data-edit="img" title="{{actor.name}}" height="70" width="70" />
     <div class="header-fields">
       <h1 class="company-name">
         <input name="name" type="text" value="{{actor.name}}" placeholder="Company Name" />
@@ -797,4 +797,4 @@
     </div>
 
   </section>
-</form>
+</div>
