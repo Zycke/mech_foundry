@@ -1,7 +1,8 @@
 import { DEPARTMENT_TYPES } from "./company-sheet.mjs";
 import {
   BAY_COMPONENT_TYPES, bayComponentDef, bayList, cargoCapacity, cargoUsed,
-  VEHICLE_CUBICLE_TYPES, shipCubiclesByVehicle, mtoeVehiclesAtShip
+  VEHICLE_CUBICLE_TYPES, shipCubiclesByVehicle, mtoeVehiclesAtShip,
+  SHIP_SUPPLY_FIELDS, GROUND_SUPPLY_GROUPS, blankCargoSupplies
 } from "../helpers/cargo.mjs";
 
 const { HandlebarsApplicationMixin } = foundry.applications.api;
@@ -171,6 +172,16 @@ export class MechFoundryNavalShipSheet extends HandlebarsApplicationMixin(ActorS
     context.cargoCapacity = cap === Infinity ? '∞' : cap;
     context.cargoUsed = used;
     context.cargoFree = cap === Infinity ? '∞' : Math.max(0, cap - used);
+
+    // Read-only supply manifest (managed from the company Logistics tab).
+    const cs = system.cargoSupplies || blankCargoSupplies();
+    context.logiShip = SHIP_SUPPLY_FIELDS.map(f => ({ label: f.label, value: Number(cs.ship?.[f.key]) || 0 }));
+    context.logiGround = GROUND_SUPPLY_GROUPS.map(g => ({
+      label: g.label,
+      fields: g.fields.map(f => ({ label: f.label, value: Number(cs.ground?.[f.key]) || 0 }))
+    }));
+    context.logiShipAmmo = (cs.shipAmmo || []).map(a => ({ name: a.name || '—', value: Number(a.value) || 0 }));
+    context.logiGroundAmmo = (cs.groundAmmo || []).map(a => ({ name: a.name || '—', usedBy: a.usedBy || '', value: Number(a.value) || 0 }));
 
     context.enrichedBiography = await foundry.applications.ux.TextEditor.implementation.enrichHTML(
       system.biography ?? "",

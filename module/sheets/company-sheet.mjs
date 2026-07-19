@@ -84,6 +84,18 @@ const UNIT_ACTOR_TYPE_LABELS = {
   battle_armor: 'Battle Armor'
 };
 
+/**
+ * MTOE roster groups: a unit box can hold a mix of these, each pairing a troop
+ * type with its matching vehicle type. Installation Crew has no vehicle.
+ */
+const MTOE_GROUPS = [
+  { troop: 'mechPilots', vehicle: 'mech', troopLabel: 'Mech Pilots', vehicleLabel: 'Mechs' },
+  { troop: 'aeroPilots', vehicle: 'aerospace_fighter', troopLabel: 'Aerospace Pilots', vehicleLabel: 'Aerospace Fighters' },
+  { troop: 'vehicleCrew', vehicle: 'ground_vehicle', troopLabel: 'Vehicle Crew', vehicleLabel: 'Ground Vehicles' },
+  { troop: 'infantry', vehicle: 'battle_armor', troopLabel: 'Infantry', vehicleLabel: 'Battle Armor' },
+  { troop: 'installationCrew', vehicle: null, troopLabel: 'Installation Crew', vehicleLabel: null }
+];
+
 const PERSON_STATUSES = ['Active', 'Injured', 'KIA'];
 const VEHICLE_STATUSES = ['Undamaged', 'Damaged', 'Destroyed'];
 const UNIT_STATUSES = ['Combat Ready', 'Lowered Readiness', 'Combat Ineffective'];
@@ -256,9 +268,9 @@ export class MechFoundryCompanySheet extends HandlebarsApplicationMixin(ActorShe
     const troopAssigned = {};
     for (const t of TROOP_TYPES) troopAssigned[t.key] = 0;
     for (const box of boxes) {
-      const type = box.personnelType;
-      if (troopAssigned.hasOwnProperty(type)) {
-        troopAssigned[type] += (box.personnel || []).length;
+      for (const p of (box.personnel || [])) {
+        const t = p.type || box.personnelType; // migrate legacy single-type boxes
+        if (t && troopAssigned.hasOwnProperty(t)) troopAssigned[t] += 1;
       }
     }
 
@@ -436,14 +448,12 @@ export class MechFoundryCompanySheet extends HandlebarsApplicationMixin(ActorShe
     const boxes = [];
 
     for (const box of stored) {
-      const troopType = box.personnelType || 'mechPilots';
-      const troopDef = TROOP_TYPES.find(t => t.key === troopType) || TROOP_TYPES[0];
-      const allowedVehicle = TROOP_VEHICLE[troopType];
-      const allowedVehicleLabel = allowedVehicle ? UNIT_ACTOR_TYPE_LABELS[allowedVehicle] : null;
-
-      const personnel = (box.personnel || []).map(p => ({
-        id: p.id, status: p.status || 'Active', label: troopDef.label
-      }));
+      // Personnel may be a mix of troop types; each carries its own type.
+      const personnel = (box.personnel || []).map(p => {
+        const type = p.type || box.personnelType || 'mechPilots';
+        const def = TROOP_TYPES.find(t => t.key === type) || TROOP_TYPES[0];
+        return { id: p.id, type, typeLabel: def.label, status: p.status || 'Active' };
+      });
       const units = (box.units || []).map(u => {
         const actor = game.actors.get(u.actorId);
         return {
@@ -451,40 +461,44 @@ export class MechFoundryCompanySheet extends HandlebarsApplicationMixin(ActorShe
           exists: !!actor,
           name: actor ? actor.name : 'Missing Unit',
           img: actor ? actor.img : 'icons/svg/hazard.svg',
+          actorType: actor ? actor.type : null,
           typeLabel: actor ? (UNIT_ACTOR_TYPE_LABELS[actor.type] || 'Unit') : 'Missing',
           status: u.status || 'Undamaged'
         };
       });
 
-      // Paired vertical rows: personnel[i] on the left, units[i] on the right.
-      const rowCount = Math.max(personnel.length, units.length);
-      const rows = [];
-      for (let i = 0; i < rowCount; i++) {
-        rows.push({ person: personnel[i] || null, vehicle: units[i] || null });
+      // Group the roster by combat type; pair crew ↔ vehicle within each group.
+      const groups = [];
+      for (const g of MTOE_GROUPS) {
+        const gp = personnel.filter(p => p.type === g.troop);
+        const gv = g.vehicle ? units.filter(u => u.actorType === g.vehicle) : [];
+        if (!gp.length && !gv.length) continue;
+        const rowCount = Math.max(gp.length, gv.length);
+        const rows = [];
+        for (let i = 0; i < rowCount; i++) rows.push({ person: gp[i] || null, vehicle: gv[i] || null });
+        let mismatch = null;
+        if (g.vehicle && gp.length !== gv.length) {
+          mismatch = gp.length > gv.length
+            ? `${g.troopLabel}: more crew than ${g.vehicleLabel.toLowerCase()}`
+            : `${g.troopLabel}: more ${g.vehicleLabel.toLowerCase()} than crew`;
+        }
+        groups.push({
+          troop: g.troop, troopLabel: g.troopLabel, vehicleLabel: g.vehicleLabel,
+          hasVehicle: !!g.vehicle, rows, personnelCount: gp.length, vehicleCount: gv.length, mismatch
+        });
       }
 
       const vet = MechFoundryCompanySheet.veterancy(box.xp);
-      let mismatch = null;
-      if (allowedVehicle) {
-        if (personnel.length > units.length) mismatch = 'More personnel than vehicles assigned.';
-        else if (units.length > personnel.length) mismatch = 'More vehicles than personnel assigned.';
-      } else if (units.length > 0) {
-        mismatch = 'This personnel type has no combat vehicles.';
-      }
-
       const locActor = box.locationId ? game.actors.get(box.locationId) : null;
 
       boxes.push({
         id: box.id,
         name: box.name || 'Unit',
         status: box.status || 'Combat Ready',
-        personnelType: troopType,
-        personnelTypeLabel: troopDef.label,
-        allowedVehicleLabel,
-        personnel, units, rows,
+        groups,
+        hasRoster: personnel.length > 0 || units.length > 0,
         troopTotal: personnel.length,
         vehicleTotal: units.length,
-        mismatch,
         locationId: box.locationId || '',
         locationName: locActor ? locActor.name : '',
         locationMissing: !!box.locationId && !locActor,
@@ -663,12 +677,7 @@ export class MechFoundryCompanySheet extends HandlebarsApplicationMixin(ActorShe
       const boxId = boxEl.dataset.boxId;
       const box = (this.actor.system.mtoe || []).find(b => b.id === boxId);
       if (!box) return false;
-      const allowed = TROOP_VEHICLE[box.personnelType || 'mechPilots'];
-      if (actor.type !== allowed) {
-        const label = allowed ? UNIT_ACTOR_TYPE_LABELS[allowed] : 'no vehicles';
-        ui.notifications.warn(`This unit (${TROOP_TYPES.find(t => t.key === box.personnelType)?.label}) accepts ${label} only.`);
-        return false;
-      }
+      // A box may hold a mix of vehicle types (each pairs with its crew type).
       // If the box is based at a location, the ship must have a free cubicle.
       if (box.locationId) {
         const ship = game.actors.get(box.locationId);
@@ -754,11 +763,10 @@ export class MechFoundryCompanySheet extends HandlebarsApplicationMixin(ActorShe
     html.on('click', '.remove-mtoe-box', this._onRemoveBox.bind(this));
     html.on('change', '.mtoe-box-name', this._onBoxNameChange.bind(this));
     html.on('change', '.mtoe-box-status', this._onBoxStatusChange.bind(this));
-    html.on('change', '.mtoe-personnel-type', this._onBoxTypeChange.bind(this));
     html.on('change', '.mtoe-location', this._onBoxLocationChange.bind(this));
     html.on('change', '.mtoe-xp', this._onBoxXpChange.bind(this));
     html.on('click', '.mtoe-roll', this._onBoxRoll.bind(this));
-    html.on('click', '.add-personnel', this._onAddPersonnel.bind(this));
+    html.on('change', '.add-personnel', this._onAddPersonnel.bind(this));
     html.on('click', '.remove-personnel', this._onRemovePersonnel.bind(this));
     html.on('change', '.person-status', this._onPersonStatusChange.bind(this));
     html.on('change', '.vehicle-status', this._onVehicleStatusChange.bind(this));
@@ -1058,7 +1066,7 @@ export class MechFoundryCompanySheet extends HandlebarsApplicationMixin(ActorShe
     const boxes = foundry.utils.deepClone(this.actor.system.mtoe || []);
     boxes.push({
       id: foundry.utils.randomID(), name: 'New Unit', status: 'Combat Ready',
-      personnelType: 'mechPilots', xp: 0, personnel: [], units: [], locationId: ''
+      xp: 0, personnel: [], units: [], locationId: ''
     });
     await this.actor.update({ 'system.mtoe': boxes });
   }
@@ -1080,19 +1088,6 @@ export class MechFoundryCompanySheet extends HandlebarsApplicationMixin(ActorShe
     const boxId = event.currentTarget.dataset.boxId;
     const value = event.currentTarget.value;
     await this._updateBox(boxId, box => { box.status = value; });
-  }
-
-  /** Changing personnel type clears assigned vehicles (type constraint changes). */
-  async _onBoxTypeChange(event) {
-    const boxId = event.currentTarget.dataset.boxId;
-    const value = event.currentTarget.value;
-    await this._updateBox(boxId, box => {
-      box.personnelType = value;
-      if ((box.units || []).length) {
-        box.units = [];
-        ui.notifications.info("Assigned vehicles cleared — they no longer match the unit's personnel type.");
-      }
-    });
   }
 
   async _onBoxXpChange(event) {
@@ -1130,12 +1125,14 @@ export class MechFoundryCompanySheet extends HandlebarsApplicationMixin(ActorShe
     await this._departmentRoll(box.name || 'Unit', vet, { mod: 0, canRoll: true, pct: 100 });
   }
 
+  /** Add one crew member of the troop type chosen in the dropdown. */
   async _onAddPersonnel(event) {
-    event.preventDefault();
     const boxId = event.currentTarget.dataset.boxId;
+    const type = event.currentTarget.value;
+    if (!type || !TROOP_TYPES.some(t => t.key === type)) return;
     await this._updateBox(boxId, box => {
       if (!Array.isArray(box.personnel)) box.personnel = [];
-      box.personnel.push({ id: foundry.utils.randomID(), status: 'Active' });
+      box.personnel.push({ id: foundry.utils.randomID(), type, status: 'Active' });
     });
   }
 
