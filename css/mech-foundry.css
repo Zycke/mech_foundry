@@ -6313,3 +6313,255 @@
 .mech-foundry-shop .shop-hc-desc { color: var(--mf-ink); line-height: 1.4; border-top: 1px solid var(--mf-line); padding-top: 6px; max-height: 220px; overflow: hidden; }
 .mech-foundry-shop .shop-hc-desc p { margin: 0 0 5px; }
 .mech-foundry-shop .shop-hc-desc p:last-child { margin-bottom: 0; }
+
+/* ============================================================= */
+/* Company sheet overhaul — Locations / Logistics / MTOE / Pools */
+/* Appended last so it wins the cascade. Uses the gritty-HUD     */
+/* palette (--mf-panel, --mf-amber, etc.).                       */
+/* ============================================================= */
+
+/* ---- Personnel pool strips (Locations + MTOE tabs) --------- */
+.mech-foundry.company-sheet .pool-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 4px 0 10px;
+}
+.mech-foundry.company-sheet .pool-chip {
+  display: flex;
+  flex-direction: column;
+  min-width: 92px;
+  padding: 4px 9px;
+  background: var(--mf-panel);
+  border: 1px solid var(--mf-line);
+  border-left: 3px solid var(--mf-amber);
+  border-radius: 2px;
+}
+.mech-foundry.company-sheet .pool-chip.over { border-left-color: var(--mf-danger); }
+.mech-foundry.company-sheet .pool-chip .pool-label {
+  color: var(--mf-ink-dim);
+  font-size: 0.7em;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.mech-foundry.company-sheet .pool-chip .pool-count { color: var(--mf-ink); font-family: var(--mf-font-mono); font-size: 0.85em; }
+.mech-foundry.company-sheet .pool-chip.over .pool-count strong { color: var(--mf-danger); }
+.mech-foundry.company-sheet .pool-chip .pool-count strong { color: var(--mf-amber-2); }
+.mech-foundry.company-sheet .pool-hint,
+.mech-foundry.company-sheet .drop-hint {
+  color: var(--mf-ink-dim);
+  font-size: 0.75em;
+  font-style: italic;
+}
+.mech-foundry.company-sheet .drop-hint { display: block; margin: 4px 0 8px; }
+
+/* ---- Location cards ---------------------------------------- */
+.mech-foundry.company-sheet .location-card,
+.mech-foundry.company-sheet .mtoe-box,
+.mech-foundry.company-sheet .logi-location,
+.mech-foundry.company-sheet .pool-editor {
+  background: var(--mf-panel);
+  border: 1px solid var(--mf-line);
+  border-radius: 3px;
+  margin-bottom: 10px;
+}
+.mech-foundry.company-sheet .location-head,
+.mech-foundry.company-sheet .mtoe-box-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  background: linear-gradient(90deg, var(--mf-panel-2), var(--mf-panel));
+  border-bottom: 1px solid var(--mf-line);
+  border-left: 3px solid var(--mf-amber);
+}
+.mech-foundry.company-sheet .location-head img { border: 1px solid var(--mf-steel); border-radius: 2px; }
+.mech-foundry.company-sheet .location-title { display: flex; flex-direction: column; flex: 1 1 auto; min-width: 0; }
+.mech-foundry.company-sheet .location-name {
+  color: var(--mf-amber-2);
+  font-family: var(--mf-font-head);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.mech-foundry.company-sheet .location-type { color: var(--mf-ink-dim); font-size: 0.72em; }
+.mech-foundry.company-sheet .location-status-field,
+.mech-foundry.company-sheet .mtoe-status-field { display: flex; align-items: center; gap: 5px; }
+.mech-foundry.company-sheet .location-status-field label,
+.mech-foundry.company-sheet .mtoe-status-field label { color: var(--mf-ink-dim); font-size: 0.72em; text-transform: uppercase; }
+.mech-foundry.company-sheet .location-crew-total,
+.mech-foundry.company-sheet .mtoe-troop-total { color: var(--mf-ink); font-family: var(--mf-font-mono); font-size: 0.8em; white-space: nowrap; }
+.mech-foundry.company-sheet .location-remove,
+.mech-foundry.company-sheet .remove-mtoe-box { color: var(--mf-danger); cursor: pointer; }
+
+.mech-foundry.company-sheet .location-body,
+.mech-foundry.company-sheet .mtoe-box-body { padding: 8px 10px; }
+
+.mech-foundry.company-sheet .dept-block-header,
+.mech-foundry.company-sheet .ammo-block-head,
+.mech-foundry.company-sheet .mtoe-subhead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+  color: var(--mf-amber);
+  font-family: var(--mf-font-head);
+  font-size: 0.78em;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.mech-foundry.company-sheet .mtoe-subhead { justify-content: flex-start; gap: 6px; margin-top: 4px; }
+
+/* ---- Department rows --------------------------------------- */
+.mech-foundry.company-sheet .dept-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 6px;
+  margin-bottom: 4px;
+  background: var(--mf-panel-2);
+  border: 1px solid var(--mf-line);
+  border-radius: 2px;
+}
+.mech-foundry.company-sheet .dept-row.understaffed { border-left: 3px solid var(--mf-danger); }
+.mech-foundry.company-sheet .dept-name { flex: 0 0 130px; }
+.mech-foundry.company-sheet .dept-crew-grid { display: flex; align-items: center; gap: 10px; flex: 1 1 auto; flex-wrap: wrap; }
+.mech-foundry.company-sheet .dept-crew-cell { display: flex; flex-direction: column; gap: 2px; }
+.mech-foundry.company-sheet .dept-crew-label { color: var(--mf-ink-dim); font-size: 0.68em; text-transform: uppercase; letter-spacing: 0.04em; }
+.mech-foundry.company-sheet .dept-crew-inputs { display: flex; align-items: center; gap: 2px; }
+.mech-foundry.company-sheet .dept-crew { width: 42px; text-align: center; }
+.mech-foundry.company-sheet .dept-crew.req { opacity: 0.85; }
+.mech-foundry.company-sheet .dept-crew-sep { color: var(--mf-ink-dim); }
+.mech-foundry.company-sheet .dept-fill { color: var(--mf-ink); font-family: var(--mf-font-mono); font-size: 0.8em; }
+.mech-foundry.company-sheet .dept-fill.short { color: var(--mf-danger); }
+.mech-foundry.company-sheet .remove-department { color: var(--mf-danger); cursor: pointer; }
+
+/* ---- Buttons ----------------------------------------------- */
+.mech-foundry.company-sheet .add-department,
+.mech-foundry.company-sheet .add-mtoe-box,
+.mech-foundry.company-sheet .add-ship-ammo,
+.mech-foundry.company-sheet .add-ground-ammo {
+  padding: 3px 10px;
+  background: var(--mf-panel-2);
+  color: var(--mf-amber-2);
+  border: 1px solid var(--mf-steel);
+  border-radius: 2px;
+  font-size: 0.75em;
+  text-transform: uppercase;
+  cursor: pointer;
+  width: auto;
+}
+.mech-foundry.company-sheet .add-department:hover,
+.mech-foundry.company-sheet .add-mtoe-box:hover,
+.mech-foundry.company-sheet .add-ship-ammo:hover,
+.mech-foundry.company-sheet .add-ground-ammo:hover { border-color: var(--mf-amber); }
+.mech-foundry.company-sheet .mtoe-controls { margin: 4px 0 10px; }
+
+/* ---- MTOE unit chips + drop zone --------------------------- */
+.mech-foundry.company-sheet .mtoe-units { margin-bottom: 8px; }
+.mech-foundry.company-sheet .mtoe-unit-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  margin: 0 5px 5px 0;
+  background: var(--mf-panel-2);
+  border: 1px solid var(--mf-line);
+  border-radius: 2px;
+}
+.mech-foundry.company-sheet .mtoe-unit-chip.missing { border-color: var(--mf-danger); opacity: 0.7; }
+.mech-foundry.company-sheet .mtoe-unit-chip .unit-name { color: var(--mf-ink); font-size: 0.82em; }
+.mech-foundry.company-sheet .mtoe-unit-chip .unit-type { color: var(--mf-ink-dim); font-size: 0.7em; }
+.mech-foundry.company-sheet .mtoe-unit-remove { color: var(--mf-danger); cursor: pointer; }
+.mech-foundry.company-sheet .drop-zone {
+  padding: 8px;
+  border: 1px dashed var(--mf-steel);
+  border-radius: 2px;
+  color: var(--mf-ink-dim);
+  font-size: 0.76em;
+  text-align: center;
+}
+.mech-foundry.company-sheet .drop-zone.small { padding: 5px; font-size: 0.72em; }
+
+/* ---- Troop / supply numeric grids -------------------------- */
+.mech-foundry.company-sheet .troop-grid,
+.mech-foundry.company-sheet .supply-grid,
+.mech-foundry.company-sheet .pool-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 6px;
+}
+.mech-foundry.company-sheet .troop-cell,
+.mech-foundry.company-sheet .supply-cell,
+.mech-foundry.company-sheet .pool-edit-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 5px 7px;
+  background: var(--mf-panel-2);
+  border: 1px solid var(--mf-line);
+  border-radius: 2px;
+}
+.mech-foundry.company-sheet .troop-cell label,
+.mech-foundry.company-sheet .supply-cell label,
+.mech-foundry.company-sheet .pool-edit-cell label {
+  color: var(--mf-ink-dim);
+  font-size: 0.7em;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.mech-foundry.company-sheet .pool-edit-cell.over { border-left: 3px solid var(--mf-danger); }
+.mech-foundry.company-sheet .pool-sub { color: var(--mf-ink-dim); font-size: 0.68em; font-family: var(--mf-font-mono); }
+
+/* ---- Logistics --------------------------------------------- */
+.mech-foundry.company-sheet .logi-section { margin-bottom: 14px; }
+.mech-foundry.company-sheet .logi-location-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: linear-gradient(90deg, var(--mf-panel-2), var(--mf-panel));
+  border-bottom: 1px solid var(--mf-line);
+}
+.mech-foundry.company-sheet .logi-location .supply-grid,
+.mech-foundry.company-sheet .logi-location .ammo-block { padding: 8px 10px; }
+.mech-foundry.company-sheet .ground-group { margin-bottom: 8px; }
+.mech-foundry.company-sheet .logi-note { color: var(--mf-ink-dim); font-size: 0.72em; font-style: italic; margin: 5px 0 0; }
+
+/* ---- Ammo rows --------------------------------------------- */
+.mech-foundry.company-sheet .ammo-block { margin-top: 6px; }
+.mech-foundry.company-sheet .ammo-row {
+  display: grid;
+  grid-template-columns: 1fr 80px auto;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 4px;
+}
+.mech-foundry.company-sheet .ammo-row.wide { grid-template-columns: 1fr 1fr 80px auto; }
+.mech-foundry.company-sheet .remove-ship-ammo,
+.mech-foundry.company-sheet .remove-ground-ammo { color: var(--mf-danger); cursor: pointer; }
+
+/* ---- Pool editor (Status tab) ------------------------------ */
+.mech-foundry.company-sheet .pool-editor { padding: 8px 10px; margin-top: 10px; }
+.mech-foundry.company-sheet .pool-editor-group { margin-bottom: 8px; }
+
+/* ---- Shared input styling within new sections -------------- */
+.mech-foundry.company-sheet .location-card input,
+.mech-foundry.company-sheet .mtoe-box input,
+.mech-foundry.company-sheet .logi-location input,
+.mech-foundry.company-sheet .ground-group input,
+.mech-foundry.company-sheet .pool-editor input,
+.mech-foundry.company-sheet .status-overview input {
+  background: var(--mf-bg);
+  color: var(--mf-ink);
+  border: 1px solid var(--mf-steel);
+  border-radius: 2px;
+  padding: 2px 5px;
+}
+.mech-foundry.company-sheet .location-card input:focus,
+.mech-foundry.company-sheet .mtoe-box input:focus,
+.mech-foundry.company-sheet .logi-location input:focus,
+.mech-foundry.company-sheet .ground-group input:focus,
+.mech-foundry.company-sheet .pool-editor input:focus,
+.mech-foundry.company-sheet .status-overview input:focus { border-color: var(--mf-amber); outline: none; }
+.mech-foundry.company-sheet .empty-notice.small { font-size: 0.76em; padding: 4px 0; }
