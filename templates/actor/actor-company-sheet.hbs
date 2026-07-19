@@ -503,7 +503,7 @@
               {{this.name}}
             </div>
             <div class="item-field flex2">
-              {{#if (eq this.type "vehicle_actor")}}Vehicle{{else}}Ship{{/if}}
+              {{this.typeLabel}}
             </div>
             <div class="item-controls flex1">
               <a class="mtoe-remove" data-actor-id="{{this.id}}" title="Remove"><i class="fas fa-trash"></i></a>
@@ -512,7 +512,7 @@
           {{/each}}
         </ol>
         {{#unless mtoeActors.length}}
-        <p class="empty-notice">Drag Vehicle or Ship actors here to add them to the MTOE.</p>
+        <p class="empty-notice">Drag unit actors (Mech, Vehicle, Ship, Fighter, Battle Armor, Installation) here to add them to the MTOE.</p>
         {{/unless}}
       </div>
     </div>

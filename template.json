@@ -4,8 +4,12 @@
       "character",
       "npc",
       "company",
-      "vehicle_actor",
-      "ship"
+      "naval_ship",
+      "mech",
+      "ground_vehicle",
+      "aerospace_fighter",
+      "battle_armor",
+      "installation"
     ],
     "templates": {
       "base": {
@@ -134,10 +138,22 @@
       "financialLedger": [],
       "biography": ""
     },
-    "vehicle_actor": {
+    "naval_ship": {
       "biography": ""
     },
-    "ship": {
+    "mech": {
+      "biography": ""
+    },
+    "ground_vehicle": {
+      "biography": ""
+    },
+    "aerospace_fighter": {
+      "biography": ""
+    },
+    "battle_armor": {
+      "biography": ""
+    },
+    "installation": {
       "biography": ""
     }
   },

@@ -5128,22 +5128,36 @@
 }
 
 /* ================================================ */
-/*  Vehicle & Ship Actor Sheets (Placeholder)       */
+/*  Unit Actor Sheets (Placeholders)                */
+/*  Naval Ship / Mech / Ground Vehicle /            */
+/*  Aerospace Fighter / Battle Armor / Installation */
 /* ================================================ */
 
-.mech-foundry.vehicle-actor-sheet .placeholder-content,
-.mech-foundry.ship-sheet .placeholder-content {
+.mech-foundry.naval-ship-sheet .placeholder-content,
+.mech-foundry.mech-sheet .placeholder-content,
+.mech-foundry.ground-vehicle-sheet .placeholder-content,
+.mech-foundry.aerospace-fighter-sheet .placeholder-content,
+.mech-foundry.battle-armor-sheet .placeholder-content,
+.mech-foundry.installation-sheet .placeholder-content {
   padding: 20px;
   text-align: center;
 }
 
-.mech-foundry.vehicle-actor-sheet .placeholder-content h3,
-.mech-foundry.ship-sheet .placeholder-content h3 {
+.mech-foundry.naval-ship-sheet .placeholder-content h3,
+.mech-foundry.mech-sheet .placeholder-content h3,
+.mech-foundry.ground-vehicle-sheet .placeholder-content h3,
+.mech-foundry.aerospace-fighter-sheet .placeholder-content h3,
+.mech-foundry.battle-armor-sheet .placeholder-content h3,
+.mech-foundry.installation-sheet .placeholder-content h3 {
   color: var(--mf-amber);
 }
 
-.mech-foundry.vehicle-actor-sheet .placeholder-content p,
-.mech-foundry.ship-sheet .placeholder-content p {
+.mech-foundry.naval-ship-sheet .placeholder-content p,
+.mech-foundry.mech-sheet .placeholder-content p,
+.mech-foundry.ground-vehicle-sheet .placeholder-content p,
+.mech-foundry.aerospace-fighter-sheet .placeholder-content p,
+.mech-foundry.battle-armor-sheet .placeholder-content p,
+.mech-foundry.installation-sheet .placeholder-content p {
   color: var(--mf-ink-dim);
   font-style: italic;
 }

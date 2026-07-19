@@ -45,8 +45,10 @@ Priority things to test in a real v14 world:
       count; `avgHealth` mixes damage-taken and health-remaining). Needs the intended
       semantics of "readiness"/"health" for mixed actor + personnel units.
 - [?] **Token bars (M1)**: `system.json` sets `primaryTokenAttribute: "damage"` /
-      `secondaryTokenAttribute: "fatigue"`, but `company` / `vehicle_actor` / `ship`
-      lack those fields → empty bars. Decide what (if anything) those bars should show.
+      `secondaryTokenAttribute: "fatigue"`, but `company` and the unit actor types
+      (`naval_ship` / `mech` / `ground_vehicle` / `aerospace_fighter` / `battle_armor` /
+      `installation`) lack those fields → empty bars. Decide what (if anything) those
+      bars should show.
 
 ## 3. Intentional divergences (leave as-is)
 

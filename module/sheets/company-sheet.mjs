@@ -59,6 +59,19 @@ const UNIT_SKILLS = {
 
 const UNIT_LEADER_SKILLS = ['leadership', 'tactics', 'strategy'];
 
+/**
+ * Actor types that can be linked to the company as MTOE assets, mapped to their
+ * display label. These are the placeholder unit actor types (filled out later).
+ */
+const MTOE_ACTOR_TYPES = {
+  naval_ship: 'Naval Ship',
+  mech: 'Mech',
+  ground_vehicle: 'Ground Vehicle',
+  aerospace_fighter: 'Aerospace Fighter',
+  battle_armor: 'Battle Armor',
+  installation: 'Installation'
+};
+
 const { HandlebarsApplicationMixin, DialogV2 } = foundry.applications.api;
 const { ActorSheetV2 } = foundry.applications.sheets;
 
@@ -149,7 +162,7 @@ export class MechFoundryCompanySheet extends HandlebarsApplicationMixin(ActorShe
       })
     }));
 
-    // Prepare MTOE actor assets (vehicle_actor and ship actors linked via flag)
+    // Prepare MTOE actor assets (unit actors linked via flag)
     this._prepareMTOEActors(context);
 
     // Enrich biography
@@ -230,19 +243,20 @@ export class MechFoundryCompanySheet extends HandlebarsApplicationMixin(ActorShe
   }
 
   /**
-   * Prepare MTOE actors (vehicle_actor and ship actors linked via flag)
+   * Prepare MTOE actors (unit actors linked via flag)
    */
   _prepareMTOEActors(context) {
     const mtoeActors = [];
     const linkedAssets = this.actor.getFlag('mech-foundry', 'linkedAssets') || [];
     for (const assetId of linkedAssets) {
       const actor = game.actors.get(assetId);
-      if (actor && (actor.type === 'vehicle_actor' || actor.type === 'ship')) {
+      if (actor && MTOE_ACTOR_TYPES.hasOwnProperty(actor.type)) {
         mtoeActors.push({
           id: actor.id,
           name: actor.name,
           img: actor.img,
-          type: actor.type
+          type: actor.type,
+          typeLabel: MTOE_ACTOR_TYPES[actor.type]
         });
       }
     }
@@ -754,8 +768,8 @@ export class MechFoundryCompanySheet extends HandlebarsApplicationMixin(ActorShe
       }
     }
 
-    // Handle dropping vehicle_actor/ship onto MTOE tab
-    if (actor.type === 'vehicle_actor' || actor.type === 'ship') {
+    // Handle dropping unit actors (mech, vehicle, ship, etc.) onto MTOE tab
+    if (MTOE_ACTOR_TYPES.hasOwnProperty(actor.type)) {
       const linkedAssets = this.actor.getFlag('mech-foundry', 'linkedAssets') || [];
       if (linkedAssets.includes(actor.id)) {
         ui.notifications.warn(`${actor.name} is already linked to this company.`);
@@ -767,7 +781,7 @@ export class MechFoundryCompanySheet extends HandlebarsApplicationMixin(ActorShe
       return false;
     }
 
-    ui.notifications.warn("Drag character/NPC actors to the Organization tab. Drag Vehicle/Ship actors to the MTOE tab.");
+    ui.notifications.warn("Drag character/NPC actors to the Organization tab. Drag unit actors (Mech, Vehicle, Ship, etc.) to the MTOE tab.");
     return false;
   }
 
