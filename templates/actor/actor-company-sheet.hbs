@@ -46,22 +46,20 @@
     <a class="item" data-tab="finances">Finances</a>
   </nav>
 
-  {{!-- Sheet Body --}}
   <section class="sheet-body">
 
     {{!-- ==================== LOCATIONS TAB ==================== --}}
     <div class="tab" data-tab="locations" data-group="primary">
       <div class="tab-content">
 
-        {{!-- Company-wide crew availability strip --}}
         <div class="pool-strip">
           {{#each crewPools}}
           <div class="pool-chip {{#if this.over}}over{{/if}}">
             <span class="pool-label">{{this.label}}</span>
-            <span class="pool-count"><strong>{{this.available}}</strong> free / {{this.total}}</span>
+            <span class="pool-count"><span class="pool-free">{{this.available}}</span> free / <span class="pool-assigned">{{this.assigned}}</span> assigned</span>
           </div>
           {{/each}}
-          <span class="pool-hint">Set totals on the Status tab</span>
+          <span class="pool-hint">Totals on the Status tab</span>
         </div>
 
         <p class="drop-hint"><i class="fas fa-anchor"></i> Drag a Naval Ship or Installation actor here to add it as a location.</p>
@@ -94,7 +92,28 @@
 
             {{#each this.departments}}
             <div class="dept-row {{#if this.understaffed}}understaffed{{/if}}">
-              <input type="text" class="dept-name" data-loc-id="{{../id}}" data-dept-id="{{this.id}}" value="{{this.name}}" placeholder="Department" {{#unless ../../editable}}disabled{{/unless}} />
+              <div class="dept-row-top">
+                <select class="dept-type" data-loc-id="{{../id}}" data-dept-id="{{this.id}}" {{#unless ../../editable}}disabled{{/unless}}>
+                  {{#each ../../departmentTypes}}
+                  <option value="{{this.key}}" {{#if (eq this.key ../type)}}selected{{/if}}>{{this.label}}</option>
+                  {{/each}}
+                </select>
+
+                <span class="vet-badge vet-{{this.veterancy}}">{{this.veterancy}} ({{#if (gte this.vetMod 0)}}+{{/if}}{{this.vetMod}})</span>
+                <div class="xp-track" title="{{this.xpInto}}/100 XP to next tier">
+                  <div class="xp-fill" style="width:{{this.xpPct}}%"></div>
+                </div>
+                <input type="number" class="dept-xp xp-input" min="0" data-loc-id="{{../id}}" data-dept-id="{{this.id}}" value="{{this.xp}}" title="Total XP" {{#unless ../../editable}}disabled{{/unless}} />
+
+                <span class="staff-badge {{#unless this.canRoll}}disabled{{/unless}}">{{this.staffPct}}%</span>
+                <button type="button" class="dept-roll" data-loc-id="{{../id}}" data-dept-id="{{this.id}}"
+                        title="{{#if this.canRoll}}Roll a department task{{else}}Below 50% staffing — cannot roll{{/if}}"
+                        {{#unless this.canRoll}}disabled{{/unless}}><i class="fas fa-dice"></i></button>
+                {{#if ../../editable}}
+                <a class="remove-department" data-loc-id="{{../id}}" data-dept-id="{{this.id}}" title="Remove Department"><i class="fas fa-trash"></i></a>
+                {{/if}}
+              </div>
+
               <div class="dept-crew-grid">
                 {{#each this.crew}}
                 <div class="dept-crew-cell">
@@ -110,10 +129,7 @@
                   </span>
                 </div>
                 {{/each}}
-                <span class="dept-fill {{#if this.understaffed}}short{{/if}}">{{this.assignedTotal}}/{{this.reqTotal}}</span>
-                {{#if ../../editable}}
-                <a class="remove-department" data-loc-id="{{../id}}" data-dept-id="{{this.id}}" title="Remove Department"><i class="fas fa-trash"></i></a>
-                {{/if}}
+                <span class="dept-fill {{#if this.understaffed}}short{{/if}}">Staffed {{this.assignedTotal}}/{{this.reqTotal}}</span>
               </div>
             </div>
             {{/each}}
@@ -134,7 +150,6 @@
     <div class="tab" data-tab="logistics" data-group="primary">
       <div class="tab-content">
 
-        {{!-- Ship Supplies (per location) --}}
         <div class="logi-section">
           <h3><i class="fas fa-ship"></i> Ship Supplies</h3>
           {{#each shipLocations}}
@@ -177,7 +192,6 @@
           {{/unless}}
         </div>
 
-        {{!-- Ground Forces Supplies (company-wide) --}}
         <div class="logi-section">
           <h3><i class="fas fa-truck-field"></i> Ground Forces Supplies</h3>
           <p class="logi-note">Stored in ship cargo, used by deployed troops.</p>
@@ -224,26 +238,11 @@
         <div class="status-section">
           <h3>Company Status</h3>
           <div class="status-overview">
-            <div class="status-item">
-              <label>Total Personnel</label>
-              <span>{{totalPersonnel}}</span>
-            </div>
-            <div class="status-item">
-              <label>Locations</label>
-              <span>{{locationCount}}</span>
-            </div>
-            <div class="status-item">
-              <label>MTOE Units</label>
-              <span>{{unitBoxCount}}</span>
-            </div>
-            <div class="status-item">
-              <label>Available Funds</label>
-              <span>{{numberFormat system.cbills}} C-Bills</span>
-            </div>
-            <div class="status-item">
-              <label>Monthly Expenses</label>
-              <input type="number" min="0" name="system.monthlyExpenses" value="{{system.monthlyExpenses}}" {{#unless editable}}disabled{{/unless}} />
-            </div>
+            <div class="status-item"><label>Total Personnel</label><span>{{totalPersonnel}}</span></div>
+            <div class="status-item"><label>Locations</label><span>{{locationCount}}</span></div>
+            <div class="status-item"><label>MTOE Units</label><span>{{unitBoxCount}}</span></div>
+            <div class="status-item"><label>Available Funds</label><span>{{numberFormat system.cbills}} C-Bills</span></div>
+            <div class="status-item"><label>Monthly Salaries</label><span>{{numberFormat monthlyExpenses}} C-Bills</span></div>
           </div>
 
           {{!-- Personnel pool editor --}}
@@ -256,7 +255,7 @@
                 <div class="pool-edit-cell {{#if this.over}}over{{/if}}">
                   <label>{{this.label}}</label>
                   <input type="number" min="0" name="system.personnel.{{this.key}}" value="{{this.total}}" {{#unless ../editable}}disabled{{/unless}} />
-                  <span class="pool-sub">{{this.assigned}} assigned · {{this.available}} free</span>
+                  <span class="pool-sub"><span class="pool-assigned">{{this.assigned}}</span> assigned · <span class="pool-free">{{this.available}}</span> free · {{numberFormat this.salary}} C-Bills ea.</span>
                 </div>
                 {{/each}}
               </div>
@@ -268,16 +267,49 @@
                 <div class="pool-edit-cell {{#if this.over}}over{{/if}}">
                   <label>{{this.label}}</label>
                   <input type="number" min="0" name="system.personnel.{{this.key}}" value="{{this.total}}" {{#unless ../editable}}disabled{{/unless}} />
-                  <span class="pool-sub">{{this.assigned}} assigned · {{this.available}} free</span>
+                  <span class="pool-sub"><span class="pool-assigned">{{this.assigned}}</span> assigned · <span class="pool-free">{{this.available}}</span> free · {{numberFormat this.salary}} C-Bills ea.</span>
                 </div>
                 {{/each}}
               </div>
             </div>
           </div>
 
+          {{!-- Medical status framework --}}
+          <div class="medical-section">
+            <h3><i class="fas fa-kit-medical"></i> Medical</h3>
+            <table class="medical-table">
+              <thead>
+                <tr>
+                  <th class="med-type-col">Personnel Type</th>
+                  {{#each medicalStatuses}}<th>{{this.label}}</th>{{/each}}
+                </tr>
+              </thead>
+              <tbody>
+                {{#each medicalRows}}
+                <tr>
+                  <td class="med-type-col">{{this.label}}</td>
+                  {{#each this.cells}}
+                  <td><input type="number" min="0" name="system.medical.{{../key}}.{{this.key}}" value="{{this.value}}" {{#unless ../../editable}}disabled{{/unless}} /></td>
+                  {{/each}}
+                </tr>
+                {{/each}}
+              </tbody>
+              <tfoot>
+                <tr class="med-total-row">
+                  <td class="med-type-col">Total</td>
+                  {{#each medicalTotals}}<td>{{this.value}}</td>{{/each}}
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+
           <div class="company-notes">
             <h3>Notes</h3>
-            {{editor enrichedBiography target="system.biography" button=true owner=owner editable=editable}}
+            <div class="editor-container">
+              {{#if editable}}
+              <prose-mirror name="system.biography" data-document-uuid="{{actor.uuid}}" value="{{system.biography}}" collaborate="false" toggled="true">{{{enrichedBiography}}}</prose-mirror>
+              {{else}}{{{enrichedBiography}}}{{/if}}
+            </div>
           </div>
         </div>
       </div>
@@ -288,15 +320,14 @@
       <div class="tab-content">
         <h3>Modified Table of Organization &amp; Equipment</h3>
 
-        {{!-- Company-wide troop availability strip --}}
         <div class="pool-strip">
           {{#each troopPools}}
           <div class="pool-chip {{#if this.over}}over{{/if}}">
             <span class="pool-label">{{this.label}}</span>
-            <span class="pool-count"><strong>{{this.available}}</strong> free / {{this.total}}</span>
+            <span class="pool-count"><span class="pool-free">{{this.available}}</span> free / <span class="pool-assigned">{{this.assigned}}</span> assigned</span>
           </div>
           {{/each}}
-          <span class="pool-hint">Set totals on the Status tab</span>
+          <span class="pool-hint">Totals on the Status tab</span>
         </div>
 
         {{#if editable}}
@@ -305,271 +336,259 @@
         </div>
         {{/if}}
 
+        <div class="mtoe-boxes">
         {{#each mtoe}}
         <div class="mtoe-box" data-box-id="{{this.id}}">
           <div class="mtoe-box-head">
             <input type="text" class="mtoe-box-name" data-box-id="{{this.id}}" value="{{this.name}}" placeholder="Unit name" {{#unless ../editable}}disabled{{/unless}} />
-            <div class="mtoe-status-field">
-              <label>Status</label>
-              <input type="text" class="mtoe-box-status" data-box-id="{{this.id}}" value="{{this.status}}" placeholder="e.g. Combat ready" {{#unless ../editable}}disabled{{/unless}} />
-            </div>
-            <span class="mtoe-troop-total"><i class="fas fa-user"></i> {{this.troopTotal}}</span>
             {{#if ../editable}}
             <a class="remove-mtoe-box" data-box-id="{{this.id}}" title="Delete Unit Box"><i class="fas fa-trash"></i></a>
             {{/if}}
           </div>
 
-          <div class="mtoe-box-body">
-            {{!-- Linked equipment --}}
-            <div class="mtoe-units">
-              <div class="mtoe-subhead"><i class="fas fa-cogs"></i> Equipment</div>
-              {{#each this.units}}
-              <div class="mtoe-unit-chip {{#unless this.exists}}missing{{/unless}}">
-                <img src="{{this.img}}" width="20" height="20" />
-                <span class="unit-name">{{this.name}}</span>
-                <span class="unit-type">{{this.typeLabel}}</span>
+          <div class="mtoe-box-controls">
+            <label class="ctl">Personnel
+              <select class="mtoe-personnel-type" data-box-id="{{this.id}}" {{#unless ../editable}}disabled{{/unless}}>
+                {{#each ../troopTypes}}
+                <option value="{{this.key}}" {{#if (eq this.key ../personnelType)}}selected{{/if}}>{{this.label}}</option>
+                {{/each}}
+              </select>
+            </label>
+            <label class="ctl">Status
+              <select class="mtoe-box-status" data-box-id="{{this.id}}" {{#unless ../editable}}disabled{{/unless}}>
+                {{#each ../unitStatuses}}
+                <option value="{{this}}" {{#if (eq this ../status)}}selected{{/if}}>{{this}}</option>
+                {{/each}}
+              </select>
+            </label>
+          </div>
+
+          <div class="mtoe-box-vet">
+            <span class="vet-badge vet-{{this.veterancy}}">{{this.veterancy}} ({{#if (gte this.vetMod 0)}}+{{/if}}{{this.vetMod}})</span>
+            <div class="xp-track" title="{{this.xpInto}}/100 XP to next tier"><div class="xp-fill" style="width:{{this.xpPct}}%"></div></div>
+            <input type="number" class="mtoe-xp xp-input" min="0" data-box-id="{{this.id}}" value="{{this.xp}}" title="Total XP" {{#unless ../editable}}disabled{{/unless}} />
+            <button type="button" class="mtoe-roll" data-box-id="{{this.id}}" title="Roll a unit task"><i class="fas fa-dice"></i></button>
+          </div>
+
+          {{#if this.mismatch}}
+          <div class="mtoe-warning"><i class="fas fa-triangle-exclamation"></i> {{this.mismatch}}</div>
+          {{/if}}
+
+          {{!-- Paired personnel / vehicle rows --}}
+          <div class="mtoe-roster">
+            <div class="roster-head">
+              <span>{{this.personnelTypeLabel}} ({{this.troopTotal}})</span>
+              <span>{{#if this.allowedVehicleLabel}}{{this.allowedVehicleLabel}} ({{this.vehicleTotal}}){{else}}No vehicles{{/if}}</span>
+            </div>
+            {{#each this.rows}}
+            <div class="roster-row">
+              <div class="roster-person">
+                {{#if this.person}}
+                <span class="rp-name">{{this.person.label}}</span>
+                <select class="person-status status-{{this.person.status}}" data-box-id="{{../id}}" data-person-id="{{this.person.id}}" {{#unless ../../editable}}disabled{{/unless}}>
+                  {{#each ../../personStatuses}}<option value="{{this}}" {{#if (eq this ../person.status)}}selected{{/if}}>{{this}}</option>{{/each}}
+                </select>
                 {{#if ../../editable}}
-                <a class="mtoe-unit-remove" data-box-id="{{../id}}" data-actor-id="{{this.id}}" title="Remove"><i class="fas fa-times"></i></a>
+                <a class="remove-personnel" data-box-id="{{../id}}" data-person-id="{{this.person.id}}" title="Remove"><i class="fas fa-times"></i></a>
+                {{/if}}
+                {{else}}
+                <span class="rp-empty">—</span>
                 {{/if}}
               </div>
-              {{/each}}
-              <div class="drop-zone small">Drag Mech / Vehicle / Fighter / Battle Armor actors here</div>
-            </div>
-
-            {{!-- Assigned troops --}}
-            <div class="mtoe-troops">
-              <div class="mtoe-subhead"><i class="fas fa-users"></i> Assigned Troops</div>
-              <div class="troop-grid">
-                {{#each this.troops}}
-                <div class="troop-cell">
-                  <label>{{this.label}}</label>
-                  <input type="number" class="mtoe-troop" min="0" data-box-id="{{../id}}" data-type="{{this.key}}" value="{{this.value}}" {{#unless ../../editable}}disabled{{/unless}} />
-                </div>
-                {{/each}}
+              <div class="roster-vehicle">
+                {{#if this.vehicle}}
+                <a class="mtoe-unit-open {{#unless this.vehicle.exists}}missing{{/unless}}" data-actor-id="{{this.vehicle.actorId}}" title="Open sheet">
+                  <img src="{{this.vehicle.img}}" width="18" height="18" />{{this.vehicle.name}}
+                </a>
+                <select class="vehicle-status vstatus-{{this.vehicle.status}}" data-box-id="{{../id}}" data-actor-id="{{this.vehicle.actorId}}" {{#unless ../../editable}}disabled{{/unless}}>
+                  {{#each ../../vehicleStatuses}}<option value="{{this}}" {{#if (eq this ../vehicle.status)}}selected{{/if}}>{{this}}</option>{{/each}}
+                </select>
+                {{#if ../../editable}}
+                <a class="mtoe-unit-remove" data-box-id="{{../id}}" data-actor-id="{{this.vehicle.actorId}}" title="Remove"><i class="fas fa-times"></i></a>
+                {{/if}}
+                {{else}}
+                <span class="rp-empty">—</span>
+                {{/if}}
               </div>
             </div>
+            {{/each}}
+            {{#unless this.rows.length}}
+            <p class="empty-notice small">No personnel or vehicles yet.</p>
+            {{/unless}}
           </div>
+
+          {{#if ../editable}}
+          <div class="mtoe-box-actions">
+            <button type="button" class="add-personnel" data-box-id="{{this.id}}"><i class="fas fa-user-plus"></i> Add {{this.personnelTypeLabel}}</button>
+            {{#if this.allowedVehicleLabel}}
+            <span class="drop-zone small">Drag {{this.allowedVehicleLabel}} actors here</span>
+            {{/if}}
+          </div>
+          {{/if}}
         </div>
         {{/each}}
+        </div>
 
         {{#unless mtoe.length}}
-        <p class="empty-notice">No unit boxes. Click "Add Unit Box", then drag unit actors onto it and assign troops.</p>
+        <p class="empty-notice">No unit boxes. Click "Add Unit Box", pick a personnel type, then add personnel and drag matching vehicles onto it.</p>
         {{/unless}}
       </div>
     </div>
 
     {{!-- ==================== ASSETS TAB ==================== --}}
     <div class="tab" data-tab="assets" data-group="primary">
-      <div class="tab-content">
+      <div class="tab-content assets-tab">
         <h3>Company Assets</h3>
 
         {{#if companyAssets.weapon.length}}
         <div class="asset-category">
           <h4 class="category-title">Weapons</h4>
-          <div class="items-header flexrow">
-            <div class="item-name flex3">Name</div>
-            <div class="item-field flex1">Type</div>
-            <div class="item-field flex1">AP</div>
-            <div class="item-field flex1">BD</div>
-            <div class="item-field flex1">Cost</div>
-            <div class="item-controls flex1">Controls</div>
+          <div class="asset-grid asset-header">
+            <div class="ac-name">Name</div><div>Type</div><div>AP</div><div>BD</div><div class="ac-cost">Cost</div><div class="ac-ctrl">Controls</div>
           </div>
-          <ol class="item-list">
-            {{#each companyAssets.weapon}}
-            <li class="item flexrow" data-item-id="{{this._id}}">
-              <div class="item-name flex3">{{this.name}}</div>
-              <div class="item-field flex1">{{this.system.weaponType}}</div>
-              <div class="item-field flex1">{{this.system.ap}}{{this.system.apFactor}}</div>
-              <div class="item-field flex1">{{this.system.bd}}{{this.system.bdFactor}}</div>
-              <div class="item-field flex1">{{numberFormat this.system.cost}}</div>
-              <div class="item-controls flex1">
-                <a class="item-edit" title="Edit"><i class="fas fa-edit"></i></a>
-                <a class="item-delete" title="Delete"><i class="fas fa-trash"></i></a>
-              </div>
-            </li>
-            {{/each}}
-          </ol>
+          {{#each companyAssets.weapon}}
+          <div class="asset-grid asset-row" data-item-id="{{this._id}}">
+            <div class="ac-name">{{this.name}}</div>
+            <div>{{this.system.weaponType}}</div>
+            <div>{{this.system.ap}}{{this.system.apFactor}}</div>
+            <div>{{this.system.bd}}{{this.system.bdFactor}}</div>
+            <div class="ac-cost">{{numberFormat this.system.cost}}</div>
+            <div class="ac-ctrl"><a class="item-edit" title="Edit"><i class="fas fa-edit"></i></a><a class="item-delete" title="Delete"><i class="fas fa-trash"></i></a></div>
+          </div>
+          {{/each}}
         </div>
         {{/if}}
 
         {{#if companyAssets.armor.length}}
         <div class="asset-category">
           <h4 class="category-title">Armor</h4>
-          <div class="items-header flexrow">
-            <div class="item-name flex3">Name</div>
-            <div class="item-field flex1">Type</div>
-            <div class="item-field flex2">BAR (M/B/E/X)</div>
-            <div class="item-field flex1">Cost</div>
-            <div class="item-controls flex1">Controls</div>
+          <div class="asset-grid asset-header">
+            <div class="ac-name">Name</div><div>Type</div><div>BAR (M/B/E/X)</div><div></div><div class="ac-cost">Cost</div><div class="ac-ctrl">Controls</div>
           </div>
-          <ol class="item-list">
-            {{#each companyAssets.armor}}
-            <li class="item flexrow" data-item-id="{{this._id}}">
-              <div class="item-name flex3">{{this.name}}</div>
-              <div class="item-field flex1">{{this.system.armorType}}</div>
-              <div class="item-field flex2">{{this.system.bar.m}}/{{this.system.bar.b}}/{{this.system.bar.e}}/{{this.system.bar.x}}</div>
-              <div class="item-field flex1">{{numberFormat this.system.cost}}</div>
-              <div class="item-controls flex1">
-                <a class="item-edit" title="Edit"><i class="fas fa-edit"></i></a>
-                <a class="item-delete" title="Delete"><i class="fas fa-trash"></i></a>
-              </div>
-            </li>
-            {{/each}}
-          </ol>
+          {{#each companyAssets.armor}}
+          <div class="asset-grid asset-row" data-item-id="{{this._id}}">
+            <div class="ac-name">{{this.name}}</div>
+            <div>{{this.system.armorType}}</div>
+            <div>{{this.system.bar.m}}/{{this.system.bar.b}}/{{this.system.bar.e}}/{{this.system.bar.x}}</div>
+            <div></div>
+            <div class="ac-cost">{{numberFormat this.system.cost}}</div>
+            <div class="ac-ctrl"><a class="item-edit" title="Edit"><i class="fas fa-edit"></i></a><a class="item-delete" title="Delete"><i class="fas fa-trash"></i></a></div>
+          </div>
+          {{/each}}
         </div>
         {{/if}}
 
         {{#if companyAssets.ammo.length}}
         <div class="asset-category">
           <h4 class="category-title">Ammunition</h4>
-          <div class="items-header flexrow">
-            <div class="item-name flex3">Name</div>
-            <div class="item-field flex1">Category</div>
-            <div class="item-field flex1">Qty</div>
-            <div class="item-field flex1">Cost</div>
-            <div class="item-controls flex1">Controls</div>
+          <div class="asset-grid asset-header">
+            <div class="ac-name">Name</div><div>Category</div><div>Qty</div><div></div><div class="ac-cost">Cost</div><div class="ac-ctrl">Controls</div>
           </div>
-          <ol class="item-list">
-            {{#each companyAssets.ammo}}
-            <li class="item flexrow" data-item-id="{{this._id}}">
-              <div class="item-name flex3">{{this.name}}</div>
-              <div class="item-field flex1">{{this.system.ammoCategory}}</div>
-              <div class="item-field flex1">{{this.system.quantity.value}}/{{this.system.quantity.max}}</div>
-              <div class="item-field flex1">{{numberFormat this.system.cost}}</div>
-              <div class="item-controls flex1">
-                <a class="item-edit" title="Edit"><i class="fas fa-edit"></i></a>
-                <a class="item-delete" title="Delete"><i class="fas fa-trash"></i></a>
-              </div>
-            </li>
-            {{/each}}
-          </ol>
+          {{#each companyAssets.ammo}}
+          <div class="asset-grid asset-row" data-item-id="{{this._id}}">
+            <div class="ac-name">{{this.name}}</div>
+            <div>{{this.system.ammoCategory}}</div>
+            <div>{{this.system.quantity.value}}/{{this.system.quantity.max}}</div>
+            <div></div>
+            <div class="ac-cost">{{numberFormat this.system.cost}}</div>
+            <div class="ac-ctrl"><a class="item-edit" title="Edit"><i class="fas fa-edit"></i></a><a class="item-delete" title="Delete"><i class="fas fa-trash"></i></a></div>
+          </div>
+          {{/each}}
         </div>
         {{/if}}
 
         {{#if companyAssets.electronics.length}}
         <div class="asset-category">
           <h4 class="category-title">Electronics</h4>
-          <div class="items-header flexrow">
-            <div class="item-name flex3">Name</div>
-            <div class="item-field flex1">Range</div>
-            <div class="item-field flex1">Power</div>
-            <div class="item-field flex1">Cost</div>
-            <div class="item-controls flex1">Controls</div>
+          <div class="asset-grid asset-header">
+            <div class="ac-name">Name</div><div>Range</div><div>Power</div><div></div><div class="ac-cost">Cost</div><div class="ac-ctrl">Controls</div>
           </div>
-          <ol class="item-list">
-            {{#each companyAssets.electronics}}
-            <li class="item flexrow" data-item-id="{{this._id}}">
-              <div class="item-name flex3">{{this.name}}</div>
-              <div class="item-field flex1">{{this.system.range}}</div>
-              <div class="item-field flex1">{{this.system.powerUse}}</div>
-              <div class="item-field flex1">{{numberFormat this.system.cost}}</div>
-              <div class="item-controls flex1">
-                <a class="item-edit" title="Edit"><i class="fas fa-edit"></i></a>
-                <a class="item-delete" title="Delete"><i class="fas fa-trash"></i></a>
-              </div>
-            </li>
-            {{/each}}
-          </ol>
+          {{#each companyAssets.electronics}}
+          <div class="asset-grid asset-row" data-item-id="{{this._id}}">
+            <div class="ac-name">{{this.name}}</div>
+            <div>{{this.system.range}}</div>
+            <div>{{this.system.powerUse}}</div>
+            <div></div>
+            <div class="ac-cost">{{numberFormat this.system.cost}}</div>
+            <div class="ac-ctrl"><a class="item-edit" title="Edit"><i class="fas fa-edit"></i></a><a class="item-delete" title="Delete"><i class="fas fa-trash"></i></a></div>
+          </div>
+          {{/each}}
         </div>
         {{/if}}
 
         {{#if companyAssets.healthcare.length}}
         <div class="asset-category">
           <h4 class="category-title">Healthcare</h4>
-          <div class="items-header flexrow">
-            <div class="item-name flex3">Name</div>
-            <div class="item-field flex1">Charges</div>
-            <div class="item-field flex1">Cost</div>
-            <div class="item-controls flex1">Controls</div>
+          <div class="asset-grid asset-header">
+            <div class="ac-name">Name</div><div>Charges</div><div></div><div></div><div class="ac-cost">Cost</div><div class="ac-ctrl">Controls</div>
           </div>
-          <ol class="item-list">
-            {{#each companyAssets.healthcare}}
-            <li class="item flexrow" data-item-id="{{this._id}}">
-              <div class="item-name flex3">{{this.name}}</div>
-              <div class="item-field flex1">{{this.system.charges.value}}/{{this.system.charges.max}}</div>
-              <div class="item-field flex1">{{numberFormat this.system.cost}}</div>
-              <div class="item-controls flex1">
-                <a class="item-edit" title="Edit"><i class="fas fa-edit"></i></a>
-                <a class="item-delete" title="Delete"><i class="fas fa-trash"></i></a>
-              </div>
-            </li>
-            {{/each}}
-          </ol>
+          {{#each companyAssets.healthcare}}
+          <div class="asset-grid asset-row" data-item-id="{{this._id}}">
+            <div class="ac-name">{{this.name}}</div>
+            <div>{{this.system.charges.value}}/{{this.system.charges.max}}</div>
+            <div></div>
+            <div></div>
+            <div class="ac-cost">{{numberFormat this.system.cost}}</div>
+            <div class="ac-ctrl"><a class="item-edit" title="Edit"><i class="fas fa-edit"></i></a><a class="item-delete" title="Delete"><i class="fas fa-trash"></i></a></div>
+          </div>
+          {{/each}}
         </div>
         {{/if}}
 
         {{#if companyAssets.fuel.length}}
         <div class="asset-category">
           <h4 class="category-title">Fuel</h4>
-          <div class="items-header flexrow">
-            <div class="item-name flex3">Name</div>
-            <div class="item-field flex1">Type</div>
-            <div class="item-field flex1">Mass</div>
-            <div class="item-controls flex1">Controls</div>
+          <div class="asset-grid asset-header">
+            <div class="ac-name">Name</div><div>Type</div><div>Mass</div><div></div><div class="ac-cost">Cost</div><div class="ac-ctrl">Controls</div>
           </div>
-          <ol class="item-list">
-            {{#each companyAssets.fuel}}
-            <li class="item flexrow" data-item-id="{{this._id}}">
-              <div class="item-name flex3">{{this.name}}</div>
-              <div class="item-field flex1">{{this.system.fuelType}}</div>
-              <div class="item-field flex1">{{this.system.mass}}</div>
-              <div class="item-controls flex1">
-                <a class="item-edit" title="Edit"><i class="fas fa-edit"></i></a>
-                <a class="item-delete" title="Delete"><i class="fas fa-trash"></i></a>
-              </div>
-            </li>
-            {{/each}}
-          </ol>
+          {{#each companyAssets.fuel}}
+          <div class="asset-grid asset-row" data-item-id="{{this._id}}">
+            <div class="ac-name">{{this.name}}</div>
+            <div>{{this.system.fuelType}}</div>
+            <div>{{this.system.mass}}</div>
+            <div></div>
+            <div class="ac-cost">—</div>
+            <div class="ac-ctrl"><a class="item-edit" title="Edit"><i class="fas fa-edit"></i></a><a class="item-delete" title="Delete"><i class="fas fa-trash"></i></a></div>
+          </div>
+          {{/each}}
         </div>
         {{/if}}
 
         {{#if companyAssets.prosthetics.length}}
         <div class="asset-category">
           <h4 class="category-title">Prosthetics</h4>
-          <div class="items-header flexrow">
-            <div class="item-name flex3">Name</div>
-            <div class="item-field flex1">Rating</div>
-            <div class="item-field flex1">Cost</div>
-            <div class="item-controls flex1">Controls</div>
+          <div class="asset-grid asset-header">
+            <div class="ac-name">Name</div><div>Rating</div><div></div><div></div><div class="ac-cost">Cost</div><div class="ac-ctrl">Controls</div>
           </div>
-          <ol class="item-list">
-            {{#each companyAssets.prosthetics}}
-            <li class="item flexrow" data-item-id="{{this._id}}">
-              <div class="item-name flex3">{{this.name}}</div>
-              <div class="item-field flex1">{{this.system.equipmentRating}}</div>
-              <div class="item-field flex1">{{numberFormat this.system.cost}}</div>
-              <div class="item-controls flex1">
-                <a class="item-edit" title="Edit"><i class="fas fa-edit"></i></a>
-                <a class="item-delete" title="Delete"><i class="fas fa-trash"></i></a>
-              </div>
-            </li>
-            {{/each}}
-          </ol>
+          {{#each companyAssets.prosthetics}}
+          <div class="asset-grid asset-row" data-item-id="{{this._id}}">
+            <div class="ac-name">{{this.name}}</div>
+            <div>{{this.system.equipmentRating}}</div>
+            <div></div>
+            <div></div>
+            <div class="ac-cost">{{numberFormat this.system.cost}}</div>
+            <div class="ac-ctrl"><a class="item-edit" title="Edit"><i class="fas fa-edit"></i></a><a class="item-delete" title="Delete"><i class="fas fa-trash"></i></a></div>
+          </div>
+          {{/each}}
         </div>
         {{/if}}
 
         {{#if companyAssets.drugpoison.length}}
         <div class="asset-category">
           <h4 class="category-title">Drugs &amp; Poisons</h4>
-          <div class="items-header flexrow">
-            <div class="item-name flex3">Name</div>
-            <div class="item-field flex1">Strength</div>
-            <div class="item-field flex1">Cost</div>
-            <div class="item-controls flex1">Controls</div>
+          <div class="asset-grid asset-header">
+            <div class="ac-name">Name</div><div>Strength</div><div></div><div></div><div class="ac-cost">Cost</div><div class="ac-ctrl">Controls</div>
           </div>
-          <ol class="item-list">
-            {{#each companyAssets.drugpoison}}
-            <li class="item flexrow" data-item-id="{{this._id}}">
-              <div class="item-name flex3">{{this.name}}</div>
-              <div class="item-field flex1">{{this.system.drugStrength}}</div>
-              <div class="item-field flex1">{{numberFormat this.system.basePrice}}</div>
-              <div class="item-controls flex1">
-                <a class="item-edit" title="Edit"><i class="fas fa-edit"></i></a>
-                <a class="item-delete" title="Delete"><i class="fas fa-trash"></i></a>
-              </div>
-            </li>
-            {{/each}}
-          </ol>
+          {{#each companyAssets.drugpoison}}
+          <div class="asset-grid asset-row" data-item-id="{{this._id}}">
+            <div class="ac-name">{{this.name}}</div>
+            <div>{{this.system.drugStrength}}</div>
+            <div></div>
+            <div></div>
+            <div class="ac-cost">{{numberFormat this.system.basePrice}}</div>
+            <div class="ac-ctrl"><a class="item-edit" title="Edit"><i class="fas fa-edit"></i></a><a class="item-delete" title="Delete"><i class="fas fa-trash"></i></a></div>
+          </div>
+          {{/each}}
         </div>
         {{/if}}
 
@@ -584,7 +603,7 @@
       <div class="tab-content">
         <div class="finance-controls">
           <button type="button" class="pay-monthly-expenses">
-            <i class="fas fa-money-bill-wave"></i> Pay Monthly Expenses ({{numberFormat system.monthlyExpenses}} C-Bills)
+            <i class="fas fa-money-bill-wave"></i> Pay Monthly Salaries ({{numberFormat monthlyExpenses}} C-Bills)
           </button>
         </div>
 
@@ -606,11 +625,7 @@
             <div class="item-field flex2">{{this.formattedDate}}</div>
             <div class="item-field flex2">{{this.submittedBy}}</div>
             <div class="item-field flex1 transaction-type">
-              {{#if (eq this.type "add")}}
-              <span class="funds-add">+ Deposit</span>
-              {{else}}
-              <span class="funds-remove">- Withdrawal</span>
-              {{/if}}
+              {{#if (eq this.type "add")}}<span class="funds-add">+ Deposit</span>{{else}}<span class="funds-remove">- Withdrawal</span>{{/if}}
             </div>
             <div class="item-field flex1">{{this.amount}}</div>
             <div class="item-field flex2">{{this.reason}}</div>

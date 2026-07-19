@@ -142,6 +142,16 @@
         "vehicleCrew": 0,
         "installationCrew": 0
       },
+      "medical": {
+        "enlisted": { "active": 0, "wounded": 0, "kia": 0 },
+        "officers": { "active": 0, "wounded": 0, "kia": 0 },
+        "bayTechs": { "active": 0, "wounded": 0, "kia": 0 },
+        "infantry": { "active": 0, "wounded": 0, "kia": 0 },
+        "aeroPilots": { "active": 0, "wounded": 0, "kia": 0 },
+        "mechPilots": { "active": 0, "wounded": 0, "kia": 0 },
+        "vehicleCrew": { "active": 0, "wounded": 0, "kia": 0 },
+        "installationCrew": { "active": 0, "wounded": 0, "kia": 0 }
+      },
       "locations": [],
       "mtoe": [],
       "groundSupplies": {
