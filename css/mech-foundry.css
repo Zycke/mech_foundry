@@ -7198,3 +7198,149 @@
 .mech-foundry.company-sheet .ammo-need-row { display: flex; align-items: baseline; gap: 8px; padding: 2px 0; font-size: 0.8em; }
 .mech-foundry.company-sheet .ammo-need-row .an-type { flex: 0 0 140px; color: var(--mf-amber-2); font-family: var(--mf-font-mono); }
 .mech-foundry.company-sheet .ammo-need-row .an-units { color: var(--mf-ink-dim); }
+
+/* ============================================================= */
+/* BattleMech actor sheet (Status/Combat/Crits/Details) — mirrors */
+/* the approved HUD mockup. Scoped to .mech-sheet.                 */
+/* ============================================================= */
+.mech-foundry.mech-sheet .window-content { background: var(--mf-bg); color: var(--mf-ink); }
+.mech-foundry.mech-sheet .mech-sheet-content { display: flex; flex-direction: column; height: 100%; }
+
+/* ---- Header ---- */
+.mech-foundry.mech-sheet .mech-header {
+  display: flex; gap: 12px; align-items: center; padding: 8px 10px; margin-bottom: 6px;
+  background: linear-gradient(135deg, #10151a 0%, #202a33 60%, #171d23 100%);
+  border: 1px solid var(--mf-line); border-radius: 4px;
+}
+.mech-foundry.mech-sheet .mech-header .profile-img { border: 1px solid var(--mf-steel); border-radius: 4px; background: #0e1216; object-fit: cover; cursor: pointer; }
+.mech-foundry.mech-sheet .header-id { flex: 1; min-width: 0; }
+.mech-foundry.mech-sheet .header-id h1 { margin: 0; border: none; }
+.mech-foundry.mech-sheet .header-id h1 input {
+  background: transparent; border: none; border-bottom: 1px solid var(--mf-line);
+  color: var(--mf-amber-2); font-family: var(--mf-font-head); font-size: 1.3rem; font-weight: 700; width: 100%;
+}
+.mech-foundry.mech-sheet .header-sub { display: flex; align-items: center; gap: 6px; margin-top: 4px; flex-wrap: wrap; }
+.mech-foundry.mech-sheet .header-sub .sub-field {
+  background: var(--mf-bg); border: 1px solid var(--mf-steel); border-radius: 2px; color: var(--mf-ink);
+  font-size: 0.78rem; padding: 1px 5px; width: 58px;
+}
+.mech-foundry.mech-sheet .header-sub .sub-field.wide { width: 120px; }
+.mech-foundry.mech-sheet .header-sub .unit { color: var(--mf-ink-dim); font-size: 0.75rem; margin-right: 4px; }
+.mech-foundry.mech-sheet .header-totals { display: flex; flex-direction: column; gap: 4px; text-align: right; flex: 0 0 auto; }
+.mech-foundry.mech-sheet .tot-badge {
+  font-family: var(--mf-font-mono); font-size: 0.72rem; padding: 2px 8px; border-radius: 3px;
+  border: 1px solid var(--mf-line); background: #0e1216; white-space: nowrap;
+}
+.mech-foundry.mech-sheet .tot-badge.armor { color: #7fc0f0; border-color: #2f5570; }
+.mech-foundry.mech-sheet .tot-badge.struct { color: var(--mf-amber); border-color: #6b5417; }
+.mech-foundry.mech-sheet .tot-badge.dmg { color: var(--mf-danger); border-color: #6b2a26; }
+
+/* ---- Panels ---- */
+.mech-foundry.mech-sheet .mf-panel {
+  background: var(--mf-panel-2); border: 1px solid var(--mf-line); border-radius: 5px; padding: 9px; margin-bottom: 8px;
+}
+.mech-foundry.mech-sheet .mf-panel > h4 {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 8px;
+  margin: 0 0 8px; padding-bottom: 5px; border-bottom: 1px solid var(--mf-line);
+  color: var(--mf-amber); font-family: var(--mf-font-head); font-size: 0.78rem;
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
+.mech-foundry.mech-sheet .mf-panel > h4 .hint { color: var(--mf-ink-dim); font-size: 0.66rem; letter-spacing: 0.02em; font-weight: 400; text-transform: none; }
+.mech-foundry.mech-sheet .mf-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+@media (max-width: 560px) { .mech-foundry.mech-sheet .mf-grid2 { grid-template-columns: 1fr; } }
+.mech-foundry.mech-sheet .logi-note { color: var(--mf-ink-dim); font-size: 0.72em; font-style: italic; margin: 6px 0 0; }
+
+/* ---- Armor / structure map ---- */
+.mech-foundry.mech-sheet .mech-map { display: grid; grid-template-columns: 1fr 1.05fr 1fr; gap: 6px; align-items: start; }
+.mech-foundry.mech-sheet .mech-col { display: flex; flex-direction: column; gap: 6px; }
+.mech-foundry.mech-sheet .locbox { background: #0e1216; border: 1px solid var(--mf-line); border-radius: 4px; padding: 5px 6px; }
+.mech-foundry.mech-sheet .locbox.dmg { border-color: #5a2f2b; }
+.mech-foundry.mech-sheet .locbox .top { display: flex; justify-content: space-between; font-size: 0.66rem; color: var(--mf-ink-dim); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 2px; }
+.mech-foundry.mech-sheet .loc-row { display: flex; align-items: center; gap: 5px; margin-top: 3px; }
+.mech-foundry.mech-sheet .loc-row .tag { font-family: var(--mf-font-head); font-size: 0.6rem; width: 11px; color: var(--mf-ink-dim); flex: 0 0 auto; }
+.mech-foundry.mech-sheet .loc-row .num { display: inline-flex; align-items: baseline; font-family: var(--mf-font-mono); font-size: 0.74rem; white-space: nowrap; flex: 0 0 auto; }
+.mech-foundry.mech-sheet .loc-row .num input {
+  width: 34px; background: var(--mf-bg); border: 1px solid var(--mf-steel); border-radius: 2px;
+  color: var(--mf-ink); text-align: right; font-family: var(--mf-font-mono); font-size: 0.74rem; padding: 0 3px;
+}
+.mech-foundry.mech-sheet .loc-row.a .num input { color: #7fc0f0; }
+.mech-foundry.mech-sheet .loc-row.s .num input { color: var(--mf-amber); }
+.mech-foundry.mech-sheet .locbox.dmg .loc-row.a .num input { color: var(--mf-danger); }
+.mech-foundry.mech-sheet .loc-row .num .mx { color: var(--mf-ink-dim); }
+.mech-foundry.mech-sheet .loc-row .mini { flex: 1 1 auto; height: 5px; background: #05080a; border: 1px solid var(--mf-line); border-radius: 2px; overflow: hidden; }
+.mech-foundry.mech-sheet .loc-row .mini > span { display: block; height: 100%; }
+.mech-foundry.mech-sheet .loc-row.a .mini > span { background: linear-gradient(90deg, #3f77a3, #5b9fd1); }
+.mech-foundry.mech-sheet .loc-row.s .mini > span { background: linear-gradient(90deg, #8a6a2e, var(--mf-amber)); }
+.mech-foundry.mech-sheet .locbox.dmg .loc-row.a .mini > span { background: linear-gradient(90deg, #7a3a34, #d9483b); }
+.mech-foundry.mech-sheet .rear { font-family: var(--mf-font-mono); font-size: 0.62rem; color: var(--mf-ink-dim); margin: 1px 0 0 16px; }
+.mech-foundry.mech-sheet .rear .rear-in { width: 30px; background: var(--mf-bg); border: 1px solid var(--mf-steel); border-radius: 2px; color: #7fc0f0; text-align: right; font-family: var(--mf-font-mono); font-size: 0.62rem; padding: 0 2px; }
+
+/* ---- Heat gauge ---- */
+.mech-foundry.mech-sheet .heat { display: flex; gap: 10px; align-items: stretch; }
+.mech-foundry.mech-sheet .heat .scale { flex: 0 0 30px; background: #0e1216; border: 1px solid var(--mf-line); border-radius: 4px; position: relative; min-height: 140px; overflow: hidden; }
+.mech-foundry.mech-sheet .heat .scale .fill { position: absolute; left: 0; right: 0; bottom: 0; background: linear-gradient(0deg, #4a9d4a, #d4a017 55%, #d9483b); }
+.mech-foundry.mech-sheet .heat .readout { flex: 1; }
+.mech-foundry.mech-sheet .heat-big { display: flex; align-items: baseline; }
+.mech-foundry.mech-sheet .heat-big input { width: 54px; background: var(--mf-bg); border: 1px solid var(--mf-steel); border-radius: 3px; color: var(--mf-amber-2); font-family: var(--mf-font-mono); font-size: 1.6rem; text-align: center; padding: 0 4px; }
+.mech-foundry.mech-sheet .heat-big small { color: var(--mf-ink-dim); font-size: 0.8rem; margin-left: 4px; }
+.mech-foundry.mech-sheet .eff-list { margin-top: 8px; }
+.mech-foundry.mech-sheet .effrow { display: flex; justify-content: space-between; font-size: 0.76rem; padding: 3px 0; border-bottom: 1px dotted var(--mf-line); }
+.mech-foundry.mech-sheet .effrow .e { color: var(--mf-ink-dim); }
+.mech-foundry.mech-sheet .effrow .val { font-family: var(--mf-font-mono); color: var(--mf-ink); }
+.mech-foundry.mech-sheet .effrow.active .e { color: var(--mf-amber); }
+.mech-foundry.mech-sheet .effrow.active .val { color: var(--mf-danger); }
+
+/* ---- Stat chips ---- */
+.mech-foundry.mech-sheet .mf-stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 6px; }
+.mech-foundry.mech-sheet .mf-stats.wide { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
+.mech-foundry.mech-sheet .mf-stat { display: flex; flex-direction: column; gap: 2px; background: #0e1216; border: 1px solid var(--mf-line); border-radius: 4px; padding: 4px 7px; }
+.mech-foundry.mech-sheet .mf-stat .k { font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--mf-ink-dim); }
+.mech-foundry.mech-sheet .mf-stat .v { font-family: var(--mf-font-mono); font-size: 1rem; color: var(--mf-ink); }
+.mech-foundry.mech-sheet .mf-stat .v.derived { color: var(--mf-ink-dim); }
+.mech-foundry.mech-sheet .mf-stat input, .mech-foundry.mech-sheet .mf-stat select { background: var(--mf-bg); border: 1px solid var(--mf-steel); border-radius: 2px; color: var(--mf-ink); font-family: var(--mf-font-mono); font-size: 0.92rem; padding: 1px 4px; }
+.mech-foundry.mech-sheet .flags { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 8px; }
+.mech-foundry.mech-sheet .chk { display: inline-flex; align-items: center; gap: 6px; font-size: 0.78rem; color: var(--mf-ink); }
+.mech-foundry.mech-sheet .chk input { accent-color: var(--mf-amber); }
+
+/* ---- Pilot block ---- */
+.mech-foundry.mech-sheet .pilot { display: flex; gap: 10px; align-items: center; }
+.mech-foundry.mech-sheet .pilot .pic { width: 44px; height: 44px; border-radius: 4px; background: #0e1216; border: 1px solid var(--mf-steel); display: grid; place-items: center; color: var(--mf-steel); overflow: hidden; flex: 0 0 auto; }
+.mech-foundry.mech-sheet .pilot .pic img { width: 100%; height: 100%; object-fit: cover; }
+.mech-foundry.mech-sheet .pilot .info { flex: 1; min-width: 0; }
+.mech-foundry.mech-sheet .pname-line { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.mech-foundry.mech-sheet .pilot .pname { color: var(--mf-amber-2); font-weight: 500; cursor: pointer; }
+.mech-foundry.mech-sheet .pilot .pname:hover { text-decoration: underline; }
+.mech-foundry.mech-sheet .pilot .pname-in { flex: 1; min-width: 90px; background: var(--mf-bg); border: 1px solid var(--mf-steel); border-radius: 2px; color: var(--mf-ink); padding: 2px 5px; }
+.mech-foundry.mech-sheet .pilot .link { font-size: 0.68rem; color: var(--mf-amber); cursor: pointer; }
+.mech-foundry.mech-sheet .pilot .link.linked { color: var(--mf-ok); cursor: default; }
+.mech-foundry.mech-sheet .pilot .pilot-unlink { color: var(--mf-danger); cursor: pointer; font-size: 0.72rem; }
+.mech-foundry.mech-sheet .consc { display: flex; gap: 3px; margin-top: 6px; }
+.mech-foundry.mech-sheet .consc-pip { width: 18px; height: 15px; border: 1px solid var(--mf-line); border-radius: 2px; background: #0e1216; font-size: 0.55rem; display: grid; place-items: center; color: var(--mf-ink-dim); cursor: pointer; }
+.mech-foundry.mech-sheet .consc-pip.taken { background: #6b2a26; color: #ffdede; border-color: #a33; }
+.mech-foundry.mech-sheet .skillpair { display: flex; gap: 8px; flex: 0 0 auto; }
+.mech-foundry.mech-sheet .skillpair .sk { display: flex; flex-direction: column; align-items: center; gap: 2px; background: #0e1216; border: 1px solid var(--mf-line); border-radius: 4px; padding: 3px 8px; }
+.mech-foundry.mech-sheet .skillpair .sk .k { font-size: 0.56rem; text-transform: uppercase; color: var(--mf-ink-dim); }
+.mech-foundry.mech-sheet .skillpair .sk input { width: 34px; background: var(--mf-bg); border: 1px solid var(--mf-steel); border-radius: 2px; color: var(--mf-amber-2); font-family: var(--mf-font-mono); font-size: 1rem; text-align: center; padding: 0 2px; }
+
+/* ---- Weapons table ---- */
+.mech-foundry.mech-sheet table.wt { width: 100%; border-collapse: collapse; }
+.mech-foundry.mech-sheet table.wt th { text-align: left; font-family: var(--mf-font-head); text-transform: uppercase; letter-spacing: 0.03em; font-size: 0.62rem; color: var(--mf-ink-dim); font-weight: 500; padding: 3px 4px; border-bottom: 1px solid var(--mf-line); }
+.mech-foundry.mech-sheet table.wt td { padding: 3px 4px; border-bottom: 1px solid #262f38; }
+.mech-foundry.mech-sheet table.wt .w-name { min-width: 120px; }
+.mech-foundry.mech-sheet table.wt input { width: 100%; background: var(--mf-bg); border: 1px solid var(--mf-steel); border-radius: 2px; color: var(--mf-ink); font-family: var(--mf-font-mono); font-size: 0.74rem; padding: 1px 4px; }
+.mech-foundry.mech-sheet table.wt input.n { width: 42px; text-align: center; }
+.mech-foundry.mech-sheet table.wt input.loc { width: 54px; }
+.mech-foundry.mech-sheet table.wt .w-name input { font-family: var(--mf-font-body); }
+.mech-foundry.mech-sheet .w-actions { white-space: nowrap; text-align: right; }
+.mech-foundry.mech-sheet .weapon-attack { font-size: 0.68rem; padding: 2px 7px; border-radius: 3px; border: 1px solid var(--mf-steel); background: #0e1216; color: var(--mf-amber); cursor: pointer; width: auto; }
+.mech-foundry.mech-sheet .weapon-attack:hover { border-color: var(--mf-amber); }
+.mech-foundry.mech-sheet .remove-weapon { color: var(--mf-danger); cursor: pointer; margin-left: 6px; }
+.mech-foundry.mech-sheet .mf-panel > h4 .add-weapon { padding: 2px 9px; background: var(--mf-bg); color: var(--mf-amber-2); border: 1px solid var(--mf-steel); border-radius: 2px; font-size: 0.68rem; cursor: pointer; width: auto; }
+.mech-foundry.mech-sheet .mf-panel > h4 .add-weapon:hover { border-color: var(--mf-amber); }
+
+/* ---- Crit checklist ---- */
+.mech-foundry.mech-sheet .crit { display: grid; grid-template-columns: 1fr; gap: 4px; }
+.mech-foundry.mech-sheet .crit .c { display: flex; justify-content: space-between; align-items: center; font-size: 0.78rem; color: var(--mf-ink); padding: 3px 0; border-bottom: 1px dotted var(--mf-line); }
+.mech-foundry.mech-sheet .crit .pips { display: flex; gap: 3px; }
+.mech-foundry.mech-sheet .sys-pip { width: 13px; height: 13px; border: 1px solid var(--mf-steel); border-radius: 2px; background: #0e1216; cursor: pointer; }
+.mech-foundry.mech-sheet .sys-pip.on { background: var(--mf-danger); border-color: #a33; }
