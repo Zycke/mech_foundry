@@ -28,6 +28,13 @@ export class MechFoundryActor extends Actor {
     const actorData = this;
     const systemData = actorData.system;
 
+    // Combat units (mech / ground vehicle / aerospace fighter): derive the
+    // Total Armor / Total Structure sums used by the token bars and MTOE status.
+    if (["mech", "ground_vehicle", "aerospace_fighter"].includes(this.type)) {
+      this._prepareUnitDerived(systemData);
+      return;
+    }
+
     // Skip character-specific calculations for non-character actor types
     if (!["character", "npc"].includes(this.type)) return;
 
@@ -62,6 +69,57 @@ export class MechFoundryActor extends Actor {
 
     // Store vision effects from equipped items
     systemData.visionEffects = ItemEffectsHelper.getVisionEffects(this);
+  }
+
+  /**
+   * Derive combat-unit totals: Total Armor and Total Structure as {value, max}.
+   * These back the two token bars and the MTOE damage-status roll-up. Sums every
+   * {value, max} sub-object (per-location armor/structure) or, for a single pool
+   * (e.g. a vehicle's structure), uses that pool directly.
+   * @param {Object} systemData
+   */
+  _prepareUnitDerived(systemData) {
+    systemData.derived = systemData.derived || {};
+    const sum = (obj) => {
+      if (!obj || typeof obj !== "object") return { value: 0, max: 0 };
+      // Single {value, max} pool with no nested bar objects.
+      const hasNested = Object.values(obj).some(v => v && typeof v === "object");
+      if (!hasNested && Number.isFinite(Number(obj.max))) {
+        return { value: Number(obj.value) || 0, max: Number(obj.max) || 0 };
+      }
+      let value = 0, max = 0;
+      for (const key in obj) {
+        const loc = obj[key];
+        if (loc && typeof loc === "object" && Number.isFinite(Number(loc.max))) {
+          value += Number(loc.value) || 0;
+          max += Number(loc.max) || 0;
+        }
+      }
+      return { value, max };
+    };
+    systemData.derived.armorTotal = sum(systemData.armor);
+    systemData.derived.structureTotal = sum(systemData.structure);
+  }
+
+  /**
+   * On creation, give combat units token bars that track their derived Total
+   * Armor / Total Structure instead of the character-oriented system defaults.
+   * @override
+   */
+  async _preCreate(data, options, user) {
+    const allowed = await super._preCreate(data, options, user);
+    if (allowed === false) return false;
+    if (["mech", "ground_vehicle", "aerospace_fighter"].includes(this.type)) {
+      const hasBars = foundry.utils.getProperty(data, "prototypeToken.bar1.attribute")
+        || foundry.utils.getProperty(data, "prototypeToken.bar2.attribute");
+      if (!hasBars) {
+        this.updateSource({
+          "prototypeToken.bar1.attribute": "derived.armorTotal",
+          "prototypeToken.bar2.attribute": "derived.structureTotal",
+          "prototypeToken.displayBars": CONST.TOKEN_DISPLAY_MODES.OWNER_HOVER
+        });
+      }
+    }
   }
 
   /**
