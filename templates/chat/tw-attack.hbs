@@ -60,6 +60,8 @@
       {{#if this.destroyed}}<div class="tw-hl-destroyed">UNIT DESTROYED</div>{{/if}}
       {{#if this.overflow}}<div class="tw-hl-event">▸ {{this.overflow}} excess damage lost</div>{{/if}}
       {{/each}}
+      {{#each hitResult.critChecks}}<div class="tw-hl-event tw-crit-line">▸ Crit check {{this.locLabel}} ({{this.total}}): <strong>{{this.text}}</strong>{{#if this.count}} — resolve on location slots{{/if}}</div>{{/each}}
+      {{#if hitResult.destroyedByCrit}}<div class="tw-hl-destroyed">HEAD BLOWN OFF — UNIT DESTROYED</div>{{/if}}
       {{#unless hitResult.applied}}<div class="tw-atk-dmg"><em>No permission — apply the above to {{hitResult.targetName}} manually.</em></div>{{/unless}}
     {{else}}
       <div class="tw-atk-dmg">

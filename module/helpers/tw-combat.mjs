@@ -104,6 +104,7 @@ export async function applyMechDamage(target, startLoc, amount, { rear = false }
   const armor = foundry.utils.deepClone(target.system.armor || {});
   const structure = foundry.utils.deepClone(target.system.structure || {});
   const events = [];
+  const structureHits = [];
   let loc = startLoc;
   let remaining = amount;
   let destroyed = false;
@@ -125,6 +126,7 @@ export async function applyMechDamage(target, startLoc, amount, { rear = false }
     if (st && st.value > 0) {
       const a = Math.min(st.value, remaining);
       st.value -= a; remaining -= a; absorbedThisLoc = true;
+      structureHits.push(loc);
       if (st.value <= 0) {
         events.push(`${MECH_LOC_LABEL[loc]} destroyed`);
         if (loc === 'ct') { destroyed = true; loc = null; }
@@ -143,9 +145,42 @@ export async function applyMechDamage(target, startLoc, amount, { rear = false }
   return {
     applied, destroyed,
     startLabel: MECH_LOC_LABEL[startLoc] || startLoc,
-    events,
+    events, structureHits,
     overflow: remaining > 0 && !destroyed ? remaining : 0
   };
+}
+
+/** Zero a mech location's armor + structure (limb/head blown off). Returns true if the head. */
+export async function blowOffMechLocation(target, loc) {
+  const armor = foundry.utils.deepClone(target.system.armor || {});
+  const structure = foundry.utils.deepClone(target.system.structure || {});
+  if (armor[loc]) armor[loc].value = 0;
+  const rearKey = REAR_ARMOR_KEY[loc];
+  if (rearKey && armor[rearKey]) armor[rearKey].value = 0;
+  if (structure[loc]) structure[loc].value = 0;
+  if (target.isOwner || game.user.isGM) await target.update({ 'system.armor': armor, 'system.structure': structure });
+  return loc === 'head';
+}
+
+const MECH_TORSO = new Set(['ct', 'lt', 'rt']);
+const MECH_LIMB = new Set(['la', 'ra', 'll', 'rl']);
+
+/**
+ * Roll the Determining Critical Hits Table for a struck location.
+ * @param {string} loc  Location key (drives torso vs limb/head handling on a 12).
+ */
+export async function rollDeterminingCrit(loc) {
+  const roll = await new Roll("2d6").evaluate();
+  const t = roll.total;
+  const isTorso = MECH_TORSO.has(loc);
+  let count = 0, blowOff = false, text = 'No critical hit';
+  if (t >= 8 && t <= 9) { count = 1; text = '1 critical hit'; }
+  else if (t >= 10 && t <= 11) { count = 2; text = '2 critical hits'; }
+  else if (t === 12) {
+    if (isTorso) { count = 3; text = '3 critical hits'; }
+    else { blowOff = true; text = (loc === 'head' ? 'Head' : 'Limb') + ' Blown Off'; }
+  }
+  return { roll, total: t, dice: roll.dice[0]?.results?.map(r => r.result) ?? [], count, blowOff, text, loc };
 }
 
 /* ------------------------------------------------------------------ */
@@ -449,6 +484,8 @@ export async function weaponAttack(actor, weapon) {
     const tt = targetActor?.type;
     if (tt === 'mech') {
       const groups = [];
+      const critChecks = [];
+      let destroyedByCrit = false;
       for (const g of groupSizes) {
         const locRoll = await rollMechLocation(result.direction);
         rolls.push(locRoll.roll);
@@ -458,9 +495,24 @@ export async function weaponAttack(actor, weapon) {
           locDice: locRoll.dice, crit: locRoll.crit,
           events: dmg.events, destroyed: dmg.destroyed, overflow: dmg.overflow
         });
+        // Determining Critical Hits: any location whose internal structure was
+        // damaged, plus a "2" through-armor critical on the struck location.
+        const checkLocs = new Set(dmg.structureHits);
+        if (locRoll.crit) checkLocs.add(locRoll.loc);
+        for (const cl of checkLocs) {
+          const cc = await rollDeterminingCrit(cl);
+          rolls.push(cc.roll);
+          if (cc.blowOff) {
+            const wasHead = await blowOffMechLocation(targetActor, cl);
+            if (wasHead) destroyedByCrit = true;
+          }
+          critChecks.push({ locLabel: MECH_LOC_LABEL[cl] || cl, dice: cc.dice, total: cc.total, text: cc.text, count: cc.count });
+        }
       }
       hitResult = {
         cluster: clusterSize > 0, clusterInfo, total, isMech: true, groups,
+        critChecks: critChecks.filter(c => c.count > 0 || /Blown Off/.test(c.text)),
+        destroyedByCrit,
         applied: targetActor.isOwner || game.user.isGM, hasTarget: true, targetName: targetActor.name
       };
     } else if (tt === 'ground_vehicle') {
