@@ -241,6 +241,16 @@
               </div>
               {{/each}}
             </div>
+
+            {{#if this.ammoNeeds.length}}
+            <div class="ammo-needs">
+              <div class="ammo-block-head"><span><i class="fas fa-crosshairs"></i> Required Ammo (based units)</span></div>
+              {{#each this.ammoNeeds}}
+              <div class="ammo-need-row"><span class="an-type">{{this.ammoType}}</span><span class="an-units">{{this.unitCount}} unit(s) · {{this.weaponCount}} weapon(s): {{this.unitsLabel}}</span></div>
+              {{/each}}
+              <p class="logi-note">Demand derived from based units' weapons — held stock is above.</p>
+            </div>
+            {{/if}}
           </div>
           {{/if}}
         </div>

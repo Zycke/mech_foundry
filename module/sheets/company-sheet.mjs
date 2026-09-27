@@ -385,6 +385,34 @@ export class MechFoundryCompanySheet extends HandlebarsApplicationMixin(ActorShe
   }
 
   /**
+   * Derive the ammo types required by the MTOE units based at a location, from
+   * their vehicles' weapons and any infantry loadout, listing which units use each.
+   */
+  _ammoNeedsForLocation(shipId) {
+    const needs = new Map(); // ammoType -> { units:Set, weapons:number }
+    const add = (ammoType, unitName) => {
+      if (!ammoType) return;
+      if (!needs.has(ammoType)) needs.set(ammoType, { units: new Set(), weapons: 0 });
+      const e = needs.get(ammoType);
+      e.units.add(unitName);
+      e.weapons += 1;
+    };
+    for (const box of (this.actor.system.mtoe || [])) {
+      if ((box.locationId || '') !== shipId) continue;
+      const unitName = box.name || 'Unit';
+      for (const u of (box.units || [])) {
+        const a = game.actors.get(u.actorId);
+        for (const w of (a?.system?.weapons || [])) add(w.ammoType, unitName);
+      }
+      const def = BLOCK_TYPES.find(t => t.key === this._blockType(box));
+      if (def?.loadout) for (const w of (box.loadout?.weapons || [])) add(w.ammoType, unitName);
+    }
+    return [...needs.entries()].map(([ammoType, e]) => ({
+      ammoType, weaponCount: e.weapons, unitCount: e.units.size, unitsLabel: [...e.units].join(', ')
+    }));
+  }
+
+  /**
    * Logistics: supplies live on each location actor (cargoSupplies). This tab is
    * the management interface — it reads/writes the actors and shows company-wide
    * summary totals.
@@ -436,7 +464,8 @@ export class MechFoundryCompanySheet extends HandlebarsApplicationMixin(ActorShe
         used,
         free: cap === Infinity ? '∞' : Math.max(0, cap - used),
         full: cap !== Infinity && used >= cap,
-        ship, ground, shipAmmo, groundAmmo
+        ship, ground, shipAmmo, groundAmmo,
+        ammoNeeds: this._ammoNeedsForLocation(loc.actorId)
       });
     }
 
