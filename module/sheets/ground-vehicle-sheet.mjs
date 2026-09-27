@@ -1,5 +1,6 @@
 import { MechFoundryUnitSheet } from "./unit-sheet.mjs";
 import { actorSkillRating, applyCrewDamage, CREW_DAMAGE, VEHICLE_GUNNERY_SKILLS, VEHICLE_DRIVING_SKILLS } from "../helpers/atow-conversion.mjs";
+import { weaponAttack } from "../helpers/tw-combat.mjs";
 
 const { DialogV2 } = foundry.applications.api;
 
@@ -217,8 +218,10 @@ export class MechFoundryGroundVehicleSheet extends MechFoundryUnitSheet {
     if (actor) actor.sheet.render(true); else ui.notifications.warn("Linked crew actor was not found.");
   }
 
-  _onWeaponAttack(event) {
+  async _onWeaponAttack(event) {
     event.preventDefault();
-    ui.notifications.info("Weapon attacks are wired up in the combat-automation phase.");
+    const id = event.currentTarget.dataset.weaponId;
+    const weapon = (this.actor.system.weapons || []).find(w => w.id === id);
+    if (weapon) await weaponAttack(this.actor, weapon);
   }
 }

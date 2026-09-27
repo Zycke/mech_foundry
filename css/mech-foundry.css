@@ -7429,3 +7429,28 @@
   border: 1px dashed var(--mf-steel); border-radius: 2px; cursor: pointer; width: auto;
 }
 .mech-foundry.naval-ship-sheet .bay-quick-add .quick-add-component:hover { border-color: var(--mf-amber); color: var(--mf-amber-2); border-style: solid; }
+
+/* ---- Total Warfare attack chat card ---- */
+.mech-foundry.tw-attack-card { border: 1px solid var(--mf-steel); border-radius: 4px; background: var(--mf-panel); color: var(--mf-ink); padding: 8px; font-family: var(--mf-font-body); }
+.mech-foundry.tw-attack-card .tw-atk-head { display: flex; align-items: center; gap: 6px; font-family: var(--mf-font-head); text-transform: uppercase; letter-spacing: 0.04em; color: var(--mf-amber-2); border-bottom: 1px solid var(--mf-line); padding-bottom: 4px; margin-bottom: 6px; }
+.mech-foundry.tw-attack-card .tw-atk-head i { color: var(--mf-amber); }
+.mech-foundry.tw-attack-card .tw-atk-loc { margin-left: auto; font-size: 0.72rem; color: var(--mf-ink-dim); }
+.mech-foundry.tw-attack-card .tw-atk-target { font-size: 0.82rem; color: var(--mf-ink-dim); margin-bottom: 4px; }
+.mech-foundry.tw-attack-card .tw-atk-tn { display: flex; justify-content: space-between; align-items: baseline; }
+.mech-foundry.tw-attack-card .tw-atk-tn .tw-atk-label { font-size: 0.72rem; text-transform: uppercase; color: var(--mf-ink-dim); }
+.mech-foundry.tw-attack-card .tw-atk-tnval { font-family: var(--mf-font-mono); font-size: 1.1rem; color: var(--mf-amber-2); }
+.mech-foundry.tw-attack-card .tw-atk-mods { display: flex; flex-wrap: wrap; gap: 4px; margin: 4px 0; }
+.mech-foundry.tw-attack-card .tw-mod { font-family: var(--mf-font-mono); font-size: 0.68rem; color: var(--mf-ink-dim); border: 1px solid var(--mf-line); border-radius: 8px; padding: 0 6px; }
+.mech-foundry.tw-attack-card .tw-atk-roll { display: flex; align-items: center; gap: 8px; margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--mf-line); }
+.mech-foundry.tw-attack-card .tw-die { display: inline-grid; place-items: center; width: 22px; height: 22px; background: #0e1216; border: 1px solid var(--mf-steel); border-radius: 3px; font-family: var(--mf-font-mono); margin-right: 3px; }
+.mech-foundry.tw-attack-card .tw-atk-total { font-family: var(--mf-font-mono); color: var(--mf-ink); }
+.mech-foundry.tw-attack-card .tw-atk-result { font-family: var(--mf-font-head); font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; margin-left: auto; }
+.mech-foundry.tw-attack-card .tw-atk-roll.hit .tw-atk-result { color: var(--mf-ok); }
+.mech-foundry.tw-attack-card .tw-atk-roll.miss .tw-atk-result { color: var(--mf-danger); }
+.mech-foundry.tw-attack-card .tw-atk-result.oor { color: var(--mf-hazard); }
+.mech-foundry.tw-attack-card .tw-atk-margin { font-size: 0.72rem; color: var(--mf-ink-dim); }
+.mech-foundry.tw-attack-card .tw-atk-dmg { margin-top: 6px; font-size: 0.8rem; color: var(--mf-amber); }
+/* Attack-dialog fields */
+.tw-attack-dialog .form-group { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+.tw-attack-dialog .form-group label { flex: 0 0 150px; }
+.tw-attack-dialog .tw-hint { color: #888; font-size: 0.8em; }

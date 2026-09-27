@@ -1,5 +1,6 @@
 import { MechFoundryUnitSheet } from "./unit-sheet.mjs";
 import { actorSkillRating, applyCrewDamage, CREW_DAMAGE, MECH_GUNNERY_SKILLS, MECH_PILOTING_SKILLS } from "../helpers/atow-conversion.mjs";
+import { weaponAttack } from "../helpers/tw-combat.mjs";
 
 const { DialogV2 } = foundry.applications.api;
 
@@ -333,9 +334,11 @@ export class MechFoundryMechSheet extends MechFoundryUnitSheet {
     else ui.notifications.warn("Linked pilot actor was not found.");
   }
 
-  /** Placeholder until the combat-automation phase wires up attacks. */
-  _onWeaponAttack(event) {
+  /** Open the GATOR to-hit dialog for the clicked weapon. */
+  async _onWeaponAttack(event) {
     event.preventDefault();
-    ui.notifications.info("Weapon attacks are wired up in the combat-automation phase.");
+    const id = event.currentTarget.dataset.weaponId;
+    const weapon = (this.actor.system.weapons || []).find(w => w.id === id);
+    if (weapon) await weaponAttack(this.actor, weapon);
   }
 }
