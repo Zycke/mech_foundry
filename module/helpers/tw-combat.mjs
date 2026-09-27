@@ -195,6 +195,156 @@ export async function rollMechLocation(direction) {
   };
 }
 
+/* ------------------------------------------------------------------ */
+/*  Ground / VTOL Combat Vehicle combat (Total Warfare)                 */
+/* ------------------------------------------------------------------ */
+
+// Ground Combat Vehicle Hit Location Table. Tokens: front/rear/turret literal;
+// 'side' = the side actually attacked; left/right = literal sides.
+const VEHICLE_HIT_LOCATION = {
+  front: { 2: ['front', 'C'], 3: ['front', 'M'], 4: ['front', 'M'], 5: ['right', 'M'], 6: ['front'], 7: ['front'], 8: ['front'], 9: ['left', 'M'], 10: ['turret'], 11: ['turret'], 12: ['turret', 'C'] },
+  rear:  { 2: ['rear', 'C'], 3: ['rear', 'M'], 4: ['rear', 'M'], 5: ['left', 'M'], 6: ['rear'], 7: ['rear'], 8: ['rear'], 9: ['right', 'M'], 10: ['turret'], 11: ['turret'], 12: ['turret', 'C'] },
+  side:  { 2: ['side', 'C'], 3: ['side', 'M'], 4: ['side', 'M'], 5: ['front', 'M'], 6: ['side'], 7: ['side'], 8: ['side', 'C'], 9: ['rear', 'M'], 10: ['turret'], 11: ['turret'], 12: ['turret', 'C'] }
+};
+
+const VEHICLE_FACING_LABEL = { front: 'Front', rear: 'Rear', left: 'Left Side', right: 'Right Side', turret: 'Turret', rotor: 'Rotor' };
+
+// Motive System Damage Table (2d6 + direction + vehicle-type modifiers).
+const MOTIVE_TYPE_MOD = { tracked: 0, naval: 0, submarine: 0, wheeled: 2, hover: 3, hydrofoil: 3, wige: 4, vtol: 0 };
+function motiveEffect(total) {
+  if (total <= 5) return { level: 0, mp: 0, text: 'No effect' };
+  if (total <= 7) return { level: 1, mp: 0, text: 'Minor: +1 to Driving Skill Rolls' };
+  if (total <= 9) return { level: 2, mp: 1, text: 'Moderate: −1 Cruise MP, +2 Driving' };
+  if (total <= 11) return { level: 3, mp: 2, text: 'Heavy: half Cruise MP, +3 Driving' };
+  return { level: 4, mp: 0, text: 'Major: immobile for the rest of the game' };
+}
+
+// Ground Combat Vehicle Critical Hits Table (by facing column).
+const GROUND_VEHICLE_CRITS = {
+  front:  { 6: 'Driver Hit', 7: 'Weapon Malfunction', 8: 'Stabilizer', 9: 'Sensors', 10: 'Commander Hit', 11: 'Weapon Destroyed', 12: 'Crew Killed' },
+  side:   { 6: 'Cargo/Infantry Hit', 7: 'Weapon Malfunction', 8: 'Crew Stunned', 9: 'Stabilizer', 10: 'Weapon Destroyed', 11: 'Engine Hit', 12: 'Fuel Tank' },
+  rear:   { 6: 'Weapon Malfunction', 7: 'Cargo/Infantry Hit', 8: 'Stabilizer', 9: 'Weapon Destroyed', 10: 'Engine Hit', 11: 'Ammunition', 12: 'Fuel Tank' },
+  turret: { 6: 'Stabilizer', 7: 'Turret Jam', 8: 'Weapon Malfunction', 9: 'Turret Locks', 10: 'Weapon Destroyed', 11: 'Ammunition', 12: 'Turret Blown Off' }
+};
+const VTOL_VEHICLE_CRITS = {
+  front:  { 6: 'Co-Pilot Hit', 7: 'Weapon Malfunction', 8: 'Stabilizer', 9: 'Sensors', 10: 'Pilot Hit', 11: 'Weapon Destroyed', 12: 'Crew Killed' },
+  side:   { 6: 'Weapon Malfunction', 7: 'Cargo/Infantry Hit', 8: 'Stabilizer', 9: 'Weapon Destroyed', 10: 'Engine Damage', 11: 'Ammunition', 12: 'Fuel Tank' },
+  rear:   { 6: 'Cargo/Infantry Hit', 7: 'Weapon Malfunction', 8: 'Stabilizer', 9: 'Weapon Destroyed', 10: 'Sensors', 11: 'Engine Damage', 12: 'Fuel Tank' },
+  rotor:  { 6: 'Rotor Damage', 7: 'Rotor Damage', 8: 'Rotor Damage', 9: 'Flight Stabilizer Hit', 10: 'Flight Stabilizer Hit', 11: 'Rotors Destroyed', 12: 'Rotors Destroyed' }
+};
+
+/** Resolve a hit-location token to a concrete armor facing. */
+function resolveVehicleFacing(token, direction, hasTurret, isVTOL) {
+  const attacked = direction === 'left' ? 'left' : direction === 'right' ? 'right' : direction === 'rear' ? 'rear' : 'front';
+  if (token === 'side') return direction === 'left' ? 'left' : direction === 'right' ? 'right' : attacked;
+  if (token === 'turret') {
+    if (isVTOL) return 'rotor';
+    if (hasTurret) return 'turret';
+    return direction === 'left' ? 'left' : direction === 'right' ? 'right' : direction === 'rear' ? 'rear' : 'front';
+  }
+  return token; // front/rear/left/right literal
+}
+
+/** The crit-table column for a facing. */
+function vehicleCritColumn(facing, isVTOL) {
+  if (facing === 'turret') return 'turret';
+  if (facing === 'rotor') return 'rotor';
+  if (facing === 'front') return 'front';
+  if (facing === 'rear') return 'rear';
+  return 'side'; // left/right
+}
+
+/**
+ * Resolve a full attack against a Combat Vehicle: per damage group, roll hit
+ * location, apply armor→structure damage, and roll motive/critical effects as
+ * the location table dictates. Mutates and saves the target once.
+ */
+export async function resolveVehicleAttack(target, direction, groupSizes, rolls) {
+  const armor = foundry.utils.deepClone(target.system.armor || {});
+  const structure = foundry.utils.deepClone(target.system.structure || { value: 0, max: 0 });
+  const crits = foundry.utils.deepClone(target.system.crits || {});
+  const conditions = foundry.utils.deepClone(target.system.conditions || {});
+  const crew = foundry.utils.deepClone(target.system.crew || {});
+  const isVTOL = target.system.movementType === 'vtol';
+  const hasTurret = !!target.system.hasTurret;
+  const col = direction === 'left' || direction === 'right' ? 'side' : direction === 'rear' ? 'rear' : 'front';
+
+  const groups = [], motives = [], critResults = [], crewEvents = [];
+  let destroyed = false;
+
+  for (const g of groupSizes) {
+    const locRoll = await new Roll("2d6").evaluate();
+    rolls.push(locRoll);
+    const [token, flag] = VEHICLE_HIT_LOCATION[col][locRoll.total];
+    const facing = resolveVehicleFacing(token, direction, hasTurret, isVTOL);
+
+    // Damage: armor then single internal structure pool.
+    let remaining = g, structureHit = false;
+    const slot = armor[facing];
+    if (slot && slot.value > 0) { const a = Math.min(slot.value, remaining); slot.value -= a; remaining -= a; }
+    if (remaining > 0) { structure.value = Math.max(0, (structure.value || 0) - remaining); structureHit = true; if (structure.value <= 0) destroyed = true; }
+    groups.push({ damage: g, facingLabel: VEHICLE_FACING_LABEL[facing] || facing, dice: locRoll.dice[0]?.results?.map(r => r.result) ?? [], structureHit });
+
+    // Motive system damage (†).
+    if (flag === 'M') {
+      const mRoll = await new Roll("2d6").evaluate();
+      rolls.push(mRoll);
+      const dirMod = direction === 'rear' ? 1 : (direction === 'left' || direction === 'right') ? 2 : 0;
+      const typeMod = MOTIVE_TYPE_MOD[target.system.movementType] ?? 0;
+      const eff = motiveEffect(mRoll.total + dirMod + typeMod);
+      motives.push({ roll: mRoll.total + dirMod + typeMod, text: eff.text });
+      if (eff.level === 4) conditions.immobile = true;
+      else if (eff.mp > 0) crits.motiveHits = Math.min(3, (Number(crits.motiveHits) || 0) + eff.mp);
+    }
+
+    // Critical hit (2/12, side-8, or structure penetrated).
+    if (flag === 'C' || structureHit) {
+      const cRoll = await new Roll("2d6").evaluate();
+      rolls.push(cRoll);
+      const table = isVTOL ? VTOL_VEHICLE_CRITS : GROUND_VEHICLE_CRITS;
+      const effect = table[vehicleCritColumn(facing, isVTOL)]?.[cRoll.total] || 'No Critical Hit';
+      critResults.push({ facingLabel: VEHICLE_FACING_LABEL[facing] || facing, roll: cRoll.total, effect });
+      if (applyVehicleCrit(effect, facing, direction, crits, conditions, structure, crew)) destroyed = true;
+      if (['Driver Hit', 'Commander Hit', 'Co-Pilot Hit', 'Pilot Hit'].includes(effect)) crewEvents.push(CREW_DAMAGE.vehicleCrewHit);
+      else if (effect === 'Crew Stunned') crewEvents.push(CREW_DAMAGE.vehicleStunned);
+      else if (effect === 'Crew Killed') crewEvents.push(CREW_DAMAGE.vehicleKilled);
+    }
+  }
+
+  const applied = target.isOwner || game.user.isGM;
+  if (applied) await target.update({ 'system.armor': armor, 'system.structure': structure, 'system.crits': crits, 'system.conditions': conditions, 'system.crew': crew });
+
+  // Apply crew damage to a linked crew actor.
+  const linked = target.system.crew?.actorId ? game.actors.get(target.system.crew.actorId) : null;
+  if (applied && linked) for (const ev of crewEvents) await applyCrewDamage(linked, ev);
+
+  return {
+    vehicle: true, applied, hasTarget: true, targetName: target.name,
+    groups, motives, critResults, destroyed
+  };
+}
+
+/** Apply a vehicle critical effect to the mutable crit/condition state. Returns true if destroyed. */
+function applyVehicleCrit(effect, facing, direction, crits, conditions, structure, crew) {
+  const stabKey = { front: 'stabFront', rear: 'stabRear', left: 'stabLeft', right: 'stabRight', turret: 'stabTurret' }[facing];
+  switch (effect) {
+    case 'Driver Hit': case 'Pilot Hit': crew.driverHit = true; break;
+    case 'Commander Hit': case 'Co-Pilot Hit': crew.commanderHit = true; break;
+    case 'Sensors': crits.sensorHits = Math.min(4, (Number(crits.sensorHits) || 0) + 1); break;
+    case 'Stabilizer': case 'Flight Stabilizer Hit': if (stabKey) crits[stabKey] = true; break;
+    case 'Turret Jam': conditions.turretJammed = true; break;
+    case 'Turret Locks': crits.turretLocked = true; break;
+    case 'Turret Blown Off': crits.turretLocked = true; break;
+    case 'Engine Hit': case 'Engine Damage': crits.engineHit = true; break;
+    case 'Rotor Damage': crits.motiveHits = Math.min(3, (Number(crits.motiveHits) || 0) + 1); break;
+    case 'Rotors Destroyed': conditions.immobile = true; break;
+    case 'Ammunition': case 'Fuel Tank': case 'Crew Killed':
+      structure.value = 0; conditions.immobile = true; return true;
+    default: break; // Weapon Malfunction / Weapon Destroyed / Cargo-Infantry / Crew Stunned handled elsewhere
+  }
+  return false;
+}
+
 /**
  * Open the GATOR to-hit dialog for a weapon, roll 2d6, and post a chat card.
  * @param {Actor} actor   The attacking unit.
@@ -296,10 +446,10 @@ export async function weaponAttack(actor, weapon) {
     if (clusterSize > 0) { let t = total; while (t > 0) { groupSizes.push(Math.min(5, t)); t -= 5; } }
     else groupSizes.push(total);
 
-    const isMech = targetActor?.type === 'mech';
-    const groups = [];
-    for (const g of groupSizes) {
-      if (isMech) {
+    const tt = targetActor?.type;
+    if (tt === 'mech') {
+      const groups = [];
+      for (const g of groupSizes) {
         const locRoll = await rollMechLocation(result.direction);
         rolls.push(locRoll.roll);
         const dmg = await applyMechDamage(targetActor, locRoll.loc, g, { rear: locRoll.rear });
@@ -308,17 +458,21 @@ export async function weaponAttack(actor, weapon) {
           locDice: locRoll.dice, crit: locRoll.crit,
           events: dmg.events, destroyed: dmg.destroyed, overflow: dmg.overflow
         });
-      } else {
-        groups.push({ damage: g });
       }
+      hitResult = {
+        cluster: clusterSize > 0, clusterInfo, total, isMech: true, groups,
+        applied: targetActor.isOwner || game.user.isGM, hasTarget: true, targetName: targetActor.name
+      };
+    } else if (tt === 'ground_vehicle') {
+      const vres = await resolveVehicleAttack(targetActor, result.direction, groupSizes, rolls);
+      hitResult = { cluster: clusterSize > 0, clusterInfo, total, ...vres };
+    } else {
+      hitResult = {
+        cluster: clusterSize > 0, clusterInfo, total, isMech: false,
+        groups: groupSizes.map(g => ({ damage: g })),
+        applied: false, hasTarget: !!targetActor, targetName: targetActor?.name || targetName
+      };
     }
-    hitResult = {
-      cluster: clusterSize > 0, clusterInfo,
-      total, groups, isMech,
-      applied: isMech && (targetActor.isOwner || game.user.isGM),
-      hasTarget: !!targetActor,
-      targetName: targetActor?.name || targetName
-    };
   }
 
   const content2 = await foundry.applications.handlebars.renderTemplate(

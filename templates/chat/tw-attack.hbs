@@ -35,7 +35,20 @@
     </div>
     {{/if}}
 
-    {{#if hitResult.isMech}}
+    {{#if hitResult.vehicle}}
+      {{#each hitResult.groups}}
+      <div class="tw-hit-loc">
+        <span class="tw-hl-dice">{{#each this.dice}}<span class="tw-die">{{this}}</span>{{/each}}</span>
+        <span class="tw-hl-loc">{{this.facingLabel}}</span>
+        <span class="tw-hl-dmg">{{this.damage}}</span>
+        {{#if this.structureHit}}<span class="tw-hl-crit">STRUCTURE</span>{{/if}}
+      </div>
+      {{/each}}
+      {{#each hitResult.motives}}<div class="tw-hl-event">▸ Motive ({{this.roll}}): {{this.text}}</div>{{/each}}
+      {{#each hitResult.critResults}}<div class="tw-hl-event tw-crit-line">▸ Crit {{this.facingLabel}} ({{this.roll}}): <strong>{{this.effect}}</strong></div>{{/each}}
+      {{#if hitResult.destroyed}}<div class="tw-hl-destroyed">VEHICLE DESTROYED</div>{{/if}}
+      {{#unless hitResult.applied}}<div class="tw-atk-dmg"><em>No permission — apply the above to {{hitResult.targetName}} manually.</em></div>{{/unless}}
+    {{else if hitResult.isMech}}
       {{#each hitResult.groups}}
       <div class="tw-hit-loc">
         <span class="tw-hl-dice">{{#each this.locDice}}<span class="tw-die">{{this}}</span>{{/each}}</span>
