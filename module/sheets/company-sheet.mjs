@@ -864,8 +864,8 @@ export class MechFoundryCompanySheet extends HandlebarsApplicationMixin(ActorShe
     html.on('change', '.cargo-ammo-field', this._onCargoAmmoFieldChange.bind(this));
 
     // MTOE
-    html.on('change', '.add-mtoe-block', this._onAddBlock.bind(this));
-    html.on('change', '.add-subunit', this._onAddBlock.bind(this));
+    html.on('click', '.add-mtoe-unit', this._onAddBlock.bind(this));
+    html.on('click', '.add-subunit', this._onAddBlock.bind(this));
     html.on('click', '.remove-mtoe-box', this._onRemoveBox.bind(this));
     html.on('change', '.mtoe-box-name', this._onBoxNameChange.bind(this));
     html.on('change', '.mtoe-block-type', this._onBlockTypeChange.bind(this));
@@ -1192,14 +1192,18 @@ export class MechFoundryCompanySheet extends HandlebarsApplicationMixin(ActorShe
 
   /** Add a unit block of the chosen type, optionally under a parent (sub-unit). */
   async _onAddBlock(event) {
-    const type = event.currentTarget.value;
-    if (!type || !BLOCK_TYPES.some(t => t.key === type)) return;
+    event.preventDefault();
+    // Generic add: buttons carry no value, so default to a Mech block that the
+    // user then renames and retypes via the block's type dropdown. A legacy
+    // select that still carries a type value is honoured.
+    const chosen = event.currentTarget.value;
+    const type = (chosen && BLOCK_TYPES.some(t => t.key === chosen)) ? chosen : 'mech';
     const parentId = event.currentTarget.dataset.parentId || '';
     const def = BLOCK_TYPES.find(t => t.key === type);
     const boxes = foundry.utils.deepClone(this.actor.system.mtoe || []);
     boxes.push({
       id: foundry.utils.randomID(),
-      name: `New ${def.label} Unit`,
+      name: 'New Unit',
       type, parentId,
       status: 'Combat Ready', xp: 0, locationId: '',
       personnel: [], units: [],

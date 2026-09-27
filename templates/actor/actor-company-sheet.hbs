@@ -361,12 +361,7 @@
 
         {{#if editable}}
         <div class="mtoe-controls">
-          <label class="ctl">Add top-level unit
-            <select class="add-mtoe-block">
-              <option value="">+ Add unit…</option>
-              {{#each blockTypes}}<option value="{{this.key}}">{{this.label}}</option>{{/each}}
-            </select>
-          </label>
+          <button type="button" class="add-mtoe-unit"><i class="fas fa-plus"></i> Add Unit</button>
         </div>
         {{/if}}
 
@@ -465,12 +460,7 @@
               <div class="mtoe-box-actions">
                 <button type="button" class="add-personnel" data-box-id="{{this.id}}"><i class="fas fa-user-plus"></i> Add {{this.detail.troopLabel}}</button>
                 {{#if this.detail.hasVehicle}}<span class="drop-zone small">Drag {{this.detail.vehicleLabel}} here</span>{{/if}}
-                <label class="ctl">Add sub-unit
-                  <select class="add-subunit" data-parent-id="{{this.id}}">
-                    <option value="">+ Sub-unit…</option>
-                    {{#each ../blockTypes}}<option value="{{this.key}}">{{this.label}}</option>{{/each}}
-                  </select>
-                </label>
+                <button type="button" class="add-subunit" data-parent-id="{{this.id}}"><i class="fas fa-plus"></i> Add sub-unit</button>
               </div>
               {{/if}}
 

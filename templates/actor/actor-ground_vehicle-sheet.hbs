@@ -134,6 +134,7 @@
               <td><input type="number" min="0" class="weapon-field n" data-weapon-id="{{id}}" data-field="ammo" value="{{ammo}}" {{#unless ../editable}}disabled{{/unless}} /></td>
               <td class="w-actions">
                 <button type="button" class="weapon-attack" title="Attack"><i class="fas fa-bolt"></i></button>
+                {{#if ../editable}}<a class="duplicate-weapon" data-weapon-id="{{id}}" title="Duplicate"><i class="fas fa-clone"></i></a>{{/if}}
                 {{#if ../editable}}<a class="remove-weapon" data-weapon-id="{{id}}" title="Remove"><i class="fas fa-trash"></i></a>{{/if}}
               </td>
             </tr>

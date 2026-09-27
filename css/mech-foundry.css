@@ -4196,7 +4196,11 @@
   background: transparent;
   border: none;
   border-bottom: 1px solid var(--mf-line);
-  font-size: 1.4em;
+  font-size: 1.25em;
+  line-height: 1.3;
+  padding: 1px 0 3px;
+  height: auto;
+  box-sizing: border-box;
   font-weight: bold;
   width: 100%;
 }
@@ -7393,3 +7397,10 @@
 .mech-foundry.company-sheet .vehicle-status-derived.status-Undamaged { color: var(--mf-ok); border-color: #2c5b34; }
 .mech-foundry.company-sheet .vehicle-status-derived.status-Damaged { color: var(--mf-amber); border-color: #6b5417; }
 .mech-foundry.company-sheet .vehicle-status-derived.status-Destroyed { color: var(--mf-danger); border-color: #6b2a26; }
+
+/* ---- Header name fit fixes (ship) ---- */
+.mech-foundry.naval-ship-sheet .sheet-header { align-items: center; }
+.mech-foundry.naval-ship-sheet .sheet-header .header-fields h1 { margin: 0; line-height: 1.2; }
+.mech-foundry.naval-ship-sheet .sheet-header .header-fields h1 input {
+  font-size: 1.2em; line-height: 1.3; padding: 1px 0 3px; height: auto; box-sizing: border-box;
+}
