@@ -222,10 +222,44 @@
     },
     "mech": {
       "biography": "",
-      "weightClass": "",
       "tonnage": 0,
-      "armorType": "",
-      "weapons": []
+      "weightClass": "",
+      "techBase": "",
+      "era": "",
+      "movement": { "walk": 0, "jump": 0 },
+      "engineType": "",
+      "engineRating": 0,
+      "heatSinks": { "count": 0, "type": "single" },
+      "cost": 0,
+      "bv": 0,
+      "armor": {
+        "head": { "value": 0, "max": 0 },
+        "ct": { "value": 0, "max": 0 },
+        "ctRear": { "value": 0, "max": 0 },
+        "lt": { "value": 0, "max": 0 },
+        "ltRear": { "value": 0, "max": 0 },
+        "rt": { "value": 0, "max": 0 },
+        "rtRear": { "value": 0, "max": 0 },
+        "la": { "value": 0, "max": 0 },
+        "ra": { "value": 0, "max": 0 },
+        "ll": { "value": 0, "max": 0 },
+        "rl": { "value": 0, "max": 0 }
+      },
+      "structure": {
+        "head": { "value": 0, "max": 0 },
+        "ct": { "value": 0, "max": 0 },
+        "lt": { "value": 0, "max": 0 },
+        "rt": { "value": 0, "max": 0 },
+        "la": { "value": 0, "max": 0 },
+        "ra": { "value": 0, "max": 0 },
+        "ll": { "value": 0, "max": 0 },
+        "rl": { "value": 0, "max": 0 }
+      },
+      "heat": { "value": 0, "overflow": 0 },
+      "systemHits": { "engine": 0, "gyro": 0, "sensors": 0, "lifeSupport": 0 },
+      "conditions": { "shutdown": false, "prone": false },
+      "weapons": [],
+      "pilot": { "name": "", "gunnery": 4, "piloting": 5, "hits": 0, "actorId": "" }
     },
     "ground_vehicle": {
       "biography": "",
