@@ -51,7 +51,7 @@ export class MechFoundryAerospaceFighterSheet extends MechFoundryUnitSheet {
   };
 
   /** @override */
-  static NUMERIC_WEAPON_FIELDS = ['heat', 'damage', 'rangeS', 'rangeM', 'rangeL', 'rangeE', 'ammo', 'shotsPerTon'];
+  static NUMERIC_WEAPON_FIELDS = ['heat', 'damage', 'rangeS', 'rangeM', 'rangeL', 'rangeE', 'ammo', 'shotsPerTon', 'clusterSize'];
 
   /* -------------------------------------------- */
 
@@ -194,7 +194,7 @@ export class MechFoundryAerospaceFighterSheet extends MechFoundryUnitSheet {
   async _onAddWeapon(event) {
     event.preventDefault();
     await this._updateWeapons(w => {
-      w.push({ id: foundry.utils.randomID(), name: '', location: '', heat: 0, damage: 0, rangeS: 0, rangeM: 0, rangeL: 0, rangeE: 0, ammoType: '', ammo: 0 });
+      w.push({ id: foundry.utils.randomID(), name: '', location: '', heat: 0, damage: 0, clusterSize: 0, rangeS: 0, rangeM: 0, rangeL: 0, rangeE: 0, ammoType: '', ammo: 0 });
     });
   }
 

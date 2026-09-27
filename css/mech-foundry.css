@@ -7462,3 +7462,8 @@
 .mech-foundry.tw-attack-card .tw-hl-crit { margin-left: auto; font-family: var(--mf-font-head); font-weight: 700; color: var(--mf-hazard); font-size: 0.72rem; }
 .mech-foundry.tw-attack-card .tw-hl-event { font-size: 0.76rem; color: var(--mf-danger); margin-top: 2px; }
 .mech-foundry.tw-attack-card .tw-hl-destroyed { margin-top: 4px; font-family: var(--mf-font-head); font-weight: 700; color: #fff; background: var(--mf-danger); text-align: center; border-radius: 3px; padding: 2px; letter-spacing: 0.08em; }
+
+/* ---- Attack card: cluster ---- */
+.mech-foundry.tw-attack-card .tw-cluster { display: flex; align-items: center; gap: 8px; margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--mf-line); }
+.mech-foundry.tw-attack-card .tw-cluster-hits { font-family: var(--mf-font-mono); font-size: 0.82rem; color: var(--mf-amber-2); }
+.mech-foundry.tw-attack-card .tw-hit-loc .tw-hl-dmg { font-family: var(--mf-font-mono); color: var(--mf-ink); margin-left: 6px; }

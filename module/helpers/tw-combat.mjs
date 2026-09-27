@@ -148,6 +148,38 @@ export async function applyMechDamage(target, startLoc, amount, { rear = false }
   };
 }
 
+/* ------------------------------------------------------------------ */
+/*  Cluster Hits Table (Total Warfare)                                  */
+/* ------------------------------------------------------------------ */
+
+const CLUSTER_SIZES = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 40];
+const CLUSTER_TABLE = {
+  2:  [1, 1, 1, 1, 2, 2, 3, 3, 3, 4, 4, 4, 5, 5, 5, 5, 6, 6, 6, 7, 7, 7, 8, 8, 9, 9, 9, 10, 10, 12],
+  3:  [1, 1, 2, 2, 2, 2, 3, 3, 3, 4, 4, 4, 5, 5, 5, 5, 6, 6, 6, 7, 7, 7, 8, 8, 9, 9, 9, 10, 10, 12],
+  4:  [1, 1, 2, 2, 3, 3, 4, 4, 4, 5, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9, 9, 10, 10, 10, 11, 11, 11, 12, 12, 18],
+  5:  [1, 2, 2, 3, 3, 4, 4, 5, 6, 7, 8, 8, 9, 9, 10, 10, 11, 11, 12, 13, 14, 15, 16, 16, 17, 17, 17, 18, 18, 24],
+  6:  [1, 2, 2, 3, 4, 4, 5, 5, 6, 7, 8, 8, 9, 9, 10, 10, 11, 11, 12, 13, 14, 15, 16, 16, 17, 17, 17, 18, 18, 24],
+  7:  [1, 2, 3, 3, 4, 4, 5, 5, 6, 7, 8, 8, 9, 9, 10, 11, 11, 12, 13, 14, 15, 16, 16, 17, 17, 17, 18, 18, 18, 24],
+  8:  [2, 2, 3, 3, 4, 4, 5, 5, 6, 7, 8, 8, 9, 9, 10, 10, 11, 11, 12, 13, 14, 15, 16, 16, 17, 17, 17, 18, 18, 24],
+  9:  [2, 2, 3, 4, 5, 5, 6, 6, 7, 8, 9, 10, 11, 11, 12, 13, 14, 14, 15, 16, 17, 18, 19, 20, 21, 21, 22, 23, 23, 32],
+  10: [2, 3, 3, 4, 5, 6, 6, 7, 8, 9, 10, 11, 11, 12, 13, 14, 14, 15, 16, 17, 18, 19, 20, 21, 21, 22, 23, 23, 24, 32],
+  11: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 40],
+  12: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 40]
+};
+
+/** Number of sub-munitions that hit for a given launcher size and 2d6 roll. */
+export function clusterHits(size, roll2d6) {
+  const r = Math.max(2, Math.min(12, roll2d6));
+  // Snap to the nearest defined column.
+  let col = CLUSTER_SIZES.indexOf(size);
+  if (col < 0) {
+    let best = 0, bestDiff = Infinity;
+    CLUSTER_SIZES.forEach((s, i) => { const d = Math.abs(s - size); if (d < bestDiff) { bestDiff = d; best = i; } });
+    col = best;
+  }
+  return CLUSTER_TABLE[r][col];
+}
+
 /** Roll 2d6 for a mech hit location given attack direction. */
 export async function rollMechLocation(direction) {
   const dir = direction === 'rear' ? 'front' : direction;
@@ -238,25 +270,55 @@ export async function weaponAttack(actor, weapon) {
     { label: "Other", value: result.other }
   ].filter(m => m.value !== 0 || m.label === "Gunnery");
 
-  // On a hit against a targeted mech, roll hit location and apply damage.
+  // On a hit, resolve damage. Cluster weapons (clusterSize > 0) roll the Cluster
+  // Hits Table for the number of sub-munitions, then apply damage in 5-point
+  // groups, each rolling its own hit location. Direct-fire weapons are one group.
   const rolls = [roll];
   let hitResult = null;
   const targetActor = target?.actor || null;
-  const damage = num(weapon.damage);
-  if (hit && damage > 0 && targetActor?.type === 'mech') {
-    const locRoll = await rollMechLocation(result.direction);
-    rolls.push(locRoll.roll);
-    const dmg = await applyMechDamage(targetActor, locRoll.loc, damage, { rear: locRoll.rear });
+  const perHit = num(weapon.damage);
+  const clusterSize = num(weapon.clusterSize);
+  if (hit && perHit > 0) {
+    let clusterInfo = null;
+    let total = perHit;
+    if (clusterSize > 0) {
+      const cRoll = await new Roll("2d6").evaluate();
+      rolls.push(cRoll);
+      const missiles = clusterHits(clusterSize, cRoll.total);
+      total = missiles * perHit;
+      clusterInfo = {
+        size: clusterSize, missiles, perHit, total,
+        rollTotal: cRoll.total, dice: cRoll.dice[0]?.results?.map(r => r.result) ?? []
+      };
+    }
+
+    const groupSizes = [];
+    if (clusterSize > 0) { let t = total; while (t > 0) { groupSizes.push(Math.min(5, t)); t -= 5; } }
+    else groupSizes.push(total);
+
+    const isMech = targetActor?.type === 'mech';
+    const groups = [];
+    for (const g of groupSizes) {
+      if (isMech) {
+        const locRoll = await rollMechLocation(result.direction);
+        rolls.push(locRoll.roll);
+        const dmg = await applyMechDamage(targetActor, locRoll.loc, g, { rear: locRoll.rear });
+        groups.push({
+          damage: g, locLabel: locRoll.label + (locRoll.rear ? ' (rear)' : ''),
+          locDice: locRoll.dice, crit: locRoll.crit,
+          events: dmg.events, destroyed: dmg.destroyed, overflow: dmg.overflow
+        });
+      } else {
+        groups.push({ damage: g });
+      }
+    }
     hitResult = {
-      locLabel: locRoll.label + (locRoll.rear ? ' (rear)' : ''),
-      locDice: locRoll.dice, locTotal: locRoll.total,
-      crit: locRoll.crit, damage,
-      applied: dmg.applied, events: dmg.events,
-      destroyed: dmg.destroyed, overflow: dmg.overflow,
-      targetName: targetActor.name
+      cluster: clusterSize > 0, clusterInfo,
+      total, groups, isMech,
+      applied: isMech && (targetActor.isOwner || game.user.isGM),
+      hasTarget: !!targetActor,
+      targetName: targetActor?.name || targetName
     };
-  } else if (hit && damage > 0 && targetActor) {
-    hitResult = { manual: true, damage, targetName: targetActor.name };
   }
 
   const content2 = await foundry.applications.handlebars.renderTemplate(

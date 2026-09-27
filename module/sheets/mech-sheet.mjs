@@ -58,7 +58,7 @@ export class MechFoundryMechSheet extends MechFoundryUnitSheet {
   };
 
   /** Weapon fields stored as integers on this sheet. */
-  static NUMERIC_WEAPON_FIELDS = ['heat', 'damage', 'rangeS', 'rangeM', 'rangeL', 'ammo', 'shotsPerTon'];
+  static NUMERIC_WEAPON_FIELDS = ['heat', 'damage', 'rangeS', 'rangeM', 'rangeL', 'ammo', 'shotsPerTon', 'clusterSize'];
 
   /* -------------------------------------------- */
   /*  Context                                      */
@@ -247,7 +247,7 @@ export class MechFoundryMechSheet extends MechFoundryUnitSheet {
     await this._updateWeapons(w => {
       w.push({
         id: foundry.utils.randomID(), name: '', location: '',
-        heat: 0, damage: 0, rangeS: 0, rangeM: 0, rangeL: 0, ammoType: '', ammo: 0
+        heat: 0, damage: 0, clusterSize: 0, rangeS: 0, rangeM: 0, rangeL: 0, ammoType: '', ammo: 0
       });
     });
   }
