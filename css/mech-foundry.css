@@ -7102,3 +7102,25 @@
   width: auto; max-width: 180px;
 }
 .mech-foundry.company-sheet .mtoe-box-actions .add-personnel:hover { border-color: var(--mf-amber); }
+
+/* ============================================================= */
+/* Combat unit sheets (mech / vehicle / fighter / battle armor)  */
+/* ============================================================= */
+.mech-foundry.unit-sheet .unit-idfields { display: flex; gap: 14px; margin-top: 4px; flex-wrap: wrap; }
+.mech-foundry.unit-sheet .unit-idfields label { display: flex; align-items: center; gap: 5px; color: var(--mf-ink-dim); font-size: 0.75em; text-transform: uppercase; letter-spacing: 0.04em; }
+.mech-foundry.unit-sheet .unit-idfields input,
+.mech-foundry.unit-sheet .unit-idfields select { background: var(--mf-bg); color: var(--mf-ink); border: 1px solid var(--mf-steel); border-radius: 2px; padding: 2px 6px; }
+.mech-foundry.unit-sheet .weapons-bar { display: flex; align-items: center; justify-content: space-between; }
+.mech-foundry.unit-sheet .add-weapon {
+  padding: 3px 10px; background: var(--mf-panel-2); color: var(--mf-amber-2);
+  border: 1px solid var(--mf-steel); border-radius: 2px; font-size: 0.74em; cursor: pointer; width: auto;
+}
+.mech-foundry.unit-sheet .add-weapon:hover { border-color: var(--mf-amber); }
+.mech-foundry.unit-sheet table.unit-weapons { width: 100%; border-collapse: collapse; background: var(--mf-panel); border: 1px solid var(--mf-line); }
+.mech-foundry.unit-sheet table.unit-weapons th,
+.mech-foundry.unit-sheet table.unit-weapons td { border: 1px solid var(--mf-line); padding: 3px 6px; text-align: center; font-size: 0.82em; color: var(--mf-ink); }
+.mech-foundry.unit-sheet table.unit-weapons th { background: var(--mf-panel-2); color: var(--mf-amber); font-family: var(--mf-font-head); text-transform: uppercase; font-size: 0.72em; letter-spacing: 0.03em; }
+.mech-foundry.unit-sheet table.unit-weapons .w-name { text-align: left; min-width: 140px; }
+.mech-foundry.unit-sheet table.unit-weapons input { width: 100%; text-align: center; background: var(--mf-bg); color: var(--mf-ink); border: 1px solid var(--mf-steel); border-radius: 2px; padding: 1px 4px; }
+.mech-foundry.unit-sheet table.unit-weapons .w-name input { text-align: left; }
+.mech-foundry.unit-sheet .remove-weapon { color: var(--mf-danger); cursor: pointer; }

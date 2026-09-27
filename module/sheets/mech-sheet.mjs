@@ -1,18 +1,9 @@
-import { MechFoundryActorSheetV2 } from "./base-actor-sheet.mjs";
+import { MechFoundryUnitSheet } from "./unit-sheet.mjs";
 
-/**
- * Mech Actor Sheet (ApplicationV2) - placeholder for future expansion.
- * @extends {MechFoundryActorSheetV2}
- */
-export class MechFoundryMechSheet extends MechFoundryActorSheetV2 {
-
+/** Mech Actor Sheet (ApplicationV2). @extends {MechFoundryUnitSheet} */
+export class MechFoundryMechSheet extends MechFoundryUnitSheet {
   /** @override */
   static DEFAULT_OPTIONS = {
-    classes: ["mech-foundry", "sheet", "actor", "mech-sheet"]
-  };
-
-  /** @override */
-  static PARTS = {
-    body: { template: "systems/mech-foundry/templates/actor/actor-mech-sheet.hbs" }
+    classes: ["mech-foundry", "sheet", "actor", "unit-sheet", "mech-sheet"]
   };
 }
