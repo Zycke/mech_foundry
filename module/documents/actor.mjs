@@ -98,7 +98,12 @@ export class MechFoundryActor extends Actor {
       return { value, max };
     };
     systemData.derived.armorTotal = sum(systemData.armor);
-    systemData.derived.structureTotal = sum(systemData.structure);
+    // Aerospace fighters track Structural Integrity in place of an internal
+    // structure pool; use it for the second (structure) token bar.
+    const structSource = this.type === "aerospace_fighter"
+      ? systemData.structuralIntegrity
+      : systemData.structure;
+    systemData.derived.structureTotal = sum(structSource);
   }
 
   /**

@@ -17,9 +17,17 @@ export const BASE_TN_BY_COMPLEXITY = { SB: 7, SA: 8, CB: 8, CA: 9 };
 /** Gunnery/'Mech and Piloting/'Mech are both 8/SA → Base TN 8. */
 export const MECH_SKILL_BASE_TN = 8;
 
-/** Skill Item names (by their `name/subskill` key) that hold a mech pilot's ratings. */
+/**
+ * Skill Item names (by their `name/subskill` key) that hold a crew member's
+ * ratings, per unit type. Listed most-specific first; the base skill is a
+ * fallback. All of these are 8/SA in the skills list, so Base TN 8 applies.
+ */
 export const MECH_GUNNERY_SKILLS = ["Gunnery/'Mech", "Gunnery"];
 export const MECH_PILOTING_SKILLS = ["Piloting/'Mech", "Piloting"];
+export const VEHICLE_GUNNERY_SKILLS = ["Gunnery/Ground Vehicle", "Gunnery"];
+export const VEHICLE_DRIVING_SKILLS = ["Driving/Ground Vehicles", "Driving/Ground Vehicle", "Driving"];
+export const AERO_GUNNERY_SKILLS = ["Gunnery/Aerospace", "Gunnery"];
+export const AERO_PILOTING_SKILLS = ["Piloting/Aerospace", "Piloting"];
 
 /**
  * Convert an AToW skill Level to a Total Warfare Skill Rating.
@@ -30,6 +38,44 @@ export const MECH_PILOTING_SKILLS = ["Piloting/'Mech", "Piloting"];
 export function skillLevelToRating(level, baseTN = MECH_SKILL_BASE_TN) {
   const lvl = Number(level) || 0;
   return Math.max(0, baseTN - lvl);
+}
+
+/**
+ * MechWarrior / Pilot / Crew Damage Table (A Time of War ↔ Total Warfare
+ * conversion, p. 218). Each entry is AToW combat damage as {ap, bd, type,
+ * ignoresArmor}: `bd` = Base Damage, `ap` = Armor Penetration, `type` = damage
+ * type code, `ignoresArmor` true for rows marked "*" (damage unaffected by
+ * armor). `subduing` rows apply to Fatigue and Stun rather than the wound track.
+ */
+export const CREW_DAMAGE = {
+  pilotHit:       { ap: 1,  bd: 3,  type: 'b', ignoresArmor: false, label: "Crew Hit / Cockpit damage" },
+  falling:        { ap: 1,  bd: 3,  type: 'm', ignoresArmor: false, label: "Damage from Falling" },
+  ammoExplosion:  { ap: 0,  bd: 4,  type: 'e', ignoresArmor: true,  label: "Internal Ammunition Explosion" },
+  ctArtillery:    { ap: 10, bd: 20, type: 'x', ignoresArmor: false, label: "Center Torso Destroyed by Artillery" },
+  overheat15:     { ap: 0,  bd: 2,  type: 'e', ignoresArmor: true,  label: "Overheat 15+ (Life Support Damage)" },
+  overheat25:     { ap: 0,  bd: 4,  type: 'e', ignoresArmor: true,  label: "Overheat 25+ (Life Support Damage)" },
+  vehicleCrewHit: { ap: 5,  bd: 4,  type: 'b', ignoresArmor: false, label: "Commander / Driver Hit" },
+  vehicleStunned: { ap: 0,  bd: 5,  type: 'm', ignoresArmor: true,  subduing: true, label: "Crew Stunned" },
+  vehicleKilled:  { ap: 5,  bd: 10, type: 'b', ignoresArmor: false, label: "Crew Killed" }
+};
+
+/**
+ * Apply one crew-damage event to a linked character via its own applyDamage().
+ * Returns false (and warns) when the current user cannot modify the actor.
+ * @param {Actor} actor
+ * @param {object} event  An entry from CREW_DAMAGE.
+ */
+export async function applyCrewDamage(actor, event) {
+  if (!actor || !event) return false;
+  if (!(actor.isOwner || game.user.isGM)) {
+    ui.notifications.warn(`You lack permission to apply damage to ${actor?.name ?? "the linked actor"}.`);
+    return false;
+  }
+  // For armor-ignoring events, pass rawDamageForKnockdown so applyDamage skips
+  // the BAR reduction step (the value is then applied directly).
+  const raw = event.ignoresArmor ? event.bd : null;
+  await actor.applyDamage(event.bd, event.ap, event.type, null, !!event.subduing, false, raw);
+  return true;
 }
 
 /**

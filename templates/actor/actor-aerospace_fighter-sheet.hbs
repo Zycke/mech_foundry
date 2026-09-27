@@ -1,19 +1,205 @@
-{{!-- ApplicationV2 supplies the <form> frame (tag: "form"); this part is inner content. --}}
-<header class="sheet-header">
-  <img class="profile-img" src="{{actor.img}}" data-action="editImage" data-edit="img" title="{{actor.name}}" height="70" width="70" />
-  <div class="header-fields">
-    <h1>
-      <input name="name" type="text" value="{{actor.name}}" placeholder="Aerospace Fighter Name" />
-    </h1>
-  </div>
-</header>
+<div class="unit-sheet-content mech-sheet-content actor-sheet-content">
 
-<section class="sheet-body">
-  <div class="placeholder-content">
-    <h3>Aerospace Fighter Sheet</h3>
-    <p>This aerospace fighter sheet is a placeholder and will be expanded in a future update.</p>
-    {{#if editable}}
-    <prose-mirror name="system.biography" data-document-uuid="{{actor.uuid}}" value="{{system.biography}}" collaborate="false" toggled="true">{{{enrichedBiography}}}</prose-mirror>
-    {{else}}{{{enrichedBiography}}}{{/if}}
-  </div>
-</section>
+  {{!-- ===================== Header ===================== --}}
+  <header class="mech-header">
+    <img class="profile-img" src="{{actor.img}}" data-action="editImage" data-edit="img" title="{{actor.name}}" height="64" width="64" />
+    <div class="header-id">
+      <h1><input name="name" type="text" value="{{actor.name}}" placeholder="Fighter Name" {{#unless editable}}disabled{{/unless}} /></h1>
+      <div class="header-sub">
+        <input class="sub-field" name="system.tonnage" type="number" min="0" value="{{system.tonnage}}" title="Tonnage" {{#unless editable}}disabled{{/unless}} /><span class="unit">t</span>
+        <select class="sub-field" name="system.weightClass" title="Weight Class" {{#unless editable}}disabled{{/unless}}>
+          <option value="">—</option>
+          {{#each weightClasses}}<option value="{{this}}" {{#if (eq this ../system.weightClass)}}selected{{/if}}>{{this}}</option>{{/each}}
+        </select>
+        <input class="sub-field wide" name="system.techBase" type="text" value="{{system.techBase}}" placeholder="Tech Base" {{#unless editable}}disabled{{/unless}} />
+      </div>
+    </div>
+    <div class="header-totals">
+      <span class="tot-badge armor {{#if armorTotal.damaged}}dmg{{/if}}">ARMOR {{armorTotal.value}} / {{armorTotal.max}}</span>
+      <span class="tot-badge struct {{#if si.damaged}}dmg{{/if}}">SI {{si.value}} / {{si.max}}</span>
+    </div>
+  </header>
+
+  {{!-- ===================== Tabs ===================== --}}
+  <nav class="sheet-tabs">
+    <a class="item" data-tab="status"><i class="fas fa-heart-pulse"></i> Status</a>
+    <a class="item" data-tab="combat"><i class="fas fa-crosshairs"></i> Combat</a>
+    <a class="item" data-tab="details"><i class="fas fa-book"></i> Details</a>
+  </nav>
+
+  <section class="sheet-body">
+
+    {{!-- ===================== STATUS ===================== --}}
+    <div class="tab" data-tab="status">
+      <div class="mf-grid2">
+        <div class="mf-panel">
+          <h4>Armor by Facing <span class="hint">current / max · threshold</span></h4>
+          {{#each facings}}
+          <div class="facingrow {{#if armor.damaged}}dmg{{/if}}">
+            <span class="fl">{{label}} <span class="thr">thr {{armor.threshold}}</span></span>
+            <span class="fv"><input type="number" min="0" name="system.armor.{{key}}.value" value="{{armor.value}}" {{#unless ../editable}}disabled{{/unless}} /><span class="mx">/{{armor.max}}</span></span>
+            <span class="fbar armor"><span style="width: {{armor.pct}}%"></span></span>
+          </div>
+          {{/each}}
+          <div class="facingrow {{#if si.damaged}}dmg{{/if}}" style="margin-top:8px">
+            <span class="fl">Structural Integ.</span>
+            <span class="fv"><input type="number" min="0" name="system.structuralIntegrity.value" value="{{si.value}}" {{#unless editable}}disabled{{/unless}} /><span class="mx">/{{si.max}}</span></span>
+            <span class="fbar struct"><span style="width: {{si.pct}}%"></span></span>
+          </div>
+        </div>
+        <div class="mf-panel">
+          <h4>Heat</h4>
+          <div class="heat">
+            <div class="scale"><div class="fill" style="height: {{heat.pct}}%"></div></div>
+            <div class="readout">
+              <div class="heat-big"><input type="number" min="0" name="system.heat.value" value="{{heat.value}}" {{#unless editable}}disabled{{/unless}} /><small> / {{heat.scale}}</small></div>
+              <div class="eff-list">
+                <div class="effrow {{#if heatEffects.toHit}}active{{/if}}"><span class="e">Firing (to-hit)</span><span class="val">+{{heatEffects.toHit}}</span></div>
+                <div class="effrow {{#if heatEffects.shutdown.active}}active{{/if}}"><span class="e">Shutdown check</span><span class="val">{{heatEffects.shutdown.text}}</span></div>
+                <div class="effrow {{#if heatEffects.ammo.active}}active{{/if}}"><span class="e">Ammo explosion</span><span class="val">{{heatEffects.ammo.text}}</span></div>
+                <div class="effrow {{#if heatEffects.lifeSupport.active}}active{{/if}}"><span class="e">Life support (pilot)</span><span class="val">{{heatEffects.lifeSupport.text}}</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="mf-grid2">
+        <div class="mf-panel">
+          <h4>Flight</h4>
+          <div class="mf-stats">
+            <label class="mf-stat"><span class="k">Safe Thrust</span><input type="number" min="0" name="system.thrust.safe" value="{{flight.safe}}" {{#unless editable}}disabled{{/unless}} /></label>
+            <div class="mf-stat"><span class="k">Max Thrust</span><span class="v derived">{{flight.max}}</span></div>
+            <label class="mf-stat"><span class="k">Velocity</span><input type="number" min="0" name="system.flight.velocity" value="{{flight.velocity}}" {{#unless editable}}disabled{{/unless}} /></label>
+            <label class="mf-stat"><span class="k">Altitude</span><input type="number" min="0" name="system.flight.altitude" value="{{flight.altitude}}" {{#unless editable}}disabled{{/unless}} /></label>
+            <label class="mf-stat"><span class="k">Thrust Spent</span><input type="number" min="0" name="system.flight.thrustSpent" value="{{flight.thrustSpent}}" {{#unless editable}}disabled{{/unless}} /></label>
+            <label class="mf-stat"><span class="k">Fuel</span><input type="number" min="0" name="system.fuel" value="{{flight.fuel}}" {{#unless editable}}disabled{{/unless}} /></label>
+          </div>
+          <div class="flags">
+            <label class="chk"><input type="checkbox" name="system.conditions.shutdown" {{checked conditions.shutdown}} {{#unless editable}}disabled{{/unless}}> Shutdown</label>
+            <label class="chk"><input type="checkbox" name="system.conditions.outOfControl" {{checked conditions.outOfControl}} {{#unless editable}}disabled{{/unless}}> Out of Control</label>
+          </div>
+        </div>
+        <div class="mf-panel">
+          <h4>Critical Checklist</h4>
+          <div class="crit">
+            {{#each aeroCrits}}
+            <div class="c"><span>{{label}}</span><span class="pips">{{#each pips}}<i class="crit-pip {{#if this}}on{{/if}}" data-path="crits.{{../key}}" data-level="{{add @index 1}}"></i>{{/each}}</span></div>
+            {{/each}}
+          </div>
+          <div class="flags" style="margin-top:8px">
+            <label class="chk"><input type="checkbox" name="system.crits.landingGear" {{checked crits.landingGear}} {{#unless editable}}disabled{{/unless}}> Landing Gear</label>
+            <label class="chk"><input type="checkbox" name="system.crits.lifeSupport" {{checked crits.lifeSupport}} {{#unless editable}}disabled{{/unless}}> Life Support</label>
+          </div>
+        </div>
+      </div>
+
+      <div class="mf-panel">
+        <h4>Pilot</h4>
+        <div class="pilot">
+          <div class="pic">{{#if pilotLinked}}<img src="{{pilotLinked.img}}" alt="" />{{else}}<i class="fas fa-user"></i>{{/if}}</div>
+          <div class="info">
+            <div class="pname-line">
+              {{#if pilotLinked}}
+                <span class="pname pilot-open" title="Open linked actor">{{pilotLinked.name}}</span>
+                <span class="link linked"><i class="fas fa-link"></i> linked</span>
+                {{#if editable}}<a class="pilot-unlink" title="Unlink"><i class="fas fa-unlink"></i></a>{{/if}}
+              {{else}}
+                <input class="pname-in" type="text" name="system.crew.name" value="{{pilot.name}}" placeholder="Pilot name" {{#unless editable}}disabled{{/unless}} />
+                {{#if editable}}<a class="link pilot-link"><i class="fas fa-link"></i> link PC/NPC</a>{{/if}}
+              {{/if}}
+            </div>
+            <div class="consc" title="Consciousness / pilot hits">
+              {{#each pilot.pips}}<span class="consc-pip {{#if this}}taken{{/if}}" data-level="{{add @index 1}}">{{add @index 1}}</span>{{/each}}
+            </div>
+          </div>
+          <div class="skillpair">
+            <div class="sk {{#if pilot.gunneryDerived}}derived{{/if}}"><span class="k">Gun</span>
+              {{#if pilot.gunneryDerived}}<span class="skv" title="{{pilot.gunnerySource}}">{{pilot.gunnery}}</span>
+              {{else}}<input type="number" min="0" name="system.crew.gunnery" value="{{pilot.gunnery}}" {{#unless editable}}disabled{{/unless}} />{{/if}}
+            </div>
+            <div class="sk {{#if pilot.pilotingDerived}}derived{{/if}}"><span class="k">Pilot</span>
+              {{#if pilot.pilotingDerived}}<span class="skv" title="{{pilot.pilotingSource}}">{{pilot.piloting}}</span>
+              {{else}}<input type="number" min="0" name="system.crew.piloting" value="{{pilot.piloting}}" {{#unless editable}}disabled{{/unless}} />{{/if}}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {{!-- ===================== COMBAT ===================== --}}
+    <div class="tab" data-tab="combat">
+      <div class="mf-panel">
+        <h4>Weapons by Arc {{#if editable}}<button type="button" class="add-weapon"><i class="fas fa-plus"></i> Add</button>{{/if}}</h4>
+        <table class="wt">
+          <thead><tr><th class="w-name">Weapon</th><th>Arc</th><th>Ht</th><th>Dmg</th><th>S</th><th>M</th><th>L</th><th>Ammo Type</th><th>Rds</th><th></th></tr></thead>
+          <tbody>
+            {{#each weapons}}
+            <tr>
+              <td class="w-name"><input type="text" class="weapon-field" data-weapon-id="{{id}}" data-field="name" value="{{name}}" placeholder="Weapon" {{#unless ../editable}}disabled{{/unless}} /></td>
+              <td><input type="text" class="weapon-field loc" data-weapon-id="{{id}}" data-field="location" value="{{location}}" placeholder="Nose" {{#unless ../editable}}disabled{{/unless}} /></td>
+              <td><input type="number" min="0" class="weapon-field n" data-weapon-id="{{id}}" data-field="heat" value="{{heat}}" {{#unless ../editable}}disabled{{/unless}} /></td>
+              <td><input type="number" min="0" class="weapon-field n" data-weapon-id="{{id}}" data-field="damage" value="{{damage}}" {{#unless ../editable}}disabled{{/unless}} /></td>
+              <td><input type="number" min="0" class="weapon-field n" data-weapon-id="{{id}}" data-field="rangeS" value="{{rangeS}}" {{#unless ../editable}}disabled{{/unless}} /></td>
+              <td><input type="number" min="0" class="weapon-field n" data-weapon-id="{{id}}" data-field="rangeM" value="{{rangeM}}" {{#unless ../editable}}disabled{{/unless}} /></td>
+              <td><input type="number" min="0" class="weapon-field n" data-weapon-id="{{id}}" data-field="rangeL" value="{{rangeL}}" {{#unless ../editable}}disabled{{/unless}} /></td>
+              <td><input type="text" class="weapon-field" data-weapon-id="{{id}}" data-field="ammoType" value="{{ammoType}}" placeholder="— none —" {{#unless ../editable}}disabled{{/unless}} /></td>
+              <td><input type="number" min="0" class="weapon-field n" data-weapon-id="{{id}}" data-field="ammo" value="{{ammo}}" {{#unless ../editable}}disabled{{/unless}} /></td>
+              <td class="w-actions">
+                <button type="button" class="weapon-attack" title="Attack"><i class="fas fa-bolt"></i></button>
+                {{#if ../editable}}<a class="remove-weapon" data-weapon-id="{{id}}" title="Remove"><i class="fas fa-trash"></i></a>{{/if}}
+              </td>
+            </tr>
+            {{/each}}
+          </tbody>
+        </table>
+        {{#unless weapons.length}}<p class="empty-notice">No weapons. Click "Add".</p>{{/unless}}
+        <p class="logi-note">Ammo types feed the company Logistics roll-up. Attack buttons activate in the combat-automation phase.</p>
+      </div>
+      <div class="mf-panel">
+        <h4>Bombs / External Stores <span class="hint">hardpoint capacity</span></h4>
+        <p class="logi-note">External-stores tracking arrives with the combat-automation phase.</p>
+      </div>
+    </div>
+
+    {{!-- ===================== DETAILS ===================== --}}
+    <div class="tab" data-tab="details">
+      <div class="mf-panel">
+        <h4>Armor &amp; SI — Maximums <span class="hint">enter once from the record sheet</span></h4>
+        <table class="setup-table">
+          <thead><tr><th>Location</th><th>Armor</th><th>Threshold</th></tr></thead>
+          <tbody>
+            {{#each setupFacings}}
+            <tr>
+              <td class="loc-name">{{label}}</td>
+              <td><input type="number" min="0" name="system.armor.{{key}}.max" value="{{max}}" {{#unless ../editable}}disabled{{/unless}} /></td>
+              <td><input type="number" min="0" name="system.armor.{{key}}.threshold" value="{{threshold}}" {{#unless ../editable}}disabled{{/unless}} /></td>
+            </tr>
+            {{/each}}
+            <tr><td class="loc-name">Structural Integrity</td><td><input type="number" min="0" name="system.structuralIntegrity.max" value="{{siMax}}" {{#unless editable}}disabled{{/unless}} /></td><td><span class="na">—</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="mf-panel">
+        <h4>Construction <span class="hint">stored as entered</span></h4>
+        <div class="mf-stats wide">
+          <label class="mf-stat"><span class="k">Era</span><input type="text" name="system.era" value="{{system.era}}" {{#unless editable}}disabled{{/unless}} /></label>
+          <label class="mf-stat"><span class="k">Engine Type</span><input type="text" name="system.engineType" value="{{system.engineType}}" {{#unless editable}}disabled{{/unless}} /></label>
+          <label class="mf-stat"><span class="k">Engine Rating</span><input type="number" min="0" name="system.engineRating" value="{{system.engineRating}}" {{#unless editable}}disabled{{/unless}} /></label>
+          <label class="mf-stat"><span class="k">Heat Sinks</span><input type="number" min="0" name="system.heatSinks.count" value="{{heatSinks.count}}" {{#unless editable}}disabled{{/unless}} /></label>
+          <label class="mf-stat"><span class="k">Cost (C-bills)</span><input type="number" min="0" name="system.cost" value="{{system.cost}}" {{#unless editable}}disabled{{/unless}} /></label>
+          <label class="mf-stat"><span class="k">Battle Value</span><input type="number" min="0" name="system.bv" value="{{system.bv}}" {{#unless editable}}disabled{{/unless}} /></label>
+        </div>
+      </div>
+      <div class="mf-panel">
+        <h4>Notes / Biography</h4>
+        <div class="editor-container">
+          {{#if editable}}
+          <prose-mirror name="system.biography" data-document-uuid="{{actor.uuid}}" value="{{system.biography}}" collaborate="false" toggled="true">{{{enrichedBiography}}}</prose-mirror>
+          {{else}}{{{enrichedBiography}}}{{/if}}
+        </div>
+      </div>
+    </div>
+
+  </section>
+</div>

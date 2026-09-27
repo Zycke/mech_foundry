@@ -80,7 +80,23 @@ Weapon → Physical → Heat → End, alternating activation). Area effects via 
 (v14 removed MeasuredTemplate). Verify the Cluster Hits and Aero hit-location tables from the
 full book before shipping.
 
+## A Time of War ↔ Total Warfare conversion (implemented)
+Source: *A Time of War* pp. 42-43 (skills) and the MechWarrior/Pilot/Crew Damage Table (p. 218).
+Lives in `module/helpers/atow-conversion.mjs`.
+- **Skill rating:** `TW Rating = Base Target Number − Skill Level`, floored at 0 ("superhuman"
+  skills clamp to 0). Base TN comes from the skill's complexity code (SB 7, SA 8, CB 8, CA 9);
+  Gunnery/'Mech, Piloting/'Mech, Gunnery/Ground Vehicle, Driving/Ground Vehicles,
+  Gunnery/Aerospace and Piloting/Aerospace are all **8/SA** → Base TN 8. When a crew slot is
+  linked to a character, the sheet derives the rating live from that actor's skill Item.
+- **Pilot/crew damage (`CREW_DAMAGE`, `AP/BD`):** pilot hit = **1B/3**; falling 1M/3; ammo
+  explosion 0E/4D\*; CT-by-artillery 10X/20; overheat w/life support 0E/2D\* (15+) & 0E/4D\* (25+);
+  vehicle commander/driver hit 5B/4; crew stunned 0M/5D\* (subduing); crew killed 5B/10.
+  `*` = unaffected by armor (applied via `applyDamage`'s raw path). Mech/aero pilot-hit pips and
+  vehicle driver/commander flags apply the matching event to the linked character on increase.
+
 ## Rollout (reviewable commits)
-1. Mech data model + sheet.  2. Token-bar derived totals + prototype config.  3. Ground-vehicle
-sheet.  4. Aerospace sheet.  5. Company integration polish (status derivation, ammo alignment).
-6. Combat automation (its own multi-commit effort).
+1. ✅ Mech data model + sheet.  2. ✅ Token-bar derived totals + prototype config.
+3. ✅ Ground-vehicle sheet.  4. ✅ Aerospace sheet.  5. Company integration polish (status
+derivation, ammo alignment).  6. Combat automation (its own multi-commit effort).
+Pilot skill-derivation and pilot/crew → character damage write-back are wired for all three
+unit types (see the conversion section above).

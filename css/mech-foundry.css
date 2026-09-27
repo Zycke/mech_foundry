@@ -7349,8 +7349,10 @@
 .mech-foundry.mech-sheet .crit { display: grid; grid-template-columns: 1fr; gap: 4px; }
 .mech-foundry.mech-sheet .crit .c { display: flex; justify-content: space-between; align-items: center; font-size: 0.78rem; color: var(--mf-ink); padding: 3px 0; border-bottom: 1px dotted var(--mf-line); }
 .mech-foundry.mech-sheet .crit .pips { display: flex; gap: 3px; }
-.mech-foundry.mech-sheet .sys-pip { width: 13px; height: 13px; border: 1px solid var(--mf-steel); border-radius: 2px; background: #0e1216; cursor: pointer; }
-.mech-foundry.mech-sheet .sys-pip.on { background: var(--mf-danger); border-color: #a33; }
+.mech-foundry.mech-sheet .sys-pip,
+.mech-foundry.mech-sheet .crit-pip { width: 13px; height: 13px; border: 1px solid var(--mf-steel); border-radius: 2px; background: #0e1216; cursor: pointer; }
+.mech-foundry.mech-sheet .sys-pip.on,
+.mech-foundry.mech-sheet .crit-pip.on { background: var(--mf-danger); border-color: #a33; }
 
 /* ---- Construction: armor/structure max grid (Details tab) ---- */
 .mech-foundry.mech-sheet table.setup-table { width: 100%; border-collapse: collapse; }
@@ -7365,3 +7367,20 @@
 .mech-foundry.mech-sheet .skillpair .sk .skv { font-family: var(--mf-font-mono); font-size: 1rem; color: var(--mf-amber-2); height: 22px; display: grid; place-items: center; }
 .mech-foundry.mech-sheet .skillpair .sk.derived { border-color: #2c5b34; }
 .mech-foundry.mech-sheet .skillpair .sk.derived .skv { color: var(--mf-ok); cursor: help; }
+
+/* ---- Vehicle / aero facing armor bars (horizontal) ---- */
+.mech-foundry.mech-sheet .facingrow { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.mech-foundry.mech-sheet .facingrow .fl { flex: 0 0 88px; font-size: 0.74rem; color: var(--mf-ink-dim); }
+.mech-foundry.mech-sheet .facingrow .fv { flex: 0 0 auto; display: inline-flex; align-items: baseline; font-family: var(--mf-font-mono); font-size: 0.76rem; }
+.mech-foundry.mech-sheet .facingrow .fv input { width: 40px; background: var(--mf-bg); border: 1px solid var(--mf-steel); border-radius: 2px; color: #7fc0f0; text-align: right; font-family: var(--mf-font-mono); font-size: 0.76rem; padding: 0 3px; }
+.mech-foundry.mech-sheet .facingrow.dmg .fv input { color: var(--mf-danger); }
+.mech-foundry.mech-sheet .facingrow .fv .mx { color: var(--mf-ink-dim); margin-left: 1px; }
+.mech-foundry.mech-sheet .facingrow .fbar { flex: 1 1 auto; height: 9px; background: #05080a; border: 1px solid var(--mf-line); border-radius: 2px; overflow: hidden; }
+.mech-foundry.mech-sheet .facingrow .fbar > span { display: block; height: 100%; }
+.mech-foundry.mech-sheet .facingrow .fbar.armor > span { background: linear-gradient(90deg, #3f77a3, #5b9fd1); }
+.mech-foundry.mech-sheet .facingrow.dmg .fbar.armor > span { background: linear-gradient(90deg, #7a3a34, #d9483b); }
+.mech-foundry.mech-sheet .facingrow .fbar.struct > span { background: linear-gradient(90deg, #8a6a2e, var(--mf-amber)); }
+.mech-foundry.mech-sheet .penalty-line { margin-top: 8px; font-size: 0.76rem; color: var(--mf-danger); }
+
+/* ---- Aero facing threshold tag ---- */
+.mech-foundry.mech-sheet .facingrow .fl .thr { color: var(--mf-ink-dim); font-family: var(--mf-font-mono); font-size: 0.62rem; margin-left: 3px; }

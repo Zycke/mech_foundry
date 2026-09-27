@@ -1,5 +1,5 @@
 import { MechFoundryUnitSheet } from "./unit-sheet.mjs";
-import { actorSkillRating, MECH_GUNNERY_SKILLS, MECH_PILOTING_SKILLS } from "../helpers/atow-conversion.mjs";
+import { actorSkillRating, applyCrewDamage, CREW_DAMAGE, MECH_GUNNERY_SKILLS, MECH_PILOTING_SKILLS } from "../helpers/atow-conversion.mjs";
 
 const { DialogV2 } = foundry.applications.api;
 
@@ -261,13 +261,33 @@ export class MechFoundryMechSheet extends MechFoundryUnitSheet {
     await this.actor.update({ [`system.systemHits.${sys}`]: Math.max(0, next) });
   }
 
-  /** Click a consciousness pip: set pilot hits, or clear if already at that level. */
+  /**
+   * Click a consciousness pip: set pilot hits, or clear if already at that level.
+   * When hits increase and a character is linked, apply the AToW pilot-hit damage
+   * (1B/3 per hit, MechWarrior/Pilot/Crew Damage Table) to that character.
+   */
   async _onPilotHitPip(event) {
     event.preventDefault();
     const lvl = parseInt(event.currentTarget.dataset.level);
     const current = Number(this.actor.system.pilot?.hits) || 0;
-    const next = current === lvl ? lvl - 1 : lvl;
-    await this.actor.update({ 'system.pilot.hits': Math.max(0, next) });
+    const next = Math.max(0, current === lvl ? lvl - 1 : lvl);
+    await this.actor.update({ 'system.pilot.hits': next });
+    const delta = next - current;
+    if (delta > 0) await this._applyPilotHits(delta);
+  }
+
+  /** Apply `count` pilot-hit damage events to the linked character. */
+  async _applyPilotHits(count) {
+    const linked = game.actors.get(this.actor.system.pilot?.actorId);
+    if (!linked) return;
+    let applied = 0;
+    for (let i = 0; i < count; i++) {
+      if (!(await applyCrewDamage(linked, CREW_DAMAGE.pilotHit))) break;
+      applied++;
+    }
+    if (applied) {
+      ui.notifications.info(`${this.actor.name}: applied ${applied} pilot hit(s) to ${linked.name} (${CREW_DAMAGE.pilotHit.bd} damage each).`);
+    }
   }
 
   /** Link the pilot block to a world character/NPC actor. */
