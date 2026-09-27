@@ -85,13 +85,17 @@ export class MechFoundryUnitSheet extends MechFoundryActorSheetV2 {
     });
   }
 
+  /** Weapon fields stored as non-negative integers (all others are strings). */
+  static NUMERIC_WEAPON_FIELDS = ['shotsPerTon', 'heat', 'ammo'];
+
   async _onWeaponFieldChange(event) {
     const { weaponId, field } = event.currentTarget.dataset;
     const raw = event.currentTarget.value;
+    const numeric = this.constructor.NUMERIC_WEAPON_FIELDS.includes(field);
     await this._updateWeapons(w => {
       const wpn = w.find(x => x.id === weaponId);
       if (!wpn) return false;
-      wpn[field] = field === 'shotsPerTon' ? Math.max(0, parseInt(raw) || 0) : raw;
+      wpn[field] = numeric ? Math.max(0, parseInt(raw) || 0) : raw;
     });
   }
 }
