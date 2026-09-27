@@ -215,6 +215,8 @@
         "class": "",
         "role": ""
       },
+      "tonnage": 0,
+      "shipType": "dropship_spheroid",
       "armor": {
         "nose": {
           "value": 0,
@@ -240,7 +242,6 @@
         "currentFuel": 0,
         "tonsBurnDay": 0,
         "fighters": 0,
-        "marinePoints": 0,
         "heatSinks": 0
       },
       "track": {
