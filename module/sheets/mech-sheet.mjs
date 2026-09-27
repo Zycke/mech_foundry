@@ -1,4 +1,5 @@
 import { MechFoundryUnitSheet } from "./unit-sheet.mjs";
+import { actorSkillRating, MECH_GUNNERY_SKILLS, MECH_PILOTING_SKILLS } from "../helpers/atow-conversion.mjs";
 
 const { DialogV2 } = foundry.applications.api;
 
@@ -135,9 +136,28 @@ export class MechFoundryMechSheet extends MechFoundryUnitSheet {
       gunnery: pilot.gunnery ?? 4,
       piloting: pilot.piloting ?? 5,
       hits,
-      pips: Array.from({ length: PILOT_HIT_MAX }, (_, i) => i < hits)
+      pips: Array.from({ length: PILOT_HIT_MAX }, (_, i) => i < hits),
+      gunneryDerived: false,
+      pilotingDerived: false
     };
     context.pilotLinked = linked ? { id: linked.id, uuid: linked.uuid, name: linked.name, img: linked.img } : null;
+
+    // When linked, derive Gunnery/Piloting live from the character's AToW skills
+    // (TW Rating = Base TN − Skill Level; A Time of War pp. 42-43).
+    if (linked) {
+      const g = actorSkillRating(linked, MECH_GUNNERY_SKILLS);
+      const p = actorSkillRating(linked, MECH_PILOTING_SKILLS);
+      if (g) {
+        context.pilot.gunnery = g.rating;
+        context.pilot.gunneryDerived = true;
+        context.pilot.gunnerySource = `${linked.name}: ${g.skillName} Lvl ${g.level}`;
+      }
+      if (p) {
+        context.pilot.piloting = p.rating;
+        context.pilot.pilotingDerived = true;
+        context.pilot.pilotingSource = `${linked.name}: ${p.skillName} Lvl ${p.level}`;
+      }
+    }
 
     context.conditions = sys.conditions || {};
     context.heatSinks = sys.heatSinks || { count: 0, type: 'single' };

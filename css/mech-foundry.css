@@ -7360,3 +7360,8 @@
 .mech-foundry.mech-sheet table.setup-table .loc-name .code { color: var(--mf-ink-dim); font-family: var(--mf-font-mono); font-size: 0.68rem; margin-left: 4px; }
 .mech-foundry.mech-sheet table.setup-table input { width: 52px; background: var(--mf-bg); border: 1px solid var(--mf-steel); border-radius: 2px; color: var(--mf-amber); text-align: center; font-family: var(--mf-font-mono); font-size: 0.8rem; padding: 0 3px; }
 .mech-foundry.mech-sheet table.setup-table .na { color: var(--mf-steel); }
+
+/* ---- Pilot: derived (linked) skill ratings ---- */
+.mech-foundry.mech-sheet .skillpair .sk .skv { font-family: var(--mf-font-mono); font-size: 1rem; color: var(--mf-amber-2); height: 22px; display: grid; place-items: center; }
+.mech-foundry.mech-sheet .skillpair .sk.derived { border-color: #2c5b34; }
+.mech-foundry.mech-sheet .skillpair .sk.derived .skv { color: var(--mf-ok); cursor: help; }

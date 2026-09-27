@@ -113,8 +113,14 @@
             </div>
           </div>
           <div class="skillpair">
-            <label class="sk"><span class="k">Gun</span><input type="number" min="0" name="system.pilot.gunnery" value="{{pilot.gunnery}}" {{#unless editable}}disabled{{/unless}} /></label>
-            <label class="sk"><span class="k">Pilot</span><input type="number" min="0" name="system.pilot.piloting" value="{{pilot.piloting}}" {{#unless editable}}disabled{{/unless}} /></label>
+            <div class="sk {{#if pilot.gunneryDerived}}derived{{/if}}"><span class="k">Gun</span>
+              {{#if pilot.gunneryDerived}}<span class="skv" title="{{pilot.gunnerySource}}">{{pilot.gunnery}}</span>
+              {{else}}<input type="number" min="0" name="system.pilot.gunnery" value="{{pilot.gunnery}}" {{#unless editable}}disabled{{/unless}} />{{/if}}
+            </div>
+            <div class="sk {{#if pilot.pilotingDerived}}derived{{/if}}"><span class="k">Pilot</span>
+              {{#if pilot.pilotingDerived}}<span class="skv" title="{{pilot.pilotingSource}}">{{pilot.piloting}}</span>
+              {{else}}<input type="number" min="0" name="system.pilot.piloting" value="{{pilot.piloting}}" {{#unless editable}}disabled{{/unless}} />{{/if}}
+            </div>
           </div>
         </div>
       </div>
