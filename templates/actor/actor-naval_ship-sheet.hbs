@@ -17,6 +17,7 @@
     <a class="item" data-tab="vessel">Vessel</a>
     <a class="item" data-tab="weapons">Weapons</a>
     <a class="item" data-tab="bays">Bays</a>
+    <a class="item" data-tab="logistics">Logistics</a>
     <a class="item" data-tab="crew">Crew &amp; Departments</a>
     <a class="item" data-tab="notes">Notes</a>
   </nav>
@@ -197,6 +198,47 @@
         </div>
         {{/each}}
         {{#unless bays.length}}<p class="empty-notice">No bays. Click "Add Bay" to create one.</p>{{/unless}}
+      </div>
+    </div>
+
+    {{!-- ==================== LOGISTICS TAB (read-only) ==================== --}}
+    <div class="tab" data-tab="logistics" data-group="primary">
+      <div class="tab-content">
+        <div class="cargo-readout">
+          <span>Cargo capacity: <strong>{{cargoCapacity}}</strong> t</span>
+          <span>Used: <strong>{{cargoUsed}}</strong> t</span>
+          <span>Free: <strong>{{cargoFree}}</strong> t</span>
+          <span class="logi-note">Read-only — supplies are managed from the owning company's Logistics tab.</span>
+        </div>
+
+        <div class="items-header"><h3>Ship Supplies</h3></div>
+        <div class="ship-manifest">
+          {{#each logiShip}}
+          <div class="manifest-cell"><span class="mf-label">{{this.label}}</span><span class="mf-val">{{this.value}}</span></div>
+          {{/each}}
+        </div>
+        {{#if logiShipAmmo.length}}
+        <div class="manifest-ammo">
+          {{#each logiShipAmmo}}<span class="ammo-chip">{{this.name}} <strong>{{this.value}}</strong></span>{{/each}}
+        </div>
+        {{/if}}
+
+        <div class="items-header"><h3>Ground Forces Supplies</h3></div>
+        {{#each logiGround}}
+        <div class="manifest-group">
+          <span class="manifest-group-title">{{this.label}}</span>
+          <div class="ship-manifest">
+            {{#each this.fields}}
+            <div class="manifest-cell"><span class="mf-label">{{this.label}}</span><span class="mf-val">{{this.value}}</span></div>
+            {{/each}}
+          </div>
+        </div>
+        {{/each}}
+        {{#if logiGroundAmmo.length}}
+        <div class="manifest-ammo">
+          {{#each logiGroundAmmo}}<span class="ammo-chip">{{this.name}}{{#if this.usedBy}} <em>({{this.usedBy}})</em>{{/if}} <strong>{{this.value}}</strong></span>{{/each}}
+        </div>
+        {{/if}}
       </div>
     </div>
 

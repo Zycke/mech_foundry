@@ -133,6 +133,7 @@
       "reputation": "",
       "notes": "",
       "personnel": {
+        "gunners": 0,
         "enlisted": 0,
         "officers": 0,
         "bayTechs": 0,
@@ -143,6 +144,7 @@
         "installationCrew": 0
       },
       "medical": {
+        "gunners": { "active": 0, "wounded": 0, "kia": 0 },
         "enlisted": { "active": 0, "wounded": 0, "kia": 0 },
         "officers": { "active": 0, "wounded": 0, "kia": 0 },
         "bayTechs": { "active": 0, "wounded": 0, "kia": 0 },
@@ -219,16 +221,31 @@
       "departments": []
     },
     "mech": {
-      "biography": ""
+      "biography": "",
+      "weightClass": "",
+      "tonnage": 0,
+      "armorType": "",
+      "weapons": []
     },
     "ground_vehicle": {
-      "biography": ""
+      "biography": "",
+      "weightClass": "",
+      "tonnage": 0,
+      "armorType": "",
+      "weapons": []
     },
     "aerospace_fighter": {
-      "biography": ""
+      "biography": "",
+      "weightClass": "",
+      "tonnage": 0,
+      "armorType": "",
+      "weapons": []
     },
     "battle_armor": {
-      "biography": ""
+      "biography": "",
+      "squadSize": 0,
+      "armorType": "",
+      "weapons": []
     },
     "installation": {
       "biography": ""

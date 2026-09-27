@@ -241,6 +241,16 @@
               </div>
               {{/each}}
             </div>
+
+            {{#if this.ammoNeeds.length}}
+            <div class="ammo-needs">
+              <div class="ammo-block-head"><span><i class="fas fa-crosshairs"></i> Required Ammo (based units)</span></div>
+              {{#each this.ammoNeeds}}
+              <div class="ammo-need-row"><span class="an-type">{{this.ammoType}}</span><span class="an-units">{{this.unitCount}} unit(s) · {{this.weaponCount}} weapon(s): {{this.unitsLabel}}</span></div>
+              {{/each}}
+              <p class="logi-note">Demand derived from based units' weapons — held stock is above.</p>
+            </div>
+            {{/if}}
           </div>
           {{/if}}
         </div>
@@ -268,7 +278,7 @@
           <div class="pool-editor">
             <h3><i class="fas fa-users"></i> Personnel Pools</h3>
             <div class="pool-editor-group">
-              <h4 class="category-title">Ship Crew</h4>
+              <h4 class="category-title">Ship's Company</h4>
               <div class="pool-grid">
                 {{#each crewPools}}
                 <div class="pool-edit-cell {{#if this.over}}over{{/if}}">
@@ -280,7 +290,7 @@
               </div>
             </div>
             <div class="pool-editor-group">
-              <h4 class="category-title">Combat Troops</h4>
+              <h4 class="category-title">Embarked Personnel</h4>
               <div class="pool-grid">
                 {{#each troopPools}}
                 <div class="pool-edit-cell {{#if this.over}}over{{/if}}">
@@ -351,115 +361,151 @@
 
         {{#if editable}}
         <div class="mtoe-controls">
-          <button type="button" class="add-mtoe-box"><i class="fas fa-plus"></i> Add Unit Box</button>
+          <label class="ctl">Add top-level unit
+            <select class="add-mtoe-block">
+              <option value="">+ Add unit…</option>
+              {{#each blockTypes}}<option value="{{this.key}}">{{this.label}}</option>{{/each}}
+            </select>
+          </label>
         </div>
         {{/if}}
 
-        <div class="mtoe-boxes">
-        {{#each mtoe}}
-        <div class="mtoe-box" data-box-id="{{this.id}}">
-          <div class="mtoe-box-head">
-            <input type="text" class="mtoe-box-name" data-box-id="{{this.id}}" value="{{this.name}}" placeholder="Unit name" {{#unless ../editable}}disabled{{/unless}} />
-            {{#if ../editable}}
-            <a class="remove-mtoe-box" data-box-id="{{this.id}}" title="Delete Unit Box"><i class="fas fa-trash"></i></a>
-            {{/if}}
+        <div class="mtoe-tree">
+          {{#each mtoeRows}}
+          {{#if (eq this.kind "stack")}}
+          <div class="mtoe-node mtoe-stack-row" style="--depth:{{this.depth}}">
+            <span class="mtoe-stack-toggle" data-stack-id="{{this.stackId}}"><i class="fas {{#if this.open}}fa-chevron-down{{else}}fa-chevron-right{{/if}}"></i></span>
+            <span class="type-chip">{{this.typeLabel}}</span>
+            <span class="stack-name">{{this.name}}</span>
+            <span class="stack-count">×{{this.count}}</span>
           </div>
-
-          <div class="mtoe-box-controls">
-            <label class="ctl">Personnel
-              <select class="mtoe-personnel-type" data-box-id="{{this.id}}" {{#unless ../editable}}disabled{{/unless}}>
-                {{#each ../troopTypes}}
-                <option value="{{this.key}}" {{#if (eq this.key ../personnelType)}}selected{{/if}}>{{this.label}}</option>
-                {{/each}}
-              </select>
-            </label>
-            <label class="ctl">Status
-              <select class="mtoe-box-status" data-box-id="{{this.id}}" {{#unless ../editable}}disabled{{/unless}}>
-                {{#each ../unitStatuses}}
-                <option value="{{this}}" {{#if (eq this ../status)}}selected{{/if}}>{{this}}</option>
-                {{/each}}
-              </select>
-            </label>
-            <label class="ctl">Location
-              <select class="mtoe-location" data-box-id="{{this.id}}" {{#unless ../editable}}disabled{{/unless}}>
-                <option value="">— Unassigned —</option>
-                {{#each ../mtoeLocationOptions}}
-                <option value="{{this.actorId}}" {{#if (eq this.actorId ../locationId)}}selected{{/if}}>{{this.name}}</option>
-                {{/each}}
-              </select>
-            </label>
-          </div>
-          {{#if this.locationName}}<div class="mtoe-location-tag"><i class="fas fa-location-dot"></i> Based at {{this.locationName}}</div>{{/if}}
-          {{#if this.locationMissing}}<div class="mtoe-warning"><i class="fas fa-triangle-exclamation"></i> Assigned location actor is missing.</div>{{/if}}
-
-          <div class="mtoe-box-vet">
-            <span class="vet-badge vet-{{this.veterancy}}">{{this.veterancy}} ({{#if (gte this.vetMod 0)}}+{{/if}}{{this.vetMod}})</span>
-            <div class="xp-track" title="{{this.xpInto}}/100 XP to next tier"><div class="xp-fill" style="width:{{this.xpPct}}%"></div></div>
-            <input type="number" class="mtoe-xp xp-input" min="0" data-box-id="{{this.id}}" value="{{this.xp}}" title="Total XP" {{#unless ../editable}}disabled{{/unless}} />
-            <button type="button" class="mtoe-roll" data-box-id="{{this.id}}" title="Roll a unit task"><i class="fas fa-dice"></i></button>
-          </div>
-
-          {{#if this.mismatch}}
-          <div class="mtoe-warning"><i class="fas fa-triangle-exclamation"></i> {{this.mismatch}}</div>
-          {{/if}}
-
-          {{!-- Paired personnel / vehicle rows --}}
-          <div class="mtoe-roster">
-            <div class="roster-head">
-              <span>{{this.personnelTypeLabel}} ({{this.troopTotal}})</span>
-              <span>{{#if this.allowedVehicleLabel}}{{this.allowedVehicleLabel}} ({{this.vehicleTotal}}){{else}}No vehicles{{/if}}</span>
+          {{else}}
+          <div class="mtoe-node mtoe-box" data-box-id="{{this.id}}" style="--depth:{{this.depth}}">
+            <div class="mtoe-bar">
+              <span class="mtoe-toggle" data-box-id="{{this.id}}"><i class="fas {{#if this.collapsed}}fa-chevron-right{{else}}fa-chevron-down{{/if}}"></i></span>
+              <span class="type-chip type-{{this.detail.type}}">{{this.detail.typeLabel}}</span>
+              <input type="text" class="mtoe-box-name" data-box-id="{{this.id}}" value="{{this.detail.name}}" placeholder="Unit name" {{#unless ../editable}}disabled{{/unless}} />
+              <span class="mtoe-counts" title="Crew / Vehicles"><i class="fas fa-user"></i>{{this.detail.crewCount}}{{#if this.detail.hasVehicle}} <i class="fas fa-gears"></i>{{this.detail.vehicleCount}}{{/if}}</span>
+              <span class="vet-badge vet-{{this.detail.veterancy}}">{{this.detail.veterancy}}</span>
+              <span class="mtoe-status-pill">{{this.detail.status}}</span>
+              {{#if this.detail.locationName}}<span class="loc-tag" title="Based at"><i class="fas fa-location-dot"></i> {{this.detail.locationName}}</span>{{/if}}
+              {{#if ../editable}}<a class="remove-mtoe-box" data-box-id="{{this.id}}" title="Delete unit"><i class="fas fa-trash"></i></a>{{/if}}
             </div>
-            {{#each this.rows}}
-            <div class="roster-row">
-              <div class="roster-person">
-                {{#if this.person}}
-                <span class="rp-name">{{this.person.label}}</span>
-                <select class="person-status status-{{this.person.status}}" data-box-id="{{../id}}" data-person-id="{{this.person.id}}" {{#unless ../../editable}}disabled{{/unless}}>
-                  {{#each ../../personStatuses}}<option value="{{this}}" {{#if (eq this ../person.status)}}selected{{/if}}>{{this}}</option>{{/each}}
-                </select>
-                {{#if ../../editable}}
-                <a class="remove-personnel" data-box-id="{{../id}}" data-person-id="{{this.person.id}}" title="Remove"><i class="fas fa-times"></i></a>
-                {{/if}}
-                {{else}}
-                <span class="rp-empty">—</span>
-                {{/if}}
+
+            {{#unless this.collapsed}}
+            <div class="mtoe-detail">
+              {{#if ../editable}}
+              <div class="mtoe-detail-controls">
+                <label class="ctl">Type
+                  <select class="mtoe-block-type" data-box-id="{{this.id}}">
+                    {{#each ../blockTypes}}<option value="{{this.key}}" {{#if (eq this.key ../detail.type)}}selected{{/if}}>{{this.label}}</option>{{/each}}
+                  </select>
+                </label>
+                <label class="ctl">Parent
+                  <select class="mtoe-parent" data-box-id="{{this.id}}">
+                    <option value="">— Top level —</option>
+                    {{#each ../mtoeParentOptions}}{{#unless (eq this.id ../id)}}<option value="{{this.id}}" {{#if (eq this.id ../detail.parentId)}}selected{{/if}}>{{this.name}}</option>{{/unless}}{{/each}}
+                  </select>
+                </label>
+                <label class="ctl">Status
+                  <select class="mtoe-box-status" data-box-id="{{this.id}}">
+                    {{#each ../unitStatuses}}<option value="{{this}}" {{#if (eq this ../detail.status)}}selected{{/if}}>{{this}}</option>{{/each}}
+                  </select>
+                </label>
+                <label class="ctl">Location
+                  <select class="mtoe-location" data-box-id="{{this.id}}">
+                    <option value="">— Unassigned —</option>
+                    {{#each ../mtoeLocationOptions}}<option value="{{this.actorId}}" {{#if (eq this.actorId ../detail.locationId)}}selected{{/if}}>{{this.name}}</option>{{/each}}
+                  </select>
+                </label>
               </div>
-              <div class="roster-vehicle">
-                {{#if this.vehicle}}
-                <a class="mtoe-unit-open {{#unless this.vehicle.exists}}missing{{/unless}}" data-actor-id="{{this.vehicle.actorId}}" title="Open sheet">
-                  <img src="{{this.vehicle.img}}" width="18" height="18" />{{this.vehicle.name}}
-                </a>
-                <select class="vehicle-status vstatus-{{this.vehicle.status}}" data-box-id="{{../id}}" data-actor-id="{{this.vehicle.actorId}}" {{#unless ../../editable}}disabled{{/unless}}>
-                  {{#each ../../vehicleStatuses}}<option value="{{this}}" {{#if (eq this ../vehicle.status)}}selected{{/if}}>{{this}}</option>{{/each}}
-                </select>
-                {{#if ../../editable}}
-                <a class="mtoe-unit-remove" data-box-id="{{../id}}" data-actor-id="{{this.vehicle.actorId}}" title="Remove"><i class="fas fa-times"></i></a>
-                {{/if}}
-                {{else}}
-                <span class="rp-empty">—</span>
-                {{/if}}
+              {{/if}}
+              {{#if this.detail.locationMissing}}<div class="mtoe-warning small"><i class="fas fa-triangle-exclamation"></i> Assigned location actor is missing.</div>{{/if}}
+
+              <div class="mtoe-box-vet">
+                <span class="vet-badge vet-{{this.detail.veterancy}}">{{this.detail.veterancy}} ({{#if (gte this.detail.vetMod 0)}}+{{/if}}{{this.detail.vetMod}})</span>
+                <div class="xp-track" title="{{this.detail.xpInto}}/100 XP"><div class="xp-fill" style="width:{{this.detail.xpPct}}%"></div></div>
+                <input type="number" class="mtoe-xp xp-input" min="0" data-box-id="{{this.id}}" value="{{this.detail.xp}}" title="Total XP" {{#unless ../editable}}disabled{{/unless}} />
+                <button type="button" class="mtoe-roll" data-box-id="{{this.id}}" title="Roll a unit task"><i class="fas fa-dice"></i></button>
+              </div>
+
+              {{!-- Roster: crew paired with its matching vehicle --}}
+              <div class="mtoe-roster">
+                <div class="roster-head"><span>{{this.detail.troopLabel}} ({{this.detail.crewCount}})</span><span>{{#if this.detail.hasVehicle}}{{this.detail.vehicleLabel}} ({{this.detail.vehicleCount}}){{else}}—{{/if}}</span></div>
+                {{#if this.detail.mismatch}}<div class="mtoe-warning small"><i class="fas fa-triangle-exclamation"></i> {{this.detail.mismatch}}</div>{{/if}}
+                {{#each this.detail.roster}}
+                <div class="roster-row">
+                  <div class="roster-person">
+                    {{#if this.person}}
+                    <span class="rp-name">{{../detail.troopLabel}}</span>
+                    <select class="person-status" data-box-id="{{../detail.id}}" data-person-id="{{this.person.id}}" {{#unless ../../editable}}disabled{{/unless}}>
+                      {{#each ../../personStatuses}}<option value="{{this}}" {{#if (eq this ../person.status)}}selected{{/if}}>{{this}}</option>{{/each}}
+                    </select>
+                    {{#if ../../editable}}<a class="remove-personnel" data-box-id="{{../detail.id}}" data-person-id="{{this.person.id}}" title="Remove"><i class="fas fa-times"></i></a>{{/if}}
+                    {{else}}<span class="rp-empty">—</span>{{/if}}
+                  </div>
+                  <div class="roster-vehicle">
+                    {{#if this.vehicle}}
+                    <a class="mtoe-unit-open {{#unless this.vehicle.exists}}missing{{/unless}}" data-actor-id="{{this.vehicle.actorId}}" title="Open sheet"><img src="{{this.vehicle.img}}" width="18" height="18" />{{this.vehicle.name}}</a>
+                    <select class="vehicle-status" data-box-id="{{../detail.id}}" data-actor-id="{{this.vehicle.actorId}}" {{#unless ../../editable}}disabled{{/unless}}>
+                      {{#each ../../vehicleStatuses}}<option value="{{this}}" {{#if (eq this ../vehicle.status)}}selected{{/if}}>{{this}}</option>{{/each}}
+                    </select>
+                    {{#if ../../editable}}<a class="mtoe-unit-remove" data-box-id="{{../detail.id}}" data-actor-id="{{this.vehicle.actorId}}" title="Remove"><i class="fas fa-times"></i></a>{{/if}}
+                    {{else}}<span class="rp-empty">—</span>{{/if}}
+                  </div>
+                </div>
+                {{/each}}
+              </div>
+
+              {{#if ../editable}}
+              <div class="mtoe-box-actions">
+                <button type="button" class="add-personnel" data-box-id="{{this.id}}"><i class="fas fa-user-plus"></i> Add {{this.detail.troopLabel}}</button>
+                {{#if this.detail.hasVehicle}}<span class="drop-zone small">Drag {{this.detail.vehicleLabel}} here</span>{{/if}}
+                <label class="ctl">Add sub-unit
+                  <select class="add-subunit" data-parent-id="{{this.id}}">
+                    <option value="">+ Sub-unit…</option>
+                    {{#each ../blockTypes}}<option value="{{this.key}}">{{this.label}}</option>{{/each}}
+                  </select>
+                </label>
+              </div>
+              {{/if}}
+
+              {{!-- Infantry loadout --}}
+              {{#if this.detail.isInfantry}}
+              <div class="loadout-block">
+                <div class="roster-head"><span><i class="fas fa-person-rifle"></i> Loadout</span></div>
+                <label class="loadout-armor-field">Armor <input type="text" class="loadout-armor" data-box-id="{{this.id}}" value="{{this.detail.loadout.armorType}}" placeholder="Armor type" {{#unless ../editable}}disabled{{/unless}} /></label>
+                <table class="loadout-weapons">
+                  <tbody>
+                    {{#each this.detail.loadout.weapons}}
+                    <tr>
+                      <td><input type="text" class="loadout-weapon-field" data-box-id="{{../detail.id}}" data-weapon-id="{{this.id}}" data-field="name" value="{{this.name}}" placeholder="Weapon" {{#unless ../../editable}}disabled{{/unless}} /></td>
+                      <td><input type="text" class="loadout-weapon-field" data-box-id="{{../detail.id}}" data-weapon-id="{{this.id}}" data-field="ammoType" value="{{this.ammoType}}" placeholder="Ammo type" {{#unless ../../editable}}disabled{{/unless}} /></td>
+                      {{#if ../../editable}}<td><a class="remove-loadout-weapon" data-box-id="{{../detail.id}}" data-weapon-id="{{this.id}}" title="Remove"><i class="fas fa-times"></i></a></td>{{/if}}
+                    </tr>
+                    {{/each}}
+                  </tbody>
+                </table>
+                {{#if ../editable}}<button type="button" class="add-loadout-weapon" data-box-id="{{this.id}}"><i class="fas fa-plus"></i> Add Weapon</button>{{/if}}
+              </div>
+              {{/if}}
+
+              {{!-- Supply usage --}}
+              <div class="supply-usage">
+                <span class="su-label">Supplies:</span>
+                {{#if this.detail.chassisCategory}}<span class="su-chip">Spares/Maint: {{this.detail.chassisCategory}}</span>{{/if}}
+                {{#each this.detail.supplyChips}}<span class="su-chip">{{this}}</span>{{/each}}
+                {{#unless this.detail.supplyChips.length}}{{#unless this.detail.chassisCategory}}<span class="su-none">—</span>{{/unless}}{{/unless}}
               </div>
             </div>
-            {{/each}}
-            {{#unless this.rows.length}}
-            <p class="empty-notice small">No personnel or vehicles yet.</p>
             {{/unless}}
           </div>
-
-          {{#if ../editable}}
-          <div class="mtoe-box-actions">
-            <button type="button" class="add-personnel" data-box-id="{{this.id}}"><i class="fas fa-user-plus"></i> Add {{this.personnelTypeLabel}}</button>
-            {{#if this.allowedVehicleLabel}}
-            <span class="drop-zone small">Drag {{this.allowedVehicleLabel}} actors here</span>
-            {{/if}}
-          </div>
           {{/if}}
-        </div>
-        {{/each}}
+          {{/each}}
         </div>
 
-        {{#unless mtoe.length}}
-        <p class="empty-notice">No unit boxes. Click "Add Unit Box", pick a personnel type, then add personnel and drag matching vehicles onto it.</p>
+        {{#unless hasMtoe}}
+        <p class="empty-notice">No units. Use "Add top-level unit" to create one, then expand it to add crew, vehicles, and sub-units.</p>
         {{/unless}}
       </div>
     </div>

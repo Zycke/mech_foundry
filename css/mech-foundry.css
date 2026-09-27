@@ -6415,9 +6415,10 @@
 /* ---- Department rows --------------------------------------- */
 .mech-foundry.company-sheet .dept-row {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 5px 6px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  padding: 6px 8px;
   margin-bottom: 4px;
   background: var(--mf-panel-2);
   border: 1px solid var(--mf-line);
@@ -6510,6 +6511,10 @@
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
+/* Keep the input pinned to the bottom so cells with a wrapped 2-line label
+   still line their inputs up with single-line neighbours. */
+.mech-foundry.company-sheet .supply-cell { justify-content: flex-start; }
+.mech-foundry.company-sheet .supply-cell input { margin-top: auto; }
 .mech-foundry.company-sheet .pool-edit-cell.over { border-left: 3px solid var(--mf-danger); }
 .mech-foundry.company-sheet .pool-sub { color: var(--mf-ink-dim); font-size: 0.68em; font-family: var(--mf-font-mono); }
 
@@ -6632,8 +6637,8 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  flex-wrap: nowrap;
-  margin-bottom: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 0;
 }
 .mech-foundry.company-sheet .dept-type { flex: 0 0 150px; }
 
@@ -6997,7 +7002,7 @@
   background: linear-gradient(90deg, var(--mf-panel-2), var(--mf-panel));
   border-bottom: 1px solid var(--mf-line); border-left: 3px solid var(--mf-amber);
 }
-.mech-foundry.naval-ship-sheet .bay-panel-head .bay-name { flex: 1 1 auto; background: var(--mf-bg); color: var(--mf-amber-2); border: 1px solid var(--mf-steel); border-radius: 2px; padding: 2px 6px; font-family: var(--mf-font-head); }
+.mech-foundry.naval-ship-sheet .bay-panel-head .bay-name { flex: 1 1 auto; min-width: 140px; background: var(--mf-bg); color: var(--mf-amber-2); border: 1px solid var(--mf-steel); border-radius: 2px; padding: 2px 6px; font-family: var(--mf-font-head); }
 .mech-foundry.naval-ship-sheet .remove-bay { color: var(--mf-danger); cursor: pointer; }
 .mech-foundry.naval-ship-sheet .bay-components { padding: 8px 10px; display: flex; flex-direction: column; gap: 5px; }
 .mech-foundry.naval-ship-sheet .bay-component {
@@ -7041,8 +7046,9 @@
 .mech-foundry.naval-ship-sheet .ship-stats-cols { display: flex; gap: 10px; flex-wrap: wrap; }
 .mech-foundry.naval-ship-sheet .ship-stats-col { display: flex; flex-direction: column; gap: 6px; flex: 1 1 150px; }
 
+.mech-foundry.naval-ship-sheet .bay-panel-head { flex-wrap: wrap; }
 .mech-foundry.naval-ship-sheet .bay-panel-head .add-component {
-  flex: 0 0 auto; background: var(--mf-bg); color: var(--mf-amber-2);
+  flex: 0 0 auto; width: auto; max-width: 170px; background: var(--mf-bg); color: var(--mf-amber-2);
   border: 1px solid var(--mf-steel); border-radius: 2px; padding: 2px 6px; font-size: 0.8em;
 }
 .mech-foundry.naval-ship-sheet .bay-count { color: var(--mf-ink-dim); font-size: 0.72em; white-space: nowrap; }
@@ -7066,3 +7072,129 @@
 .mech-foundry.naval-ship-sheet .bt-inline input { width: 62px; text-align: center; background: var(--mf-bg); color: var(--mf-ink); border: 1px solid var(--mf-steel); border-radius: 2px; }
 .mech-foundry.naval-ship-sheet .bt-remove { width: 26px; text-align: right; }
 .mech-foundry.naval-ship-sheet .bt-remove .remove-component { color: var(--mf-danger); cursor: pointer; }
+
+/* ---- Naval ship read-only supply manifest ------------------ */
+.mech-foundry.naval-ship-sheet .ship-manifest {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.mech-foundry.naval-ship-sheet .manifest-cell {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 4px 8px; background: var(--mf-panel-2); border: 1px solid var(--mf-line); border-radius: 2px;
+}
+.mech-foundry.naval-ship-sheet .manifest-cell .mf-label { color: var(--mf-ink-dim); font-size: 0.74em; text-transform: uppercase; letter-spacing: 0.03em; }
+.mech-foundry.naval-ship-sheet .manifest-cell .mf-val { color: var(--mf-amber-2); font-family: var(--mf-font-mono); }
+.mech-foundry.naval-ship-sheet .manifest-group { margin-bottom: 6px; }
+.mech-foundry.naval-ship-sheet .manifest-group-title { color: var(--mf-ink-dim); font-size: 0.74em; text-transform: uppercase; letter-spacing: 0.04em; }
+.mech-foundry.naval-ship-sheet .manifest-ammo { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 8px; }
+.mech-foundry.naval-ship-sheet .ammo-chip { padding: 2px 8px; background: var(--mf-panel-2); border: 1px solid var(--mf-line); border-radius: 2px; font-size: 0.78em; color: var(--mf-ink-dim); }
+.mech-foundry.naval-ship-sheet .ammo-chip strong { color: var(--mf-ink); font-family: var(--mf-font-mono); }
+
+/* ---- MTOE grouped roster + typed add-crew ------------------ */
+.mech-foundry.company-sheet .roster-group { margin-bottom: 8px; }
+.mech-foundry.company-sheet .roster-group + .roster-group { border-top: 1px solid var(--mf-line); padding-top: 6px; }
+.mech-foundry.company-sheet .mtoe-warning.small { margin: 0 0 4px; padding: 2px 6px; font-size: 0.72em; }
+.mech-foundry.company-sheet .mtoe-box-actions .add-personnel {
+  padding: 3px 10px; background: var(--mf-panel-2); color: var(--mf-amber-2);
+  border: 1px solid var(--mf-steel); border-radius: 2px; font-size: 0.74em; cursor: pointer;
+  width: auto; max-width: 180px;
+}
+.mech-foundry.company-sheet .mtoe-box-actions .add-personnel:hover { border-color: var(--mf-amber); }
+
+/* ============================================================= */
+/* Combat unit sheets (mech / vehicle / fighter / battle armor)  */
+/* ============================================================= */
+.mech-foundry.unit-sheet .unit-idfields { display: flex; gap: 14px; margin-top: 4px; flex-wrap: wrap; }
+.mech-foundry.unit-sheet .unit-idfields label { display: flex; align-items: center; gap: 5px; color: var(--mf-ink-dim); font-size: 0.75em; text-transform: uppercase; letter-spacing: 0.04em; }
+.mech-foundry.unit-sheet .unit-idfields input,
+.mech-foundry.unit-sheet .unit-idfields select { background: var(--mf-bg); color: var(--mf-ink); border: 1px solid var(--mf-steel); border-radius: 2px; padding: 2px 6px; }
+.mech-foundry.unit-sheet .weapons-bar { display: flex; align-items: center; justify-content: space-between; }
+.mech-foundry.unit-sheet .add-weapon {
+  padding: 3px 10px; background: var(--mf-panel-2); color: var(--mf-amber-2);
+  border: 1px solid var(--mf-steel); border-radius: 2px; font-size: 0.74em; cursor: pointer; width: auto;
+}
+.mech-foundry.unit-sheet .add-weapon:hover { border-color: var(--mf-amber); }
+.mech-foundry.unit-sheet table.unit-weapons { width: 100%; border-collapse: collapse; background: var(--mf-panel); border: 1px solid var(--mf-line); }
+.mech-foundry.unit-sheet table.unit-weapons th,
+.mech-foundry.unit-sheet table.unit-weapons td { border: 1px solid var(--mf-line); padding: 3px 6px; text-align: center; font-size: 0.82em; color: var(--mf-ink); }
+.mech-foundry.unit-sheet table.unit-weapons th { background: var(--mf-panel-2); color: var(--mf-amber); font-family: var(--mf-font-head); text-transform: uppercase; font-size: 0.72em; letter-spacing: 0.03em; }
+.mech-foundry.unit-sheet table.unit-weapons .w-name { text-align: left; min-width: 140px; }
+.mech-foundry.unit-sheet table.unit-weapons input { width: 100%; text-align: center; background: var(--mf-bg); color: var(--mf-ink); border: 1px solid var(--mf-steel); border-radius: 2px; padding: 1px 4px; }
+.mech-foundry.unit-sheet table.unit-weapons .w-name input { text-align: left; }
+.mech-foundry.unit-sheet .remove-weapon { color: var(--mf-danger); cursor: pointer; }
+
+/* ============================================================= */
+/* MTOE org-chart tree (compact collapsible, one type per block) */
+/* ============================================================= */
+.mech-foundry.company-sheet .mtoe-tree { display: flex; flex-direction: column; gap: 3px; }
+.mech-foundry.company-sheet .mtoe-node { margin-left: calc(var(--depth, 0) * 18px); }
+.mech-foundry.company-sheet .mtoe-node[style*="--depth:0"] { margin-left: 0; }
+
+.mech-foundry.company-sheet .mtoe-bar {
+  display: flex; align-items: center; gap: 7px; padding: 4px 8px;
+  background: var(--mf-panel); border: 1px solid var(--mf-line);
+  border-left: 3px solid var(--mf-amber); border-radius: 2px;
+}
+.mech-foundry.company-sheet .mtoe-toggle { cursor: pointer; color: var(--mf-amber); width: 12px; flex: 0 0 auto; }
+.mech-foundry.company-sheet .type-chip {
+  flex: 0 0 auto; padding: 1px 7px; border-radius: 2px; font-family: var(--mf-font-head);
+  font-size: 0.68em; text-transform: uppercase; letter-spacing: 0.04em;
+  background: var(--mf-panel-2); border: 1px solid var(--mf-steel); color: var(--mf-ink);
+}
+.mech-foundry.company-sheet .type-chip.type-mech { border-color: #6c8cff; color: #b9c8ff; }
+.mech-foundry.company-sheet .type-chip.type-aerospace { border-color: #5cc7c0; color: #a7e8e3; }
+.mech-foundry.company-sheet .type-chip.type-vehicle { border-color: #c9a24a; color: #e8cf8a; }
+.mech-foundry.company-sheet .type-chip.type-infantry { border-color: #7fae6a; color: #c0e3ad; }
+.mech-foundry.company-sheet .type-chip.type-installation { border-color: var(--mf-steel); color: var(--mf-ink-dim); }
+.mech-foundry.company-sheet .mtoe-bar .mtoe-box-name { flex: 1 1 auto; min-width: 80px; background: var(--mf-bg); color: var(--mf-amber-2); border: 1px solid transparent; border-radius: 2px; padding: 2px 5px; font-family: var(--mf-font-head); }
+.mech-foundry.company-sheet .mtoe-bar .mtoe-box-name:hover { border-color: var(--mf-steel); }
+.mech-foundry.company-sheet .mtoe-counts { font-family: var(--mf-font-mono); font-size: 0.76em; color: var(--mf-ink-dim); white-space: nowrap; }
+.mech-foundry.company-sheet .mtoe-status-pill { font-size: 0.7em; color: var(--mf-ink-dim); padding: 1px 6px; border: 1px solid var(--mf-line); border-radius: 8px; white-space: nowrap; }
+.mech-foundry.company-sheet .loc-tag { font-size: 0.72em; color: var(--mf-ink); white-space: nowrap; }
+.mech-foundry.company-sheet .loc-tag i { color: var(--mf-amber); }
+.mech-foundry.company-sheet .mtoe-bar .remove-mtoe-box { color: var(--mf-danger); cursor: pointer; flex: 0 0 auto; }
+
+.mech-foundry.company-sheet .mtoe-detail {
+  margin: 2px 0 2px 14px; padding: 6px 8px;
+  background: var(--mf-panel-2); border: 1px solid var(--mf-line); border-left: 2px solid var(--mf-steel); border-radius: 2px;
+}
+.mech-foundry.company-sheet .mtoe-detail-controls { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 6px; }
+.mech-foundry.company-sheet .mtoe-detail-controls .ctl,
+.mech-foundry.company-sheet .mtoe-box-actions .ctl { display: flex; flex-direction: column; gap: 2px; font-size: 0.68em; text-transform: uppercase; color: var(--mf-ink-dim); }
+.mech-foundry.company-sheet .mtoe-detail-controls select,
+.mech-foundry.company-sheet .mtoe-box-actions select { background: var(--mf-bg); color: var(--mf-ink); border: 1px solid var(--mf-steel); border-radius: 2px; padding: 1px 4px; }
+
+/* stacks */
+.mech-foundry.company-sheet .mtoe-stack-row {
+  display: flex; align-items: center; gap: 7px; padding: 3px 8px;
+  background: linear-gradient(var(--mf-panel), var(--mf-panel)) padding-box,
+              var(--mf-panel); border: 1px solid var(--mf-line);
+  border-left: 3px solid var(--mf-amber-2); border-radius: 2px;
+  box-shadow: 3px 3px 0 -1px var(--mf-panel), 4px 4px 0 -1px var(--mf-line),
+              6px 6px 0 -1px var(--mf-panel), 7px 7px 0 -1px var(--mf-line);
+}
+.mech-foundry.company-sheet .mtoe-stack-toggle { cursor: pointer; color: var(--mf-amber); width: 12px; }
+.mech-foundry.company-sheet .stack-name { flex: 1 1 auto; color: var(--mf-amber-2); font-family: var(--mf-font-head); text-transform: uppercase; letter-spacing: 0.03em; }
+.mech-foundry.company-sheet .stack-count { font-family: var(--mf-font-mono); color: var(--mf-ink); }
+
+/* infantry loadout + supply usage */
+.mech-foundry.company-sheet .loadout-block { margin-top: 6px; }
+.mech-foundry.company-sheet .loadout-armor-field { display: inline-flex; align-items: center; gap: 5px; font-size: 0.74em; color: var(--mf-ink-dim); margin: 4px 0; }
+.mech-foundry.company-sheet .loadout-armor-field input { background: var(--mf-bg); color: var(--mf-ink); border: 1px solid var(--mf-steel); border-radius: 2px; padding: 1px 5px; }
+.mech-foundry.company-sheet table.loadout-weapons { width: 100%; border-collapse: collapse; }
+.mech-foundry.company-sheet table.loadout-weapons td { padding: 1px 4px; }
+.mech-foundry.company-sheet table.loadout-weapons input { width: 100%; background: var(--mf-bg); color: var(--mf-ink); border: 1px solid var(--mf-steel); border-radius: 2px; padding: 1px 4px; font-size: 0.8em; }
+.mech-foundry.company-sheet .add-loadout-weapon { padding: 2px 8px; background: var(--mf-panel); color: var(--mf-amber-2); border: 1px solid var(--mf-steel); border-radius: 2px; font-size: 0.72em; cursor: pointer; width: auto; }
+.mech-foundry.company-sheet .remove-loadout-weapon { color: var(--mf-danger); cursor: pointer; }
+.mech-foundry.company-sheet .supply-usage { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; margin-top: 6px; }
+.mech-foundry.company-sheet .supply-usage .su-label { color: var(--mf-ink-dim); font-size: 0.72em; text-transform: uppercase; }
+.mech-foundry.company-sheet .supply-usage .su-chip { padding: 1px 7px; background: var(--mf-panel); border: 1px solid var(--mf-line); border-radius: 2px; font-size: 0.74em; color: var(--mf-ink); }
+.mech-foundry.company-sheet .supply-usage .su-none { color: var(--mf-ink-dim); }
+
+/* ---- Logistics: derived ammo demand ------------------------ */
+.mech-foundry.company-sheet .ammo-needs { margin-top: 6px; }
+.mech-foundry.company-sheet .ammo-need-row { display: flex; align-items: baseline; gap: 8px; padding: 2px 0; font-size: 0.8em; }
+.mech-foundry.company-sheet .ammo-need-row .an-type { flex: 0 0 140px; color: var(--mf-amber-2); font-family: var(--mf-font-mono); }
+.mech-foundry.company-sheet .ammo-need-row .an-units { color: var(--mf-ink-dim); }

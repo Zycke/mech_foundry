@@ -1,0 +1,54 @@
+<div class="unit-sheet-content actor-sheet-content">
+
+  <header class="sheet-header">
+    <img class="profile-img" src="{{actor.img}}" data-action="editImage" data-edit="img" title="{{actor.name}}" height="70" width="70" />
+    <div class="header-fields">
+      <h1><input name="name" type="text" value="{{actor.name}}" placeholder="{{typeLabel}} Name" /></h1>
+      <div class="unit-idfields">
+        {{#if isBattleArmor}}
+        <label>Squad Size <input type="number" min="0" name="system.squadSize" value="{{system.squadSize}}" {{#unless editable}}disabled{{/unless}} /></label>
+        {{else}}
+        <label>Weight Class
+          <select name="system.weightClass" {{#unless editable}}disabled{{/unless}}>
+            <option value="">—</option>
+            {{#each weightClasses}}<option value="{{this}}" {{#if (eq this ../system.weightClass)}}selected{{/if}}>{{this}}</option>{{/each}}
+          </select>
+        </label>
+        <label>Tonnage <input type="number" min="0" name="system.tonnage" value="{{system.tonnage}}" {{#unless editable}}disabled{{/unless}} /></label>
+        {{/if}}
+        <label>Armor Type <input type="text" name="system.armorType" value="{{system.armorType}}" placeholder="e.g. Standard" {{#unless editable}}disabled{{/unless}} /></label>
+      </div>
+    </div>
+  </header>
+
+  <section class="sheet-body">
+    <div class="items-header weapons-bar">
+      <h3>Weapons &amp; Ammo</h3>
+      {{#if editable}}<button type="button" class="add-weapon"><i class="fas fa-plus"></i> Add Weapon</button>{{/if}}
+    </div>
+    <table class="unit-weapons">
+      <thead>
+        <tr><th class="w-name">Weapon</th><th>Ammo Type</th><th>Shots / Ton</th>{{#if editable}}<th></th>{{/if}}</tr>
+      </thead>
+      <tbody>
+        {{#each weapons}}
+        <tr>
+          <td class="w-name"><input type="text" class="weapon-field" data-weapon-id="{{this.id}}" data-field="name" value="{{this.name}}" placeholder="Weapon" {{#unless ../editable}}disabled{{/unless}} /></td>
+          <td><input type="text" class="weapon-field" data-weapon-id="{{this.id}}" data-field="ammoType" value="{{this.ammoType}}" placeholder="— none —" {{#unless ../editable}}disabled{{/unless}} /></td>
+          <td><input type="number" min="0" class="weapon-field" data-weapon-id="{{this.id}}" data-field="shotsPerTon" value="{{this.shotsPerTon}}" {{#unless ../editable}}disabled{{/unless}} /></td>
+          {{#if ../editable}}<td><a class="remove-weapon" data-weapon-id="{{this.id}}" title="Remove"><i class="fas fa-trash"></i></a></td>{{/if}}
+        </tr>
+        {{/each}}
+      </tbody>
+    </table>
+    {{#unless weapons.length}}<p class="empty-notice">No weapons. Click "Add Weapon".</p>{{/unless}}
+    <p class="logi-note">Placeholder unit sheet — ammo types feed the company Logistics roll-up.</p>
+
+    <div class="items-header"><h3>Notes</h3></div>
+    <div class="editor-container">
+      {{#if editable}}
+      <prose-mirror name="system.biography" data-document-uuid="{{actor.uuid}}" value="{{system.biography}}" collaborate="false" toggled="true">{{{enrichedBiography}}}</prose-mirror>
+      {{else}}{{{enrichedBiography}}}{{/if}}
+    </div>
+  </section>
+</div>
