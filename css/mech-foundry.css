@@ -7124,3 +7124,71 @@
 .mech-foundry.unit-sheet table.unit-weapons input { width: 100%; text-align: center; background: var(--mf-bg); color: var(--mf-ink); border: 1px solid var(--mf-steel); border-radius: 2px; padding: 1px 4px; }
 .mech-foundry.unit-sheet table.unit-weapons .w-name input { text-align: left; }
 .mech-foundry.unit-sheet .remove-weapon { color: var(--mf-danger); cursor: pointer; }
+
+/* ============================================================= */
+/* MTOE org-chart tree (compact collapsible, one type per block) */
+/* ============================================================= */
+.mech-foundry.company-sheet .mtoe-tree { display: flex; flex-direction: column; gap: 3px; }
+.mech-foundry.company-sheet .mtoe-node { margin-left: calc(var(--depth, 0) * 18px); }
+.mech-foundry.company-sheet .mtoe-node[style*="--depth:0"] { margin-left: 0; }
+
+.mech-foundry.company-sheet .mtoe-bar {
+  display: flex; align-items: center; gap: 7px; padding: 4px 8px;
+  background: var(--mf-panel); border: 1px solid var(--mf-line);
+  border-left: 3px solid var(--mf-amber); border-radius: 2px;
+}
+.mech-foundry.company-sheet .mtoe-toggle { cursor: pointer; color: var(--mf-amber); width: 12px; flex: 0 0 auto; }
+.mech-foundry.company-sheet .type-chip {
+  flex: 0 0 auto; padding: 1px 7px; border-radius: 2px; font-family: var(--mf-font-head);
+  font-size: 0.68em; text-transform: uppercase; letter-spacing: 0.04em;
+  background: var(--mf-panel-2); border: 1px solid var(--mf-steel); color: var(--mf-ink);
+}
+.mech-foundry.company-sheet .type-chip.type-mech { border-color: #6c8cff; color: #b9c8ff; }
+.mech-foundry.company-sheet .type-chip.type-aerospace { border-color: #5cc7c0; color: #a7e8e3; }
+.mech-foundry.company-sheet .type-chip.type-vehicle { border-color: #c9a24a; color: #e8cf8a; }
+.mech-foundry.company-sheet .type-chip.type-infantry { border-color: #7fae6a; color: #c0e3ad; }
+.mech-foundry.company-sheet .type-chip.type-installation { border-color: var(--mf-steel); color: var(--mf-ink-dim); }
+.mech-foundry.company-sheet .mtoe-bar .mtoe-box-name { flex: 1 1 auto; min-width: 80px; background: var(--mf-bg); color: var(--mf-amber-2); border: 1px solid transparent; border-radius: 2px; padding: 2px 5px; font-family: var(--mf-font-head); }
+.mech-foundry.company-sheet .mtoe-bar .mtoe-box-name:hover { border-color: var(--mf-steel); }
+.mech-foundry.company-sheet .mtoe-counts { font-family: var(--mf-font-mono); font-size: 0.76em; color: var(--mf-ink-dim); white-space: nowrap; }
+.mech-foundry.company-sheet .mtoe-status-pill { font-size: 0.7em; color: var(--mf-ink-dim); padding: 1px 6px; border: 1px solid var(--mf-line); border-radius: 8px; white-space: nowrap; }
+.mech-foundry.company-sheet .loc-tag { font-size: 0.72em; color: var(--mf-ink); white-space: nowrap; }
+.mech-foundry.company-sheet .loc-tag i { color: var(--mf-amber); }
+.mech-foundry.company-sheet .mtoe-bar .remove-mtoe-box { color: var(--mf-danger); cursor: pointer; flex: 0 0 auto; }
+
+.mech-foundry.company-sheet .mtoe-detail {
+  margin: 2px 0 2px 14px; padding: 6px 8px;
+  background: var(--mf-panel-2); border: 1px solid var(--mf-line); border-left: 2px solid var(--mf-steel); border-radius: 2px;
+}
+.mech-foundry.company-sheet .mtoe-detail-controls { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 6px; }
+.mech-foundry.company-sheet .mtoe-detail-controls .ctl,
+.mech-foundry.company-sheet .mtoe-box-actions .ctl { display: flex; flex-direction: column; gap: 2px; font-size: 0.68em; text-transform: uppercase; color: var(--mf-ink-dim); }
+.mech-foundry.company-sheet .mtoe-detail-controls select,
+.mech-foundry.company-sheet .mtoe-box-actions select { background: var(--mf-bg); color: var(--mf-ink); border: 1px solid var(--mf-steel); border-radius: 2px; padding: 1px 4px; }
+
+/* stacks */
+.mech-foundry.company-sheet .mtoe-stack-row {
+  display: flex; align-items: center; gap: 7px; padding: 3px 8px;
+  background: linear-gradient(var(--mf-panel), var(--mf-panel)) padding-box,
+              var(--mf-panel); border: 1px solid var(--mf-line);
+  border-left: 3px solid var(--mf-amber-2); border-radius: 2px;
+  box-shadow: 3px 3px 0 -1px var(--mf-panel), 4px 4px 0 -1px var(--mf-line),
+              6px 6px 0 -1px var(--mf-panel), 7px 7px 0 -1px var(--mf-line);
+}
+.mech-foundry.company-sheet .mtoe-stack-toggle { cursor: pointer; color: var(--mf-amber); width: 12px; }
+.mech-foundry.company-sheet .stack-name { flex: 1 1 auto; color: var(--mf-amber-2); font-family: var(--mf-font-head); text-transform: uppercase; letter-spacing: 0.03em; }
+.mech-foundry.company-sheet .stack-count { font-family: var(--mf-font-mono); color: var(--mf-ink); }
+
+/* infantry loadout + supply usage */
+.mech-foundry.company-sheet .loadout-block { margin-top: 6px; }
+.mech-foundry.company-sheet .loadout-armor-field { display: inline-flex; align-items: center; gap: 5px; font-size: 0.74em; color: var(--mf-ink-dim); margin: 4px 0; }
+.mech-foundry.company-sheet .loadout-armor-field input { background: var(--mf-bg); color: var(--mf-ink); border: 1px solid var(--mf-steel); border-radius: 2px; padding: 1px 5px; }
+.mech-foundry.company-sheet table.loadout-weapons { width: 100%; border-collapse: collapse; }
+.mech-foundry.company-sheet table.loadout-weapons td { padding: 1px 4px; }
+.mech-foundry.company-sheet table.loadout-weapons input { width: 100%; background: var(--mf-bg); color: var(--mf-ink); border: 1px solid var(--mf-steel); border-radius: 2px; padding: 1px 4px; font-size: 0.8em; }
+.mech-foundry.company-sheet .add-loadout-weapon { padding: 2px 8px; background: var(--mf-panel); color: var(--mf-amber-2); border: 1px solid var(--mf-steel); border-radius: 2px; font-size: 0.72em; cursor: pointer; width: auto; }
+.mech-foundry.company-sheet .remove-loadout-weapon { color: var(--mf-danger); cursor: pointer; }
+.mech-foundry.company-sheet .supply-usage { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; margin-top: 6px; }
+.mech-foundry.company-sheet .supply-usage .su-label { color: var(--mf-ink-dim); font-size: 0.72em; text-transform: uppercase; }
+.mech-foundry.company-sheet .supply-usage .su-chip { padding: 1px 7px; background: var(--mf-panel); border: 1px solid var(--mf-line); border-radius: 2px; font-size: 0.74em; color: var(--mf-ink); }
+.mech-foundry.company-sheet .supply-usage .su-none { color: var(--mf-ink-dim); }

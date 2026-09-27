@@ -88,15 +88,16 @@ const UNIT_ACTOR_TYPE_LABELS = {
 };
 
 /**
- * MTOE roster groups: a unit box can hold a mix of these, each pairing a troop
- * type with its matching vehicle type. Installation Crew has no vehicle.
+ * MTOE block types. Each unit block is ONE type, which fixes its embarked crew
+ * type and its matching combat-vehicle actor type. Infantry blocks also carry a
+ * loadout (one armor type + weapons). Installation blocks have no vehicle.
  */
-const MTOE_GROUPS = [
-  { troop: 'mechPilots', vehicle: 'mech', troopLabel: 'Mech Pilots', vehicleLabel: 'Mechs' },
-  { troop: 'aeroPilots', vehicle: 'aerospace_fighter', troopLabel: 'Aerospace Pilots', vehicleLabel: 'Aerospace Fighters' },
-  { troop: 'vehicleCrew', vehicle: 'ground_vehicle', troopLabel: 'Vehicle Crew', vehicleLabel: 'Ground Vehicles' },
-  { troop: 'infantry', vehicle: 'battle_armor', troopLabel: 'Infantry', vehicleLabel: 'Battle Armor' },
-  { troop: 'installationCrew', vehicle: null, troopLabel: 'Installation Crew', vehicleLabel: null }
+const BLOCK_TYPES = [
+  { key: 'mech', label: 'Mech', troop: 'mechPilots', vehicle: 'mech', vehicleLabel: 'Mechs' },
+  { key: 'aerospace', label: 'Aerospace', troop: 'aeroPilots', vehicle: 'aerospace_fighter', vehicleLabel: 'Fighters' },
+  { key: 'vehicle', label: 'Vehicle', troop: 'vehicleCrew', vehicle: 'ground_vehicle', vehicleLabel: 'Vehicles' },
+  { key: 'infantry', label: 'Infantry', troop: 'infantry', vehicle: 'battle_armor', vehicleLabel: 'Battle Armor', loadout: true },
+  { key: 'installation', label: 'Installation', troop: 'installationCrew', vehicle: null }
 ];
 
 const PERSON_STATUSES = ['Active', 'Injured', 'KIA'];
@@ -129,6 +130,9 @@ export class MechFoundryCompanySheet extends HandlebarsApplicationMixin(ActorShe
   #locExpanded = new Set();
   /** Ids of logistics rows currently expanded (collapsed by default). */
   #logiExpanded = new Set();
+  /** MTOE tree UI state: collapsed block ids, and opened stack ids. */
+  #mtoeCollapsed = new Set();
+  #mtoeStackOpen = new Set();
 
   constructor(options = {}) {
     super(options);
@@ -228,7 +232,7 @@ export class MechFoundryCompanySheet extends HandlebarsApplicationMixin(ActorShe
     context.totalPersonnel = context.crewPools.reduce((s, p) => s + p.total, 0)
       + context.troopPools.reduce((s, p) => s + p.total, 0);
     context.locationCount = context.locations.length;
-    context.unitBoxCount = context.mtoe.length;
+    context.unitBoxCount = (this.actor.system.mtoe || []).length;
     context.monthlyExpenses = context.crewPools.concat(context.troopPools)
       .reduce((s, p) => s + p.total * (BASE_SALARY[p.key] || 0), 0);
 
@@ -271,9 +275,9 @@ export class MechFoundryCompanySheet extends HandlebarsApplicationMixin(ActorShe
     const troopAssigned = {};
     for (const t of TROOP_TYPES) troopAssigned[t.key] = 0;
     for (const box of boxes) {
-      for (const p of (box.personnel || [])) {
-        const t = p.type || box.personnelType; // migrate legacy single-type boxes
-        if (t && troopAssigned.hasOwnProperty(t)) troopAssigned[t] += 1;
+      const def = BLOCK_TYPES.find(t => t.key === this._blockType(box));
+      if (def && troopAssigned.hasOwnProperty(def.troop)) {
+        troopAssigned[def.troop] += (box.personnel || []).length;
       }
     }
 
@@ -446,70 +450,110 @@ export class MechFoundryCompanySheet extends HandlebarsApplicationMixin(ActorShe
     context.logiAmmoSummary = Object.entries(ammoSummary).map(([name, tons]) => ({ name, tons }));
   }
 
-  _prepareMTOE(context) {
-    const stored = this.actor.system.mtoe || [];
-    const boxes = [];
-
-    for (const box of stored) {
-      // Personnel may be a mix of troop types; each carries its own type.
-      const personnel = (box.personnel || []).map(p => {
-        const type = p.type || box.personnelType || 'mechPilots';
-        const def = TROOP_TYPES.find(t => t.key === type) || TROOP_TYPES[0];
-        return { id: p.id, type, typeLabel: def.label, status: p.status || 'Active' };
-      });
-      const units = (box.units || []).map(u => {
-        const actor = game.actors.get(u.actorId);
-        return {
-          actorId: u.actorId,
-          exists: !!actor,
-          name: actor ? actor.name : 'Missing Unit',
-          img: actor ? actor.img : 'icons/svg/hazard.svg',
-          actorType: actor ? actor.type : null,
-          typeLabel: actor ? (UNIT_ACTOR_TYPE_LABELS[actor.type] || 'Unit') : 'Missing',
-          status: u.status || 'Undamaged'
-        };
-      });
-
-      // Group the roster by combat type; pair crew ↔ vehicle within each group.
-      const groups = [];
-      for (const g of MTOE_GROUPS) {
-        const gp = personnel.filter(p => p.type === g.troop);
-        const gv = g.vehicle ? units.filter(u => u.actorType === g.vehicle) : [];
-        if (!gp.length && !gv.length) continue;
-        const rowCount = Math.max(gp.length, gv.length);
-        const rows = [];
-        for (let i = 0; i < rowCount; i++) rows.push({ person: gp[i] || null, vehicle: gv[i] || null });
-        let mismatch = null;
-        if (g.vehicle && gp.length !== gv.length) {
-          mismatch = gp.length > gv.length
-            ? `${g.troopLabel}: more crew than ${g.vehicleLabel.toLowerCase()}`
-            : `${g.troopLabel}: more ${g.vehicleLabel.toLowerCase()} than crew`;
-        }
-        groups.push({
-          troop: g.troop, troopLabel: g.troopLabel, vehicleLabel: g.vehicleLabel,
-          hasVehicle: !!g.vehicle, rows, personnelCount: gp.length, vehicleCount: gv.length, mismatch
-        });
-      }
-
-      const vet = MechFoundryCompanySheet.veterancy(box.xp);
-      const locActor = box.locationId ? game.actors.get(box.locationId) : null;
-
-      boxes.push({
-        id: box.id,
-        name: box.name || 'Unit',
-        status: box.status || 'Combat Ready',
-        groups,
-        hasRoster: personnel.length > 0 || units.length > 0,
-        troopTotal: personnel.length,
-        vehicleTotal: units.length,
-        locationId: box.locationId || '',
-        locationName: locActor ? locActor.name : '',
-        locationMissing: !!box.locationId && !locActor,
-        xp: vet.xp, veterancy: vet.label, vetMod: vet.mod, xpPct: vet.pct, xpInto: vet.into, atMax: vet.atMax
-      });
+  /** Resolve a box's single block type, migrating legacy mixed boxes. */
+  _blockType(box) {
+    if (box.type && BLOCK_TYPES.some(t => t.key === box.type)) return box.type;
+    const p = (box.personnel || [])[0];
+    if (p?.type) {
+      const bt = BLOCK_TYPES.find(t => t.troop === p.type);
+      if (bt) return bt.key;
     }
-    context.mtoe = boxes;
-    // Locations this company can base MTOE units at (ships / installations).
+    const u = (box.units || [])[0];
+    if (u) {
+      const a = game.actors.get(u.actorId);
+      const bt = BLOCK_TYPES.find(t => t.vehicle === a?.type);
+      if (bt) return bt.key;
+    }
+    return 'infantry';
+  }
+
+  /** Build the detail panel data for one block. */
+  _blockDetail(box) {
+    const def = BLOCK_TYPES.find(t => t.key === this._blockType(box)) || BLOCK_TYPES[0];
+    const crew = (box.personnel || []).map(p => ({ id: p.id, status: p.status || 'Active' }));
+    const vehicles = (box.units || []).map(u => {
+      const a = game.actors.get(u.actorId);
+      return {
+        actorId: u.actorId, exists: !!a,
+        name: a ? a.name : 'Missing', img: a ? a.img : 'icons/svg/hazard.svg',
+        status: u.status || 'Undamaged'
+      };
+    });
+    const rowCount = Math.max(crew.length, vehicles.length);
+    const roster = [];
+    for (let i = 0; i < rowCount; i++) roster.push({ person: crew[i] || null, vehicle: vehicles[i] || null });
+
+    // Supply usage: ammo types from assigned vehicles' + infantry loadout weapons.
+    const ammo = new Set();
+    for (const u of (box.units || [])) {
+      const a = game.actors.get(u.actorId);
+      for (const w of (a?.system?.weapons || [])) if (w.ammoType) ammo.add(w.ammoType);
+    }
+    if (def.loadout) for (const w of (box.loadout?.weapons || [])) if (w.ammoType) ammo.add(w.ammoType);
+
+    const vet = MechFoundryCompanySheet.veterancy(box.xp);
+    const locActor = box.locationId ? game.actors.get(box.locationId) : null;
+    const troopLabel = (TROOP_TYPES.find(t => t.key === def.troop) || {}).label || '';
+
+    return {
+      id: box.id, name: box.name || 'Unit', type: def.key, typeLabel: def.label,
+      troopLabel, hasVehicle: !!def.vehicle, vehicleLabel: def.vehicleLabel || null,
+      isInfantry: !!def.loadout,
+      parentId: box.parentId || '',
+      status: box.status || 'Combat Ready',
+      crewCount: crew.length, vehicleCount: vehicles.length,
+      roster,
+      loadout: def.loadout ? { armorType: box.loadout?.armorType || '', weapons: (box.loadout?.weapons || []).map(w => ({ ...w })) } : null,
+      supplyChips: [...ammo],
+      chassisCategory: def.vehicle ? UNIT_ACTOR_TYPE_LABELS[def.vehicle] : null,
+      xp: vet.xp, veterancy: vet.label, vetMod: vet.mod, xpPct: vet.pct, xpInto: vet.into,
+      locationId: box.locationId || '', locationName: locActor ? locActor.name : '',
+      locationMissing: !!box.locationId && !locActor,
+      mismatch: (def.vehicle && crew.length !== vehicles.length)
+        ? (crew.length > vehicles.length ? 'More crew than vehicles' : 'More vehicles than crew') : null
+    };
+  }
+
+  /** Recursively flatten the org tree into display rows (respecting collapse + stacks). */
+  _mtoeWalk(all, parentId, depth, rows) {
+    const kids = all.filter(b => (b.parentId || '') === parentId);
+    const groups = new Map();
+    const order = [];
+    for (const b of kids) {
+      const key = `${b.name || 'Unit'}|${this._blockType(b)}`;
+      if (!groups.has(key)) { groups.set(key, []); order.push(key); }
+      groups.get(key).push(b);
+    }
+    for (const key of order) {
+      const group = groups.get(key);
+      if (group.length === 1) {
+        this._mtoeBlockRow(all, group[0], depth, rows);
+      } else {
+        const stackId = `stack:${parentId}:${key}`;
+        const open = this.#mtoeStackOpen.has(stackId);
+        const def = BLOCK_TYPES.find(t => t.key === this._blockType(group[0])) || {};
+        rows.push({ kind: 'stack', stackId, depth, open, count: group.length, name: group[0].name || 'Unit', typeLabel: def.label || '' });
+        if (open) for (const b of group) this._mtoeBlockRow(all, b, depth + 1, rows);
+      }
+    }
+  }
+
+  _mtoeBlockRow(all, box, depth, rows) {
+    const hasChildren = all.some(b => (b.parentId || '') === box.id);
+    const collapsed = this.#mtoeCollapsed.has(box.id);
+    rows.push({ kind: 'block', id: box.id, depth, hasChildren, collapsed, detail: this._blockDetail(box) });
+    if (!collapsed) this._mtoeWalk(all, box.id, depth + 1, rows);
+  }
+
+  _prepareMTOE(context) {
+    const all = this.actor.system.mtoe || [];
+    const rows = [];
+    this._mtoeWalk(all, '', 0, rows);
+    context.mtoeRows = rows;
+    context.hasMtoe = all.length > 0;
+    context.blockTypes = BLOCK_TYPES;
+    // Parent options for reparenting (a block cannot parent itself; cycle guard is in the handler).
+    context.mtoeParentOptions = all.map(b => ({ id: b.id, name: b.name || 'Unit' }));
     context.mtoeLocationOptions = (this.actor.system.locations || [])
       .map(l => {
         const a = game.actors.get(l.actorId);
@@ -680,8 +724,14 @@ export class MechFoundryCompanySheet extends HandlebarsApplicationMixin(ActorShe
       const boxId = boxEl.dataset.boxId;
       const box = (this.actor.system.mtoe || []).find(b => b.id === boxId);
       if (!box) return false;
-      // A box may hold a mix of vehicle types (each pairs with its crew type).
-      // If the box is based at a location, the ship must have a free cubicle.
+      // A block is a single type; only its matching vehicle type may be added.
+      const def = BLOCK_TYPES.find(t => t.key === this._blockType(box));
+      if (!def?.vehicle || actor.type !== def.vehicle) {
+        const want = def?.vehicle ? UNIT_ACTOR_TYPE_LABELS[def.vehicle] : 'no vehicles';
+        ui.notifications.warn(`A ${def?.label || 'unit'} block accepts ${want}.`);
+        return false;
+      }
+      // If the block is based at a location, the ship must have a free cubicle.
       if (box.locationId) {
         const ship = game.actors.get(box.locationId);
         const already = (box.units || []).filter(u => game.actors.get(u.actorId)?.type === actor.type).length;
@@ -733,6 +783,8 @@ export class MechFoundryCompanySheet extends HandlebarsApplicationMixin(ActorShe
     // Expand/collapse works for viewers too (pure UI state).
     html.on('click', '.location-toggle', this._onToggleLocation.bind(this));
     html.on('click', '.logi-toggle', this._onToggleLogi.bind(this));
+    html.on('click', '.mtoe-toggle', this._onToggleBlock.bind(this));
+    html.on('click', '.mtoe-stack-toggle', this._onToggleStack.bind(this));
 
     if (!this.isEditable) return;
 
@@ -762,19 +814,27 @@ export class MechFoundryCompanySheet extends HandlebarsApplicationMixin(ActorShe
     html.on('change', '.cargo-ammo-field', this._onCargoAmmoFieldChange.bind(this));
 
     // MTOE
-    html.on('click', '.add-mtoe-box', this._onAddBox.bind(this));
+    html.on('change', '.add-mtoe-block', this._onAddBlock.bind(this));
+    html.on('change', '.add-subunit', this._onAddBlock.bind(this));
     html.on('click', '.remove-mtoe-box', this._onRemoveBox.bind(this));
     html.on('change', '.mtoe-box-name', this._onBoxNameChange.bind(this));
+    html.on('change', '.mtoe-block-type', this._onBlockTypeChange.bind(this));
+    html.on('change', '.mtoe-parent', this._onBlockParentChange.bind(this));
     html.on('change', '.mtoe-box-status', this._onBoxStatusChange.bind(this));
     html.on('change', '.mtoe-location', this._onBoxLocationChange.bind(this));
     html.on('change', '.mtoe-xp', this._onBoxXpChange.bind(this));
     html.on('click', '.mtoe-roll', this._onBoxRoll.bind(this));
-    html.on('change', '.add-personnel', this._onAddPersonnel.bind(this));
+    html.on('click', '.add-personnel', this._onAddPersonnel.bind(this));
     html.on('click', '.remove-personnel', this._onRemovePersonnel.bind(this));
     html.on('change', '.person-status', this._onPersonStatusChange.bind(this));
     html.on('change', '.vehicle-status', this._onVehicleStatusChange.bind(this));
     html.on('click', '.mtoe-unit-open', this._onUnitOpen.bind(this));
     html.on('click', '.mtoe-unit-remove', this._onBoxUnitRemove.bind(this));
+    // Infantry loadout
+    html.on('change', '.loadout-armor', this._onLoadoutArmorChange.bind(this));
+    html.on('click', '.add-loadout-weapon', this._onAddLoadoutWeapon.bind(this));
+    html.on('click', '.remove-loadout-weapon', this._onRemoveLoadoutWeapon.bind(this));
+    html.on('change', '.loadout-weapon-field', this._onLoadoutWeaponField.bind(this));
   }
 
   /* -------------------------------------------- */
@@ -1064,20 +1124,51 @@ export class MechFoundryCompanySheet extends HandlebarsApplicationMixin(ActorShe
   /*  MTOE handlers                                */
   /* -------------------------------------------- */
 
-  async _onAddBox(event) {
+  _onToggleBlock(event) {
     event.preventDefault();
+    const id = event.currentTarget.dataset.boxId;
+    if (this.#mtoeCollapsed.has(id)) this.#mtoeCollapsed.delete(id);
+    else this.#mtoeCollapsed.add(id);
+    this.render(false);
+  }
+
+  _onToggleStack(event) {
+    event.preventDefault();
+    const id = event.currentTarget.dataset.stackId;
+    if (this.#mtoeStackOpen.has(id)) this.#mtoeStackOpen.delete(id);
+    else this.#mtoeStackOpen.add(id);
+    this.render(false);
+  }
+
+  /** Add a unit block of the chosen type, optionally under a parent (sub-unit). */
+  async _onAddBlock(event) {
+    const type = event.currentTarget.value;
+    if (!type || !BLOCK_TYPES.some(t => t.key === type)) return;
+    const parentId = event.currentTarget.dataset.parentId || '';
+    const def = BLOCK_TYPES.find(t => t.key === type);
     const boxes = foundry.utils.deepClone(this.actor.system.mtoe || []);
     boxes.push({
-      id: foundry.utils.randomID(), name: 'New Unit', status: 'Combat Ready',
-      xp: 0, personnel: [], units: [], locationId: ''
+      id: foundry.utils.randomID(),
+      name: `New ${def.label} Unit`,
+      type, parentId,
+      status: 'Combat Ready', xp: 0, locationId: '',
+      personnel: [], units: [],
+      loadout: def.loadout ? { armorType: '', weapons: [] } : undefined
     });
+    if (parentId) this.#mtoeCollapsed.delete(parentId); // reveal the new child
     await this.actor.update({ 'system.mtoe': boxes });
   }
 
+  /** Remove a block; its children are promoted to the removed block's parent. */
   async _onRemoveBox(event) {
     event.preventDefault();
     const boxId = event.currentTarget.dataset.boxId;
-    const boxes = (this.actor.system.mtoe || []).filter(b => b.id !== boxId);
+    const all = foundry.utils.deepClone(this.actor.system.mtoe || []);
+    const box = all.find(b => b.id === boxId);
+    if (!box) return;
+    const newParent = box.parentId || '';
+    for (const b of all) if ((b.parentId || '') === boxId) b.parentId = newParent;
+    const boxes = all.filter(b => b.id !== boxId);
     await this.actor.update({ 'system.mtoe': boxes });
   }
 
@@ -1085,6 +1176,41 @@ export class MechFoundryCompanySheet extends HandlebarsApplicationMixin(ActorShe
     const boxId = event.currentTarget.dataset.boxId;
     const value = event.currentTarget.value;
     await this._updateBox(boxId, box => { box.name = value; });
+  }
+
+  /** Change a block's type; clears its roster/vehicles since the type constraints change. */
+  async _onBlockTypeChange(event) {
+    const boxId = event.currentTarget.dataset.boxId;
+    const value = event.currentTarget.value;
+    if (!BLOCK_TYPES.some(t => t.key === value)) return;
+    const def = BLOCK_TYPES.find(t => t.key === value);
+    await this._updateBox(boxId, box => {
+      box.type = value;
+      box.personnel = [];
+      box.units = [];
+      box.loadout = def.loadout ? { armorType: '', weapons: [] } : undefined;
+    });
+    ui.notifications.info("Unit type changed — its crew and vehicles were cleared.");
+  }
+
+  /** Reparent a block, guarding against cycles (can't parent to itself or a descendant). */
+  async _onBlockParentChange(event) {
+    const boxId = event.currentTarget.dataset.boxId;
+    const value = event.currentTarget.value; // parent id or ''
+    if (value === boxId) { ui.notifications.warn("A unit can't be its own parent."); this.render(false); return; }
+    if (value) {
+      // Walk up from the proposed parent; if we reach boxId, it's a cycle.
+      const all = this.actor.system.mtoe || [];
+      const byId = new Map(all.map(b => [b.id, b]));
+      let cur = byId.get(value);
+      const seen = new Set();
+      while (cur && !seen.has(cur.id)) {
+        if (cur.id === boxId) { ui.notifications.warn("That would create a loop in the hierarchy."); this.render(false); return; }
+        seen.add(cur.id);
+        cur = cur.parentId ? byId.get(cur.parentId) : null;
+      }
+    }
+    await this._updateBox(boxId, box => { box.parentId = value; });
   }
 
   async _onBoxStatusChange(event) {
@@ -1128,14 +1254,13 @@ export class MechFoundryCompanySheet extends HandlebarsApplicationMixin(ActorShe
     await this._departmentRoll(box.name || 'Unit', vet, { mod: 0, canRoll: true, pct: 100 });
   }
 
-  /** Add one crew member of the troop type chosen in the dropdown. */
+  /** Add one crew member (the block's single embarked type is implicit). */
   async _onAddPersonnel(event) {
+    event.preventDefault();
     const boxId = event.currentTarget.dataset.boxId;
-    const type = event.currentTarget.value;
-    if (!type || !TROOP_TYPES.some(t => t.key === type)) return;
     await this._updateBox(boxId, box => {
       if (!Array.isArray(box.personnel)) box.personnel = [];
-      box.personnel.push({ id: foundry.utils.randomID(), type, status: 'Active' });
+      box.personnel.push({ id: foundry.utils.randomID(), status: 'Active' });
     });
   }
 
@@ -1178,6 +1303,46 @@ export class MechFoundryCompanySheet extends HandlebarsApplicationMixin(ActorShe
     const { boxId, actorId } = event.currentTarget.dataset;
     await this._updateBox(boxId, box => {
       box.units = (box.units || []).filter(u => u.actorId !== actorId);
+    });
+  }
+
+  /* -------------------------------------------- */
+  /*  Infantry loadout                             */
+  /* -------------------------------------------- */
+
+  async _onLoadoutArmorChange(event) {
+    const boxId = event.currentTarget.dataset.boxId;
+    const value = event.currentTarget.value;
+    await this._updateBox(boxId, box => {
+      if (!box.loadout) box.loadout = { armorType: '', weapons: [] };
+      box.loadout.armorType = value;
+    });
+  }
+
+  async _onAddLoadoutWeapon(event) {
+    event.preventDefault();
+    const boxId = event.currentTarget.dataset.boxId;
+    await this._updateBox(boxId, box => {
+      if (!box.loadout) box.loadout = { armorType: '', weapons: [] };
+      if (!Array.isArray(box.loadout.weapons)) box.loadout.weapons = [];
+      box.loadout.weapons.push({ id: foundry.utils.randomID(), name: '', ammoType: '' });
+    });
+  }
+
+  async _onRemoveLoadoutWeapon(event) {
+    event.preventDefault();
+    const { boxId, weaponId } = event.currentTarget.dataset;
+    await this._updateBox(boxId, box => {
+      if (box.loadout?.weapons) box.loadout.weapons = box.loadout.weapons.filter(w => w.id !== weaponId);
+    });
+  }
+
+  async _onLoadoutWeaponField(event) {
+    const { boxId, weaponId, field } = event.currentTarget.dataset;
+    const value = event.currentTarget.value;
+    await this._updateBox(boxId, box => {
+      const w = box.loadout?.weapons?.find(x => x.id === weaponId);
+      if (w) w[field] = value;
     });
   }
 
