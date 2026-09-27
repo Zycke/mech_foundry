@@ -191,6 +191,22 @@
     {{!-- ===================== DETAILS ===================== --}}
     <div class="tab" data-tab="details">
       <div class="mf-panel">
+        <h4>Armor &amp; Structure — Maximums <span class="hint">enter once from the record sheet; the Status tab tracks current values against these</span></h4>
+        <table class="setup-table">
+          <thead><tr><th>Location</th><th>Armor</th><th>Rear</th><th>Structure</th></tr></thead>
+          <tbody>
+            {{#each setupLocations}}
+            <tr>
+              <td class="loc-name">{{label}} <span class="code">{{code}}</span></td>
+              <td><input type="number" min="0" name="system.armor.{{key}}.max" value="{{armorMax}}" {{#unless ../editable}}disabled{{/unless}} /></td>
+              <td>{{#if rearKey}}<input type="number" min="0" name="system.armor.{{rearKey}}.max" value="{{rearMax}}" {{#unless ../editable}}disabled{{/unless}} />{{else}}<span class="na">—</span>{{/if}}</td>
+              <td><input type="number" min="0" name="system.structure.{{key}}.max" value="{{structMax}}" {{#unless ../editable}}disabled{{/unless}} /></td>
+            </tr>
+            {{/each}}
+          </tbody>
+        </table>
+      </div>
+      <div class="mf-panel">
         <h4>Construction <span class="hint">stored as entered</span></h4>
         <div class="mf-stats wide">
           <label class="mf-stat"><span class="k">Era</span><input type="text" name="system.era" value="{{system.era}}" {{#unless editable}}disabled{{/unless}} /></label>

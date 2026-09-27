@@ -95,6 +95,15 @@ export class MechFoundryMechSheet extends MechFoundryUnitSheet {
     context.armorTotal = { value: armorVal, max: armorMax, damaged: armorVal < armorMax };
     context.structureTotal = { value: structVal, max: structMax, damaged: structVal < structMax };
 
+    // Construction grid (Details tab): the "max" values, entered once per record sheet.
+    context.setupLocations = ARMOR_LOCATIONS.map(def => ({
+      key: def.key, label: def.label, code: def.code,
+      rearKey: def.rear || null,
+      armorMax: Number(armor[def.key]?.max) || 0,
+      rearMax: def.rear ? (Number(armor[def.rear]?.max) || 0) : null,
+      structMax: Number(structure[def.key]?.max) || 0
+    }));
+
     // Movement (run is derived; jump entered).
     const walk = Number(sys.movement?.walk) || 0;
     context.movement = {
