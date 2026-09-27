@@ -19,18 +19,53 @@ const ARC_FIELDS = [
 const MOVEMENT_COLUMNS = [
   [{ key: 'safeThrust', label: 'Safe Thrust' }, { key: 'maxThrust', label: 'Max Thrust' }],
   [{ key: 'currentFuel', label: 'Current Fuel' }, { key: 'initialFuel', label: 'Initial Fuel' }],
-  [{ key: 'marinePoints', label: 'Marine Points' }, { key: 'fighters', label: 'Fighters' }],
-  [{ key: 'tonsBurnDay', label: 'Tons / Burn Day' }, { key: 'heatSinks', label: 'Heat Sinks' }]
+  [{ key: 'fighters', label: 'Fighters' }, { key: 'tonsBurnDay', label: 'Tons / Burn Day' }],
+  [{ key: 'heatSinks', label: 'Heat Sinks' }]
 ];
 
 const WEAPON_COLUMNS = [
   { key: 'heat', label: 'Heat' },
-  { key: 'arc', label: 'Arc' },
   { key: 'short', label: 'Short' },
   { key: 'medium', label: 'Medium' },
   { key: 'long', label: 'Long' },
   { key: 'ext', label: 'Ext.' }
 ];
+
+/** Ship classes and the firing arcs each provides (Total Warfare / StratOps). */
+const SHIP_TYPES = [
+  { key: 'dropship_spheroid', label: 'DropShip (Spheroid)' },
+  { key: 'dropship_aerodyne', label: 'DropShip (Aerodyne)' },
+  { key: 'warship', label: 'WarShip' },
+  { key: 'jumpship', label: 'JumpShip' }
+];
+
+const SHIP_ARCS = {
+  dropship_spheroid: [
+    { key: 'nose', label: 'Nose' }, { key: 'aft', label: 'Aft' },
+    { key: 'leftFront', label: 'Left Front' }, { key: 'rightFront', label: 'Right Front' },
+    { key: 'leftRear', label: 'Left Rear' }, { key: 'rightRear', label: 'Right Rear' }
+  ],
+  dropship_aerodyne: [
+    { key: 'nose', label: 'Nose' }, { key: 'aft', label: 'Aft' },
+    { key: 'lwFront', label: 'Left Wing Front' }, { key: 'rwFront', label: 'Right Wing Front' },
+    { key: 'lwRear', label: 'Left Wing Rear' }, { key: 'rwRear', label: 'Right Wing Rear' }
+  ],
+  warship: [
+    { key: 'nose', label: 'Nose' }, { key: 'aft', label: 'Aft' },
+    { key: 'lwFront', label: 'Left Wing Front' }, { key: 'rwFront', label: 'Right Wing Front' },
+    { key: 'lwRear', label: 'Left Wing Rear' }, { key: 'rwRear', label: 'Right Wing Rear' },
+    { key: 'leftBroadside', label: 'Left Broadside' }, { key: 'rightBroadside', label: 'Right Broadside' }
+  ],
+  jumpship: [
+    { key: 'nose', label: 'Nose' }, { key: 'aft', label: 'Aft' },
+    { key: 'leftFront', label: 'Left Front' }, { key: 'rightFront', label: 'Right Front' },
+    { key: 'leftRear', label: 'Left Rear' }, { key: 'rightRear', label: 'Right Rear' }
+  ]
+};
+
+function shipArcs(shipType) {
+  return SHIP_ARCS[shipType] || SHIP_ARCS.dropship_spheroid;
+}
 
 const TRACK_TURNS = ['t1', 't2', 't3', 't4', 't5', 't6', 't7', 't8', 't9', 't10'];
 
@@ -102,6 +137,22 @@ export class MechFoundryNavalShipSheet extends HandlebarsApplicationMixin(ActorS
     };
 
     context.weapons = (system.weapons || []).map(w => ({ ...w }));
+
+    // Ship class + firing arcs. Weapons are grouped into per-arc panels; any
+    // weapon whose arc isn't in the current class falls into an "Unassigned" panel.
+    const shipType = system.shipType || 'dropship_spheroid';
+    const arcs = shipArcs(shipType);
+    context.shipTypes = SHIP_TYPES;
+    context.shipType = shipType;
+    const byArc = new Map(arcs.map(a => [a.key, []]));
+    const orphans = [];
+    for (const w of context.weapons) {
+      if (byArc.has(w.arc)) byArc.get(w.arc).push(w);
+      else orphans.push(w);
+    }
+    context.weaponArcs = arcs.map(a => ({ key: a.key, label: a.label, weapons: byArc.get(a.key) }));
+    context.weaponOrphans = orphans;
+    context.allArcs = arcs;
 
     let totalPrimary = 0, totalOfficers = 0;
     context.departments = (system.departments || []).map(d => {
@@ -235,7 +286,16 @@ export class MechFoundryNavalShipSheet extends HandlebarsApplicationMixin(ActorS
     if (!this.isEditable) return;
     html.on('click', '.add-weapon', this._onAddWeapon.bind(this));
     html.on('click', '.remove-weapon', this._onRemoveWeapon.bind(this));
+    html.on('click', '.duplicate-weapon', this._onDuplicateWeapon.bind(this));
     html.on('change', '.weapon-field', this._onWeaponFieldChange.bind(this));
+    html.on('change', '.weapon-arc', this._onWeaponArcChange.bind(this));
+    // Weapon drag between arc panels.
+    html.on('dragstart', '.ship-weapon-row', this._onWeaponDragStart.bind(this));
+    html.on('dragover', '.arc-panel', (ev) => { ev.preventDefault(); ev.currentTarget.classList.add('drag-over'); });
+    html.on('dragleave', '.arc-panel', (ev) => ev.currentTarget.classList.remove('drag-over'));
+    html.on('drop', '.arc-panel', this._onWeaponDrop.bind(this));
+    // Bays quick-add.
+    html.on('click', '.quick-add-component', this._onQuickAddComponent.bind(this));
     html.on('click', '.add-ship-dept', this._onAddDept.bind(this));
     html.on('click', '.remove-ship-dept', this._onRemoveDept.bind(this));
     html.on('change', '.ship-dept-type', this._onDeptTypeChange.bind(this));
@@ -301,6 +361,19 @@ export class MechFoundryNavalShipSheet extends HandlebarsApplicationMixin(ActorS
     });
   }
 
+  /** Quick-add a component of a specific type via a per-bay button. */
+  async _onQuickAddComponent(event) {
+    event.preventDefault();
+    const { bayId, type } = event.currentTarget.dataset;
+    if (!BAY_COMPONENT_TYPES.some(t => t.key === type)) return;
+    await this._updateBays(bays => {
+      const bay = bays.find(b => b.id === bayId);
+      if (!bay) return false;
+      if (!Array.isArray(bay.components)) bay.components = [];
+      bay.components.push({ id: foundry.utils.randomID(), type, unitId: '', squadSize: 0, tonnage: 0 });
+    });
+  }
+
   async _onRemoveComponent(event) {
     event.preventDefault();
     const { bayId, componentId } = event.currentTarget.dataset;
@@ -341,8 +414,9 @@ export class MechFoundryNavalShipSheet extends HandlebarsApplicationMixin(ActorS
 
   async _onAddWeapon(event) {
     event.preventDefault();
+    const arc = event.currentTarget.dataset.arc || '';
     const weapons = foundry.utils.deepClone(this.actor.system.weapons || []);
-    weapons.push({ id: foundry.utils.randomID(), name: '', heat: '', arc: '', short: '', medium: '', long: '', ext: '' });
+    weapons.push({ id: foundry.utils.randomID(), name: '', heat: '', arc, short: '', medium: '', long: '', ext: '' });
     await this.actor.update({ 'system.weapons': weapons });
   }
 
@@ -353,6 +427,19 @@ export class MechFoundryNavalShipSheet extends HandlebarsApplicationMixin(ActorS
     await this.actor.update({ 'system.weapons': weapons });
   }
 
+  /** Duplicate a weapon (new id) right after the original, in the same arc. */
+  async _onDuplicateWeapon(event) {
+    event.preventDefault();
+    const id = event.currentTarget.dataset.weaponId;
+    const weapons = foundry.utils.deepClone(this.actor.system.weapons || []);
+    const i = weapons.findIndex(w => w.id === id);
+    if (i < 0) return;
+    const copy = foundry.utils.deepClone(weapons[i]);
+    copy.id = foundry.utils.randomID();
+    weapons.splice(i + 1, 0, copy);
+    await this.actor.update({ 'system.weapons': weapons });
+  }
+
   async _onWeaponFieldChange(event) {
     const { weaponId, field } = event.currentTarget.dataset;
     const value = event.currentTarget.value;
@@ -360,6 +447,40 @@ export class MechFoundryNavalShipSheet extends HandlebarsApplicationMixin(ActorS
     const w = weapons.find(x => x.id === weaponId);
     if (!w) return;
     w[field] = value;
+    await this.actor.update({ 'system.weapons': weapons });
+  }
+
+  /** Move a weapon to another arc via the per-weapon arc dropdown. */
+  async _onWeaponArcChange(event) {
+    const weaponId = event.currentTarget.dataset.weaponId;
+    const arc = event.currentTarget.value;
+    const weapons = foundry.utils.deepClone(this.actor.system.weapons || []);
+    const w = weapons.find(x => x.id === weaponId);
+    if (!w) return;
+    w.arc = arc;
+    await this.actor.update({ 'system.weapons': weapons });
+  }
+
+  _onWeaponDragStart(event) {
+    const id = event.currentTarget.dataset.weaponId;
+    const dt = event.originalEvent?.dataTransfer || event.dataTransfer;
+    dt?.setData('text/plain', JSON.stringify({ mfWeaponId: id }));
+    if (dt) dt.effectAllowed = 'move';
+  }
+
+  /** Drop a dragged weapon onto an arc panel → set its arc. */
+  async _onWeaponDrop(event) {
+    event.preventDefault();
+    event.currentTarget.classList.remove('drag-over');
+    const arc = event.currentTarget.dataset.arc;
+    const dt = event.originalEvent?.dataTransfer || event.dataTransfer;
+    let data;
+    try { data = JSON.parse(dt?.getData('text/plain') || '{}'); } catch { return; }
+    if (!data.mfWeaponId || arc === undefined) return;
+    const weapons = foundry.utils.deepClone(this.actor.system.weapons || []);
+    const w = weapons.find(x => x.id === data.mfWeaponId);
+    if (!w || w.arc === arc) return;
+    w.arc = arc;
     await this.actor.update({ 'system.weapons': weapons });
   }
 

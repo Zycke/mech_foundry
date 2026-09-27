@@ -198,6 +198,22 @@ export class MechFoundryCompanySheet extends HandlebarsApplicationMixin(ActorShe
     return Math.max(0, parseInt(value) || 0);
   }
 
+  /**
+   * Derive a unit's damage status from its combat actor's Total Armor / Total
+   * Structure pools: Destroyed when structure is gone, Damaged when any armor or
+   * structure is below max, else Undamaged. Returns null for actors without the
+   * derived combat totals (they keep their manually-set status).
+   */
+  static unitDamageStatus(actor) {
+    const d = actor?.system?.derived;
+    if (!d?.armorTotal || !d?.structureTotal) return null;
+    const ar = d.armorTotal, st = d.structureTotal;
+    if ((ar.max || 0) <= 0 && (st.max || 0) <= 0) return null;
+    if ((st.max || 0) > 0 && (st.value || 0) <= 0) return 'Destroyed';
+    if ((ar.value || 0) < (ar.max || 0) || (st.value || 0) < (st.max || 0)) return 'Damaged';
+    return 'Undamaged';
+  }
+
   /* -------------------------------------------- */
 
   /** @override */
@@ -389,26 +405,29 @@ export class MechFoundryCompanySheet extends HandlebarsApplicationMixin(ActorShe
    * their vehicles' weapons and any infantry loadout, listing which units use each.
    */
   _ammoNeedsForLocation(shipId) {
-    const needs = new Map(); // ammoType -> { units:Set, weapons:number }
-    const add = (ammoType, unitName) => {
+    const needs = new Map(); // ammoType -> { units:Set, weapons:number, rounds:number }
+    const add = (w, unitName) => {
+      const ammoType = w?.ammoType;
       if (!ammoType) return;
-      if (!needs.has(ammoType)) needs.set(ammoType, { units: new Set(), weapons: 0 });
+      if (!needs.has(ammoType)) needs.set(ammoType, { units: new Set(), weapons: 0, rounds: 0 });
       const e = needs.get(ammoType);
       e.units.add(unitName);
       e.weapons += 1;
+      e.rounds += Math.max(0, parseInt(w.ammo) || 0);
     };
     for (const box of (this.actor.system.mtoe || [])) {
       if ((box.locationId || '') !== shipId) continue;
       const unitName = box.name || 'Unit';
       for (const u of (box.units || [])) {
         const a = game.actors.get(u.actorId);
-        for (const w of (a?.system?.weapons || [])) add(w.ammoType, unitName);
+        for (const w of (a?.system?.weapons || [])) add(w, unitName);
       }
       const def = BLOCK_TYPES.find(t => t.key === this._blockType(box));
-      if (def?.loadout) for (const w of (box.loadout?.weapons || [])) add(w.ammoType, unitName);
+      if (def?.loadout) for (const w of (box.loadout?.weapons || [])) add(w, unitName);
     }
     return [...needs.entries()].map(([ammoType, e]) => ({
-      ammoType, weaponCount: e.weapons, unitCount: e.units.size, unitsLabel: [...e.units].join(', ')
+      ammoType, weaponCount: e.weapons, unitCount: e.units.size,
+      rounds: e.rounds, unitsLabel: [...e.units].join(', ')
     }));
   }
 
@@ -502,10 +521,12 @@ export class MechFoundryCompanySheet extends HandlebarsApplicationMixin(ActorShe
     const crew = (box.personnel || []).map(p => ({ id: p.id, status: p.status || 'Active' }));
     const vehicles = (box.units || []).map(u => {
       const a = game.actors.get(u.actorId);
+      const derivedStatus = a ? MechFoundryCompanySheet.unitDamageStatus(a) : null;
       return {
         actorId: u.actorId, exists: !!a,
         name: a ? a.name : 'Missing', img: a ? a.img : 'icons/svg/hazard.svg',
-        status: u.status || 'Undamaged'
+        status: u.status || 'Undamaged',
+        derivedStatus
       };
     });
     const rowCount = Math.max(crew.length, vehicles.length);
@@ -843,8 +864,8 @@ export class MechFoundryCompanySheet extends HandlebarsApplicationMixin(ActorShe
     html.on('change', '.cargo-ammo-field', this._onCargoAmmoFieldChange.bind(this));
 
     // MTOE
-    html.on('change', '.add-mtoe-block', this._onAddBlock.bind(this));
-    html.on('change', '.add-subunit', this._onAddBlock.bind(this));
+    html.on('click', '.add-mtoe-unit', this._onAddBlock.bind(this));
+    html.on('click', '.add-subunit', this._onAddBlock.bind(this));
     html.on('click', '.remove-mtoe-box', this._onRemoveBox.bind(this));
     html.on('change', '.mtoe-box-name', this._onBoxNameChange.bind(this));
     html.on('change', '.mtoe-block-type', this._onBlockTypeChange.bind(this));
@@ -1171,14 +1192,18 @@ export class MechFoundryCompanySheet extends HandlebarsApplicationMixin(ActorShe
 
   /** Add a unit block of the chosen type, optionally under a parent (sub-unit). */
   async _onAddBlock(event) {
-    const type = event.currentTarget.value;
-    if (!type || !BLOCK_TYPES.some(t => t.key === type)) return;
+    event.preventDefault();
+    // Generic add: buttons carry no value, so default to a Mech block that the
+    // user then renames and retypes via the block's type dropdown. A legacy
+    // select that still carries a type value is honoured.
+    const chosen = event.currentTarget.value;
+    const type = (chosen && BLOCK_TYPES.some(t => t.key === chosen)) ? chosen : 'mech';
     const parentId = event.currentTarget.dataset.parentId || '';
     const def = BLOCK_TYPES.find(t => t.key === type);
     const boxes = foundry.utils.deepClone(this.actor.system.mtoe || []);
     boxes.push({
       id: foundry.utils.randomID(),
-      name: `New ${def.label} Unit`,
+      name: 'New Unit',
       type, parentId,
       status: 'Combat Ready', xp: 0, locationId: '',
       personnel: [], units: [],

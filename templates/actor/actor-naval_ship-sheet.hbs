@@ -6,6 +6,12 @@
     <div class="header-fields">
       <h1><input name="name" type="text" value="{{actor.name}}" placeholder="Vessel Name" /></h1>
       <div class="ship-idfields">
+        <label>Ship Type
+          <select name="system.shipType" {{#unless editable}}disabled{{/unless}}>
+            {{#each shipTypes}}<option value="{{this.key}}" {{#if (eq this.key ../shipType)}}selected{{/if}}>{{this.label}}</option>{{/each}}
+          </select>
+        </label>
+        <label>Tonnage <input type="number" min="0" name="system.tonnage" value="{{system.tonnage}}" placeholder="0" {{#unless editable}}disabled{{/unless}} /></label>
         <label>Class <input type="text" name="system.vessel.class" value="{{system.vessel.class}}" placeholder="e.g. Union" /></label>
         <label>Role <input type="text" name="system.vessel.role" value="{{system.vessel.role}}" placeholder="e.g. Assault Transport" /></label>
       </div>
@@ -107,32 +113,27 @@
     <div class="tab" data-tab="weapons" data-group="primary">
       <div class="tab-content">
         <div class="items-header weapons-bar">
-          <h3>Weapon Bays</h3>
-          {{#if editable}}<button type="button" class="add-weapon"><i class="fas fa-plus"></i> Add Weapon</button>{{/if}}
+          <h3>Weapons by Firing Arc</h3>
+          <span class="logi-note">Drag a weapon to another arc to move it; use the copy button to duplicate.</span>
         </div>
-        <div class="track-scroll">
-          <table class="ship-weapons">
-            <thead>
-              <tr>
-                <th class="w-name">Weapons</th>
-                {{#each weaponColumns}}<th>{{this.label}}</th>{{/each}}
-                {{#if editable}}<th></th>{{/if}}
-              </tr>
-            </thead>
-            <tbody>
-              {{#each weapons}}
-              <tr>
-                <td class="w-name"><input type="text" class="weapon-field" data-weapon-id="{{this.id}}" data-field="name" value="{{this.name}}" placeholder="Weapon" {{#unless ../editable}}disabled{{/unless}} /></td>
-                {{#each ../weaponColumns}}
-                <td><input type="text" class="weapon-field" data-weapon-id="{{../id}}" data-field="{{this.key}}" value="{{lookup .. this.key}}" {{#unless ../../editable}}disabled{{/unless}} /></td>
-                {{/each}}
-                {{#if ../editable}}<td><a class="remove-weapon" data-weapon-id="{{this.id}}" title="Remove"><i class="fas fa-trash"></i></a></td>{{/if}}
-              </tr>
-              {{/each}}
-            </tbody>
-          </table>
+
+        {{#if weaponOrphans.length}}
+        <div class="arc-panel arc-orphans" data-arc="">
+          <div class="arc-panel-head"><span class="arc-title">Unassigned <span class="arc-note">(arc not in this ship class)</span></span></div>
+          {{> "systems/mech-foundry/templates/actor/parts/ship-arc-weapons.hbs" weapons=weaponOrphans editable=editable allArcs=allArcs weaponColumns=weaponColumns}}
         </div>
-        {{#unless weapons.length}}<p class="empty-notice">No weapons. Click "Add Weapon".</p>{{/unless}}
+        {{/if}}
+
+        {{#each weaponArcs}}
+        <div class="arc-panel" data-arc="{{this.key}}">
+          <div class="arc-panel-head">
+            <span class="arc-title">{{this.label}}</span>
+            <span class="arc-count">{{this.weapons.length}}</span>
+            {{#if ../editable}}<button type="button" class="add-weapon" data-arc="{{this.key}}"><i class="fas fa-plus"></i> Add</button>{{/if}}
+          </div>
+          {{> "systems/mech-foundry/templates/actor/parts/ship-arc-weapons.hbs" weapons=this.weapons editable=../editable allArcs=../allArcs weaponColumns=../weaponColumns}}
+        </div>
+        {{/each}}
       </div>
     </div>
 
@@ -147,7 +148,7 @@
           <span>Cargo capacity: <strong>{{cargoCapacity}}</strong> t</span>
           <span>Used: <strong>{{cargoUsed}}</strong> t</span>
           <span>Free: <strong>{{cargoFree}}</strong> t</span>
-          <span class="logi-note">Supplies (1 t each) are managed from the company Logistics tab.</span>
+          <span class="logi-note">Capacity = total tonnage of the Cargo holds added to the bays below. Supplies (1 t each) are managed from the company Logistics tab.</span>
         </div>
 
         {{#each bays}}
@@ -163,6 +164,14 @@
             <a class="remove-bay" data-bay-id="{{this.id}}" title="Remove Bay"><i class="fas fa-trash"></i></a>
             {{/if}}
           </div>
+
+          {{#if ../editable}}
+          <div class="bay-quick-add">
+            {{#each ../bayComponentTypes}}
+            <button type="button" class="quick-add-component" data-bay-id="{{../id}}" data-type="{{this.key}}" title="Add {{this.label}}"><i class="fas fa-plus"></i> {{this.label}}</button>
+            {{/each}}
+          </div>
+          {{/if}}
 
           {{#if this.components.length}}
           <table class="bay-table">

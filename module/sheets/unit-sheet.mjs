@@ -60,7 +60,21 @@ export class MechFoundryUnitSheet extends MechFoundryActorSheetV2 {
     if (!this.isEditable) return;
     html.on('click', '.add-weapon', this._onAddWeapon.bind(this));
     html.on('click', '.remove-weapon', this._onRemoveWeapon.bind(this));
+    html.on('click', '.duplicate-weapon', this._onDuplicateWeapon.bind(this));
     html.on('change', '.weapon-field', this._onWeaponFieldChange.bind(this));
+  }
+
+  /** Insert a copy of a weapon (new id) directly after the original. */
+  async _onDuplicateWeapon(event) {
+    event.preventDefault();
+    const id = event.currentTarget.dataset.weaponId;
+    await this._updateWeapons(w => {
+      const i = w.findIndex(x => x.id === id);
+      if (i < 0) return false;
+      const copy = foundry.utils.deepClone(w[i]);
+      copy.id = foundry.utils.randomID();
+      w.splice(i + 1, 0, copy);
+    });
   }
 
   async _updateWeapons(mutator) {

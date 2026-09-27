@@ -1,0 +1,34 @@
+{{#if weapons.length}}
+<table class="ship-weapons arc-weapons">
+  <thead>
+    <tr>
+      <th class="w-name">Weapon</th>
+      {{#each weaponColumns}}<th>{{this.label}}</th>{{/each}}
+      {{#if editable}}<th>Arc</th><th></th>{{/if}}
+    </tr>
+  </thead>
+  <tbody>
+    {{#each weapons}}
+    <tr class="ship-weapon-row" draggable="{{#if ../editable}}true{{else}}false{{/if}}" data-weapon-id="{{this.id}}">
+      <td class="w-name"><input type="text" class="weapon-field" data-weapon-id="{{this.id}}" data-field="name" value="{{this.name}}" placeholder="Weapon" {{#unless ../editable}}disabled{{/unless}} /></td>
+      {{#each ../weaponColumns}}
+      <td><input type="text" class="weapon-field" data-weapon-id="{{../id}}" data-field="{{this.key}}" value="{{lookup .. this.key}}" {{#unless ../../editable}}disabled{{/unless}} /></td>
+      {{/each}}
+      {{#if ../editable}}
+      <td>
+        <select class="weapon-arc" data-weapon-id="{{this.id}}" title="Move to arc">
+          {{#each ../allArcs}}<option value="{{this.key}}" {{#if (eq this.key ../arc)}}selected{{/if}}>{{this.label}}</option>{{/each}}
+        </select>
+      </td>
+      <td class="w-actions">
+        <a class="duplicate-weapon" data-weapon-id="{{this.id}}" title="Duplicate"><i class="fas fa-clone"></i></a>
+        <a class="remove-weapon" data-weapon-id="{{this.id}}" title="Remove"><i class="fas fa-trash"></i></a>
+      </td>
+      {{/if}}
+    </tr>
+    {{/each}}
+  </tbody>
+</table>
+{{else}}
+<p class="empty-notice small">No weapons in this arc.{{#if editable}} Use “+ Add”.{{/if}}</p>
+{{/if}}

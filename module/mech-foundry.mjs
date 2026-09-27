@@ -126,7 +126,8 @@ Hooks.once('init', function() {
     ...(CONFIG.Actor.trackableAttributes || {}),
     mech: { bar: ["derived.armorTotal", "derived.structureTotal"], value: ["heat.value"] },
     ground_vehicle: { bar: ["derived.armorTotal", "derived.structureTotal"], value: [] },
-    aerospace_fighter: { bar: ["derived.armorTotal", "derived.structureTotal"], value: ["heat.value"] }
+    aerospace_fighter: { bar: ["derived.armorTotal", "derived.structureTotal"], value: ["heat.value"] },
+    small_craft: { bar: ["derived.armorTotal", "derived.structureTotal"], value: ["heat.value"] }
   };
 
   // Register sheet application classes (v14: use the namespaced document
@@ -161,7 +162,7 @@ Hooks.once('init', function() {
     label: "MECHFOUNDRY.SheetGroundVehicle"
   });
   ActorsCollection.registerSheet("mech-foundry", MechFoundryAerospaceFighterSheet, {
-    types: ["aerospace_fighter"],
+    types: ["aerospace_fighter", "small_craft"],
     makeDefault: true,
     label: "MECHFOUNDRY.SheetAerospaceFighter"
   });
@@ -946,5 +947,22 @@ Hooks.on('updateActor', async (actor, changes, options, userId) => {
   const tokens = actor.getActiveTokens();
   for (const token of tokens) {
     await applyVisionEffects(token, actor);
+  }
+});
+
+/**
+ * When a combat unit's armor/structure changes, refresh any open company sheet
+ * that lists it in its MTOE so the derived unit-damage status stays current.
+ * Runs on every client (rendering is local), so no user guard.
+ */
+Hooks.on('updateActor', (actor, changes) => {
+  if (!['mech', 'ground_vehicle', 'aerospace_fighter'].includes(actor.type)) return;
+  const sys = changes?.system;
+  if (!sys || !('armor' in sys || 'structure' in sys || 'structuralIntegrity' in sys)) return;
+  for (const company of game.actors) {
+    if (company.type !== 'company' || !company.sheet?.rendered) continue;
+    const referenced = (company.system.mtoe || []).some(box =>
+      (box.units || []).some(u => u.actorId === actor.id));
+    if (referenced) company.sheet.render(false);
   }
 });
