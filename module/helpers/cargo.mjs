@@ -48,7 +48,7 @@ export const GROUND_SUPPLY_FIELDS = GROUND_SUPPLY_GROUPS.flatMap(g => g.fields);
 /** Bay component types (a bay panel holds any number of these). */
 export const BAY_COMPONENT_TYPES = [
   { key: 'aeroCubicle', label: 'Aerospace Fighter Cubicle', unitType: 'aerospace_fighter' },
-  { key: 'smallCraftCubicle', label: 'Small Craft Cubicle', unitType: null },
+  { key: 'smallCraftCubicle', label: 'Small Craft Cubicle', unitType: 'small_craft' },
   { key: 'mechCubicle', label: 'Battlemech Cubicle', unitType: 'mech' },
   { key: 'heavyVeeCubicle', label: 'Heavy Vehicle Cubicle', unitType: 'ground_vehicle' },
   { key: 'lightVeeCubicle', label: 'Light Vehicle Cubicle', unitType: 'ground_vehicle' },

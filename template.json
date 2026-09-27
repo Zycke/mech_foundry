@@ -8,6 +8,7 @@
       "mech",
       "ground_vehicle",
       "aerospace_fighter",
+      "small_craft",
       "battle_armor",
       "installation"
     ],
@@ -144,15 +145,51 @@
         "installationCrew": 0
       },
       "medical": {
-        "gunners": { "active": 0, "wounded": 0, "kia": 0 },
-        "enlisted": { "active": 0, "wounded": 0, "kia": 0 },
-        "officers": { "active": 0, "wounded": 0, "kia": 0 },
-        "bayTechs": { "active": 0, "wounded": 0, "kia": 0 },
-        "infantry": { "active": 0, "wounded": 0, "kia": 0 },
-        "aeroPilots": { "active": 0, "wounded": 0, "kia": 0 },
-        "mechPilots": { "active": 0, "wounded": 0, "kia": 0 },
-        "vehicleCrew": { "active": 0, "wounded": 0, "kia": 0 },
-        "installationCrew": { "active": 0, "wounded": 0, "kia": 0 }
+        "gunners": {
+          "active": 0,
+          "wounded": 0,
+          "kia": 0
+        },
+        "enlisted": {
+          "active": 0,
+          "wounded": 0,
+          "kia": 0
+        },
+        "officers": {
+          "active": 0,
+          "wounded": 0,
+          "kia": 0
+        },
+        "bayTechs": {
+          "active": 0,
+          "wounded": 0,
+          "kia": 0
+        },
+        "infantry": {
+          "active": 0,
+          "wounded": 0,
+          "kia": 0
+        },
+        "aeroPilots": {
+          "active": 0,
+          "wounded": 0,
+          "kia": 0
+        },
+        "mechPilots": {
+          "active": 0,
+          "wounded": 0,
+          "kia": 0
+        },
+        "vehicleCrew": {
+          "active": 0,
+          "wounded": 0,
+          "kia": 0
+        },
+        "installationCrew": {
+          "active": 0,
+          "wounded": 0,
+          "kia": 0
+        }
       },
       "locations": [],
       "mtoe": [],
@@ -174,12 +211,27 @@
     },
     "naval_ship": {
       "biography": "",
-      "vessel": { "class": "", "role": "" },
+      "vessel": {
+        "class": "",
+        "role": ""
+      },
       "armor": {
-        "nose": { "value": 0, "max": 0 },
-        "aft": { "value": 0, "max": 0 },
-        "left": { "value": 0, "max": 0 },
-        "right": { "value": 0, "max": 0 }
+        "nose": {
+          "value": 0,
+          "max": 0
+        },
+        "aft": {
+          "value": 0,
+          "max": 0
+        },
+        "left": {
+          "value": 0,
+          "max": 0
+        },
+        "right": {
+          "value": 0,
+          "max": 0
+        }
       },
       "movement": {
         "safeThrust": 0,
@@ -192,26 +244,67 @@
         "heatSinks": 0
       },
       "track": {
-        "t1": { "thrust": 0, "velocity": 0 },
-        "t2": { "thrust": 0, "velocity": 0 },
-        "t3": { "thrust": 0, "velocity": 0 },
-        "t4": { "thrust": 0, "velocity": 0 },
-        "t5": { "thrust": 0, "velocity": 0 },
-        "t6": { "thrust": 0, "velocity": 0 },
-        "t7": { "thrust": 0, "velocity": 0 },
-        "t8": { "thrust": 0, "velocity": 0 },
-        "t9": { "thrust": 0, "velocity": 0 },
-        "t10": { "thrust": 0, "velocity": 0 }
+        "t1": {
+          "thrust": 0,
+          "velocity": 0
+        },
+        "t2": {
+          "thrust": 0,
+          "velocity": 0
+        },
+        "t3": {
+          "thrust": 0,
+          "velocity": 0
+        },
+        "t4": {
+          "thrust": 0,
+          "velocity": 0
+        },
+        "t5": {
+          "thrust": 0,
+          "velocity": 0
+        },
+        "t6": {
+          "thrust": 0,
+          "velocity": 0
+        },
+        "t7": {
+          "thrust": 0,
+          "velocity": 0
+        },
+        "t8": {
+          "thrust": 0,
+          "velocity": 0
+        },
+        "t9": {
+          "thrust": 0,
+          "velocity": 0
+        },
+        "t10": {
+          "thrust": 0,
+          "velocity": 0
+        }
       },
       "bays": [],
       "cargoSupplies": {
         "ship": {
-          "fuel": 0, "consumables": 0, "lifeSupport": 0,
-          "medicalSustainment": 0, "emergencyMedical": 0, "spareParts": 0
+          "fuel": 0,
+          "consumables": 0,
+          "lifeSupport": 0,
+          "medicalSustainment": 0,
+          "emergencyMedical": 0,
+          "spareParts": 0
         },
         "ground": {
-          "sparePartsMech": 0, "sparePartsAero": 0, "sparePartsVehicle": 0, "sparePartsBA": 0,
-          "maintMech": 0, "maintAero": 0, "maintVehicle": 0, "maintBA": 0, "maintTroops": 0,
+          "sparePartsMech": 0,
+          "sparePartsAero": 0,
+          "sparePartsVehicle": 0,
+          "sparePartsBA": 0,
+          "maintMech": 0,
+          "maintAero": 0,
+          "maintVehicle": 0,
+          "maintBA": 0,
+          "maintTroops": 0,
           "fuel": 0
         },
         "shipAmmo": [],
@@ -226,40 +319,120 @@
       "weightClass": "",
       "techBase": "",
       "era": "",
-      "movement": { "walk": 0, "jump": 0 },
+      "movement": {
+        "walk": 0,
+        "jump": 0
+      },
       "engineType": "",
       "engineRating": 0,
-      "heatSinks": { "count": 0, "type": "single" },
+      "heatSinks": {
+        "count": 0,
+        "type": "single"
+      },
       "cost": 0,
       "bv": 0,
       "armor": {
-        "head": { "value": 0, "max": 0 },
-        "ct": { "value": 0, "max": 0 },
-        "ctRear": { "value": 0, "max": 0 },
-        "lt": { "value": 0, "max": 0 },
-        "ltRear": { "value": 0, "max": 0 },
-        "rt": { "value": 0, "max": 0 },
-        "rtRear": { "value": 0, "max": 0 },
-        "la": { "value": 0, "max": 0 },
-        "ra": { "value": 0, "max": 0 },
-        "ll": { "value": 0, "max": 0 },
-        "rl": { "value": 0, "max": 0 }
+        "head": {
+          "value": 0,
+          "max": 0
+        },
+        "ct": {
+          "value": 0,
+          "max": 0
+        },
+        "ctRear": {
+          "value": 0,
+          "max": 0
+        },
+        "lt": {
+          "value": 0,
+          "max": 0
+        },
+        "ltRear": {
+          "value": 0,
+          "max": 0
+        },
+        "rt": {
+          "value": 0,
+          "max": 0
+        },
+        "rtRear": {
+          "value": 0,
+          "max": 0
+        },
+        "la": {
+          "value": 0,
+          "max": 0
+        },
+        "ra": {
+          "value": 0,
+          "max": 0
+        },
+        "ll": {
+          "value": 0,
+          "max": 0
+        },
+        "rl": {
+          "value": 0,
+          "max": 0
+        }
       },
       "structure": {
-        "head": { "value": 0, "max": 0 },
-        "ct": { "value": 0, "max": 0 },
-        "lt": { "value": 0, "max": 0 },
-        "rt": { "value": 0, "max": 0 },
-        "la": { "value": 0, "max": 0 },
-        "ra": { "value": 0, "max": 0 },
-        "ll": { "value": 0, "max": 0 },
-        "rl": { "value": 0, "max": 0 }
+        "head": {
+          "value": 0,
+          "max": 0
+        },
+        "ct": {
+          "value": 0,
+          "max": 0
+        },
+        "lt": {
+          "value": 0,
+          "max": 0
+        },
+        "rt": {
+          "value": 0,
+          "max": 0
+        },
+        "la": {
+          "value": 0,
+          "max": 0
+        },
+        "ra": {
+          "value": 0,
+          "max": 0
+        },
+        "ll": {
+          "value": 0,
+          "max": 0
+        },
+        "rl": {
+          "value": 0,
+          "max": 0
+        }
       },
-      "heat": { "value": 0, "overflow": 0 },
-      "systemHits": { "engine": 0, "gyro": 0, "sensors": 0, "lifeSupport": 0 },
-      "conditions": { "shutdown": false, "prone": false },
+      "heat": {
+        "value": 0,
+        "overflow": 0
+      },
+      "systemHits": {
+        "engine": 0,
+        "gyro": 0,
+        "sensors": 0,
+        "lifeSupport": 0
+      },
+      "conditions": {
+        "shutdown": false,
+        "prone": false
+      },
       "weapons": [],
-      "pilot": { "name": "", "gunnery": 4, "piloting": 5, "hits": 0, "actorId": "" }
+      "pilot": {
+        "name": "",
+        "gunnery": 4,
+        "piloting": 5,
+        "hits": 0,
+        "actorId": ""
+      }
     },
     "ground_vehicle": {
       "biography": "",
@@ -268,7 +441,10 @@
       "techBase": "",
       "era": "",
       "movementType": "tracked",
-      "movement": { "cruise": 0, "flank": 0 },
+      "movement": {
+        "cruise": 0,
+        "flank": 0
+      },
       "engineType": "",
       "engineRating": 0,
       "cost": 0,
@@ -276,14 +452,35 @@
       "hasTurret": false,
       "bar": 0,
       "armor": {
-        "front": { "value": 0, "max": 0 },
-        "left": { "value": 0, "max": 0 },
-        "right": { "value": 0, "max": 0 },
-        "rear": { "value": 0, "max": 0 },
-        "turret": { "value": 0, "max": 0 },
-        "rotor": { "value": 0, "max": 0 }
+        "front": {
+          "value": 0,
+          "max": 0
+        },
+        "left": {
+          "value": 0,
+          "max": 0
+        },
+        "right": {
+          "value": 0,
+          "max": 0
+        },
+        "rear": {
+          "value": 0,
+          "max": 0
+        },
+        "turret": {
+          "value": 0,
+          "max": 0
+        },
+        "rotor": {
+          "value": 0,
+          "max": 0
+        }
       },
-      "structure": { "value": 0, "max": 0 },
+      "structure": {
+        "value": 0,
+        "max": 0
+      },
       "crits": {
         "motiveHits": 0,
         "sensorHits": 0,
@@ -295,7 +492,10 @@
         "stabRear": false,
         "stabTurret": false
       },
-      "conditions": { "immobile": false, "turretJammed": false },
+      "conditions": {
+        "immobile": false,
+        "turretJammed": false
+      },
       "elevation": 0,
       "crew": {
         "name": "",
@@ -313,21 +513,49 @@
       "tonnage": 0,
       "techBase": "",
       "era": "",
-      "thrust": { "safe": 0, "max": 0 },
-      "structuralIntegrity": { "value": 0, "max": 0 },
+      "thrust": {
+        "safe": 0,
+        "max": 0
+      },
+      "structuralIntegrity": {
+        "value": 0,
+        "max": 0
+      },
       "engineType": "",
       "engineRating": 0,
-      "heatSinks": { "count": 0, "type": "single" },
+      "heatSinks": {
+        "count": 0,
+        "type": "single"
+      },
       "fuel": 0,
       "cost": 0,
       "bv": 0,
       "armor": {
-        "nose": { "value": 0, "max": 0, "threshold": 0 },
-        "leftWing": { "value": 0, "max": 0, "threshold": 0 },
-        "rightWing": { "value": 0, "max": 0, "threshold": 0 },
-        "aft": { "value": 0, "max": 0, "threshold": 0 }
+        "nose": {
+          "value": 0,
+          "max": 0,
+          "threshold": 0
+        },
+        "leftWing": {
+          "value": 0,
+          "max": 0,
+          "threshold": 0
+        },
+        "rightWing": {
+          "value": 0,
+          "max": 0,
+          "threshold": 0
+        },
+        "aft": {
+          "value": 0,
+          "max": 0,
+          "threshold": 0
+        }
       },
-      "heat": { "value": 0, "overflow": 0 },
+      "heat": {
+        "value": 0,
+        "overflow": 0
+      },
       "crits": {
         "avionics": 0,
         "fcs": 0,
@@ -336,8 +564,90 @@
         "landingGear": false,
         "lifeSupport": false
       },
-      "flight": { "velocity": 0, "altitude": 0, "thrustSpent": 0 },
-      "conditions": { "shutdown": false, "outOfControl": false },
+      "flight": {
+        "velocity": 0,
+        "altitude": 0,
+        "thrustSpent": 0
+      },
+      "conditions": {
+        "shutdown": false,
+        "outOfControl": false
+      },
+      "crew": {
+        "name": "",
+        "gunnery": 4,
+        "piloting": 5,
+        "hits": 0,
+        "actorId": ""
+      },
+      "weapons": []
+    },
+    "small_craft": {
+      "biography": "",
+      "weightClass": "",
+      "tonnage": 0,
+      "techBase": "",
+      "era": "",
+      "thrust": {
+        "safe": 0,
+        "max": 0
+      },
+      "structuralIntegrity": {
+        "value": 0,
+        "max": 0
+      },
+      "engineType": "",
+      "engineRating": 0,
+      "heatSinks": {
+        "count": 0,
+        "type": "single"
+      },
+      "fuel": 0,
+      "cost": 0,
+      "bv": 0,
+      "armor": {
+        "nose": {
+          "value": 0,
+          "max": 0,
+          "threshold": 0
+        },
+        "leftWing": {
+          "value": 0,
+          "max": 0,
+          "threshold": 0
+        },
+        "rightWing": {
+          "value": 0,
+          "max": 0,
+          "threshold": 0
+        },
+        "aft": {
+          "value": 0,
+          "max": 0,
+          "threshold": 0
+        }
+      },
+      "heat": {
+        "value": 0,
+        "overflow": 0
+      },
+      "crits": {
+        "avionics": 0,
+        "fcs": 0,
+        "sensors": 0,
+        "engine": 0,
+        "landingGear": false,
+        "lifeSupport": false
+      },
+      "flight": {
+        "velocity": 0,
+        "altitude": 0,
+        "thrustSpent": 0
+      },
+      "conditions": {
+        "shutdown": false,
+        "outOfControl": false
+      },
       "crew": {
         "name": "",
         "gunnery": 4,

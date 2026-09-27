@@ -126,7 +126,8 @@ Hooks.once('init', function() {
     ...(CONFIG.Actor.trackableAttributes || {}),
     mech: { bar: ["derived.armorTotal", "derived.structureTotal"], value: ["heat.value"] },
     ground_vehicle: { bar: ["derived.armorTotal", "derived.structureTotal"], value: [] },
-    aerospace_fighter: { bar: ["derived.armorTotal", "derived.structureTotal"], value: ["heat.value"] }
+    aerospace_fighter: { bar: ["derived.armorTotal", "derived.structureTotal"], value: ["heat.value"] },
+    small_craft: { bar: ["derived.armorTotal", "derived.structureTotal"], value: ["heat.value"] }
   };
 
   // Register sheet application classes (v14: use the namespaced document
@@ -161,7 +162,7 @@ Hooks.once('init', function() {
     label: "MECHFOUNDRY.SheetGroundVehicle"
   });
   ActorsCollection.registerSheet("mech-foundry", MechFoundryAerospaceFighterSheet, {
-    types: ["aerospace_fighter"],
+    types: ["aerospace_fighter", "small_craft"],
     makeDefault: true,
     label: "MECHFOUNDRY.SheetAerospaceFighter"
   });

@@ -30,7 +30,7 @@ export class MechFoundryActor extends Actor {
 
     // Combat units (mech / ground vehicle / aerospace fighter): derive the
     // Total Armor / Total Structure sums used by the token bars and MTOE status.
-    if (["mech", "ground_vehicle", "aerospace_fighter"].includes(this.type)) {
+    if (["mech", "ground_vehicle", "aerospace_fighter", "small_craft"].includes(this.type)) {
       this._prepareUnitDerived(systemData);
       return;
     }
@@ -100,7 +100,7 @@ export class MechFoundryActor extends Actor {
     systemData.derived.armorTotal = sum(systemData.armor);
     // Aerospace fighters track Structural Integrity in place of an internal
     // structure pool; use it for the second (structure) token bar.
-    const structSource = this.type === "aerospace_fighter"
+    const structSource = ["aerospace_fighter", "small_craft"].includes(this.type)
       ? systemData.structuralIntegrity
       : systemData.structure;
     systemData.derived.structureTotal = sum(structSource);
@@ -114,7 +114,7 @@ export class MechFoundryActor extends Actor {
   async _preCreate(data, options, user) {
     const allowed = await super._preCreate(data, options, user);
     if (allowed === false) return false;
-    if (["mech", "ground_vehicle", "aerospace_fighter"].includes(this.type)) {
+    if (["mech", "ground_vehicle", "aerospace_fighter", "small_craft"].includes(this.type)) {
       const hasBars = foundry.utils.getProperty(data, "prototypeToken.bar1.attribute")
         || foundry.utils.getProperty(data, "prototypeToken.bar2.attribute");
       if (!hasBars) {
