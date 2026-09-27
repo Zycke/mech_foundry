@@ -119,6 +119,16 @@ Hooks.once('init', function() {
   CONFIG.Item.documentClass = MechFoundryItem;
   CONFIG.Combat.documentClass = MechFoundryCombat;
 
+  // Token bar attributes for combat units: the derived Total Armor / Total
+  // Structure pools (bars) plus heat as a trackable single value. These appear
+  // in the token config dropdowns; new units default to armor/structure bars.
+  CONFIG.Actor.trackableAttributes = {
+    ...(CONFIG.Actor.trackableAttributes || {}),
+    mech: { bar: ["derived.armorTotal", "derived.structureTotal"], value: ["heat.value"] },
+    ground_vehicle: { bar: ["derived.armorTotal", "derived.structureTotal"], value: [] },
+    aerospace_fighter: { bar: ["derived.armorTotal", "derived.structureTotal"], value: ["heat.value"] }
+  };
+
   // Register sheet application classes (v14: use the namespaced document
   // collections and the appv1 core sheet classes rather than bare globals).
   const ActorsCollection = foundry.documents.collections.Actors;

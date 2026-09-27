@@ -7205,6 +7205,12 @@
 /* ============================================================= */
 .mech-foundry.mech-sheet .window-content { background: var(--mf-bg); color: var(--mf-ink); }
 .mech-foundry.mech-sheet .mech-sheet-content { display: flex; flex-direction: column; height: 100%; }
+/* Compact, uniform control sizing so rows line up (override core --input-height). */
+.mech-foundry.mech-sheet input,
+.mech-foundry.mech-sheet select { box-sizing: border-box; height: 22px; line-height: normal; }
+.mech-foundry.mech-sheet .loc-row .num input { height: 20px; }
+.mech-foundry.mech-sheet .rear .rear-in { height: 18px; }
+.mech-foundry.mech-sheet .header-id h1 input { height: 30px; }
 
 /* ---- Header ---- */
 .mech-foundry.mech-sheet .mech-header {
@@ -7281,7 +7287,7 @@
 .mech-foundry.mech-sheet .heat .scale .fill { position: absolute; left: 0; right: 0; bottom: 0; background: linear-gradient(0deg, #4a9d4a, #d4a017 55%, #d9483b); }
 .mech-foundry.mech-sheet .heat .readout { flex: 1; }
 .mech-foundry.mech-sheet .heat-big { display: flex; align-items: baseline; }
-.mech-foundry.mech-sheet .heat-big input { width: 54px; background: var(--mf-bg); border: 1px solid var(--mf-steel); border-radius: 3px; color: var(--mf-amber-2); font-family: var(--mf-font-mono); font-size: 1.6rem; text-align: center; padding: 0 4px; }
+.mech-foundry.mech-sheet .heat-big input { width: 60px; height: 42px; background: var(--mf-bg); border: 1px solid var(--mf-steel); border-radius: 3px; color: var(--mf-amber-2); font-family: var(--mf-font-mono); font-size: 1.6rem; text-align: center; padding: 0 4px; }
 .mech-foundry.mech-sheet .heat-big small { color: var(--mf-ink-dim); font-size: 0.8rem; margin-left: 4px; }
 .mech-foundry.mech-sheet .eff-list { margin-top: 8px; }
 .mech-foundry.mech-sheet .effrow { display: flex; justify-content: space-between; font-size: 0.76rem; padding: 3px 0; border-bottom: 1px dotted var(--mf-line); }
@@ -7297,7 +7303,8 @@
 .mech-foundry.mech-sheet .mf-stat .k { font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--mf-ink-dim); }
 .mech-foundry.mech-sheet .mf-stat .v { font-family: var(--mf-font-mono); font-size: 1rem; color: var(--mf-ink); }
 .mech-foundry.mech-sheet .mf-stat .v.derived { color: var(--mf-ink-dim); }
-.mech-foundry.mech-sheet .mf-stat input, .mech-foundry.mech-sheet .mf-stat select { background: var(--mf-bg); border: 1px solid var(--mf-steel); border-radius: 2px; color: var(--mf-ink); font-family: var(--mf-font-mono); font-size: 0.92rem; padding: 1px 4px; }
+.mech-foundry.mech-sheet .mf-stat input, .mech-foundry.mech-sheet .mf-stat select { width: 100%; background: var(--mf-bg); border: 1px solid var(--mf-steel); border-radius: 2px; color: var(--mf-ink); font-family: var(--mf-font-mono); font-size: 0.88rem; padding: 0 4px; }
+.mech-foundry.mech-sheet .mf-stat select { font-size: 0.8rem; font-family: var(--mf-font-body); }
 .mech-foundry.mech-sheet .flags { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 8px; }
 .mech-foundry.mech-sheet .chk { display: inline-flex; align-items: center; gap: 6px; font-size: 0.78rem; color: var(--mf-ink); }
 .mech-foundry.mech-sheet .chk input { accent-color: var(--mf-amber); }
@@ -7344,3 +7351,17 @@
 .mech-foundry.mech-sheet .crit .pips { display: flex; gap: 3px; }
 .mech-foundry.mech-sheet .sys-pip { width: 13px; height: 13px; border: 1px solid var(--mf-steel); border-radius: 2px; background: #0e1216; cursor: pointer; }
 .mech-foundry.mech-sheet .sys-pip.on { background: var(--mf-danger); border-color: #a33; }
+
+/* ---- Construction: armor/structure max grid (Details tab) ---- */
+.mech-foundry.mech-sheet table.setup-table { width: 100%; border-collapse: collapse; }
+.mech-foundry.mech-sheet table.setup-table th { text-align: left; font-family: var(--mf-font-head); text-transform: uppercase; letter-spacing: 0.03em; font-size: 0.64rem; color: var(--mf-ink-dim); font-weight: 500; padding: 3px 6px; border-bottom: 1px solid var(--mf-line); }
+.mech-foundry.mech-sheet table.setup-table td { padding: 3px 6px; border-bottom: 1px solid #262f38; }
+.mech-foundry.mech-sheet table.setup-table .loc-name { color: var(--mf-ink); font-size: 0.8rem; }
+.mech-foundry.mech-sheet table.setup-table .loc-name .code { color: var(--mf-ink-dim); font-family: var(--mf-font-mono); font-size: 0.68rem; margin-left: 4px; }
+.mech-foundry.mech-sheet table.setup-table input { width: 52px; background: var(--mf-bg); border: 1px solid var(--mf-steel); border-radius: 2px; color: var(--mf-amber); text-align: center; font-family: var(--mf-font-mono); font-size: 0.8rem; padding: 0 3px; }
+.mech-foundry.mech-sheet table.setup-table .na { color: var(--mf-steel); }
+
+/* ---- Pilot: derived (linked) skill ratings ---- */
+.mech-foundry.mech-sheet .skillpair .sk .skv { font-family: var(--mf-font-mono); font-size: 1rem; color: var(--mf-amber-2); height: 22px; display: grid; place-items: center; }
+.mech-foundry.mech-sheet .skillpair .sk.derived { border-color: #2c5b34; }
+.mech-foundry.mech-sheet .skillpair .sk.derived .skv { color: var(--mf-ok); cursor: help; }
