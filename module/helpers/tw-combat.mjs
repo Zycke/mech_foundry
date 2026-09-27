@@ -66,6 +66,103 @@ export function rangeBracket(distance, weapon) {
   return { bracket: 'Out of range', mod: 0, inRange: false };
 }
 
+/* ------------------------------------------------------------------ */
+/*  Hit location + damage (Total Warfare 'Mech Hit Location Table)      */
+/* ------------------------------------------------------------------ */
+
+/** Attack directions offered in the dialog (rear uses the Front column + rear armor). */
+export const ATTACK_DIRECTIONS = [
+  { key: 'front', label: 'Front' },
+  { key: 'left', label: 'Left Side' },
+  { key: 'right', label: 'Right Side' },
+  { key: 'rear', label: 'Rear' }
+];
+
+/** 'Mech Hit Location Table (biped), by die roll and attack side. */
+const MECH_HIT_LOCATION = {
+  left:  { 2: 'lt', 3: 'll', 4: 'la', 5: 'la', 6: 'll', 7: 'lt', 8: 'ct', 9: 'rt', 10: 'ra', 11: 'rl', 12: 'head' },
+  front: { 2: 'ct', 3: 'ra', 4: 'ra', 5: 'rl', 6: 'rt', 7: 'ct', 8: 'lt', 9: 'll', 10: 'la', 11: 'la', 12: 'head' },
+  right: { 2: 'rt', 3: 'rl', 4: 'ra', 5: 'ra', 6: 'rl', 7: 'rt', 8: 'ct', 9: 'lt', 10: 'la', 11: 'll', 12: 'head' }
+};
+
+/** Damage transfer: destroyed location → where excess flows (null = terminal). */
+const MECH_TRANSFER = { la: 'lt', ra: 'rt', ll: 'lt', rl: 'rt', lt: 'ct', rt: 'ct', ct: null, head: null };
+
+const MECH_LOC_LABEL = {
+  head: 'Head', ct: 'Center Torso', lt: 'Left Torso', rt: 'Right Torso',
+  la: 'Left Arm', ra: 'Right Arm', ll: 'Left Leg', rl: 'Right Leg'
+};
+
+const REAR_ARMOR_KEY = { ct: 'ctRear', lt: 'ltRear', rt: 'rtRear' };
+
+/**
+ * Apply a block of damage to a mech, starting at a rolled location and
+ * transferring inward through destroyed locations. Mutates and saves the actor.
+ * @returns {object} summary for the chat card.
+ */
+export async function applyMechDamage(target, startLoc, amount, { rear = false } = {}) {
+  const armor = foundry.utils.deepClone(target.system.armor || {});
+  const structure = foundry.utils.deepClone(target.system.structure || {});
+  const events = [];
+  let loc = startLoc;
+  let remaining = amount;
+  let destroyed = false;
+  let useRear = rear;
+  let guard = 0;
+
+  while (remaining > 0 && loc && guard++ < 12) {
+    let absorbedThisLoc = false;
+    // Armor (rear on the initially-struck torso only).
+    const rearKey = useRear ? REAR_ARMOR_KEY[loc] : null;
+    const armorSlot = rearKey ? armor[rearKey] : armor[loc];
+    if (armorSlot && armorSlot.value > 0) {
+      const a = Math.min(armorSlot.value, remaining);
+      armorSlot.value -= a; remaining -= a; absorbedThisLoc = true;
+    }
+    if (remaining <= 0) break;
+    // Internal structure.
+    const st = structure[loc];
+    if (st && st.value > 0) {
+      const a = Math.min(st.value, remaining);
+      st.value -= a; remaining -= a; absorbedThisLoc = true;
+      if (st.value <= 0) {
+        events.push(`${MECH_LOC_LABEL[loc]} destroyed`);
+        if (loc === 'ct') { destroyed = true; loc = null; }
+        else { loc = MECH_TRANSFER[loc]; useRear = false; }
+        continue;
+      }
+    }
+    if (!absorbedThisLoc) break; // nothing here to absorb (unconfigured location)
+    break; // structure absorbed the rest without being destroyed
+  }
+
+  const update = { 'system.armor': armor, 'system.structure': structure };
+  const applied = (target.isOwner || game.user.isGM);
+  if (applied) await target.update(update);
+
+  return {
+    applied, destroyed,
+    startLabel: MECH_LOC_LABEL[startLoc] || startLoc,
+    events,
+    overflow: remaining > 0 && !destroyed ? remaining : 0
+  };
+}
+
+/** Roll 2d6 for a mech hit location given attack direction. */
+export async function rollMechLocation(direction) {
+  const dir = direction === 'rear' ? 'front' : direction;
+  const map = MECH_HIT_LOCATION[dir] || MECH_HIT_LOCATION.front;
+  const roll = await new Roll("2d6").evaluate();
+  const loc = map[roll.total];
+  return {
+    roll, total: roll.total,
+    dice: roll.dice[0]?.results?.map(r => r.result) ?? [],
+    loc, label: MECH_LOC_LABEL[loc] || loc,
+    crit: roll.total === 2,
+    rear: direction === 'rear' && loc in REAR_ARMOR_KEY
+  };
+}
+
 /**
  * Open the GATOR to-hit dialog for a weapon, roll 2d6, and post a chat card.
  * @param {Actor} actor   The attacking unit.
@@ -83,6 +180,7 @@ export async function weaponAttack(actor, weapon) {
 
   const moveOpts = ATTACKER_MOVE_MODS
     .map(m => `<option value="${m.mod}">${m.label} (+${m.mod})</option>`).join('');
+  const dirOpts = ATTACK_DIRECTIONS.map(d => `<option value="${d.key}">${d.label}</option>`).join('');
   const s = num(weapon.rangeS ?? weapon.short), m = num(weapon.rangeM ?? weapon.medium), l = num(weapon.rangeL ?? weapon.long);
   const rangeHint = `S ${s} / M ${m} / L ${l}`;
 
@@ -95,6 +193,7 @@ export async function weaponAttack(actor, weapon) {
       <div class="form-group"><label>Range (hexes) <span class="tw-hint">${rangeHint}</span></label><input type="number" name="range" value="${autoDist ?? ''}" /></div>
       <div class="form-group"><label>Heat Mod</label><input type="number" name="heat" value="${heatMod}" /></div>
       <div class="form-group"><label>Other Mod</label><input type="number" name="other" value="0" /></div>
+      <div class="form-group"><label>Attack Direction</label><select name="direction">${dirOpts}</select></div>
     </div>`;
 
   const result = await DialogV2.wait({
@@ -111,7 +210,8 @@ export async function weaponAttack(actor, weapon) {
             targetMove: num(f.targetMove.value),
             range: f.range.value === '' ? null : num(f.range.value),
             heat: num(f.heat.value),
-            other: num(f.other.value)
+            other: num(f.other.value),
+            direction: f.direction.value
           };
         }
       },
@@ -138,6 +238,27 @@ export async function weaponAttack(actor, weapon) {
     { label: "Other", value: result.other }
   ].filter(m => m.value !== 0 || m.label === "Gunnery");
 
+  // On a hit against a targeted mech, roll hit location and apply damage.
+  const rolls = [roll];
+  let hitResult = null;
+  const targetActor = target?.actor || null;
+  const damage = num(weapon.damage);
+  if (hit && damage > 0 && targetActor?.type === 'mech') {
+    const locRoll = await rollMechLocation(result.direction);
+    rolls.push(locRoll.roll);
+    const dmg = await applyMechDamage(targetActor, locRoll.loc, damage, { rear: locRoll.rear });
+    hitResult = {
+      locLabel: locRoll.label + (locRoll.rear ? ' (rear)' : ''),
+      locDice: locRoll.dice, locTotal: locRoll.total,
+      crit: locRoll.crit, damage,
+      applied: dmg.applied, events: dmg.events,
+      destroyed: dmg.destroyed, overflow: dmg.overflow,
+      targetName: targetActor.name
+    };
+  } else if (hit && damage > 0 && targetActor) {
+    hitResult = { manual: true, damage, targetName: targetActor.name };
+  }
+
   const content2 = await foundry.applications.handlebars.renderTemplate(
     "systems/mech-foundry/templates/chat/tw-attack.hbs",
     {
@@ -148,7 +269,8 @@ export async function weaponAttack(actor, weapon) {
       dice, rollTotal: roll.total,
       hit, margin: Math.abs(margin),
       outOfRange: !rb.inRange,
-      damage: num(weapon.damage)
+      damage,
+      hitResult
     }
   );
 
@@ -156,6 +278,6 @@ export async function weaponAttack(actor, weapon) {
     speaker: ChatMessage.getSpeaker({ actor }),
     flavor: `${weapon.name || 'Weapon'} Attack`,
     content: content2,
-    rolls: [roll]
+    rolls
   });
 }

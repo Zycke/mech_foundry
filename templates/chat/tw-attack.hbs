@@ -26,5 +26,25 @@
     {{/if}}
   </div>
 
-  {{#if hit}}<div class="tw-atk-dmg">Damage: <strong>{{damage}}</strong> — resolve hit location &amp; damage (next phase).</div>{{/if}}
+  {{#if hitResult}}
+    {{#if hitResult.manual}}
+    <div class="tw-atk-dmg">Damage <strong>{{hitResult.damage}}</strong> to {{hitResult.targetName}} — resolve location manually (non-mech target).</div>
+    {{else}}
+    <div class="tw-hit-loc">
+      <span class="tw-hl-label">Hit Location</span>
+      <span class="tw-hl-dice">{{#each hitResult.locDice}}<span class="tw-die">{{this}}</span>{{/each}}</span>
+      <span class="tw-hl-loc">{{hitResult.locLabel}}</span>
+      {{#if hitResult.crit}}<span class="tw-hl-crit">CRIT CHECK</span>{{/if}}
+    </div>
+    <div class="tw-atk-dmg">
+      <strong>{{hitResult.damage}}</strong> damage to {{hitResult.targetName}}
+      {{#unless hitResult.applied}}<em>(no permission — apply manually)</em>{{/unless}}
+    </div>
+    {{#each hitResult.events}}<div class="tw-hl-event">▸ {{this}}</div>{{/each}}
+    {{#if hitResult.destroyed}}<div class="tw-hl-destroyed">UNIT DESTROYED</div>{{/if}}
+    {{#if hitResult.overflow}}<div class="tw-hl-event">▸ {{hitResult.overflow}} excess damage lost</div>{{/if}}
+    {{/if}}
+  {{else if hit}}
+  <div class="tw-atk-dmg">Damage: <strong>{{damage}}</strong></div>
+  {{/if}}
 </div>

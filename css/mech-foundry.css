@@ -7454,3 +7454,11 @@
 .tw-attack-dialog .form-group { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
 .tw-attack-dialog .form-group label { flex: 0 0 150px; }
 .tw-attack-dialog .tw-hint { color: #888; font-size: 0.8em; }
+
+/* ---- Attack card: hit location + damage ---- */
+.mech-foundry.tw-attack-card .tw-hit-loc { display: flex; align-items: center; gap: 8px; margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--mf-line); }
+.mech-foundry.tw-attack-card .tw-hl-label { font-size: 0.7rem; text-transform: uppercase; color: var(--mf-ink-dim); }
+.mech-foundry.tw-attack-card .tw-hl-loc { font-family: var(--mf-font-head); font-weight: 700; color: var(--mf-amber-2); text-transform: uppercase; letter-spacing: 0.04em; }
+.mech-foundry.tw-attack-card .tw-hl-crit { margin-left: auto; font-family: var(--mf-font-head); font-weight: 700; color: var(--mf-hazard); font-size: 0.72rem; }
+.mech-foundry.tw-attack-card .tw-hl-event { font-size: 0.76rem; color: var(--mf-danger); margin-top: 2px; }
+.mech-foundry.tw-attack-card .tw-hl-destroyed { margin-top: 4px; font-family: var(--mf-font-head); font-weight: 700; color: #fff; background: var(--mf-danger); text-align: center; border-radius: 3px; padding: 2px; letter-spacing: 0.08em; }
