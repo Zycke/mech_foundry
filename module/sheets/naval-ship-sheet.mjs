@@ -106,7 +106,7 @@ export class MechFoundryNavalShipSheet extends HandlebarsApplicationMixin(ActorS
     let totalPrimary = 0, totalOfficers = 0;
     context.departments = (system.departments || []).map(d => {
       const typeDef = DEPARTMENT_TYPES.find(t => t.key === d.type) || DEPARTMENT_TYPES[0];
-      const primaryLabel = typeDef.primary === 'bayTechs' ? 'Bay Techs' : 'Enlisted';
+      const primaryLabel = { gunners: 'Gunners', bayTechs: 'Bay Techs', officers: 'Officers' }[typeDef.primary] || 'Enlisted';
       const reqPrimary = Number(d.requiredPrimary) || 0;
       const reqOfficers = Number(d.requiredOfficers) || 0;
       totalPrimary += reqPrimary;

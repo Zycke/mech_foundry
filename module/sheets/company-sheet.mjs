@@ -10,13 +10,15 @@ import {
 /* -------------------------------------------- */
 
 /** Ship crew types (numeric company-wide pools staffed into departments). */
+/** Ship's Company crew types (permanent ship crew; staff departments, affect ship rolls). */
 const CREW_TYPES = [
+  { key: 'gunners', label: 'Gunners' },
   { key: 'enlisted', label: 'Enlisted' },
   { key: 'officers', label: 'Officers' },
   { key: 'bayTechs', label: 'Bay Techs' }
 ];
 
-/** Combat troop types (numeric company-wide pools assigned into MTOE units). */
+/** Embarked personnel (passengers; assigned into MTOE units, do NOT affect ship rolls). */
 const TROOP_TYPES = [
   { key: 'infantry', label: 'Infantry' },
   { key: 'aeroPilots', label: 'Aerospace Pilots' },
@@ -34,6 +36,7 @@ const ALL_PERSONNEL_TYPES = [...CREW_TYPES, ...TROOP_TYPES];
  * not applied to the pool total (veterancy is tracked per department/unit).
  */
 const BASE_SALARY = {
+  gunners: 1000,           // trained gunnery crew
   enlisted: 1000,          // DropShip Crewman
   officers: 1500,          // senior / commissioned
   bayTechs: 800,           // 'Mech/Fighter Technician
@@ -46,7 +49,7 @@ const BASE_SALARY = {
 
 /** Ship / installation department types and the primary crew pool each draws. */
 export const DEPARTMENT_TYPES = [
-  { key: 'gunnery', label: 'Gunnery', primary: 'enlisted' },
+  { key: 'gunnery', label: 'Gunnery', primary: 'gunners' },
   { key: 'engineering', label: 'Engineering', primary: 'enlisted' },
   { key: 'medical', label: 'Medical', primary: 'enlisted' },
   { key: 'boatswain', label: 'Boatswain', primary: 'enlisted' },
