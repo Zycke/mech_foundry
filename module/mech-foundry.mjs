@@ -948,3 +948,20 @@ Hooks.on('updateActor', async (actor, changes, options, userId) => {
     await applyVisionEffects(token, actor);
   }
 });
+
+/**
+ * When a combat unit's armor/structure changes, refresh any open company sheet
+ * that lists it in its MTOE so the derived unit-damage status stays current.
+ * Runs on every client (rendering is local), so no user guard.
+ */
+Hooks.on('updateActor', (actor, changes) => {
+  if (!['mech', 'ground_vehicle', 'aerospace_fighter'].includes(actor.type)) return;
+  const sys = changes?.system;
+  if (!sys || !('armor' in sys || 'structure' in sys || 'structuralIntegrity' in sys)) return;
+  for (const company of game.actors) {
+    if (company.type !== 'company' || !company.sheet?.rendered) continue;
+    const referenced = (company.system.mtoe || []).some(box =>
+      (box.units || []).some(u => u.actorId === actor.id));
+    if (referenced) company.sheet.render(false);
+  }
+});

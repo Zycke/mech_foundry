@@ -7384,3 +7384,12 @@
 
 /* ---- Aero facing threshold tag ---- */
 .mech-foundry.mech-sheet .facingrow .fl .thr { color: var(--mf-ink-dim); font-family: var(--mf-font-mono); font-size: 0.62rem; margin-left: 3px; }
+
+/* ---- MTOE: derived unit damage status badge ---- */
+.mech-foundry.company-sheet .vehicle-status-derived {
+  font-size: 0.72em; font-family: var(--mf-font-head); text-transform: uppercase; letter-spacing: 0.03em;
+  padding: 1px 7px; border-radius: 8px; border: 1px solid var(--mf-line); white-space: nowrap; cursor: help;
+}
+.mech-foundry.company-sheet .vehicle-status-derived.status-Undamaged { color: var(--mf-ok); border-color: #2c5b34; }
+.mech-foundry.company-sheet .vehicle-status-derived.status-Damaged { color: var(--mf-amber); border-color: #6b5417; }
+.mech-foundry.company-sheet .vehicle-status-derived.status-Destroyed { color: var(--mf-danger); border-color: #6b2a26; }
