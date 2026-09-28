@@ -216,6 +216,22 @@ export function vehicleWeaponLocation(weapon) {
   return null;
 }
 
+/**
+ * Standing Driving Skill Roll modifiers for a vehicle: motive damage (+1 / +2 /
+ * +3, each once), driver or VTOL pilot hit +2, commander hit +1, VTOL flight
+ * stabilizer hit +3.
+ */
+export function vehicleDrivingMods(actor) {
+  const sys = actor?.system || {};
+  const mods = [];
+  const m = num(sys.crits?.motiveDriving);
+  if (m) mods.push({ label: 'Motive damage', value: m });
+  if (sys.crew?.driverHit) mods.push({ label: sys.movementType === 'vtol' ? 'Pilot hit' : 'Driver hit', value: 2 });
+  if (sys.crew?.commanderHit) mods.push({ label: 'Commander hit', value: 1 });
+  if (sys.crits?.flightStabilizer) mods.push({ label: 'Flight stabilizer', value: 3 });
+  return mods;
+}
+
 /** Destroyed actuators in a mech location, by kind. */
 export function destroyedActuators(actor, loc) {
   return actuatorsInSlots(actor?.system?.critSlots?.[loc]);
@@ -304,6 +320,8 @@ export function autoAttackMods(attacker, weapon, targetActor) {
     const crits = attacker.system?.crits || {};
     if (num(crits.sensorHits) > 0) add('sensors', 'Sensor hits', num(crits.sensorHits), 'vehicle crits');
     if (attacker.system?.crew?.commanderHit) add('commander', 'Commander hit', 1, '');
+    if (attacker.system?.crew?.coPilotHit) add('coPilot', 'Co-pilot hit', 1, '');
+    if (crits.flightStabilizer) add('flightStab', 'Flight stabilizer hit', 1, '');
     // Stabilizer hit: double the attacker movement modifier for weapons in that location.
     const stab = { front: 'stabFront', rear: 'stabRear', left: 'stabLeft', right: 'stabRight', turret: 'stabTurret' }[vehicleWeaponLocation(weapon)];
     if (weapon && stab && crits[stab]) add('stabilizer', 'Stabilizer hit', MODE_MOD[movedThisTurn(attacker).mode] ?? 0, `weapon in the ${vehicleWeaponLocation(weapon)}`);
@@ -318,6 +336,8 @@ export function autoAttackMods(attacker, weapon, targetActor) {
       add('targetMove', 'Target movement', v, `${mv.hexes} hex${mv.mode === 'jumped' ? ', jumped' : ''}`);
     }
     if (targetActor.type === 'battle_armor') add('battleArmor', 'Battle armor target', 1, '');
+    // Airborne VTOL: an additional +1 target movement modifier (TW p. 197).
+    if (targetActor.type === 'ground_vehicle' && targetActor.system?.movementType === 'vtol' && num(targetActor.system?.elevation) >= 1) add('airborneVTOL', 'Airborne VTOL', 1, `elevation ${num(targetActor.system.elevation)}`);
     if (skidded(targetActor)) add('targetSkid', 'Target skidded', 2, '');
   }
   return mods;

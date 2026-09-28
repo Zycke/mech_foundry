@@ -197,7 +197,7 @@ criticals and cluster grouping:
   by an ammo explosion kills the warrior (linked character: unconscious, as for the cockpit house
   rule); ICE / fuel cell engine hits add no heat but roll 2D6 (+3 / +6) for a 10+ explosion; jump
   jet slots; a multi-slot heat sink is lost once; punch / kick halving rounds down; life support
-  1 point at 15–25 heat, 2 at 26+. Destroyed units get Foundry's defeated (skull) status.
+  1 point at 15+ heat, 2 at 25+ (AToW crew-damage bands, chosen over TW's 26+). Destroyed units get Foundry's defeated (skull) status.
 - **Effective MP & movement PSRs:** the mech sheet shows current Walk / Run / Jump after damage
   and heat (hip halves Walk, two hips 0; −1 per leg / foot actuator on a leg without a hip hit;
   destroyed leg: 1 MP, no running; −1 per 5 heat; −1 Jump per jump jet hit) and the movement
@@ -226,6 +226,13 @@ criticals and cluster grouping:
   Phase) and Weapon Destroyed (1D6: 1–3 target's player chooses, 4–6 attacker's). Weapons are
   matched to locations by their Loc text (Front / Left / Right / Rear / Turret). VTOL Pilot /
   Co-Pilot hits use Driver / Commander effects.
+- **VTOL critical hits** (TW p. 197): Co-Pilot Hit +1 to hit (2nd = Crew Killed); Pilot Hit +2
+  Driving and an immediate Driving roll or drop one elevation (2nd = Crew Killed); Engine Damage:
+  landed → immobile, flying → Driving +4 to land (else destroyed); Flight Stabilizer: Cruise only,
+  +3 Driving, +1 to hit; Rotor Damage −1 more Cruise; Rotors Destroyed destroys; fusion Fuel Tank →
+  Engine Damage. Crash damage reaching internal structure explodes a VTOL. Airborne VTOL targets
+  (elevation 1+) are +1. The vehicle sheet shows VTOL elevation and the co-pilot / flight
+  stabilizer flags.
 **Intentional house rules** (deliberate divergences — don't "correct" toward the book):
 - Combat vehicles roll a critical on any hit that penetrates to internal structure, in
   addition to the tables' marked results (2/12, or 8 on side attacks).

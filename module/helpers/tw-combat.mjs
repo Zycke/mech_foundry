@@ -9,7 +9,7 @@
  * and the A Time of War conversion (see atow-conversion.mjs).
  */
 import {
-  actorSkillRating, applyCrewDamage, CREW_DAMAGE,
+  actorSkillRating, applyCrewDamage, CREW_DAMAGE, VEHICLE_DRIVING_SKILLS,
   MECH_GUNNERY_SKILLS, VEHICLE_GUNNERY_SKILLS, AERO_GUNNERY_SKILLS
 } from "./atow-conversion.mjs";
 import { beginRecording, endRecording, writeDoc } from "./gm-relay.mjs";
@@ -484,6 +484,7 @@ export async function resolveVehicleAttack(target, direction, groupSizes, rolls,
   let destroyed = false;
 
   const hitTable = isVTOL ? VTOL_HIT_LOCATION : VEHICLE_HIT_LOCATION;
+  const ctx = { target, facing: null, crits, conditions, crew, structure, armor, weapons, isICE, carriesAmmo: () => carriesAmmo(weapons), elevation: num(target.system.elevation) };
   // One roll on the Motive System Damage Table (2d6 + attack direction + motive type).
   const rollMotive = async () => {
     const mRoll = await new Roll("2d6").evaluate();
@@ -536,7 +537,7 @@ export async function resolveVehicleAttack(target, direction, groupSizes, rolls,
       rolls.push(cRoll);
       const table = isVTOL ? VTOL_VEHICLE_CRITS : GROUND_VEHICLE_CRITS;
       const column = table[vehicleCritColumn(facing)] || {};
-      const ctx = { target, facing, crits, conditions, crew, structure, armor, weapons, isICE, carriesAmmo: () => carriesAmmo(weapons) };
+      ctx.facing = facing;
       const pick = pickVehicleCrit(column, cRoll.total, ctx);
       const res = await applyVehicleCrit(pick.effect, ctx, rolls);
       if (res.destroyed) destroyed = true;
@@ -553,7 +554,7 @@ export async function resolveVehicleAttack(target, direction, groupSizes, rolls,
   const cruise = Number(target.system.movement?.cruise) || 0;
   crits.motiveHits = Math.min(Math.max(3, cruise), Number(crits.motiveHits) || 0);
 
-  const applied = await writeDoc(target, { 'system.armor': armor, 'system.structure': structure, 'system.crits': crits, 'system.conditions': conditions, 'system.crew': crew, 'system.weapons': weapons });
+  const applied = await writeDoc(target, { 'system.armor': armor, 'system.structure': structure, 'system.crits': crits, 'system.conditions': conditions, 'system.crew': crew, 'system.weapons': weapons, 'system.elevation': ctx.elevation });
 
   // Apply crew damage to a linked crew actor.
   const linked = target.system.crew?.actorId ? game.actors.get(target.system.crew.actorId) : null;
@@ -593,7 +594,8 @@ function vehicleCritApplies(effect, c) {
     case 'No Critical Hit': return true;
     case 'Weapon Malfunction': return weaponsInLocation(c.weapons, facing, w => !w.destroyed && !w.malfunction).length > 0;
     case 'Weapon Destroyed': return weaponsInLocation(c.weapons, facing).length > 0;
-    case 'Stabilizer': case 'Flight Stabilizer Hit': return !crits[STAB_KEY[facing]];
+    case 'Stabilizer': return !crits[STAB_KEY[facing]];
+    case 'Flight Stabilizer Hit': return !crits.flightStabilizer;
     case 'Sensors': return num(crits.sensorHits) < 4;
     case 'Cargo/Infantry Hit': return !!target.system.hasCargo;
     case 'Engine Hit': case 'Engine Damage': return !crits.engineHit;
@@ -611,7 +613,7 @@ function vehicleCritApplies(effect, c) {
  */
 function pickVehicleCrit(column, roll, c) {
   const footnote = (e) => {
-    if (e === 'Fuel Tank' && !c.isICE) return 'Engine Hit';
+    if (e === 'Fuel Tank' && !c.isICE) return c.target.system.movementType === 'vtol' ? 'Engine Damage' : 'Engine Hit';
     if (e === 'Ammunition' && !c.carriesAmmo()) return 'Weapon Destroyed';
     return e;
   };
@@ -678,10 +680,22 @@ export function crewStunnedNow(actor) {
   return round > num(c.stunFrom) && round <= num(c.stunnedThrough);
 }
 
+/** A vehicle crew's Driving rating (linked character's skill when present). */
+function vehicleDriving(target, crew) {
+  const linked = crew.actorId ? game.actors?.get(crew.actorId) : null;
+  if (linked) { const r = actorSkillRating(linked, VEHICLE_DRIVING_SKILLS); if (r) return r.rating; }
+  return num(crew.driving ?? 5);
+}
+
+/** Driving modifiers other than a pilot hit being applied right now. */
+function drivingModSum(c) {
+  return num(c.crits.motiveDriving) + (c.crew.commanderHit ? 1 : 0) + (c.crits.flightStabilizer ? 3 : 0);
+}
+
 /**
  * Apply a Ground Combat Vehicle critical hit effect (TW pp. 194–195) to the
- * mutable state. VTOL crew results use the ground equivalents (Pilot Hit as
- * Driver Hit, Co-Pilot Hit as Commander Hit).
+ * mutable state, with the VTOL variants (TW p. 197): Pilot Hit, Co-Pilot Hit,
+ * Engine Damage, Flight Stabilizer, Rotor Damage, Rotors Destroyed.
  * @returns {Promise<{destroyed?:boolean, note?:string, effect?:string, crewEvents?:object[]}>}
  */
 async function applyVehicleCrit(effect, c, rolls) {
@@ -699,12 +713,35 @@ async function applyVehicleCrit(effect, c, rolls) {
     out.crewEvents.push(CREW_DAMAGE.vehicleStunned);
   };
   switch (effect) {
-    case 'Driver Hit': case 'Pilot Hit':
+    case 'Driver Hit':
       if (crew.driverHit) { out.effect = 'Crew Stunned'; out.note = 'second driver hit → Crew Stunned'; stunned(); break; }
       crew.driverHit = true; out.note = '+2 to all Driving Skill Rolls';
       out.crewEvents.push(CREW_DAMAGE.vehicleCrewHit);
       break;
-    case 'Commander Hit': case 'Co-Pilot Hit':
+    case 'Pilot Hit': {
+      // VTOL (TW p. 197): +2 Driving; an immediate Driving roll or it drops one
+      // elevation (which may crash it); a second Pilot Hit is Crew Killed.
+      if (crew.driverHit) { out.effect = 'Crew Killed'; crewKilled(); out.note = `second pilot hit → ${out.note}`; break; }
+      crew.driverHit = true;
+      out.crewEvents.push(CREW_DAMAGE.vehicleCrewHit);
+      const tn = vehicleDriving(c.target, crew) + 2 + drivingModSum(c);
+      const dr = await new Roll("2d6").evaluate();
+      rolls.push(dr);
+      if (dr.total >= tn) out.note = `+2 Driving; Driving roll ${dr.total} vs ${tn}: holds altitude`;
+      else {
+        c.elevation = Math.max(0, num(c.elevation) - 1);
+        out.note = `+2 Driving; Driving roll ${dr.total} vs ${tn}: DROPS ONE ELEVATION (now ${c.elevation}) — if that puts it into terrain it crashes (use Crash on the sheet)`;
+      }
+      break;
+    }
+    case 'Co-Pilot Hit':
+      // VTOL: +1 to all to-hit rolls; a second Co-Pilot Hit is Crew Killed.
+      if (crew.coPilotHit) { out.effect = 'Crew Killed'; crewKilled(); out.note = `second co-pilot hit → ${out.note}`; break; }
+      crew.coPilotHit = true;
+      out.crewEvents.push(CREW_DAMAGE.vehicleCrewHit);
+      out.note = '+1 to all to-hit rolls for the rest of the game';
+      break;
+    case 'Commander Hit':
       if (crew.commanderHit) { out.effect = 'Crew Stunned'; out.note = 'second commander hit → Crew Stunned'; stunned(); break; }
       crew.commanderHit = true; stunCrew(conditions);
       out.note = 'crew stunned next turn; +1 to all to-hit and Driving rolls for the rest of the game';
@@ -716,7 +753,11 @@ async function applyVehicleCrit(effect, c, rolls) {
       crits.sensorHits = Math.min(4, num(crits.sensorHits) + 1);
       out.note = crits.sensorHits >= 4 ? 'fourth sensor hit — cannot fire weapons' : `+${crits.sensorHits} to hit`;
       break;
-    case 'Stabilizer': case 'Flight Stabilizer Hit':
+    case 'Flight Stabilizer Hit':
+      crits.flightStabilizer = true;
+      out.note = 'no faster than Cruising for the rest of the game; +3 Driving; +1 to hit';
+      break;
+    case 'Stabilizer':
       crits[STAB_KEY[facing]] = true;
       out.note = `attacker movement modifier doubled for weapons in the ${VEHICLE_FACING_LABEL[facing] || facing}`;
       break;
@@ -727,10 +768,23 @@ async function applyVehicleCrit(effect, c, rolls) {
       break;
     case 'Turret Locks': crits.turretLocked = true; out.note = 'turret locked in its current facing for the game'; break;
     case 'Turret Blown Off': structure.value = 0; out.destroyed = true; out.note = 'the vehicle is effectively destroyed'; break;
-    case 'Engine Hit': case 'Engine Damage':
+    case 'Engine Hit':
       crits.engineHit = true; crits.turretLocked = true; conditions.immobile = true;
       out.note = 'immobile, turret locked; direct-fire energy and pulse weapons stop working';
       break;
+    case 'Engine Damage': {
+      // VTOL (TW p. 197): landed → can't move again. Flying → Driving roll +4 to
+      // land (then immobile) or be destroyed; over terrain other than clear,
+      // paved, rough or a building it is destroyed outright.
+      crits.engineHit = true; conditions.immobile = true;
+      if (num(c.elevation) <= 0) { out.note = 'landed: cannot move for the rest of the game'; break; }
+      const tn = vehicleDriving(c.target, crew) + 4 + drivingModSum(c);
+      const dr = await new Roll("2d6").evaluate();
+      rolls.push(dr);
+      if (dr.total >= tn) { c.elevation = 0; out.note = `Driving roll ${dr.total} vs ${tn}: lands in its hex, immobile (destroyed instead if the hex isn't clear, paved, rough or a building)`; }
+      else { structure.value = 0; out.destroyed = true; out.note = `Driving roll ${dr.total} vs ${tn}: fails to land — DESTROYED`; }
+      break;
+    }
     case 'Fuel Tank': structure.value = 0; out.destroyed = true; out.note = 'fuel tank breached — the vehicle explodes'; break;
     case 'Ammunition': {
       // All ammunition explodes (TW p. 194): total damage into internal
@@ -771,8 +825,8 @@ async function applyVehicleCrit(effect, c, rolls) {
       out.note = `rolled ${r.total}: the ${r.total <= 3 ? "target's" : "attacker's"} player chooses which is destroyed — ${cands.map(w => w.name || 'weapon').join(' / ')} (mark it on the sheet)`;
       break;
     }
-    case 'Rotor Damage': crits.motiveHits = num(crits.motiveHits) + 1; out.note = '−1 Cruising MP'; break;
-    case 'Rotors Destroyed': conditions.immobile = true; out.note = 'rotors destroyed'; break;
+    case 'Rotor Damage': crits.motiveHits = num(crits.motiveHits) + 1; out.note = '−1 more Cruising MP (with the rotor hit itself, −2)'; break;
+    case 'Rotors Destroyed': structure.value = 0; conditions.immobile = true; out.destroyed = true; out.note = 'rotors destroyed — the VTOL is destroyed'; break;
     default: break;
   }
   return out;
@@ -1019,17 +1073,17 @@ export async function resolveMechHeat(actor) {
     } else ammoCheck = { none: true };
   }
 
-  // Overheating with Life Support damaged injures the warrior: 1 point at 15–25,
-  // 2 at 26+ (TW p. 127; hit ladder + consciousness); a linked pilot also takes
-  // the AToW damage from the MechWarrior/Pilot/Crew Damage Table, whose rows are
-  // 15+ (0E/2D*) and 25+ (0E/4D*).
+  // Overheating with Life Support damaged injures the warrior: 1 point at 15+,
+  // 2 at 25+ — the A Time of War MechWarrior/Pilot/Crew Damage Table's bands
+  // (15+ 0E/2D*, 25+ 0E/4D*), chosen over Total Warfare's 26+ by the user so the
+  // hit ladder and a linked character's AToW damage always agree.
   let pilotDamage = '';
   let warriorLines = [];
   if (num(sys.systemHits?.lifeSupport) > 0 && newHeat >= 15) {
     const ev = newHeat >= 25 ? CREW_DAMAGE.overheat25 : CREW_DAMAGE.overheat15;
     const linked = sys.pilot?.actorId ? game.actors.get(sys.pilot.actorId) : null;
     const crew = foundry.utils.deepClone(actor.system.pilot || {}); // fresh: an ammo explosion may have hurt them
-    warriorLines = await warriorDamage(crew, newHeat >= 26 ? 2 : 1, { linked: !!linked, rolls: heatRolls, source: 'life support' });
+    warriorLines = await warriorDamage(crew, newHeat >= 25 ? 2 : 1, { linked: !!linked, rolls: heatRolls, source: 'life support' });
     await writeDoc(actor, { 'system.pilot': crew });
     if (linked) {
       pilotDamage = (await applyCrewDamage(linked, ev)) ? `${linked.name} takes ${ev.bd} damage (${ev.label})`

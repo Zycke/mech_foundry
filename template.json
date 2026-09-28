@@ -509,7 +509,8 @@
         "motiveModerate": false,
         "motiveHeavy": false,
         "motiveDriving": 0,
-        "turretJams": 0
+        "turretJams": 0,
+        "flightStabilizer": false
       },
       "conditions": {
         "immobile": false,
@@ -526,7 +527,8 @@
         "driving": 5,
         "driverHit": false,
         "commanderHit": false,
-        "actorId": ""
+        "actorId": "",
+        "coPilotHit": false
       },
       "weapons": [],
       "hasCASE": false,

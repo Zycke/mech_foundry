@@ -7570,3 +7570,5 @@
 .mech-foundry.tw-card-actions .tw-card-done { font-size: 0.74rem; opacity: 0.7; font-style: italic; align-self: center; }
 .mech-foundry .mf-effmp { margin-top: 6px; font-size: 0.76rem; color: var(--mf-amber); }
 .mech-foundry .mf-effmp .hint { color: var(--mf-ink-dim); }
+.mech-foundry .mf-actions .mf-elev { display: inline-flex; align-items: center; gap: 4px; font-size: 0.74rem; }
+.mech-foundry .mf-actions .mf-elev input { width: 40px; height: 22px; text-align: center; }

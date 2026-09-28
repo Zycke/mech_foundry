@@ -64,6 +64,7 @@
           <div class="mf-actions">
             {{#if movement.sideslips}}<button type="button" class="sideslip-check" title="Flanking and turned, about to enter a new hex: Driving Skill Roll to avoid sideslipping"><i class="fas fa-wind"></i> Sideslip…</button>
             {{else}}<button type="button" class="skid-check" title="Flanking and turned on pavement, about to enter a new hex: Driving Skill Roll to avoid skidding"><i class="fas fa-road"></i> Skid…</button>{{/if}}
+            {{#if showRotor}}<label class="mf-elev" title="VTOL elevation (levels above the ground); 0 = landed">Elev <input type="number" min="0" name="system.elevation" value="{{system.elevation}}" {{#unless editable}}disabled{{/unless}} /></label>{{/if}}
             {{#if movement.canCrash}}<button type="button" class="vehicle-crash" title="The sideslip ran into terrain or a unit at or above its elevation"><i class="fas fa-burst"></i> Crash…</button>{{/if}}
           </div>
           {{/if}}
@@ -91,6 +92,7 @@
           <label class="chk"><input type="checkbox" name="system.crits.stabRight" {{checked crits.stabRight}} {{#unless editable}}disabled{{/unless}}> Stab: Right</label>
           <label class="chk"><input type="checkbox" name="system.crits.stabRear" {{checked crits.stabRear}} {{#unless editable}}disabled{{/unless}}> Stab: Rear</label>
           {{#if showTurret}}<label class="chk"><input type="checkbox" name="system.crits.stabTurret" {{checked crits.stabTurret}} {{#unless editable}}disabled{{/unless}}> Stab: Turret</label>{{/if}}
+          {{#if showRotor}}<label class="chk" title="VTOL: no faster than Cruising, +3 Driving, +1 to hit"><input type="checkbox" name="system.crits.flightStabilizer" {{checked crits.flightStabilizer}} {{#unless editable}}disabled{{/unless}}> Flight Stabilizer</label>{{/if}}
         </div>
         {{#if movement.motivePenalty}}<div class="penalty-line">▸ Motive / engine damage → Cruise {{movement.effCruise}} / Flank {{movement.effFlank}}</div>{{/if}}
         {{#if crewState.drivingTotal}}<div class="penalty-line">▸ Driving Skill Rolls +{{crewState.drivingTotal}} (motive, driver, commander)</div>{{/if}}
@@ -116,7 +118,11 @@
             </div>
             <div class="flags" style="margin-top:6px">
               <label class="chk"><input type="checkbox" class="crew-hit-flag" data-flag="driverHit" {{checked crew.driverHit}} {{#unless editable}}disabled{{/unless}}> Driver hit</label>
+              {{#if showRotor}}
+              <label class="chk"><input type="checkbox" class="crew-hit-flag" data-flag="coPilotHit" {{checked crew.coPilotHit}} {{#unless editable}}disabled{{/unless}}> Co-pilot hit</label>
+              {{else}}
               <label class="chk"><input type="checkbox" class="crew-hit-flag" data-flag="commanderHit" {{checked crew.commanderHit}} {{#unless editable}}disabled{{/unless}}> Commander hit</label>
+              {{/if}}
             </div>
           </div>
           <div class="skillpair">

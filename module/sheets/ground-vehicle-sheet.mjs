@@ -111,7 +111,7 @@ export class MechFoundryGroundVehicleSheet extends MechFoundryUnitSheet {
     const linked = crew.actorId ? game.actors.get(crew.actorId) : null;
     context.crew = {
       name: crew.name ?? '', gunnery: crew.gunnery ?? 4, driving: crew.driving ?? 5,
-      driverHit: !!crew.driverHit, commanderHit: !!crew.commanderHit,
+      driverHit: !!crew.driverHit, commanderHit: !!crew.commanderHit, coPilotHit: !!crew.coPilotHit,
       gunneryDerived: false, drivingDerived: false
     };
     context.crewLinked = linked ? { id: linked.id, name: linked.name, img: linked.img } : null;

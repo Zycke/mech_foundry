@@ -10,7 +10,7 @@
  */
 import { beginRecording, writeDoc } from "./gm-relay.mjs";
 import { currentTurnKey } from "./tw-turn.mjs";
-import { movedThisTurn, pilotUnconscious, setMovement } from "./tw-movement.mjs";
+import { movedThisTurn, pilotUnconscious, setMovement, vehicleDrivingMods } from "./tw-movement.mjs";
 import { phaseDamageSoFar, psrDamageMods } from "./tw-psr.mjs";
 import { fiveGroups, pilotingFor, postCard, resolveFall } from "./tw-falls.mjs";
 import { resolveDamageAgainst } from "./tw-combat.mjs";
@@ -49,15 +49,7 @@ export function crashedThisTurn(actor) {
   return !!key && actor?.flags?.['mech-foundry']?.crashed?.key === key;
 }
 
-/** Driving modifiers: motive damage (+1 / +2 / +3, each once), driver hit +2, commander hit +1. */
-function drivingMods(actor) {
-  const mods = [];
-  const m = num(actor.system?.crits?.motiveDriving);
-  if (m) mods.push({ label: 'Motive damage', value: m });
-  if (actor.system?.crew?.driverHit) mods.push({ label: 'Driver hit', value: 2 });
-  if (actor.system?.crew?.commanderHit) mods.push({ label: 'Commander hit', value: 1 });
-  return mods;
-}
+const drivingMods = (actor) => vehicleDrivingMods(actor);
 
 async function askHexes(title, hint, extra = '') {
   const r = await DialogV2.wait({
@@ -209,11 +201,17 @@ export async function vehicleCrash(actor, { hexes = null, side = null } = {}) {
   const damage = Math.ceil((hexes * num(actor.system.tonnage)) / 10);
   if (currentTurnKey()) await writeDoc(actor, { 'flags.mech-foundry.crashed': { key: currentTurnKey() } });
   const frag = damage > 0 ? await resolveDamageAgainst(actor, side, fiveGroups(damage), rolls, actor.name) : null;
+  // VTOL Explosions (TW p. 198): any crash damage to internal structure blows it up.
+  let exploded = false;
+  if (actor.system.movementType === 'vtol' && frag?.groups?.some(g => g.structureHit) && num(actor.system.structure?.value) > 0) {
+    await writeDoc(actor, { 'system.structure': { ...actor.system.structure, value: 0 } });
+    exploded = true;
+  }
   await postCard(actor, 'Crash', {
     results: [],
     skidFrag: frag,
     notes: [`${actor.name} crashes: ${hexes} hexes × ${num(actor.system.tonnage)} t / 10 = ${damage} damage on its ${side} side.`,
-      'It may not attack this turn. If it survives and could land in this hex it has landed; otherwise it is destroyed.']
+      exploded ? 'Crash damage reached its internal structure: the VTOL EXPLODES and is destroyed.' : 'It may not attack this turn. If it survives and could land in this hex it has landed; otherwise it is destroyed.']
   }, rolls);
   return { damage, frag };
 }
