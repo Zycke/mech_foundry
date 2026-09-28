@@ -124,6 +124,14 @@ criticals and cluster grouping:
   shot that round), spends one shot of ammo if the weapon has an ammo type, and the heat
   phase defaults to the heat of weapons actually fired. Destroyed (crit slot or the row's
   toggle) and out-of-ammo weapons can't fire; sheets badge FIRED / NO AMMO / DESTROYED.
+- **Movement & Attack Modifiers** (`module/helpers/tw-movement.mjs`, TW pp. 117–118): hexes
+  moved accumulate per turn from token moves during combat; the mode (stationary / walked /
+  ran / jumped) is inferred from Walk/Cruise MP unless set on the sheet's "This turn" row
+  (jumping must be set). The attack dialog pre-fills attacker and target movement, prone,
+  immobile (shutdown / unconscious pilot), battle-armor target, sensor hits and arm-actuator
+  damage for arm-mounted weapons; minimum range and prone-target range effects apply from the
+  entered range; woods, partial cover and secondary targets are dialog inputs. Every
+  pre-filled value is editable.
 **Intentional house rules** (deliberate divergences — don't "correct" toward the book):
 - Combat vehicles roll a critical on any hit that penetrates to internal structure, in
   addition to the tables' marked results (2/12, or 8 on side attacks).

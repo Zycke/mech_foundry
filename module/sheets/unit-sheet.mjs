@@ -1,5 +1,6 @@
 import { MechFoundryActorSheetV2 } from "./base-actor-sheet.mjs";
 import { currentTurnKey, firedThisTurn, usesAmmo } from "../helpers/tw-combat.mjs";
+import { MOVE_MODES, movedThisTurn, setMovement } from "../helpers/tw-movement.mjs";
 
 /** Weight classes offered on unit sheets (free-form fallback allowed). */
 const WEIGHT_CLASSES = ['Light', 'Medium', 'Heavy', 'Assault'];
@@ -53,6 +54,20 @@ export class MechFoundryUnitSheet extends MechFoundryActorSheetV2 {
       fired: fired[w.id] !== undefined,
       outOfAmmo: usesAmmo(w) && (Number(w.ammo) || 0) <= 0
     }));
+    // This turn's movement (ground units, during combat): hexes accumulate from
+    // token moves; the mode is inferred unless picked here (jumping must be picked).
+    if (currentTurnKey() && ['mech', 'ground_vehicle', 'battle_armor'].includes(this.actor.type)) {
+      const mv = movedThisTurn(this.actor);
+      const vehicle = this.actor.type === 'ground_vehicle';
+      const label = (m) => vehicle ? m.vlabel : m.label;
+      context.turnMove = {
+        hexes: mv.hexes,
+        modes: [
+          { key: 'auto', label: `Auto (${label(MOVE_MODES.find(m => m.key === mv.mode))})`, selected: !mv.modeSet },
+          ...MOVE_MODES.map(m => ({ key: m.key, label: `${label(m)} (+${m.mod})`, selected: mv.modeSet && mv.mode === m.key }))
+        ]
+      };
+    }
     return context;
   }
 
@@ -72,6 +87,14 @@ export class MechFoundryUnitSheet extends MechFoundryActorSheetV2 {
     html.on('click', '.duplicate-weapon', this._onDuplicateWeapon.bind(this));
     html.on('click', '.toggle-weapon-destroyed', this._onToggleWeaponDestroyed.bind(this));
     html.on('change', '.weapon-field', this._onWeaponFieldChange.bind(this));
+    html.on('change', '.turn-move-field', this._onTurnMoveChange.bind(this));
+  }
+
+  /** Set this turn's movement mode or hexes moved. */
+  async _onTurnMoveChange(event) {
+    const el = event.currentTarget;
+    if (el.dataset.field === 'hexes') await setMovement(this.actor, { hexes: Math.max(0, parseInt(el.value) || 0) });
+    else await setMovement(this.actor, { mode: el.value });
   }
 
   /**

@@ -46,7 +46,7 @@ export class MechFoundryGroundVehicleSheet extends MechFoundryUnitSheet {
   };
 
   /** @override */
-  static NUMERIC_WEAPON_FIELDS = ['heat', 'damage', 'rangeS', 'rangeM', 'rangeL', 'ammo', 'shotsPerTon', 'clusterSize'];
+  static NUMERIC_WEAPON_FIELDS = ['heat', 'damage', 'rangeMin', 'rangeS', 'rangeM', 'rangeL', 'ammo', 'shotsPerTon', 'clusterSize'];
 
   /* -------------------------------------------- */
 

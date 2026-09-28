@@ -7512,3 +7512,13 @@
 .mech-foundry.mech-sheet .toggle-weapon-destroyed { color: var(--mf-ink-dim); cursor: pointer; margin-left: 6px; }
 .mech-foundry.mech-sheet .toggle-weapon-destroyed:hover { color: var(--mf-danger); }
 .mech-foundry.tw-attack-card .tw-atk-ammo { margin-top: 4px; font-size: 0.74rem; color: var(--mf-ink-dim); font-family: var(--mf-font-mono); }
+
+/* Per-turn movement record on unit sheets */
+.mech-foundry .mf-turnmove { display: flex; align-items: center; gap: 6px; margin-top: 8px; font-size: 0.78rem; }
+.mech-foundry .mf-turnmove .k { color: var(--mf-ink-dim); text-transform: uppercase; letter-spacing: .04em; font-size: 0.7rem; }
+.mech-foundry .mf-turnmove select { flex: 1; height: 24px; font-size: 0.78rem; }
+.mech-foundry .mf-turnmove input { width: 44px; height: 24px; text-align: center; }
+
+/* Attack dialog: terrain group */
+.tw-attack-dialog fieldset.tw-terrain { margin: 6px 0; padding: 4px 8px; border: 1px solid rgba(128,128,128,.35); border-radius: 4px; }
+.tw-attack-dialog fieldset.tw-terrain legend { font-size: 0.78rem; padding: 0 4px; opacity: .8; }

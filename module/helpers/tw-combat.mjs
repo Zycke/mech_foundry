@@ -13,16 +13,10 @@ import {
   MECH_GUNNERY_SKILLS, VEHICLE_GUNNERY_SKILLS, AERO_GUNNERY_SKILLS
 } from "./atow-conversion.mjs";
 import { writeDoc } from "./gm-relay.mjs";
+import { currentTurnKey } from "./tw-turn.mjs";
+import { autoAttackMods, movedThisTurn, rangeDependentMods, terrainMods } from "./tw-movement.mjs";
 
 const { DialogV2 } = foundry.applications.api;
-
-/** GATOR — attacker movement modifiers (Total Warfare, Attack Modifiers table). */
-export const ATTACKER_MOVE_MODS = [
-  { key: 'stationary', label: 'Stationary', mod: 0 },
-  { key: 'walked', label: 'Walked / Cruised', mod: 1 },
-  { key: 'ran', label: 'Ran / Flanked', mod: 2 },
-  { key: 'jumped', label: 'Jumped', mod: 3 }
-];
 
 const num = (v) => Number(v) || 0;
 
@@ -36,11 +30,7 @@ export function heatToHitMod(actor) {
 /*  Fired-weapon tracking (per turn)                                    */
 /* ------------------------------------------------------------------ */
 
-/** Key identifying "this turn": the running combat's round, or null outside combat. */
-export function currentTurnKey() {
-  const c = game.combat;
-  return c?.started ? `${c.id}:${c.round}` : null;
-}
+export { currentTurnKey };
 
 /**
  * Weapons an actor has fired this turn, as { weaponId: heat }. Stored in the
@@ -646,13 +636,15 @@ export async function resolveMechHeat(actor) {
   const firedCount = Object.keys(fired).length;
   const weaponsHeatTotal = Object.values(fired).reduce((s, h) => s + num(h), 0);
 
+  // Movement defaults to this turn's record (token moves / the sheet's selector).
+  const moved = movedThisTurn(actor);
   const moveOpts = [['stationary', 'Stationary'], ['walked', 'Walked (+1)'], ['ran', 'Ran (+2)'], ['jumped', 'Jumped (+1/hex, min 3)']]
-    .map(([k, l]) => `<option value="${k}">${l}</option>`).join('');
+    .map(([k, l]) => `<option value="${k}"${k === moved.mode ? ' selected' : ''}>${l}</option>`).join('');
 
   const content = `
     <div class="tw-attack-dialog">
       <div class="form-group"><label>Movement</label><select name="move">${moveOpts}</select></div>
-      <div class="form-group"><label>Jump hexes</label><input type="number" name="hexes" value="0" /></div>
+      <div class="form-group"><label>Jump hexes</label><input type="number" name="hexes" value="${moved.mode === 'jumped' ? moved.hexes : 0}" /></div>
       <div class="form-group"><label>Stand attempts</label><input type="number" name="stand" value="0" /></div>
       <div class="form-group"><label>Weapons heat <span class="tw-hint">${firedCount} fired this turn</span></label><input type="number" name="weapons" value="${weaponsHeatTotal}" /></div>
       <div class="form-group"><label>Engine-hit heat</label><input type="number" name="engine" value="${engineHeat}" /></div>
@@ -838,23 +830,33 @@ export async function weaponAttack(actor, weapon) {
   const attackerToken = actor.getActiveTokens?.()[0] || null;
   const target = [...(game.user?.targets ?? [])][0] || null;
   const targetName = target?.name || '';
+  const targetActor = target?.actor || null;
   const autoDist = attackerToken && target ? measureHexes(attackerToken, target) : null;
+  const autoMods = autoAttackMods(actor, weapon, targetActor);
 
-  const moveOpts = ATTACKER_MOVE_MODS
-    .map(m => `<option value="${m.mod}">${m.label} (+${m.mod})</option>`).join('');
+  const esc = (t) => foundry.utils.escapeHTML?.(String(t)) ?? String(t);
   const dirOpts = ATTACK_DIRECTIONS.map(d => `<option value="${d.key}">${d.label}</option>`).join('');
   const s = num(weapon.rangeS ?? weapon.short), m = num(weapon.rangeM ?? weapon.medium), l = num(weapon.rangeL ?? weapon.long);
   const e = num(weapon.rangeE ?? weapon.ext);
-  const rangeHint = `S ${s} / M ${m} / L ${l}${e ? ` / E ${e}` : ''}`;
+  const minR = num(weapon.rangeMin);
+  const rangeHint = `${minR ? `Min ${minR} / ` : ''}S ${s} / M ${m} / L ${l}${e ? ` / E ${e}` : ''}`;
+  const modRows = autoMods.map(x => `
+      <div class="form-group"><label>${esc(x.label)}${x.hint ? ` <span class="tw-hint">${esc(x.hint)}</span>` : ''}</label><input type="number" name="auto_${x.key}" value="${x.value}" /></div>`).join('');
 
   const content = `
     <div class="tw-attack-dialog">
-      <p class="tw-atk-target">${targetName ? `Target: <strong>${foundry.utils.escapeHTML?.(targetName) ?? targetName}</strong>` : 'No target selected — enter range manually.'}</p>
+      <p class="tw-atk-target">${targetName ? `Target: <strong>${esc(targetName)}</strong>` : 'No target selected — enter range manually.'}</p>
       <div class="form-group"><label>Gunnery Skill</label><input type="number" name="gunnery" value="${gunnery}" /></div>
-      <div class="form-group"><label>Attacker Movement</label><select name="attackerMove">${moveOpts}</select></div>
-      <div class="form-group"><label>Target Movement Mod</label><input type="number" name="targetMove" value="0" /></div>
       <div class="form-group"><label>Range (hexes) <span class="tw-hint">${rangeHint}</span></label><input type="number" name="range" value="${autoDist ?? ''}" /></div>
-      <div class="form-group"><label>Heat Mod</label><input type="number" name="heat" value="${heatMod}" /></div>
+      ${modRows}
+      <div class="form-group"><label>Heat</label><input type="number" name="heat" value="${heatMod}" /></div>
+      <fieldset class="tw-terrain"><legend>Terrain &amp; target</legend>
+        <div class="form-group"><label>Light woods hexes between</label><input type="number" name="lightWoods" value="0" min="0" /></div>
+        <div class="form-group"><label>Heavy woods hexes between</label><input type="number" name="heavyWoods" value="0" min="0" /></div>
+        <div class="form-group"><label>Target standing in</label><select name="targetWoods"><option value="none">Open</option><option value="light">Light woods (+1)</option><option value="heavy">Heavy woods (+2)</option></select></div>
+        <div class="form-group"><label>Partial cover (+1)</label><input type="checkbox" name="partialCover" /></div>
+        <div class="form-group"><label>Secondary target</label><select name="secondary"><option value="none">No (primary)</option><option value="front">Yes, front arc (+1)</option><option value="side">Yes, side/rear arc (+2)</option></select></div>
+      </fieldset>
       <div class="form-group"><label>Other Mod</label><input type="number" name="other" value="0" /></div>
       <div class="form-group"><label>Attack Direction</label><select name="direction">${dirOpts}</select></div>
     </div>`;
@@ -869,10 +871,16 @@ export async function weaponAttack(actor, weapon) {
           const f = button.form.elements;
           return {
             gunnery: num(f.gunnery.value),
-            attackerMove: num(f.attackerMove.value),
-            targetMove: num(f.targetMove.value),
+            auto: autoMods.map(x => ({ label: x.label, value: num(f[`auto_${x.key}`]?.value) })),
             range: f.range.value === '' ? null : num(f.range.value),
             heat: num(f.heat.value),
+            terrain: {
+              lightWoods: Math.max(0, num(f.lightWoods.value)),
+              heavyWoods: Math.max(0, num(f.heavyWoods.value)),
+              targetWoods: f.targetWoods.value,
+              partialCover: !!f.partialCover.checked,
+              secondary: f.secondary.value
+            },
             other: num(f.other.value),
             direction: f.direction.value
           };
@@ -885,7 +893,16 @@ export async function weaponAttack(actor, weapon) {
   if (!result || result === "cancel") return;
 
   const rb = rangeBracket(result.range, weapon);
-  const tn = result.gunnery + result.attackerMove + result.targetMove + rb.mod + result.heat + result.other;
+  const mods = [
+    { label: "Gunnery", value: result.gunnery },
+    ...result.auto,
+    { label: `Range (${rb.bracket})`, value: rb.mod },
+    ...rangeDependentMods(weapon, targetActor, result.range),
+    { label: "Heat", value: result.heat },
+    ...terrainMods(result.terrain),
+    { label: "Other", value: result.other }
+  ].filter(m => m.value !== 0 || m.label === "Gunnery");
+  const tn = mods.reduce((t, x) => t + x.value, 0);
 
   const roll = await new Roll("2d6").evaluate();
   const dice = roll.dice[0]?.results?.map(r => r.result) ?? [];
@@ -913,21 +930,11 @@ export async function weaponAttack(actor, weapon) {
     if (actor.isOwner || game.user.isGM) await actor.update(upd);
   }
 
-  const mods = [
-    { label: "Gunnery", value: result.gunnery },
-    { label: "Attacker move", value: result.attackerMove },
-    { label: "Target move", value: result.targetMove },
-    { label: `Range (${rb.bracket})`, value: rb.mod },
-    { label: "Heat", value: result.heat },
-    { label: "Other", value: result.other }
-  ].filter(m => m.value !== 0 || m.label === "Gunnery");
-
   // On a hit, resolve damage. Cluster weapons (clusterSize > 0) roll the Cluster
   // Hits Table for the number of sub-munitions, then apply damage in 5-point
   // groups, each rolling its own hit location. Direct-fire weapons are one group.
   const rolls = [roll];
   let hitResult = null;
-  const targetActor = target?.actor || null;
   const perHit = num(weapon.damage);
   const clusterSize = num(weapon.clusterSize);
   if (hit && perHit > 0) {

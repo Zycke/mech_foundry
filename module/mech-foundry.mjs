@@ -48,6 +48,7 @@ import { ATOW_SKILLS, ATOW_TRAITS, ATOW_TRAIT_DESCRIPTIONS } from "./data/atow-l
 import { woundDescription, conditionDescription } from "./data/status-descriptions.mjs";
 import { SocketHandler, SOCKET_EVENTS } from "./helpers/socket-handler.mjs";
 import { initGMRelay } from "./helpers/gm-relay.mjs";
+import { registerMovementTracking } from "./helpers/tw-movement.mjs";
 import { OpposedRollHelper } from "./helpers/opposed-rolls.mjs";
 import { DiceMechanics } from "./helpers/dice-mechanics.mjs";
 import { ItemEffectsHelper, EFFECT_CATEGORIES, getEffectTypeOptions } from "./helpers/effects-helper.mjs";
@@ -570,6 +571,9 @@ function _registerSystemSettings() {
 /* -------------------------------------------- */
 /*  Combat Hooks                                */
 /* -------------------------------------------- */
+
+// Total Warfare: per-turn hexes moved, from token moves during combat.
+registerMovementTracking();
 
 // Override initiative formula
 Hooks.once("init", function() {

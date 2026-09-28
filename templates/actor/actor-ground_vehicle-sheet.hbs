@@ -60,6 +60,13 @@
             <label class="chk"><input type="checkbox" name="system.conditions.immobile" {{checked conditions.immobile}} {{#unless editable}}disabled{{/unless}}> Immobile</label>
             <label class="chk"><input type="checkbox" name="system.conditions.turretJammed" {{checked conditions.turretJammed}} {{#unless editable}}disabled{{/unless}}> Turret Jam</label>
           </div>
+          {{#if turnMove}}
+          <div class="mf-turnmove" title="Used for attack modifiers and heat. Hexes add up automatically as the token moves during combat.">
+            <span class="k">This turn</span>
+            <select class="turn-move-field" data-field="mode" {{#unless editable}}disabled{{/unless}}>{{#each turnMove.modes}}<option value="{{key}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select>
+            <input type="number" min="0" class="turn-move-field" data-field="hexes" value="{{turnMove.hexes}}" {{#unless editable}}disabled{{/unless}} /><span class="k">hexes</span>
+          </div>
+          {{/if}}
         </div>
       </div>
 
@@ -120,7 +127,7 @@
       <div class="mf-panel">
         <h4>Weapons {{#if editable}}<button type="button" class="add-weapon"><i class="fas fa-plus"></i> Add</button>{{/if}}</h4>
         <table class="wt">
-          <thead><tr><th class="w-name">Weapon</th><th>Loc</th><th>Dmg</th><th title="Cluster/launcher size">Clus</th><th>S</th><th>M</th><th>L</th><th>Ammo Type</th><th>Rds</th><th></th></tr></thead>
+          <thead><tr><th class="w-name">Weapon</th><th>Loc</th><th>Dmg</th><th title="Cluster/launcher size">Clus</th><th title="Minimum range">Min</th><th>S</th><th>M</th><th>L</th><th>Ammo Type</th><th>Rds</th><th></th></tr></thead>
           <tbody>
             {{#each weapons}}
             <tr class="w-row{{#if destroyed}} w-destroyed{{/if}}{{#if fired}} w-fired{{/if}}">
@@ -128,6 +135,7 @@
               <td><input type="text" class="weapon-field loc" data-weapon-id="{{id}}" data-field="location" value="{{location}}" {{#unless ../editable}}disabled{{/unless}} /></td>
               <td><input type="number" min="0" class="weapon-field n" data-weapon-id="{{id}}" data-field="damage" value="{{damage}}" {{#unless ../editable}}disabled{{/unless}} /></td>
               <td><input type="number" min="0" class="weapon-field n" data-weapon-id="{{id}}" data-field="clusterSize" value="{{clusterSize}}" title="Cluster / launcher size (0 = single)" {{#unless ../editable}}disabled{{/unless}} /></td>
+              <td><input type="number" min="0" class="weapon-field n" data-weapon-id="{{id}}" data-field="rangeMin" value="{{rangeMin}}" title="Minimum range (0 = none)" {{#unless ../editable}}disabled{{/unless}} /></td>
               <td><input type="number" min="0" class="weapon-field n" data-weapon-id="{{id}}" data-field="rangeS" value="{{rangeS}}" {{#unless ../editable}}disabled{{/unless}} /></td>
               <td><input type="number" min="0" class="weapon-field n" data-weapon-id="{{id}}" data-field="rangeM" value="{{rangeM}}" {{#unless ../editable}}disabled{{/unless}} /></td>
               <td><input type="number" min="0" class="weapon-field n" data-weapon-id="{{id}}" data-field="rangeL" value="{{rangeL}}" {{#unless ../editable}}disabled{{/unless}} /></td>

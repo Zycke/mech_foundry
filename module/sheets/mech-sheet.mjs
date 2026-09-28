@@ -63,7 +63,7 @@ export class MechFoundryMechSheet extends MechFoundryUnitSheet {
   };
 
   /** Weapon fields stored as integers on this sheet. */
-  static NUMERIC_WEAPON_FIELDS = ['heat', 'damage', 'rangeS', 'rangeM', 'rangeL', 'ammo', 'shotsPerTon', 'clusterSize'];
+  static NUMERIC_WEAPON_FIELDS = ['heat', 'damage', 'rangeMin', 'rangeS', 'rangeM', 'rangeL', 'ammo', 'shotsPerTon', 'clusterSize'];
 
   /* -------------------------------------------- */
   /*  Context                                      */
