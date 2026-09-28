@@ -22,8 +22,8 @@ import { MECH_LOC_LABEL, firedThisTurn, locationGone, measureHexes, resolveDamag
 import { actuatorEffects, physicalDamage, physicalThisTurn, rollKickLocation, rollPunchLocation } from "./tw-physical.mjs";
 import { isAero } from "./tw-aero.mjs";
 import {
-  BA_WEIGHTS, TRANSPORT_POSITIONS, antiMechFor, attachedCarrier, attachment, baTroopers, baWeaponKind, isInfantry, knockOff,
-  liveTroopers, manipulatorCount, ridersOf, swarmersOf, vibroBonus
+  BA_WEIGHTS, TRANSPORT_POSITIONS, antiMechFor, attachedCarrier, attachment, baTroopers, baWeaponKind, infantryAttackDamage,
+  isInfantry, knockOff, liveTroopers, manipulatorCount, ridersOf, swarmersOf, vibroBonus
 } from "./tw-infantry.mjs";
 
 const { DialogV2 } = foundry.applications.api;
@@ -544,4 +544,134 @@ export function riderPositions(actor, carrier) {
     const where = carrier?.type === 'mech' ? `${MECH_LOC_LABEL[p.mech]}${p.rear ? ' (rear)' : ''}` : side[p.vehicle];
     return { n: t.n, alive: t.alive, where };
   });
+}
+
+/* ------------------------------------------------------------------ */
+/*  Mechanized battle armor (TW p. 227)                                 */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Can this battle armor ride other units? Humanoid suits up to heavy with at
+ * least one basic manipulator or battle claw (vibro- / magnetic claws count),
+ * or light / PA(L) suits with two armored gloves.
+ */
+export function mountCapability(actor) {
+  if (actor?.type !== 'battle_armor') return 'Only battle armor rides as mechanized battle armor.';
+  const sys = actor.system || {};
+  if (sys.chassis === 'quad') return 'Quad battle armor cannot ride other units.';
+  if (sys.weightClass === 'assault') return 'Assault battle armor cannot ride other units.';
+  const light = ['pal', 'light'].includes(sys.weightClass);
+  const ok = manipulatorCount(actor, 'basic', 'battleClaw', 'heavyClaw', 'vibroClaw', 'magneticClaw') >= 1
+    || (light && manipulatorCount(actor, 'armoredGlove') === 2);
+  return ok ? null : 'Riding needs a basic manipulator or battle claw (or two armored gloves on light / PA(L) suits).';
+}
+
+/** Why this battle armor can't mount that unit now, or null. */
+export function mountBlock(actor, carrier, distance = null) {
+  const cap = mountCapability(actor);
+  if (cap) return cap;
+  if (liveTroopers(actor) <= 0) return `${actor.name} has no troopers left.`;
+  if (attachment(actor)) return `${actor.name} is already ${attachment(actor).mode === 'ride' ? 'riding' : 'swarming'} a unit.`;
+  if (!carrier) return 'Target the friendly unit to mount (same hex).';
+  if (distance != null && distance > 0) return 'The carrier must be in the same hex.';
+  if (!['mech', 'ground_vehicle'].includes(carrier.type)) return "Mechanized battle armor rides 'Mechs and vehicles only.";
+  if (carrier.type === 'ground_vehicle' && ['vtol', 'wige', 'submarine'].includes(carrier.system?.movementType)) return 'A vehicle carrying mechanized battle armor may not use VTOL, WiGE or UMU movement.';
+  if (!carrier.system?.omni && !actor.system?.equipment?.magneticClamps) return `${carrier.name} isn't an Omni unit: riding it needs magnetic clamps.`;
+  if (ridersOf(carrier).length) return `${carrier.name} already carries a battle armor unit.`;
+  return null;
+}
+
+/**
+ * Mount a friendly 'Mech or vehicle (Movement Phase, at the end of the
+ * carrier's move). A swarmed carrier can only be mounted with a successful
+ * swarm-style roll, with its Swarm Attack Modifiers Table value (swarmers vs
+ * mounting troopers) as a negative modifier.
+ */
+export async function mountCarrier(actor, target = [...(game.user?.targets ?? [])][0] || null) {
+  const carrier = target?.actor || null;
+  const token = actor.getActiveTokens?.()[0] || null;
+  const dist = token && target ? measureHexes(token, target) : null;
+  const why = mountBlock(actor, carrier, dist);
+  if (why) { ui.notifications.warn(why); return null; }
+  beginRecording();
+  const rolls = [];
+  const notes = [];
+  const results = [];
+  let ok = true;
+  const swarmers = swarmersOf(carrier);
+  if (swarmers.length) {
+    const mods = antiMechMods(actor, 'swarm', carrier).filter(m => !/^Mechanized battle armor/.test(m.label));
+    const enemy = swarmers[0];
+    mods.push({ label: `Swarm Attack Modifiers (${liveTroopers(enemy)} swarming vs ${liveTroopers(actor)} mounting), negated`, value: -swarmRiderMod(enemy, liveTroopers(actor)) });
+    const res = { label: `Mount the swarmed ${carrier.name}`, mods, tn: sum(mods) };
+    const r = await new Roll("2d6").evaluate();
+    rolls.push(r);
+    Object.assign(res, { total: r.total, dice: diceOf(r), success: r.total >= res.tn });
+    results.push(res);
+    ok = res.success;
+    if (ok) notes.push(`Next turn ${actor.name} may attack ${enemy.name} directly, ignoring target movement and terrain.`);
+  }
+  if (ok) {
+    await writeDoc(actor, { 'system.attached': { uuid: carrier.uuid, mode: 'ride', key: currentTurnKey() || '' } });
+    const lost = carrier.system?.omni ? '' : ` ${carrier.name} (not Omni) loses 1 ${carrier.type === 'mech' ? 'Walking' : 'Cruising'} MP while carrying it.`;
+    notes.push(`${actor.name} mounts ${carrier.name}.${lost} Weapons in locations with a trooper riding on them can't fire (turrets can).`);
+  } else notes.push(`${actor.name} fails to mount ${carrier.name}.`);
+  await postCard(actor, 'Mount Carrier', { results, notes }, rolls);
+  return { ok, results, notes };
+}
+
+/** Dismount (Movement Phase, end of the carrier's move): the unit can't move or attack this turn. */
+export async function dismountCarrier(actor) {
+  const a = attachment(actor);
+  if (a?.mode !== 'ride') { ui.notifications.info(`${actor.name} isn't riding a unit.`); return null; }
+  const carrier = attachedCarrier(actor);
+  beginRecording();
+  await writeDoc(actor, { 'system.attached': { uuid: '', mode: '', key: '' } });
+  await postCard(actor, 'Dismount', { results: [], notes: [`${actor.name} dismounts${carrier ? ` from ${carrier.name}` : ''} into its hex: it can't move or attack this turn; attacks against it count it as having moved 0 hexes.`] }, []);
+  return true;
+}
+
+/**
+ * A unit carrying battle armor enters a building hex: 1D6 per riding unit —
+ * 1–3 one hit of 1D6 damage and it stays on; 4–6 it falls off with 2D6 damage
+ * (infantry-attack damage, can't move or shoot this turn). An accidental entry
+ * (e.g. a skid) always counts as 4–6.
+ */
+export async function riderBuildingCheck(carrier, { accidental = null } = {}) {
+  const riders = ridersOf(carrier);
+  if (!riders.length) { ui.notifications.info(`${carrier.name} isn't carrying battle armor.`); return null; }
+  if (accidental === null) {
+    const r = await DialogV2.wait({
+      window: { title: `Building Hex — ${carrier.name}`, icon: "fa-solid fa-building" },
+      content: `<div class="tw-attack-dialog"><div class="form-group"><label>Accidental entry (e.g. a skid): the riders always fall off</label><input type="checkbox" name="accidental" /></div></div>`,
+      buttons: [
+        { action: "roll", label: "Roll", icon: "fa-solid fa-dice", default: true, callback: (e, b) => ({ accidental: !!b.form.elements.accidental.checked }) },
+        { action: "cancel", label: "Cancel", icon: "fa-solid fa-times" }
+      ],
+      rejectClose: false
+    });
+    if (!r || r === "cancel") return null;
+    accidental = r.accidental;
+  }
+  beginRecording();
+  const rolls = [];
+  const notes = [];
+  for (const u of riders) {
+    let fallsOff = accidental;
+    if (!accidental) {
+      const r = await new Roll("1d6").evaluate();
+      rolls.push(r);
+      fallsOff = r.total >= 4;
+      notes.push(`${u.name}: 1D6 ${r.total}`);
+    }
+    if (fallsOff) notes.push(...await knockOff([u], { dice: '2d6', why: 'falls off into the building hex' }, rolls));
+    else {
+      const d = await new Roll("1d6").evaluate();
+      rolls.push(d);
+      const res = await infantryAttackDamage(u, d.total, rolls);
+      notes.push(`${u.name} is scraped against the building (${d.total} damage, ${res.remaining} troopers left) but holds on; it can't move or shoot this turn.`);
+    }
+  }
+  await postCard(carrier, 'Building Hex — Riding Battle Armor', { results: [], notes }, rolls);
+  return { notes };
 }

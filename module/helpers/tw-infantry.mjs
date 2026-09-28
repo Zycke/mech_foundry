@@ -494,6 +494,7 @@ export async function absorbInto(u, amount, rolls, cache, lines, prefix, platoon
   const entry = cacheEntry(cache, u);
   if (u.type === 'infantry') {
     entry.platoonPoints += platoonTakesAll ? amount : 0;
+    entry.dirty = true;
     lines.push(`${prefix}: the platoon takes ${amount}`);
     return platoonTakesAll ? 0 : amount;
   }
@@ -506,26 +507,91 @@ export async function absorbInto(u, amount, rolls, cache, lines, prefix, platoon
   const t = entry.troopers[idx];
   if (!t?.alive) return amount;
   const res = damageTrooper(t, amount);
+  entry.dirty = true;
   lines.push(`${prefix}: trooper #${t.n} takes ${res.dealt}${res.killed ? ' — KILLED' : ''}${amount - res.dealt > 0 ? `, ${amount - res.dealt} carries on to the carrier` : ''}`);
   return amount - res.dealt;
 }
 
 function cacheEntry(cache, u) {
-  if (!cache.units.has(u.uuid)) cache.units.set(u.uuid, { actor: u, troopers: u.type === 'battle_armor' ? baTroopers(u) : null, platoonPoints: 0 });
+  if (!cache.units.has(u.uuid)) cache.units.set(u.uuid, { actor: u, troopers: u.type === 'battle_armor' ? baTroopers(u) : null, platoonPoints: 0, dirty: false });
   return cache.units.get(u.uuid);
 }
 
 /** A fresh interception cache for one attack against a carrier. */
 export function interceptCache(carrier) {
-  if (!carrier) return { swarmers: [], riders: [], units: new Map() };
-  return { swarmers: swarmersOf(carrier), riders: ridersOf(carrier), units: new Map() };
+  if (!carrier) return { swarmers: [], riders: [], units: new Map(), detach: new Set() };
+  return { swarmers: swarmersOf(carrier), riders: ridersOf(carrier), units: new Map(), detach: new Set() };
 }
 
-/** Save the infantry changes an attack caused. */
+/** Save the infantry changes an attack caused (damage, then units that came off). */
 export async function flushIntercepts(cache) {
-  for (const { actor, troopers, platoonPoints } of cache.units.values()) {
+  for (const { actor, troopers, platoonPoints, dirty } of cache.units.values()) {
+    if (!dirty) continue;
     if (troopers) await writeDoc(actor, { 'system.troopers': troopersForWrite(troopers) });
     if (platoonPoints > 0) await applyPlatoonDamage(actor, platoonPoints);
+  }
+  for (const u of cache.detach) await detach(u);
+}
+
+/** 'Mech torso locations / vehicle sides occupied by live mechanized troopers. */
+export function riderLocations(carrier) {
+  const out = new Set();
+  for (const u of ridersOf(carrier)) {
+    baTroopers(u).forEach((t, i) => {
+      const p = TRANSPORT_POSITIONS[i];
+      if (t.alive && p) out.add(carrier.type === 'mech' ? p.mech : p.vehicle);
+    });
+  }
+  return out;
+}
+
+const TORSO_WORD = { ct: 'center torso', lt: 'left torso', rt: 'right torso' };
+
+/** Troopers riding on 'Mech torso locations destroyed by this attack die (front and rear). */
+export function killRidersOn(locs, cache, lines) {
+  if (!locs.length) return;
+  for (const u of cache.riders) {
+    const entry = cacheEntry(cache, u);
+    (entry.troopers || []).forEach((t, i) => {
+      const p = TRANSPORT_POSITIONS[i];
+      if (!t.alive || !p || !locs.includes(p.mech)) return;
+      t.damage = t.capacity; t.alive = false; entry.dirty = true;
+      lines.push(`${u.name} trooper #${t.n}, riding on the destroyed ${TORSO_WORD[p.mech]}, is killed`);
+    });
+  }
+}
+
+/**
+ * The carrier was destroyed: each riding unit survives on 1D6 1–2 (except
+ * troopers on destroyed locations) and is otherwise destroyed; swarmers drop
+ * off — from a VTOL / WiGE with 1 damage per elevation to each trooper (none
+ * for jump- or VTOL-capable infantry). All of them come off the carrier.
+ */
+export async function carrierDestroyed(carrier, cache, rolls, lines) {
+  for (const u of cache.riders) {
+    const entry = cacheEntry(cache, u);
+    const r = await new Roll("1d6").evaluate();
+    rolls.push(r);
+    if (r.total <= 2) lines.push(`${u.name} survives its carrier's destruction (1D6 ${r.total}): placed in the hex, it moves and fires normally next turn`);
+    else {
+      (entry.troopers || []).forEach(t => { t.damage = t.capacity; t.alive = false; });
+      entry.dirty = true;
+      lines.push(`${u.name} is destroyed with its carrier (1D6 ${r.total})`);
+    }
+    cache.detach.add(u);
+  }
+  const airborne = carrier.type === 'ground_vehicle' && ['vtol', 'wige'].includes(carrier.system?.movementType) ? num(carrier.system?.elevation) : 0;
+  for (const u of cache.swarmers) {
+    const entry = cacheEntry(cache, u);
+    const flies = num(u.system?.movement?.jump) > 0 || num(u.system?.movement?.vtol) > 0;
+    const each = airborne && !flies ? airborne : 0;
+    if (each) {
+      if (entry.troopers) entry.troopers.forEach(t => { if (t.alive) damageTrooper(t, each); });
+      else entry.platoonPoints += each * liveTroopers(u);
+      entry.dirty = true;
+    }
+    lines.push(`${u.name} drops off the destroyed ${carrier.name}${each ? ` (${each} damage to each trooper)` : ''}`);
+    cache.detach.add(u);
   }
 }
 

@@ -4,7 +4,7 @@ import { weaponAttack } from "../helpers/tw-combat.mjs";
 import {
   BA_TECH, BA_WEIGHTS, MANIPULATORS, STEALTH_TYPES, attachedCarrier, attachment, baTroopers, baWeaponKind, squadSize, troopersForWrite
 } from "../helpers/tw-infantry.mjs";
-import { antiMechCapability, baSwarmDamage, riderPositions, swarmDamageBlock } from "../helpers/tw-antimech.mjs";
+import { antiMechCapability, baSwarmDamage, mountCapability, riderPositions, swarmDamageBlock } from "../helpers/tw-antimech.mjs";
 
 const { DialogV2 } = foundry.applications.api;
 
@@ -80,6 +80,7 @@ export class MechFoundryBattleArmorSheet extends MechFoundryUnitSheet {
       };
     }
     context.antiMechBlock = antiMechCapability(this.actor);
+    context.mountBlock = mountCapability(this.actor);
 
     // Crew block + optional link (Gunnery / Anti-'Mech).
     const crew = sys.crew || {};

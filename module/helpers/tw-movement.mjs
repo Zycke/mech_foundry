@@ -10,7 +10,7 @@
  * A record from another turn reads as stationary / 0 hexes.
  */
 import { currentTurnKey } from "./tw-turn.mjs";
-import { concealmentMods, isInfantry } from "./tw-infantry.mjs";
+import { concealmentMods, isInfantry, ridersOf } from "./tw-infantry.mjs";
 
 const num = (v) => Number(v) || 0;
 
@@ -49,6 +49,7 @@ export function mechEffectiveMP(actor) {
   if (legActs) { walk = Math.max(0, walk - legActs); notes.push(`leg actuators −${legActs}`); }
   const heatMP = Math.min(5, Math.floor(num(sys.heat?.value) / 5));
   if (heatMP) { walk = Math.max(0, walk - heatMP); notes.push(`heat −${heatMP}`); }
+  if (clampedRiders(actor)) { walk = Math.max(0, walk - 1); notes.push('carrying battle armor −1'); }
   let run = Math.ceil(walk * 1.5);
   if (legsGone) { walk = Math.min(walk, legsGone >= 2 ? 0 : 1); run = walk; notes.push(legsGone >= 2 ? 'no legs' : 'leg destroyed: 1 MP, no running'); }
   const jets = Object.values(sys.critSlots || {}).flat().filter(x => x?.type === 'jumpJet' && x.hit).length;
@@ -67,7 +68,13 @@ export function vehicleEffectiveCruise(actor) {
   if (sys.crits?.engineHit || sys.conditions?.immobile) return 0;
   let cruise = Math.max(0, num(sys.movement?.cruise) - num(sys.crits?.motiveHits));
   for (let i = 0; i < num(sys.crits?.motiveHalvings); i++) cruise = Math.ceil(cruise / 2);
+  if (clampedRiders(actor)) cruise = Math.max(0, cruise - 1);
   return cruise;
+}
+
+/** A non-Omni unit carrying battle armor on magnetic clamps loses 1 Walking / Cruising MP. */
+function clampedRiders(actor) {
+  return !actor?.system?.omni && ridersOf(actor).length > 0;
 }
 
 function walkMP(actor) {

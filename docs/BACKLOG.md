@@ -229,7 +229,11 @@ Rules detail for what *is* automated lives in `docs/unit-sheet-design.md`.
       fighters; VSTOL gating for VIFF / vertical landings.
 
 **Other units & setup**
-- [ ] Conventional infantry combat (next); mechanized battle armor (in progress).
+- [ ] Conventional infantry combat (next).
+- [ ] Mechanized battle armor details: MP / timing limits on mounting (all MP spent, not the
+      carrier's last MP), riders not counting for initiative or stacking, weapons spanning several
+      locations, ammo dumping, trailers / Large Support Vehicles (two units), moving rider tokens
+      with the carrier, carrier destroyed in prohibited terrain.
 - [ ] Anti-'Mech details: four-legged 'Mech swarm location column, IndustrialMech −1 (use Other),
       aimed shots on immobile targets, arms mounting physical weapons (the Pull off… dialog
       leaves that to the player), water (swarmers without UMU drowned), stacking / domino

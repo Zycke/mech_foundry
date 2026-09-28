@@ -21,8 +21,9 @@ import {
   airToGroundMods, isAero, isAirToGround
 } from "./tw-aero.mjs";
 import {
-  apFiredThisTurn, attachment, baAttackHits, baWeaponKind, ciRangeBracket, flushIntercepts, interceptAt, interceptCache,
-  isBattleArmor, isInfantry, liveTroopers, resolveBattleArmorDamage, stealthMod, stealthRow, untargetableReason
+  apFiredThisTurn, attachment, baAttackHits, baWeaponKind, carrierDestroyed, ciRangeBracket, flushIntercepts, interceptAt,
+  interceptCache, isBattleArmor, isInfantry, killRidersOn, liveTroopers, resolveBattleArmorDamage, riderLocations, stealthMod,
+  stealthRow, untargetableReason
 } from "./tw-infantry.mjs";
 
 const { DialogV2 } = foundry.applications.api;
@@ -512,7 +513,7 @@ export async function resolveVehicleAttack(target, direction, groupSizes, rolls,
     if (eff.level === 4) conditions.immobile = true;
   };
 
-  const icache = interceptCache(noIntercept ? null : target);
+  const icache = interceptCache(target);
   const infantryLines = [];
   for (const g0 of groupSizes) {
     const locRoll = await new Roll("2d6").evaluate();
@@ -522,7 +523,7 @@ export async function resolveVehicleAttack(target, direction, groupSizes, rolls,
 
     // Swarming infantry (any location) and riding battle armor may be hit first.
     let g = g0;
-    if (icache.riders.length || icache.swarmers.length) {
+    if (!noIntercept && (icache.riders.length || icache.swarmers.length)) {
       const ic = await interceptAt(target, { facing }, g0, rolls, icache);
       infantryLines.push(...ic.lines);
       g = ic.remaining;
@@ -577,6 +578,7 @@ export async function resolveVehicleAttack(target, direction, groupSizes, rolls,
   const cruise = Number(target.system.movement?.cruise) || 0;
   crits.motiveHits = Math.min(Math.max(3, cruise), Number(crits.motiveHits) || 0);
 
+  if (destroyed && (icache.riders.length || icache.swarmers.length)) await carrierDestroyed(target, icache, rolls, infantryLines);
   await flushIntercepts(icache);
   const applied = await writeDoc(target, { 'system.armor': armor, 'system.structure': structure, 'system.crits': crits, 'system.conditions': conditions, 'system.crew': crew, 'system.weapons': weapons, 'system.elevation': ctx.elevation });
 
@@ -1244,7 +1246,7 @@ export async function resolveDamageAgainst(targetActor, direction, groupSizes, r
     };
 
     // Swarming infantry and riding mechanized battle armor may take hits first.
-    const icache = noIntercept ? interceptCache(null) : interceptCache(targetActor);
+    const icache = interceptCache(targetActor);
     const infantryLines = [];
     let firstLoc = null;
     for (const g of groupSizes) {
@@ -1258,7 +1260,7 @@ export async function resolveDamageAgainst(targetActor, direction, groupSizes, r
         continue;
       }
       let amount = g;
-      if (icache.riders.length || icache.swarmers.length) {
+      if (!noIntercept && (icache.riders.length || icache.swarmers.length)) {
         const ic = await interceptAt(targetActor, { loc: locRoll.loc, rear: locRoll.rear }, g, rolls, icache);
         infantryLines.push(...ic.lines);
         totalDamage -= g - ic.remaining;
@@ -1354,6 +1356,13 @@ export async function resolveDamageAgainst(targetActor, direction, groupSizes, r
       psr = damagePSRUpdate(targetActor, { structure: dmgState.structure, systemHits }, newCrits, totalDamage, extraPSR);
     }
 
+    // Mechanized troopers riding on a torso location destroyed now die with it; if
+    // the 'Mech is destroyed, riders roll to survive and swarmers drop off.
+    if (icache.riders.length || icache.swarmers.length) {
+      const gone = (k) => num(dmgState.structure[k]?.max) > 0 && num(dmgState.structure[k]?.value) <= 0;
+      killRidersOn(['ct', 'lt', 'rt'].filter(k => gone(k) && num(structureBefore[k]?.value) > 0), icache, infantryLines);
+      if (state.destroyed || gone('ct') || gone('head') || num(systemHits.engine) >= 3) await carrierDestroyed(targetActor, icache, rolls, infantryLines);
+    }
     await flushIntercepts(icache);
     const applied = await writeDoc(targetActor, {
       'system.armor': dmgState.armor, 'system.structure': dmgState.structure,
@@ -1454,6 +1463,11 @@ export function weaponBlock(actor, weapon) {
   if (actor?.type === 'mech') {
     const loc = mechWeaponLocation(weapon);
     if (loc && locationGone(actor, loc)) return `${wName}'s location (${MECH_LOC_LABEL[loc]}) is destroyed.`;
+    if (loc && riderLocations(actor).has(loc)) return `A battle armor trooper is riding on the ${MECH_LOC_LABEL[loc]}: ${wName} can't fire.`;
+  }
+  if (actor?.type === 'ground_vehicle') {
+    const side = vehicleWeaponLocation(weapon);
+    if (side && side !== 'turret' && riderLocations(actor).has(side)) return `A battle armor trooper is riding on that side: ${wName} can't fire.`;
   }
   if (isInfantry(actor) && currentTurnKey() && actor.flags?.['mech-foundry']?.antiMech?.key === currentTurnKey()) {
     return `${actor.name} made an anti-'Mech attack this turn instead of weapon attacks.`;

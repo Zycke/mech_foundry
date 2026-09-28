@@ -319,6 +319,7 @@
       "tonnage": 0,
       "weightClass": "",
       "techBase": "",
+      "omni": false,
       "era": "",
       "movement": {
         "walk": 0,
@@ -452,6 +453,7 @@
       "weightClass": "",
       "tonnage": 0,
       "techBase": "",
+      "omni": false,
       "era": "",
       "movementType": "tracked",
       "movement": {

@@ -45,8 +45,9 @@
           <button type="button" class="release-swarm" title="End the swarm (any later Weapon Attack Phase); the unit drops into the hex"><i class="fas fa-person-walking-arrow-right"></i> Release</button>
         </div>{{/if}}
         {{else}}
-        <h4>Riding {{attached.carrierName}} <span class="hint">mechanized battle armor</span></h4>
+        <h4>Riding {{attached.carrierName}} <span class="hint">mechanized battle armor — can't be targeted or fire (except at infantry swarming the carrier)</span></h4>
         {{#each attached.positions}}<div class="penalty-line{{#unless alive}} dmg{{/unless}}">▸ #{{n}}: {{where}}{{#unless alive}} — destroyed{{/unless}}</div>{{/each}}
+        {{#if editable}}<div class="mf-actions"><button type="button" class="dismount-carrier" title="Movement Phase, at the end of the carrier's move: the unit can't move or attack this turn"><i class="fas fa-person-walking-arrow-right"></i> Dismount</button></div>{{/if}}
         {{/if}}
       </div>
       {{/if}}
@@ -79,6 +80,7 @@
           </div>
           {{/if}}
           {{#if equipment.bodyMissiles}}{{#unless equipment.missilesJettisoned}}<div class="penalty-line">▸ Body-mounted missile launchers: no jumping or anti-'Mech attacks until jettisoned (Details tab)</div>{{/unless}}{{/if}}
+          {{#if editable}}{{#unless attached}}<div class="mf-actions"><button type="button" class="mount-carrier" {{#if mountBlock}}disabled title="{{mountBlock}}"{{else}}title="Ride the targeted friendly 'Mech or vehicle in the same hex (Omni, or any with magnetic clamps)"{{/if}}><i class="fas fa-person-walking-luggage"></i> Mount…</button></div>{{/unless}}{{/if}}
         </div>
 
         <div class="mf-panel">

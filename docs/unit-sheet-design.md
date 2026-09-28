@@ -308,6 +308,22 @@ criticals and cluster grouping:
   WiGE) and Take off (aerospace: 4D6). Any 'Mech fall throws swarming and riding infantry off
   (2D6 each, as from an infantry attack). Self-inflicted damage (falls, skids, charges) never
   strikes the attached infantry.
+- **Mechanized battle armor** (TW p. 227): Mount… on the battle armor sheet (target a friendly
+  'Mech or vehicle in the same hex) attaches it (mode `ride`). Needs a humanoid suit up to heavy
+  with a basic manipulator or battle claw (light / PA(L): or two armored gloves), an Omni carrier
+  (the mech / vehicle Details "OmniMech / OmniVehicle" flag) or magnetic clamps, one battle armor
+  unit per carrier, and no VTOL / WiGE / UMU carriers. A swarmed carrier is mounted only with a
+  swarm-style roll using the negated Swarm Attack Modifiers Table value; those riders (and the
+  swarmers) may shoot each other ignoring target movement and terrain. Troopers ride per the
+  Battle Armor Transport Position Table (#1 RT / right, #2 LT / right, #3 RT rear / left, #4 LT
+  rear / left, #5 CT rear / rear, #6 CT / rear). Weapons in a 'Mech torso location or vehicle
+  side with a live rider can't fire (turrets can); a non-Omni carrier loses 1 Walking / Cruising
+  MP. Hits in a location with riders (front / rear for torsos) roll 1D6 per trooper there: 5–6
+  and that trooper absorbs damage up to its capacity first. A destroyed torso kills its riders; a
+  destroyed carrier's riders survive on 1D6 1–2 (swarmers drop off; from a VTOL / WiGE with 1
+  damage per elevation). Falls throw riders off (2D6); Building hex… on the carrier rolls the
+  building check (1–3: 1D6 and hold on; 4–6 or accidental: fall off with 2D6). Riders can't be
+  targeted or fire; Dismount returns them to the hex.
 **Intentional house rules** (deliberate divergences — don't "correct" toward the book):
 - Combat vehicles roll a critical on any hit that penetrates to internal structure, in
   addition to the tables' marked results (2/12, or 8 on side attacks).

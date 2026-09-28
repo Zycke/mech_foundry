@@ -5,8 +5,8 @@ import { aeroMaxBracket, aeroTurnState, isAero, setAeroTurn } from "../helpers/t
 import { physicalAttack } from "../helpers/tw-physical.mjs";
 import { sideslipCheck, skidCheck, vehicleCrash } from "../helpers/tw-skid.mjs";
 import {
-  antiMechAttack, attachedSummary, dropProneShakeOff, jumpShakeOff, releaseSwarm, removeSwarmers, swarmAttack,
-  takeOffShakeOff, vehicleShakeOff
+  antiMechAttack, attachedSummary, dismountCarrier, dropProneShakeOff, jumpShakeOff, mountCarrier, releaseSwarm, removeSwarmers,
+  riderBuildingCheck, swarmAttack, takeOffShakeOff, vehicleShakeOff
 } from "../helpers/tw-antimech.mjs";
 
 /** Weight classes offered on unit sheets (free-form fallback allowed). */
@@ -117,6 +117,10 @@ export class MechFoundryUnitSheet extends MechFoundryActorSheetV2 {
     html.on('click', '.drop-prone-shakeoff', (ev) => { ev.preventDefault(); dropProneShakeOff(this.actor); });
     html.on('click', '.vehicle-shakeoff', (ev) => { ev.preventDefault(); vehicleShakeOff(this.actor); });
     html.on('click', '.takeoff-shakeoff', (ev) => { ev.preventDefault(); takeOffShakeOff(this.actor); });
+    // Mechanized battle armor.
+    html.on('click', '.mount-carrier', (ev) => { ev.preventDefault(); mountCarrier(this.actor); });
+    html.on('click', '.dismount-carrier', (ev) => { ev.preventDefault(); dismountCarrier(this.actor); });
+    html.on('click', '.rider-building', (ev) => { ev.preventDefault(); riderBuildingCheck(this.actor); });
   }
 
   /** A boolean weapon field (e.g. Capital) from a checkbox. */

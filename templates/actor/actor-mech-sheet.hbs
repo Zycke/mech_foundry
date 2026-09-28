@@ -289,6 +289,9 @@
           <label class="mf-stat"><span class="k">Cost (C-bills)</span><input type="number" min="0" name="system.cost" value="{{system.cost}}" {{#unless editable}}disabled{{/unless}} /></label>
           <label class="mf-stat"><span class="k">Battle Value</span><input type="number" min="0" name="system.bv" value="{{system.bv}}" {{#unless editable}}disabled{{/unless}} /></label>
         </div>
+        <div class="flags">
+          <label class="chk" title="OmniMechs carry mechanized battle armor on their handholds without losing MP; other 'Mechs need battle armor with magnetic clamps (−1 Walking MP)"><input type="checkbox" name="system.omni" {{checked system.omni}} {{#unless editable}}disabled{{/unless}}> OmniMech</label>
+        </div>
       </div>
       <div class="mf-panel">
         <h4>Notes / Biography</h4>
