@@ -10,7 +10,8 @@
  */
 import {
   actorSkillRating, applyCrewDamage, CREW_DAMAGE, VEHICLE_DRIVING_SKILLS,
-  MECH_GUNNERY_SKILLS, VEHICLE_GUNNERY_SKILLS, AERO_GUNNERY_SKILLS, BATTLESUIT_GUNNERY_SKILLS
+  MECH_GUNNERY_SKILLS, VEHICLE_GUNNERY_SKILLS, AERO_GUNNERY_SKILLS, BATTLESUIT_GUNNERY_SKILLS,
+  INFANTRY_GUNNERY_SKILLS, INFANTRY_SKILL_BASE_TN
 } from "./atow-conversion.mjs";
 import { beginRecording, endRecording, writeDoc } from "./gm-relay.mjs";
 import { currentTurnKey } from "./tw-turn.mjs";
@@ -21,9 +22,9 @@ import {
   airToGroundMods, isAero, isAirToGround
 } from "./tw-aero.mjs";
 import {
-  apFiredThisTurn, attachment, baAttackHits, baWeaponKind, carrierDestroyed, ciRangeBracket, flushIntercepts, interceptAt,
-  interceptCache, isBattleArmor, isInfantry, killRidersOn, liveTroopers, resolveBattleArmorDamage, riderLocations, stealthMod,
-  stealthRow, untargetableReason
+  apFiredThisTurn, attachment, baAttackHits, baWeaponKind, burstDice, carrierDestroyed, ciRangeBracket, flushIntercepts,
+  infantryDamageClass, interceptAt, interceptCache, isBattleArmor, isInfantry, killRidersOn, liveTroopers, platoonAttackDamage,
+  platoonWeapon, resolveBattleArmorDamage, resolvePlatoonHit, riderLocations, stealthMod, stealthRow, untargetableReason
 } from "./tw-infantry.mjs";
 
 const { DialogV2 } = foundry.applications.api;
@@ -83,7 +84,10 @@ export function groupDamage(total, size = 5) {
 export function gunneryFor(actor) {
   const crew = actor.system.pilot || actor.system.crew || {};
   const linked = crew.actorId ? game.actors.get(crew.actorId) : null;
-  if (linked) {
+  if (linked && actor.type === 'infantry') {
+    const r = actorSkillRating(linked, INFANTRY_GUNNERY_SKILLS, INFANTRY_SKILL_BASE_TN);
+    if (r) return r.rating;
+  } else if (linked) {
     const cands = actor.type === 'mech' ? MECH_GUNNERY_SKILLS
       : actor.type === 'ground_vehicle' ? VEHICLE_GUNNERY_SKILLS
         : actor.type === 'battle_armor' ? BATTLESUIT_GUNNERY_SKILLS
@@ -1167,10 +1171,16 @@ export async function resolveMechHeat(actor) {
  */
 export async function resolveDamageAgainst(targetActor, direction, groupSizes, rolls, targetName = '', {
   noPSR = false, locationRoller = null, extraPSR = [], forceMotive = false, partialCover = false, explode = null,
-  areaEffect = false, autoCrit = false, noIntercept = false
+  areaEffect = false, autoCrit = false, noIntercept = false, platoonHit = null
 } = {}) {
   const tt = targetActor?.type;
   if (tt === 'battle_armor') return await resolveBattleArmorDamage(targetActor, groupSizes, rolls, { areaEffect });
+  // Conventional infantry: troopers eliminated per the Non-Infantry Weapon Damage table
+  // (callers that know the weapon pass `platoonHit`; otherwise direct fire / physical).
+  if (tt === 'infantry') {
+    const dv = groupSizes.reduce((a, b) => a + b, 0);
+    return await resolvePlatoonHit(targetActor, areaEffect ? { dv, cls: 'ae' } : (platoonHit ?? { dv, cls: 'direct' }), rolls);
+  }
   if (tt === 'mech') {
     const groups = [];
     const critChecks = [];
@@ -1472,6 +1482,11 @@ export function weaponBlock(actor, weapon) {
   if (isInfantry(actor) && currentTurnKey() && actor.flags?.['mech-foundry']?.antiMech?.key === currentTurnKey()) {
     return `${actor.name} made an anti-'Mech attack this turn instead of weapon attacks.`;
   }
+  if (actor?.type === 'infantry') {
+    if (liveTroopers(actor) <= 0) return `${actor.name} has no troopers left.`;
+    // 0 Ground MP platoons either move or attack in a turn.
+    if (!num(actor.system?.movement?.ground) && !num(actor.system?.movement?.jump) && movedThisTurn(actor).hexes > 0) return `${actor.name} (0 MP) moved this turn and can't attack.`;
+  }
   if (isBattleArmor(actor)) {
     if (liveTroopers(actor) <= 0) return `${actor.name} has no troopers left.`;
     if (weapon?.ap && apFiredThisTurn(actor, firedThisTurn(actor))) return `${actor.name} has already made its anti-personnel attack this turn.`;
@@ -1504,6 +1519,11 @@ export function targetBlock(actor, targetActor) {
 const closeQuarters = (actor, targetActor) => !!attachment(actor) && !!attachment(targetActor);
 const CLOSE_QUARTERS_DROP = ['targetMove', 'targetSkid'];
 
+/** The weapons a unit attacks with (a conventional platoon has a single platoon attack). */
+export function unitWeapons(actor) {
+  return actor?.type === 'infantry' ? [platoonWeapon(actor)] : (actor?.system?.weapons || []);
+}
+
 /** Does firing this weapon spend ammunition? (Battle armor: missile launchers only.) */
 export function weaponTracksAmmo(actor, weapon) {
   if (isBattleArmor(actor)) return baWeaponKind(weapon) === 'missile' && usesAmmo(weapon);
@@ -1516,6 +1536,7 @@ export function weaponTracksAmmo(actor, weapon) {
  * Infantry Range Modifier Table (Rifle, Ballistic) from range 0.
  */
 function groundRange(range, weapon, infantryAttacker) {
+  if (infantryAttacker && weapon?.ciType) return ciRangeBracket(weapon.ciType, range);
   if (infantryAttacker && weapon?.ap) return ciRangeBracket('rifleBallistic', range);
   return rangeBracket(infantryAttacker && range === 0 ? 1 : range, weapon);
 }
@@ -1530,7 +1551,7 @@ function weaponPreviewRow(actor, weapon, targetActor, mode = attackMode(actor, t
     l: num(weapon.rangeL ?? weapon.long), e: num(weapon.rangeE ?? weapon.ext),
     min: num(weapon.rangeMin),
     prone: targetActor?.type === 'mech' && !!targetActor.system?.conditions?.prone,
-    inf: isInfantry(actor), ap: !!weapon.ap, stealth: stealthRow(targetActor, actor)
+    inf: isInfantry(actor), ap: !!weapon.ap, ciType: weapon.ciType || null, stealth: stealthRow(targetActor, actor)
   };
 }
 
@@ -1539,7 +1560,7 @@ function weaponPreviewRow(actor, weapon, targetActor, mode = attackMode(actor, t
  * @returns {{tn:number, oor:boolean, bracket:string, chance:number}}
  */
 export function previewTN(v, row) {
-  const rb = shotRange(row.mode, v.range, { rangeS: row.s, rangeM: row.m, rangeL: row.l, rangeE: row.e, aeroRange: row.maxB, capital: row.capital, ap: row.ap }, row.inf);
+  const rb = shotRange(row.mode, v.range, { rangeS: row.s, rangeM: row.m, rangeL: row.l, rangeE: row.e, aeroRange: row.maxB, capital: row.capital, ap: row.ap, ciType: row.ciType }, row.inf);
   let tn = num(v.gunnery) + num(v.autoSum) + num(v.heat) + num(v.other) + num(v.terrain) + row.fixed + rb.mod;
   const si = ['Short', 'Medium', 'Long'].indexOf(String(rb.bracket).split(' ')[0]);
   if (si >= 0 && row.stealth) tn += num(row.stealth[si]);
@@ -1612,7 +1633,7 @@ export function weaponToHitPreview(actor) {
     .filter(m => !(closeQuarters(actor, targetActor) && CLOSE_QUARTERS_DROP.includes(m.key)));
   const v = { gunnery: gunneryFor(actor), autoSum: shared.reduce((t, m) => t + m.value, 0), heat: heatToHitMod(actor), range, other: 0, terrain: 0 };
   const out = {};
-  for (const w of actor.system.weapons || []) {
+  for (const w of unitWeapons(actor)) {
     const row = weaponPreviewRow(actor, w, targetActor, mode);
     const p = previewTN(v, row);
     const parts = [`Gunnery ${v.gunnery}`, ...shared.map(m => `${m.label} ${m.value >= 0 ? '+' : ''}${m.value}`)];
@@ -1648,7 +1669,7 @@ export async function weaponAttack(actor, weapon) {
  */
 export async function fireWeapons(actor, preselect = []) {
   if (!actor) return;
-  const all = actor.system.weapons || [];
+  const all = unitWeapons(actor);
   if (preselect.length === 1) {
     const why = weaponBlock(actor, all.find(w => w.id === preselect[0]));
     if (why) { ui.notifications.warn(why); return; }
@@ -1711,7 +1732,7 @@ export async function fireWeapons(actor, preselect = []) {
       </fieldset>` : `<fieldset class="tw-terrain"><legend>Terrain &amp; target</legend>
         <div class="form-group"><label>Light woods hexes between</label><input type="number" name="lightWoods" value="0" min="0" /></div>
         <div class="form-group"><label>Heavy woods hexes between</label><input type="number" name="heavyWoods" value="0" min="0" /></div>
-        <div class="form-group"><label>Target standing in</label><select name="targetWoods"><option value="none">Open</option><option value="light">Light woods (+1)</option><option value="heavy">Heavy woods (+2)</option></select></div>
+        <div class="form-group"><label>Target standing in${targetActor?.type === 'infantry' ? ' <span class="tw-hint">conventional infantry in the open take double damage</span>' : ''}</label><select name="targetWoods"><option value="none">Open</option><option value="light">Light woods (+1)</option><option value="heavy">Heavy woods (+2)</option></select></div>
         <div class="form-group"><label>Partial cover (+1; leg hits strike the cover)</label><input type="checkbox" name="partialCover" /></div>
         <div class="form-group"><label>Secondary target</label><select name="secondary"><option value="none">No (primary)</option>${isInfantry(actor)
           ? '<option value="front">Yes (+1; infantry have no arcs)</option>'
@@ -1784,7 +1805,7 @@ export async function fireWeapons(actor, preselect = []) {
   const cards = [];
   beginRecording();
   for (const id of ids) {
-    const weapon = (actor.system.weapons || []).find(w => w.id === id);
+    const weapon = all.find(w => w.id === id);
     if (!weapon || weaponBlock(actor, weapon)) continue;
     const ctx = await resolveWeaponShot(actor, weapon, target, result, rolls);
     cards.push(await foundry.applications.handlebars.renderTemplate("systems/mech-foundry/templates/chat/tw-attack.hbs", ctx));
@@ -1865,9 +1886,36 @@ async function resolveWeaponShot(actor, weapon, target, result, rolls) {
   let hitResult = null;
   const perHit = num(weapon.damage);
   const clusterSize = num(weapon.clusterSize);
-  // Battle armor: every live trooper fires; the Cluster Hits Table (by troopers,
-  // or troopers × launcher size for missiles) says how many hit.
-  if (hit && baAttacker && (perHit > 0 || weapon.ap)) {
+  // Conventional infantry targets take trooper losses rather than location
+  // damage; standing in Clear terrain (no terrain to-hit modifier) doubles them.
+  const platoonTarget = targetActor?.type === 'infantry';
+  const clear = platoonTarget && mode !== 'aero' && (result.terrain?.targetWoods ?? 'none') === 'none' && !result.terrain?.partialCover;
+  if (hit && actor.type === 'infantry') {
+    // A platoon: Cluster Hits Table by troopers → Generic Conventional Infantry Damage Table.
+    const pd = await platoonAttackDamage(actor, rolls, clusterHits);
+    let frag;
+    if (platoonTarget) {
+      let dmg = pd.total;
+      const extra = [];
+      if (actor.system?.weaponType === 'mg') {
+        const r = await new Roll("1d6").evaluate();
+        rolls.push(r);
+        dmg += r.total;
+        extra.push(`Machine gun platoon against infantry: +1D6 = ${r.total}`);
+      }
+      frag = await resolvePlatoonHit(targetActor, { infantryDamage: dmg, clear }, rolls);
+      frag.lines = [...extra, ...frag.lines];
+    } else {
+      frag = pd.groups.length
+        ? await resolveDamageAgainst(targetActor, result.direction, pd.groups, rolls, targetName, { partialCover: !!result.terrain?.partialCover && targetActor?.type === 'mech' })
+        : { groups: [], applied: true, hasTarget: !!targetActor, targetName };
+    }
+    hitResult = { baFire: pd, total: pd.total, ...frag };
+  } else if (hit && platoonTarget) {
+    hitResult = await platoonHitFrom(actor, weapon, targetActor, clear, rolls);
+  } else if (hit && baAttacker && (perHit > 0 || weapon.ap)) {
+    // Battle armor: every live trooper fires; the Cluster Hits Table (by troopers,
+    // or troopers × launcher size for missiles) says how many hit.
     const ba = await baAttackHits(actor, weapon, rolls, clusterHits);
     const frag = ba.groups.length
       ? await resolveDamageAgainst(targetActor, result.direction, ba.groups, rolls, targetName, {
@@ -1899,6 +1947,34 @@ async function resolveWeaponShot(actor, weapon, target, result, rolls) {
     hit, margin: Math.abs(margin), outOfRange: !rb.inRange,
     damage: perHit, ammoLine, hitResult
   };
+}
+
+/**
+ * A 'Mech, vehicle, aerospace or battle armor weapon hitting a conventional
+ * platoon: burst-fire weapons roll their dice; others eliminate troopers by
+ * the Non-Infantry Weapon Damage table using the weapon's maximum damage
+ * (cluster weapons don't roll the Cluster Hits Table). Battle armor: each
+ * trooper hit counts separately, missiles use the whole volley, AP weapons
+ * deal infantry damage from the Rifle, Ballistic column.
+ */
+async function platoonHitFrom(actor, weapon, target, clear, rolls) {
+  const cls = infantryDamageClass(weapon, actor);
+  if (isBattleArmor(actor)) {
+    const kind = baWeaponKind(weapon);
+    if (kind === 'missile') {
+      const dv = liveTroopers(actor) * num(weapon.clusterSize) * num(weapon.damage);
+      const frag = await resolvePlatoonHit(target, { dv, cls: cls === 'burst' ? 'clusterMissile' : cls, clear }, rolls);
+      return { total: dv, ...frag };
+    }
+    const ba = await baAttackHits(actor, weapon, rolls, clusterHits);
+    const hit = kind === 'ap' ? { infantryDamage: ba.total, clear }
+      : cls === 'burst' ? { burst: burstDice(weapon, actor) || '2d6', hits: ba.hits, clear }
+        : { dv: num(weapon.damage), cls, hits: ba.hits, clear };
+    return { baFire: ba, total: ba.total, ...await resolvePlatoonHit(target, hit, rolls) };
+  }
+  if (cls === 'burst') return { total: 0, ...await resolvePlatoonHit(target, { burst: burstDice(weapon, actor) || '2d6', clear }, rolls) };
+  const dv = num(weapon.clusterSize) > 0 ? num(weapon.clusterSize) * num(weapon.damage) : num(weapon.damage);
+  return { total: dv, ...await resolvePlatoonHit(target, { dv, cls, clear }, rolls) };
 }
 
 /* ------------------------------------------------------------------ */

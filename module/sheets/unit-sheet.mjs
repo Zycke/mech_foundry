@@ -16,7 +16,8 @@ const TYPE_LABELS = {
   mech: 'Mech',
   ground_vehicle: 'Ground Vehicle',
   aerospace_fighter: 'Aerospace Fighter',
-  battle_armor: 'Battle Armor'
+  battle_armor: 'Battle Armor',
+  infantry: 'Conventional Infantry'
 };
 
 /**
@@ -66,7 +67,7 @@ export class MechFoundryUnitSheet extends MechFoundryActorSheetV2 {
     }));
     // This turn's movement (ground units, during combat): hexes accumulate from
     // token moves; the mode is inferred unless picked here (jumping must be picked).
-    if (currentTurnKey() && ['mech', 'ground_vehicle', 'battle_armor'].includes(this.actor.type)) {
+    if (currentTurnKey() && ['mech', 'ground_vehicle', 'battle_armor', 'infantry'].includes(this.actor.type)) {
       const mv = movedThisTurn(this.actor);
       const vehicle = this.actor.type === 'ground_vehicle';
       const label = (m) => vehicle ? m.vlabel : m.label;
@@ -110,7 +111,7 @@ export class MechFoundryUnitSheet extends MechFoundryActorSheetV2 {
     html.on('click', '.vehicle-crash', (ev) => { ev.preventDefault(); vehicleCrash(this.actor); });
     // Anti-'Mech attacks (infantry) and fighting off swarmers (the swarmed unit).
     html.on('click', '.anti-mech-attack', (ev) => { ev.preventDefault(); antiMechAttack(this.actor); });
-    html.on('click', '.swarm-attack', (ev) => { ev.preventDefault(); swarmAttack(this.actor, this.swarmOptions?.() ?? {}); });
+    html.on('click', '.swarm-attack', (ev) => { ev.preventDefault(); swarmAttack(this.actor); });
     html.on('click', '.release-swarm', (ev) => { ev.preventDefault(); releaseSwarm(this.actor); });
     html.on('click', '.remove-swarmers', (ev) => { ev.preventDefault(); removeSwarmers(this.actor); });
     html.on('click', '.jump-shakeoff', (ev) => { ev.preventDefault(); jumpShakeOff(this.actor); });

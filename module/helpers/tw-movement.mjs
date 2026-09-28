@@ -15,7 +15,7 @@ import { concealmentMods, isInfantry, ridersOf } from "./tw-infantry.mjs";
 const num = (v) => Number(v) || 0;
 
 /** Actor types whose movement is tracked (ground units). */
-const TRACKED_TYPES = new Set(['mech', 'ground_vehicle', 'battle_armor']);
+const TRACKED_TYPES = new Set(['mech', 'ground_vehicle', 'battle_armor', 'infantry']);
 
 export const MOVE_MODES = [
   { key: 'stationary', label: 'Stationary', vlabel: 'Stationary', mod: 0 },

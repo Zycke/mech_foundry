@@ -415,6 +415,7 @@
   "MECHFOUNDRY.SheetGroundVehicle": "Ground Vehicle Sheet",
   "MECHFOUNDRY.SheetAerospaceFighter": "Aerospace Fighter Sheet",
   "MECHFOUNDRY.SheetBattleArmor": "Battle Armor Sheet",
+  "MECHFOUNDRY.SheetInfantry": "Conventional Infantry Sheet",
   "MECHFOUNDRY.SheetInstallation": "Installation Sheet",
 
   "TYPES.Actor.character": "Character",
@@ -425,6 +426,7 @@
   "TYPES.Actor.ground_vehicle": "Ground Vehicle",
   "TYPES.Actor.aerospace_fighter": "Aerospace Fighter",
   "TYPES.Actor.battle_armor": "Battle Armor",
+  "TYPES.Actor.infantry": "Conventional Infantry",
   "TYPES.Actor.installation": "Installation",
 
   "MECHFOUNDRY.Company": "Company",

@@ -16,7 +16,7 @@ import {
   pilotUnconscious, terrainMods, weaponArm
 } from "./tw-movement.mjs";
 import { queuePSR } from "./tw-psr.mjs";
-import { untargetableReason } from "./tw-infantry.mjs";
+import { isInfantry, untargetableReason } from "./tw-infantry.mjs";
 import { fiveGroups, pilotingFor, postCard, resolveFall } from "./tw-falls.mjs";
 import {
   ATTACK_DIRECTIONS, MECH_LOC_LABEL, REAR_ARMOR_KEY, firedThisTurn, locationGone, measureHexes, resolveDamageAgainst
@@ -128,7 +128,7 @@ export function physicalBlock(actor, type, { arm = null, weaponKey = null, targe
   const tt = target?.type;
   if (tt && ['aerospace_fighter', 'small_craft', 'naval_ship'].includes(tt)) return 'Aerospace units cannot be targeted by physical attacks.';
   if (target && untargetableReason(target)) return untargetableReason(target);
-  const lowTarget = tt === 'ground_vehicle' || tt === 'battle_armor';
+  const lowTarget = tt === 'ground_vehicle' || isInfantry(target);
 
   if (type === 'punchL' || type === 'punchR' || type === 'weapon') {
     const a = type === 'punchL' ? 'la' : type === 'punchR' ? 'ra' : arm;
@@ -159,7 +159,7 @@ export function physicalBlock(actor, type, { arm = null, weaponKey = null, targe
     const mv = movedThisTurn(actor);
     if (type === 'charge' && mv.mode === 'jumped') return 'A unit that jumped this turn cannot charge.';
     if (type === 'dfa' && mv.mode !== 'jumped') return "Death from above needs a jump this turn (set the sheet's movement to Jumped).";
-    if (type === 'charge' && tt === 'battle_armor') return 'Infantry cannot be charged.';
+    if (type === 'charge' && isInfantry(target)) return 'Infantry cannot be charged.';
     if (type === 'charge' && isMech && tt === 'ground_vehicle') return "Vehicles may not be charged by 'Mechs.";
     if (type === 'charge' && tt === 'mech' && target.system?.conditions?.prone) return 'The target has fallen: the charge cannot be made.';
   }
@@ -306,11 +306,11 @@ export async function resolvePhysicalAttack(actor, target, r) {
     ...act.mods
   ];
   if (targetActor?.type === 'mech' && targetActor.system?.conditions?.prone) mods.push({ label: 'Target prone (adjacent)', value: -2 });
-  if ((type === 'charge' || type === 'dfa') && targetActor && targetActor.type !== 'battle_armor') {
+  if ((type === 'charge' || type === 'dfa') && targetActor && !isInfantry(targetActor)) {
     const diff = r.piloting - pilotingFor(targetActor);
     if (diff) mods.push({ label: 'Relative Piloting', value: diff });
   }
-  if ((type === 'kick' || type === 'dfa') && targetActor?.type === 'battle_armor') mods.push({ label: 'Infantry target', value: 3 });
+  if ((type === 'kick' || type === 'dfa') && isInfantry(targetActor)) mods.push({ label: 'Infantry target', value: 3 });
   if (type !== 'dfa') mods.push(...terrainMods(r.terrain));
   if (r.other) mods.push({ label: 'Other', value: r.other });
   const shown = mods.filter(m => m.value !== 0 || m.label === 'Piloting');

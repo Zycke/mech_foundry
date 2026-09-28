@@ -151,7 +151,7 @@
       <div class="mf-panel">
         <h4>Weapons by Arc {{#if editable}}<button type="button" class="fire-weapons" title="Fire several weapons together (one declaration, one card)"><i class="fas fa-crosshairs"></i> Fire…</button> <button type="button" class="add-weapon"><i class="fas fa-plus"></i> Add</button>{{/if}}</h4>
         <table class="wt">
-          <thead><tr><th class="w-name">Weapon</th><th>Arc</th><th>Ht</th><th>Dmg</th><th title="Cluster/launcher size">Clus</th><th title="Longest aerospace range bracket (Short 0–6, Medium 7–12, Long 13–20, Extreme 21–25 hexes; capital ×2)">Range</th><th title="Capital-scale weapon">Cap</th><th>Ammo Type</th><th>Rds</th><th></th></tr></thead>
+          <thead><tr><th class="w-name">Weapon</th><th>Arc</th><th>Ht</th><th>Dmg</th><th title="Cluster/launcher size">Clus</th><th title="Longest aerospace range bracket (Short 0–6, Medium 7–12, Long 13–20, Extreme 21–25 hexes; capital ×2)">Range</th><th title="Capital-scale weapon">Cap</th><th title="Against conventional infantry: the weapon's row on the Non-Infantry Weapon Damage table (auto guesses from the name)">vs Inf</th><th>Ammo Type</th><th>Rds</th><th></th></tr></thead>
           <tbody>
             {{#each weapons}}
             <tr class="w-row{{#if destroyed}} w-destroyed{{/if}}{{#if fired}} w-fired{{/if}}">
@@ -164,6 +164,7 @@
                 <option value="short" {{#if (eq aeroMax "short")}}selected{{/if}}>Short</option><option value="medium" {{#if (eq aeroMax "medium")}}selected{{/if}}>Medium</option>
                 <option value="long" {{#if (eq aeroMax "long")}}selected{{/if}}>Long</option><option value="extreme" {{#if (eq aeroMax "extreme")}}selected{{/if}}>Extreme</option></select></td>
               <td><input type="checkbox" class="weapon-flag" data-weapon-id="{{id}}" data-field="capital" {{checked capital}} title="Capital-scale weapon" {{#unless ../editable}}disabled{{/unless}} /></td>
+              <td><select class="weapon-field w-inf" data-weapon-id="{{id}}" data-field="infClass" {{#unless ../editable}}disabled{{/unless}}><option value="" {{#unless infClass}}selected{{/unless}}>auto</option><option value="direct" {{#if (eq infClass "direct")}}selected{{/if}}>direct</option><option value="clusterBallistic" {{#if (eq infClass "clusterBallistic")}}selected{{/if}}>clus. ball.</option><option value="pulse" {{#if (eq infClass "pulse")}}selected{{/if}}>pulse</option><option value="clusterMissile" {{#if (eq infClass "clusterMissile")}}selected{{/if}}>clus. missile</option><option value="burst" {{#if (eq infClass "burst")}}selected{{/if}}>burst</option><option value="ae" {{#if (eq infClass "ae")}}selected{{/if}}>area</option></select></td>
               <td><input type="text" class="weapon-field" data-weapon-id="{{id}}" data-field="ammoType" value="{{ammoType}}" placeholder="— none —" {{#unless ../editable}}disabled{{/unless}} /></td>
               <td><input type="number" min="0" class="weapon-field n" data-weapon-id="{{id}}" data-field="ammo" value="{{ammo}}" {{#unless ../editable}}disabled{{/unless}} /></td>
               <td class="w-actions">

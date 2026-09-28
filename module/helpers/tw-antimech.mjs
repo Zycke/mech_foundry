@@ -18,12 +18,12 @@ import {
 } from "./tw-movement.mjs";
 import { phaseDamageSoFar, psrDamageMods } from "./tw-psr.mjs";
 import { pilotingFor, postCard, resolveFall } from "./tw-falls.mjs";
-import { MECH_LOC_LABEL, firedThisTurn, locationGone, measureHexes, resolveDamageAgainst } from "./tw-combat.mjs";
+import { MECH_LOC_LABEL, clusterHits, firedThisTurn, locationGone, measureHexes, resolveDamageAgainst } from "./tw-combat.mjs";
 import { actuatorEffects, physicalDamage, physicalThisTurn, rollKickLocation, rollPunchLocation } from "./tw-physical.mjs";
 import { isAero } from "./tw-aero.mjs";
 import {
   BA_WEIGHTS, TRANSPORT_POSITIONS, antiMechFor, attachedCarrier, attachment, baTroopers, baWeaponKind, infantryAttackDamage,
-  isInfantry, knockOff, liveTroopers, manipulatorCount, ridersOf, swarmersOf, vibroBonus
+  isInfantry, knockOff, liveTroopers, manipulatorCount, platoonAttackDamage, ridersOf, swarmersOf, vibroBonus
 } from "./tw-infantry.mjs";
 
 const { DialogV2 } = foundry.applications.api;
@@ -283,10 +283,10 @@ export function swarmDamageBlock(actor) {
  * Battle armor put everything in one group; a 'Mech rolls the Swarm Attacks Hit
  * Location Table plus one automatic Determining Critical Hits roll; a vehicle
  * or grounded aerospace unit uses a random side column (1D6: 1–2 front, 3 left,
- * 4 right, 5–6 rear). Conventional platoons deal their standard damage in
- * 2-point groups (see `platoonSwarmGroups`).
+ * 4 right, 5–6 rear). Conventional platoons deal their standard damage
+ * (Cluster Hits roll → damage table) in 2-point groups, with no automatic crit.
  */
-export async function swarmAttack(actor, { platoonSwarmGroups = null } = {}) {
+export async function swarmAttack(actor) {
   const why = swarmDamageBlock(actor);
   if (why) { ui.notifications.warn(why); return null; }
   const carrier = attachedCarrier(actor);
@@ -300,8 +300,9 @@ export async function swarmAttack(actor, { platoonSwarmGroups = null } = {}) {
     groups = [sd.damage];
     notes.push(`${sd.weapons.join(' + ')} × ${sd.troopers} trooper${sd.troopers === 1 ? '' : 's'}${vibroBonus(actor) ? ` + ${vibroBonus(actor)} vibro-claw` : ''} = ${sd.damage}, one group`);
   } else {
-    groups = platoonSwarmGroups ? await platoonSwarmGroups(actor, rolls) : [];
-    notes.push(`Platoon damage in 2-point groups: ${groups.join(', ') || 'none'}`);
+    const pd = await platoonAttackDamage(actor, rolls, clusterHits);
+    groups = pd.groups;
+    notes.push(`${pd.note}, in 2-point groups`);
   }
   let direction = 'front';
   const opts = { noIntercept: true };

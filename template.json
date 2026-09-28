@@ -10,6 +10,7 @@
       "aerospace_fighter",
       "small_craft",
       "battle_armor",
+      "infantry",
       "installation"
     ],
     "templates": {
@@ -723,6 +724,37 @@
         "magneticClamps": false,
         "bodyMissiles": false,
         "missilesJettisoned": false
+      },
+      "crew": {
+        "name": "",
+        "gunnery": 4,
+        "antiMech": 5,
+        "actorId": ""
+      },
+      "attached": {
+        "uuid": "",
+        "mode": "",
+        "key": ""
+      },
+      "era": "",
+      "cost": 0,
+      "bv": 0,
+      "weapons": []
+    },
+    "infantry": {
+      "biography": "",
+      "techBase": "is",
+      "platoonType": "foot",
+      "mechanizedType": "tracked",
+      "weaponType": "rifleBallistic",
+      "troopers": {
+        "value": 28,
+        "max": 28,
+        "wound": 0
+      },
+      "movement": {
+        "ground": 1,
+        "jump": 0
       },
       "crew": {
         "name": "",

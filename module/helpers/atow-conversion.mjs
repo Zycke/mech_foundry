@@ -34,6 +34,9 @@ export const AERO_PILOTING_SKILLS = ["Piloting/Aerospace", "Piloting"];
 /** Battle armor: Gunnery/Battlesuit for weapon attacks, Piloting/Battlesuit for Anti-'Mech. */
 export const BATTLESUIT_GUNNERY_SKILLS = ["Gunnery/Battlesuit", "Gunnery"];
 export const BATTLESUIT_ANTIMECH_SKILLS = ["Piloting/Battlesuit"];
+/** Conventional infantry: Small Arms (7/SB, Base TN 7) for the platoon's Gunnery. */
+export const INFANTRY_GUNNERY_SKILLS = ["Small Arms"];
+export const INFANTRY_SKILL_BASE_TN = 7;
 
 /**
  * Convert an AToW skill Level to a Total Warfare Skill Rating.

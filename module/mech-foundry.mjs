@@ -23,6 +23,7 @@ import { MechFoundryMechSheet } from "./sheets/mech-sheet.mjs";
 import { MechFoundryGroundVehicleSheet } from "./sheets/ground-vehicle-sheet.mjs";
 import { MechFoundryAerospaceFighterSheet } from "./sheets/aerospace-fighter-sheet.mjs";
 import { MechFoundryBattleArmorSheet } from "./sheets/battle-armor-sheet.mjs";
+import { MechFoundryInfantrySheet } from "./sheets/infantry-sheet.mjs";
 import { MechFoundryInstallationSheet } from "./sheets/installation-sheet.mjs";
 
 // Import helper/utility classes
@@ -178,6 +179,11 @@ Hooks.once('init', function() {
     types: ["battle_armor"],
     makeDefault: true,
     label: "MECHFOUNDRY.SheetBattleArmor"
+  });
+  ActorsCollection.registerSheet("mech-foundry", MechFoundryInfantrySheet, {
+    types: ["infantry"],
+    makeDefault: true,
+    label: "MECHFOUNDRY.SheetInfantry"
   });
   ActorsCollection.registerSheet("mech-foundry", MechFoundryInstallationSheet, {
     types: ["installation"],

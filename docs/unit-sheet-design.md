@@ -1,4 +1,4 @@
-# Unit Actor Sheet Design — Mech / Ground Vehicle / Aerospace Fighter / Battle Armor
+# Unit Actor Sheet Design — Mech / Ground Vehicle / Aerospace Fighter / Battle Armor / Infantry
 
 Status: **approved design, in implementation.** Source rules: *Total Warfare* (record-sheet
 data model + sequence of play) with standard canonical values for the combat chapter (the
@@ -324,6 +324,30 @@ criticals and cluster grouping:
   damage per elevation). Falls throw riders off (2D6); Building hex… on the carrier rolls the
   building check (1–3: 1D6 and hold on; 4–6 or accidental: fall off with 2D6). Riders can't be
   targeted or fire; Dismount returns them to the hex.
+- **Conventional infantry** (`infantry` actor, `infantry-sheet.mjs`; TW pp. 213–217): one actor
+  is a platoon — tech base, platoon type (foot / motorized / jump / mechanized + hover / wheeled /
+  tracked), weapon type (rifle ballistic / energy, machine gun, SRM, LRM, flamer), troopers
+  (current / max) and Ground / Jump MP; "Generic platoon" fills troopers and MP from the Generic
+  Conventional Infantry Units Table. Gunnery links to a character's Small Arms (7/SB); the
+  Anti-'Mech Skill is entered. Token bar: troopers. *Its attack* (the sheet's Attack button, one
+  attack per turn) uses the Conventional Infantry Range Modifier Table by weapon type (range 0–9),
+  no attacker movement, no stealth-armor modifiers; on a hit the Cluster Hits Table for its active
+  troopers (one trooper always hits) gives troopers hitting → Generic Conventional Infantry Damage
+  Table → 2-point groups (all at once against another platoon; machine gun platoons +1D6 against
+  infantry). A 0-MP platoon that moved can't attack. *Attacks against platoons*: non-infantry
+  weapons eliminate troopers per the Non-Infantry Weapon Damage Against Infantry Table (DV / 10
+  direct fire and physical, / 10 + 1 cluster ballistic, / 10 + 2 pulse, / 5 cluster missile — full
+  cluster damage, no Cluster Hits roll — area effect / 0.5), doubled against mechanized platoons;
+  burst-fire weapons roll the Burst-Fire table dice (battle armor per hit, on its own subtable);
+  infantry damage (platoons, battle armor AP weapons, punches pulling swarmers off) removes a
+  trooper per point, mechanized troopers taking two points (a one-point wound is carried). A
+  platoon standing in the open (no woods / partial cover in the dialog) takes double. Battle armor
+  non-missile hits count separately; its missile volleys use the full volley. Weapons carry an
+  optional "vs Inf" row override (auto guesses from the name: MG / flamer / small pulse = burst,
+  pulse, LB-X / Ultra / Rotary = cluster ballistic, launchers = cluster missile). Platoons make leg
+  and swarm attacks with their own table columns (mechanized platoons can't); their swarm damage
+  is their standard damage in 2-point groups with no automatic crit, and a hit that strikes a
+  swarming platoon is taken whole. Can't be punched, clubbed or charged; kicks / DFAs +3.
 **Intentional house rules** (deliberate divergences — don't "correct" toward the book):
 - Combat vehicles roll a critical on any hit that penetrates to internal structure, in
   addition to the tables' marked results (2/12, or 8 on side attacks).

@@ -4,7 +4,7 @@ import { endPhaseAero } from "../helpers/tw-aero-flight.mjs";
 import { movementPSRReasons } from "../helpers/tw-movement.mjs";
 
 /** Unit actor types whose initiative is their linked pilot / crew character's. */
-const UNIT_TYPES = new Set(['mech', 'ground_vehicle', 'aerospace_fighter', 'small_craft', 'battle_armor']);
+const UNIT_TYPES = new Set(['mech', 'ground_vehicle', 'aerospace_fighter', 'small_craft', 'battle_armor', 'infantry']);
 
 /**
  * The actor whose A Time of War traits and attributes govern initiative: a

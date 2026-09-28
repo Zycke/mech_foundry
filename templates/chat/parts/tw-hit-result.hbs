@@ -18,7 +18,12 @@
   <div class="tw-hl-event">▸ {{hr.baFire.note}} · {{hr.baFire.total}} dmg</div>
   {{/if}}
 
-  {{#if hr.ba}}
+  {{#if hr.platoon}}
+    {{#each hr.lines}}<div class="tw-hl-event">▸ {{this}}</div>{{/each}}
+    <div class="tw-hl-event">▸ {{hr.remaining}} trooper{{#unless (eq hr.remaining 1)}}s{{/unless}} left</div>
+    {{#if hr.destroyed}}<div class="tw-hl-destroyed">PLATOON ELIMINATED</div>{{/if}}
+    {{#unless hr.applied}}<div class="tw-atk-dmg"><em>Couldn't apply automatically (no permission and no GM available) — apply the above to {{hr.targetName}} manually.</em></div>{{/unless}}
+  {{else if hr.ba}}
     {{#each hr.groups}}
     <div class="tw-hit-loc">
       <span class="tw-hl-dice">{{#each this.dice}}<span class="tw-die">{{this}}</span>{{/each}}</span>

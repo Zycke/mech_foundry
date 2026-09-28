@@ -33,6 +33,7 @@ const UPDATE_WHITELIST = {
   small_craft: ['system.armor', 'system.structuralIntegrity', 'system.crits', 'system.conditions', 'system.crew', 'flags.mech-foundry.psr',
     ...ANTI_MECH_FLAGS],
   battle_armor: ['system.troopers', 'system.attached'],
+  infantry: ['system.troopers', 'system.attached'],
   character: ['system.unconscious'],
   npc: ['system.unconscious']
 };

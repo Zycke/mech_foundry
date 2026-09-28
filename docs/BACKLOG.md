@@ -176,6 +176,14 @@ Rules detail for what *is* automated lives in `docs/unit-sheet-design.md`.
         apply. Random side column: 1D6 1–2 front, 3 left, 4 right, 5–6 rear.
       - A conventional platoon hit while swarming takes the whole damage group (battle armor:
         one trooper absorbs up to its capacity, the rest goes to the unit).
+- [?] **Conventional infantry readings** (current interpretation in parentheses):
+      - "Clear terrain" doubling (applies when the fire dialog has the target in the open with no
+        partial cover).
+      - Battle armor non-missile weapons against a platoon (each trooper's hit is a separate
+        Non-Infantry-table hit at the weapon's damage); burst-fire weapons not on either subtable
+        (2D6).
+      - Anti-'Mech Skill for a linked character (not derived — entered on the sheet); platoon
+        Gunnery from Small Arms.
 - [?] **Cluster weapons against aerospace units** — damage is grouped as on the ground
       (5-point groups for LRM / MRM / ATM, per missile / pellet for SRM / LB-X). Confirm
       whether fighters and small craft should take cluster damage differently.
@@ -229,7 +237,12 @@ Rules detail for what *is* automated lives in `docs/unit-sheet-design.md`.
       fighters; VSTOL gating for VIFF / vertical landings.
 
 **Other units & setup**
-- [ ] Conventional infantry combat (next).
+- [ ] Conventional infantry details: heat-effect weapons (infernos) and flamer heat, heavy-burst /
+      point-blank / anti-aircraft / non-penetrating platoon features (TechManual), field guns,
+      burst-fire against infantry in buildings, mechanized platoon movement types and prohibited
+      terrain, battle armor vibro-claw melee against infantry, custom (non-generic) platoons.
+- [ ] Infantry carriers: cargo bays, mounting / dismounting, the Infantry Destroyed if Carrying
+      Unit Destroyed Table, Cargo / Infantry Hit crits, damage from the carrier's movement.
 - [ ] Mechanized battle armor details: MP / timing limits on mounting (all MP spent, not the
       carrier's last MP), riders not counting for initiative or stacking, weapons spanning several
       locations, ammo dumping, trailers / Large Support Vehicles (two units), moving rider tokens
@@ -238,10 +251,9 @@ Rules detail for what *is* automated lives in `docs/unit-sheet-design.md`.
       aimed shots on immobile targets, arms mounting physical weapons (the Pull off… dialog
       leaves that to the player), water (swarmers without UMU drowned), stacking / domino
       effects, moving the swarmer's token with the 'Mech, TAG + anti-'Mech in one turn.
-- [ ] Battle armor: burst-fire damage against conventional infantry, bomb racks, pop-up mines,
-      Narc, squad support weapons, inferno self-detonation, torpedoes / multi-purpose
-      missiles, UMU / VTOL movement rules, infantry carriers (cargo bays, mounting, the
-      Infantry Destroyed if Carrying Unit Destroyed Table), jettisoning launchers as an action.
+- [ ] Battle armor: bomb racks, pop-up mines, Narc, squad support weapons, inferno
+      self-detonation, torpedoes / multi-purpose missiles, UMU / VTOL movement rules,
+      jettisoning launchers as an action.
 - [ ] Record-sheet importer (MegaMek `.mtf` / `.blk`) or a compendium of designs.
 - [ ] Damage log / struck-location highlight on the unit sheets.
 

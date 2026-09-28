@@ -642,3 +642,188 @@ export async function interceptAt(carrier, where, amount, rolls, cache) {
   }
   return { remaining, lines };
 }
+
+/* ------------------------------------------------------------------ */
+/*  Conventional infantry platoons (TW pp. 213–217)                      */
+/* ------------------------------------------------------------------ */
+
+export const PLATOON_TYPES = {
+  foot: 'Foot',
+  motorized: 'Motorized',
+  jump: 'Jump',
+  mechanized: 'Mechanized'
+};
+export const MECHANIZED_TYPES = { hover: 'Hover', wheeled: 'Wheeled', tracked: 'Tracked' };
+
+/**
+ * Generic Conventional Infantry Units Table: per platoon (and mechanized
+ * vehicle) type and weapon — [ground MP, jump MP, troopers IS, troopers Clan].
+ */
+const GENERIC_PLATOONS = {
+  foot: { rifleBallistic: [1, 0, 28, 25], rifleEnergy: [1, 0, 28, 25], mg: [0, 0, 28, 25], srm: [0, 0, 24, 25], lrm: [0, 0, 20, 25], flamer: [0, 0, 28, 25] },
+  motorized: { rifleBallistic: [3, 0, 28, 25], rifleEnergy: [3, 0, 28, 25], mg: [2, 0, 28, 25], srm: [2, 0, 24, 25], lrm: [2, 0, 20, 25], flamer: [2, 0, 28, 25] },
+  jump: { rifleBallistic: [1, 3, 21, 20], rifleEnergy: [1, 3, 21, 20], mg: [1, 2, 21, 20], srm: [1, 2, 18, 20], lrm: [1, 2, 15, 15], flamer: [1, 2, 21, 20] },
+  hover: { rifleBallistic: [5, 0, 20, 20], rifleEnergy: [5, 0, 20, 20], mg: [4, 0, 20, 20], srm: [4, 0, 16, 15], lrm: [4, 0, 12, 15], flamer: [4, 0, 20, 20] },
+  wheeled: { rifleBallistic: [4, 0, 24, 25], rifleEnergy: [4, 0, 24, 25], mg: [3, 0, 24, 25], srm: [3, 0, 20, 20], lrm: [3, 0, 16, 15], flamer: [3, 0, 24, 25] },
+  tracked: { rifleBallistic: [3, 0, 28, 25], rifleEnergy: [3, 0, 28, 25], mg: [3, 0, 28, 25], srm: [3, 0, 24, 25], lrm: [3, 0, 20, 20], flamer: [3, 0, 28, 25] }
+};
+
+/** The generic platoon for the actor's type / weapon / tech base: { ground, jump, troopers }. */
+export function genericPlatoon(sys) {
+  const key = sys?.platoonType === 'mechanized' ? (sys.mechanizedType || 'tracked') : (sys?.platoonType || 'foot');
+  const row = GENERIC_PLATOONS[key]?.[sys?.weaponType || 'rifleBallistic'];
+  if (!row) return null;
+  return { ground: row[0], jump: row[1], troopers: sys?.techBase === 'clan' ? row[3] : row[2] };
+}
+
+/** The platoon's single attack as a weapon entry, so it goes through the normal fire flow. */
+export function platoonWeapon(actor) {
+  const type = actor.system?.weaponType || 'rifleBallistic';
+  return { id: 'platoon', name: `${CI_WEAPONS[type] || 'Rifle'} platoon`, ciType: type, damage: 0, location: '' };
+}
+
+/**
+ * A platoon's attack damage: the Cluster Hits Table for its active troopers
+ * (one trooper always hits; columns above 30 use 30) gives the troopers that
+ * hit, cross-referenced on the Generic Conventional Infantry Damage Table.
+ */
+export async function platoonAttackDamage(actor, rolls, clusterHits) {
+  const troopers = liveTroopers(actor);
+  const type = actor.system?.weaponType || 'rifleBallistic';
+  let hits = troopers, roll = null, dice = [];
+  if (troopers > 1) {
+    const r = await new Roll("2d6").evaluate();
+    rolls.push(r);
+    roll = r.total;
+    dice = r.dice?.[0]?.results?.map(x => x.result) ?? [];
+    hits = clusterHits(Math.min(30, troopers), r.total);
+  }
+  const total = ciDamage(type, hits);
+  return {
+    kind: 'platoon', troopers, hits, total, groups: twoGroups(total),
+    columns: [{ size: Math.min(30, troopers), hits, roll, dice, auto: troopers <= 1 }],
+    note: `${hits} of ${troopers} troopers hit → ${CI_WEAPONS[type]} column: ${total}`
+  };
+}
+
+/* ---- Damage against conventional infantry ---- */
+
+/** Categories on the Non-Infantry Weapon Damage Against Infantry Table. */
+export const INFANTRY_DAMAGE_CLASSES = {
+  auto: 'auto',
+  direct: 'Direct fire',
+  clusterBallistic: 'Cluster (ballistic)',
+  pulse: 'Pulse',
+  clusterMissile: 'Cluster (missile)',
+  burst: 'Burst-fire',
+  ae: 'Area-effect'
+};
+
+/** Burst-Fire Weapon Damage vs. Conventional Infantry: dice by weapon name. */
+const BURST_MECH = [
+  [/\bap gauss/i, '2d6'], [/light machine gun|\blmg\b/i, '1d6'], [/heavy machine gun|\bhmg\b/i, '3d6'],
+  [/machine gun|\bmg\b/i, '2d6'], [/(small|micro)[\s-]*(x-)?pulse/i, '2d6'], [/flamer/i, '4d6']
+];
+const BURST_BA = [
+  [/light machine gun|\blmg\b/i, '1d6/2'], [/heavy machine gun|\bhmg\b/i, '2d6'], [/machine gun|\bmg\b/i, '1d6'],
+  [/flamer/i, '3d6'], [/light recoilless/i, '1d6'], [/medium recoilless/i, '2d6'], [/heavy recoilless/i, '2d6'],
+  [/light mortar/i, '1d6'], [/heavy mortar/i, '1d6'], [/automatic grenade|\bagl\b/i, '1d6/2'], [/heavy grenade/i, '1d6']
+];
+
+/** Burst-fire dice against conventional infantry for a weapon, or null. */
+export function burstDice(weapon, attacker) {
+  const name = weapon?.name || '';
+  if (attacker?.type === 'battle_armor') {
+    const ba = BURST_BA.find(([re]) => re.test(name));
+    if (ba) return ba[1];
+  }
+  return BURST_MECH.find(([re]) => re.test(name))?.[1] ?? null;
+}
+
+/**
+ * A weapon's row on the Non-Infantry Weapon Damage Against Infantry Table:
+ * the weapon's own `infClass` when set, else guessed from its name and
+ * cluster size (burst-fire weapons, pulse lasers, LB-X / Ultra / Rotary
+ * autocannon, missile launchers).
+ */
+export function infantryDamageClass(weapon, attacker) {
+  if (weapon?.infClass && weapon.infClass !== 'auto') return weapon.infClass;
+  const name = weapon?.name || '';
+  if (burstDice(weapon, attacker)) return 'burst';
+  if (/pulse/i.test(name)) return 'pulse';
+  if (/\blb[\s-]?\d+[\s-]?x|\bultra|\buac|\brotary|\brac\b/i.test(name)) return 'clusterBallistic';
+  if (num(weapon?.clusterSize) > 0) return /\blb|\bac\b|autocannon/i.test(name) ? 'clusterBallistic' : 'clusterMissile';
+  return 'direct';
+}
+
+/**
+ * Troopers eliminated by a non-infantry weapon: Damage Value / 10 (direct fire,
+ * physical), / 10 + 1 (cluster ballistic), / 10 + 2 (pulse), / 5 (cluster
+ * missile), / 0.5 (area effect) — fractions round up.
+ */
+export function nonInfantryTroopersHit(cls, dv) {
+  const d = Math.max(0, num(dv));
+  if (d <= 0) return 0;
+  switch (cls) {
+    case 'clusterBallistic': return Math.ceil(d / 10) + 1;
+    case 'pulse': return Math.ceil(d / 10) + 2;
+    case 'clusterMissile': return Math.ceil(d / 5);
+    case 'ae': return Math.ceil(d / 0.5);
+    default: return Math.ceil(d / 10);
+  }
+}
+
+/** Kill troopers outright (non-infantry weapons). */
+async function killPlatoonTroopers(actor, n) {
+  const sys = actor.system || {};
+  const before = Math.max(0, num(sys.troopers?.value));
+  const killed = Math.min(before, Math.max(0, n));
+  const after = before - killed;
+  const applied = await writeDoc(actor, { 'system.troopers': { ...(sys.troopers || {}), value: after, wound: after > 0 ? num(sys.troopers?.wound) : 0 } });
+  return { killed, before, remaining: after, destroyed: after <= 0, applied };
+}
+
+/**
+ * Resolve one successful attack against a conventional infantry platoon.
+ * @param {object} hit
+ *   - `infantryDamage`: damage from an infantry attack (another platoon, battle
+ *     armor AP weapons, punches pulling swarmers off …): one trooper per point
+ *     (two per mechanized trooper);
+ *   - `burst`: dice rolled per hit on the Burst-Fire table (same marking);
+ *   - otherwise `dv` and `cls`: troopers eliminated per the Non-Infantry
+ *     Weapon Damage table — `hits` separate hits (battle armor) each count —
+ *     doubled against mechanized infantry.
+ *   - `clear`: the platoon stands in Clear terrain (no terrain to-hit
+ *     modifier) and takes double damage.
+ */
+export async function resolvePlatoonHit(target, { infantryDamage = null, burst = null, hits = 1, dv = 0, cls = 'direct', clear = false } = {}, rolls = []) {
+  const mech = target.system?.platoonType === 'mechanized';
+  const lines = [];
+  let res;
+  if (infantryDamage !== null || burst) {
+    let points = num(infantryDamage);
+    if (burst) {
+      const [formula, half] = burst.split('/');
+      for (let i = 0; i < Math.max(1, hits); i++) {
+        const r = await new Roll(formula).evaluate();
+        rolls.push(r);
+        const pts = half ? Math.ceil(r.total / 2) : r.total;
+        points += pts;
+        lines.push(`Burst-fire ${burst.toUpperCase()}: ${pts}`);
+      }
+    }
+    if (clear) { lines.push(`Clear terrain: ×2 (${points} → ${points * 2})`); points *= 2; }
+    if (mech) lines.push('Mechanized troopers take 2 points each');
+    res = await applyPlatoonDamage(target, points);
+    lines.push(`${points} damage: ${res.killed} trooper${res.killed === 1 ? '' : 's'} eliminated`);
+  } else {
+    const per = nonInfantryTroopersHit(cls, dv);
+    let n = per * Math.max(1, hits);
+    lines.push(`${INFANTRY_DAMAGE_CLASSES[cls] || 'Direct fire'} ${num(dv)}${cls === 'ae' ? ' / 0.5' : cls === 'clusterMissile' ? ' / 5' : ' / 10'}${cls === 'clusterBallistic' ? ' + 1' : cls === 'pulse' ? ' + 2' : ''} = ${per}${hits > 1 ? ` × ${hits} hits` : ''}`);
+    if (mech) { n *= 2; lines.push('Mechanized infantry: ×2'); }
+    if (clear) { n *= 2; lines.push('Clear terrain: ×2'); }
+    res = await killPlatoonTroopers(target, n);
+    lines.push(`${res.killed} trooper${res.killed === 1 ? '' : 's'} eliminated`);
+  }
+  return { platoon: true, lines, ...res, hasTarget: true, targetName: target.name };
+}

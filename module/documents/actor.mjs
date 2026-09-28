@@ -5,6 +5,7 @@ import { ItemEffectsHelper } from '../helpers/effects-helper.mjs';
 import { AOEHelper } from '../helpers/aoe-helper.mjs';
 import { AnimationHelper } from '../helpers/animation-helper.mjs';
 import * as XP from '../helpers/xp-math.mjs';
+import { baTroopers } from '../helpers/tw-infantry.mjs';
 
 /**
  * Extend the base Actor document for Mech Foundry system
@@ -32,6 +33,12 @@ export class MechFoundryActor extends Actor {
     // Total Armor / Total Structure sums used by the token bars and MTOE status.
     if (["mech", "ground_vehicle", "aerospace_fighter", "small_craft"].includes(this.type)) {
       this._prepareUnitDerived(systemData);
+      return;
+    }
+    // Battle armor: live troopers for the token bar.
+    if (this.type === "battle_armor") {
+      const troopers = baTroopers(this);
+      systemData.derived = { troopers: { value: troopers.filter(t => t.alive).length, max: troopers.length } };
       return;
     }
 
@@ -114,16 +121,21 @@ export class MechFoundryActor extends Actor {
   async _preCreate(data, options, user) {
     const allowed = await super._preCreate(data, options, user);
     if (allowed === false) return false;
-    if (["mech", "ground_vehicle", "aerospace_fighter", "small_craft"].includes(this.type)) {
-      const hasBars = foundry.utils.getProperty(data, "prototypeToken.bar1.attribute")
-        || foundry.utils.getProperty(data, "prototypeToken.bar2.attribute");
-      if (!hasBars) {
-        this.updateSource({
-          "prototypeToken.bar1.attribute": "derived.armorTotal",
-          "prototypeToken.bar2.attribute": "derived.structureTotal",
-          "prototypeToken.displayBars": CONST.TOKEN_DISPLAY_MODES.OWNER_HOVER
-        });
-      }
+    const hasBars = foundry.utils.getProperty(data, "prototypeToken.bar1.attribute")
+      || foundry.utils.getProperty(data, "prototypeToken.bar2.attribute");
+    if (["mech", "ground_vehicle", "aerospace_fighter", "small_craft"].includes(this.type) && !hasBars) {
+      this.updateSource({
+        "prototypeToken.bar1.attribute": "derived.armorTotal",
+        "prototypeToken.bar2.attribute": "derived.structureTotal",
+        "prototypeToken.displayBars": CONST.TOKEN_DISPLAY_MODES.OWNER_HOVER
+      });
+    }
+    // Infantry: one bar of active troopers.
+    if (["battle_armor", "infantry"].includes(this.type) && !hasBars) {
+      this.updateSource({
+        "prototypeToken.bar1.attribute": this.type === "infantry" ? "troopers" : "derived.troopers",
+        "prototypeToken.displayBars": CONST.TOKEN_DISPLAY_MODES.OWNER_HOVER
+      });
     }
   }
 

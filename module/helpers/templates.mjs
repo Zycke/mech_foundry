@@ -17,6 +17,7 @@ export const preloadHandlebarsTemplates = async function() {
     "systems/mech-foundry/templates/actor/actor-ground_vehicle-sheet.hbs",
     "systems/mech-foundry/templates/actor/actor-aerospace_fighter-sheet.hbs",
     "systems/mech-foundry/templates/actor/actor-battle_armor-sheet.hbs",
+    "systems/mech-foundry/templates/actor/actor-infantry-sheet.hbs",
     "systems/mech-foundry/templates/actor/actor-installation-sheet.hbs",
 
     // Item sheets
