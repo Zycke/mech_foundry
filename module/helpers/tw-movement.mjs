@@ -24,11 +24,67 @@ export const MOVE_MODES = [
 ];
 const MODE_MOD = Object.fromEntries(MOVE_MODES.map(m => [m.key, m.mod]));
 
+/**
+ * A 'Mech's current MP after damage and heat (TW 'Mech Critical Hit Effects):
+ * one hip hit halves Walking MP (round up) and two leave 0; each upper / lower
+ * leg or foot actuator on a leg without a hip hit is −1; a destroyed leg leaves
+ * 1 Walking MP and no running; heat takes −1 per 5 points; each destroyed jump
+ * jet slot is −1 Jumping MP. Running = Walking × 1.5, rounded up.
+ */
+export function mechEffectiveMP(actor) {
+  const sys = actor?.system || {};
+  const base = num(sys.movement?.walk), jumpBase = num(sys.movement?.jump);
+  const notes = [];
+  let hips = 0, legActs = 0, legsGone = 0;
+  for (const leg of ['ll', 'rl']) {
+    if (locationDestroyed(actor, leg)) { legsGone++; continue; }
+    const a = actuatorsInSlots(sys.critSlots?.[leg]);
+    if (a.hip) hips++;
+    else legActs += a.upperLeg + a.lowerLeg + a.foot;
+  }
+  let walk = base;
+  if (hips === 1) { walk = Math.ceil(walk / 2); notes.push('hip ½'); }
+  if (hips >= 2) { walk = 0; notes.push('both hips'); }
+  if (legActs) { walk = Math.max(0, walk - legActs); notes.push(`leg actuators −${legActs}`); }
+  const heatMP = Math.min(5, Math.floor(num(sys.heat?.value) / 5));
+  if (heatMP) { walk = Math.max(0, walk - heatMP); notes.push(`heat −${heatMP}`); }
+  let run = Math.ceil(walk * 1.5);
+  if (legsGone) { walk = Math.min(walk, legsGone >= 2 ? 0 : 1); run = walk; notes.push(legsGone >= 2 ? 'no legs' : 'leg destroyed: 1 MP, no running'); }
+  const jets = Object.values(sys.critSlots || {}).flat().filter(x => x?.type === 'jumpJet' && x.hit).length;
+  const jump = Math.max(0, jumpBase - jets);
+  if (jets) notes.push(`jump jets −${jets}`);
+  return { walk, run, jump, notes, reduced: walk !== base || jump !== jumpBase };
+}
+
 /** Walking/cruising MP for inferring the movement mode from hexes moved. */
 function walkMP(actor) {
   const mv = actor?.system?.movement || {};
   if (actor?.type === 'ground_vehicle') return Math.max(0, num(mv.cruise) - num(actor.system.crits?.motiveHits));
+  if (actor?.type === 'mech') return mechEffectiveMP(actor).walk;
   return num(mv.walk);
+}
+
+/**
+ * Movement-phase Piloting Skill Rolls (rolled at the end of movement): a 'Mech
+ * that ran with a damaged hip or gyro, or jumped with a damaged gyro, hip, leg
+ * or foot actuators or a destroyed leg. Reasons carry no extra modifier — the
+ * damage is already in every PSR's standing modifiers.
+ */
+export function movementPSRReasons(actor) {
+  if (actor?.type !== 'mech' || actor.system?.conditions?.prone) return [];
+  const mv = movedThisTurn(actor);
+  const sys = actor.system;
+  const gyro = num(sys.systemHits?.gyro) === 1;
+  let hip = false, legDamage = false;
+  for (const leg of ['ll', 'rl']) {
+    if (locationDestroyed(actor, leg)) { legDamage = true; continue; }
+    const a = actuatorsInSlots(sys.critSlots?.[leg]);
+    if (a.hip) hip = true;
+    if (a.hip || a.upperLeg || a.lowerLeg || a.foot) legDamage = true;
+  }
+  if (mv.mode === 'ran' && (gyro || hip)) return [{ key: 'ranDamaged', label: `Ran with a damaged ${gyro ? 'gyro' : 'hip'}`, mod: 0 }];
+  if (mv.mode === 'jumped' && (gyro || legDamage)) return [{ key: 'jumpedDamaged', label: `Jumped with a damaged ${gyro ? 'gyro' : 'leg'}`, mod: 0 }];
+  return [];
 }
 
 /** Infer a movement mode from hexes moved. */

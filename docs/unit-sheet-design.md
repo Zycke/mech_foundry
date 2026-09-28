@@ -198,6 +198,11 @@ criticals and cluster grouping:
   rule); ICE / fuel cell engine hits add no heat but roll 2D6 (+3 / +6) for a 10+ explosion; jump
   jet slots; a multi-slot heat sink is lost once; punch / kick halving rounds down; life support
   1 point at 15–25 heat, 2 at 26+. Destroyed units get Foundry's defeated (skull) status.
+- **Effective MP & movement PSRs:** the mech sheet shows current Walk / Run / Jump after damage
+  and heat (hip halves Walk, two hips 0; −1 per leg / foot actuator on a leg without a hip hit;
+  destroyed leg: 1 MP, no running; −1 per 5 heat; −1 Jump per jump jet hit) and the movement
+  mode is inferred from it. Leaving the Movement Phase queues a PSR for 'Mechs that ran with a
+  damaged hip or gyro, or jumped with a damaged gyro, hip, leg or foot actuators.
 **Intentional house rules** (deliberate divergences — don't "correct" toward the book):
 - Combat vehicles roll a critical on any hit that penetrates to internal structure, in
   addition to the tables' marked results (2/12, or 8 on side attacks).

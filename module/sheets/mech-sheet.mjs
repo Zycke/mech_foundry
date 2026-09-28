@@ -2,6 +2,7 @@ import { MechFoundryUnitSheet } from "./unit-sheet.mjs";
 import { actorSkillRating, applyCrewDamage, CREW_DAMAGE, MECH_GUNNERY_SKILLS, MECH_PILOTING_SKILLS } from "../helpers/atow-conversion.mjs";
 import { weaponAttack, resolveMechHeat, standardMechSlots, SLOT_TYPES } from "../helpers/tw-combat.mjs";
 import { pendingPSR } from "../helpers/tw-psr.mjs";
+import { mechEffectiveMP } from "../helpers/tw-movement.mjs";
 import { manualFall, rollPendingPSR, standUp, wakeRoll } from "../helpers/tw-falls.mjs";
 
 const CRIT_LOCATIONS = [
@@ -118,7 +119,8 @@ export class MechFoundryMechSheet extends MechFoundryUnitSheet {
     context.movement = {
       walk,
       run: Math.ceil(walk * 1.5),
-      jump: Number(sys.movement?.jump) || 0
+      jump: Number(sys.movement?.jump) || 0,
+      effective: mechEffectiveMP(this.actor) // after leg / hip / jump-jet damage and heat
     };
 
     // Heat + live effects.

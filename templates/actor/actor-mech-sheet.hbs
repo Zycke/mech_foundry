@@ -93,6 +93,9 @@
             <div class="mf-stat"><span class="k">Run</span><span class="v derived">{{movement.run}}</span></div>
             <label class="mf-stat"><span class="k">Jump</span><input type="number" min="0" name="system.movement.jump" value="{{movement.jump}}" {{#unless editable}}disabled{{/unless}} /></label>
           </div>
+          {{#if movement.effective.reduced}}
+          <div class="mf-effmp" title="Current MP after damage and heat">Now: Walk <strong>{{movement.effective.walk}}</strong> · Run <strong>{{movement.effective.run}}</strong> · Jump <strong>{{movement.effective.jump}}</strong> <span class="hint">({{#each movement.effective.notes}}{{this}}{{#unless @last}}, {{/unless}}{{/each}})</span></div>
+          {{/if}}
           <div class="flags">
             <label class="chk"><input type="checkbox" name="system.conditions.shutdown" {{checked conditions.shutdown}} {{#unless editable}}disabled{{/unless}}> Shutdown</label>
             <label class="chk"><input type="checkbox" name="system.conditions.prone" {{checked conditions.prone}} {{#unless editable}}disabled{{/unless}}> Prone</label>

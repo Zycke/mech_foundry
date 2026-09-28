@@ -1,5 +1,6 @@
-import { pendingPSR } from "../helpers/tw-psr.mjs";
+import { pendingPSR, queuePSR } from "../helpers/tw-psr.mjs";
 import { endPhaseRecovery } from "../helpers/tw-falls.mjs";
+import { movementPSRReasons } from "../helpers/tw-movement.mjs";
 
 /** Unit actor types whose initiative is their linked pilot / crew character's. */
 const UNIT_TYPES = new Set(['mech', 'ground_vehicle', 'aerospace_fighter', 'small_craft', 'battle_armor']);
@@ -41,6 +42,9 @@ export class MechFoundryCombat extends Combat {
 
   /** Advance to the next Total Warfare phase, rolling into the next round after End. */
   async nextPhase() {
+    // Leaving the Movement Phase: queue the end-of-movement Piloting Skill Rolls
+    // for 'Mechs that ran or jumped on damaged legs / gyros.
+    if (this.phaseName === 'Movement') await this._queueMovementPSRs();
     let i = this.phaseIndex + 1;
     if (i >= MechFoundryCombat.TW_PHASES.length) {
       await this.setFlag('mech-foundry', 'phase', 0);
@@ -51,6 +55,17 @@ export class MechFoundryCombat extends Combat {
     await this._announcePhase();
     // End Phase: unconscious (sheet-only) warriors roll to wake.
     if (this.phaseName === 'End') await endPhaseRecovery(this);
+  }
+
+  async _queueMovementPSRs() {
+    const seen = new Set();
+    for (const c of this.combatants) {
+      const a = c.actor;
+      if (!a || seen.has(a.uuid)) continue;
+      seen.add(a.uuid);
+      const reasons = movementPSRReasons(a);
+      if (reasons.length && (a.isOwner || game.user.isGM)) await a.update({ 'flags.mech-foundry.psr': queuePSR(a, reasons) });
+    }
   }
 
   async _announcePhase() {

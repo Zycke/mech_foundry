@@ -7568,3 +7568,5 @@
 .mech-foundry.tw-card-actions { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; padding-top: 4px; border-top: 1px dashed rgba(128,128,128,.4); }
 .mech-foundry.tw-card-actions button { flex: 0 0 auto; width: auto; height: 24px; line-height: 22px; padding: 0 8px; font-size: 0.74rem; }
 .mech-foundry.tw-card-actions .tw-card-done { font-size: 0.74rem; opacity: 0.7; font-style: italic; align-self: center; }
+.mech-foundry .mf-effmp { margin-top: 6px; font-size: 0.76rem; color: var(--mf-amber); }
+.mech-foundry .mf-effmp .hint { color: var(--mf-ink-dim); }
