@@ -594,7 +594,8 @@
       "flight": {
         "velocity": 0,
         "altitude": 0,
-        "thrustSpent": 0
+        "thrustSpent": 0,
+        "inAtmosphere": false
       },
       "conditions": {
         "shutdown": false,
@@ -609,7 +610,9 @@
         "unconscious": false,
         "unconsciousKey": ""
       },
-      "weapons": []
+      "weapons": [],
+      "omni": false,
+      "hasCASE": false
     },
     "small_craft": {
       "biography": "",
@@ -671,7 +674,8 @@
       "flight": {
         "velocity": 0,
         "altitude": 0,
-        "thrustSpent": 0
+        "thrustSpent": 0,
+        "inAtmosphere": false
       },
       "conditions": {
         "shutdown": false,
@@ -686,7 +690,9 @@
         "unconscious": false,
         "unconsciousKey": ""
       },
-      "weapons": []
+      "weapons": [],
+      "omni": false,
+      "hasCASE": false
     },
     "battle_armor": {
       "biography": "",

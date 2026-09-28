@@ -78,6 +78,9 @@
           <div class="flags">
             <label class="chk"><input type="checkbox" name="system.conditions.shutdown" {{checked conditions.shutdown}} {{#unless editable}}disabled{{/unless}}> Shutdown</label>
             <label class="chk"><input type="checkbox" name="system.conditions.outOfControl" {{checked conditions.outOfControl}} {{#unless editable}}disabled{{/unless}}> Out of Control</label>
+            <label class="chk" title="Operating in an atmosphere (control rolls +2; damage forces control rolls)"><input type="checkbox" name="system.flight.inAtmosphere" {{checked system.flight.inAtmosphere}} {{#unless editable}}disabled{{/unless}}> In atmosphere</label>
+            {{#if aeroTurn.inCombat}}<label class="chk" title="Evasive action this turn: attacks against it +3 (fighter) / +2 (small craft); it can't attack"><input type="checkbox" class="aero-evading" {{checked aeroTurn.evading}} {{#unless editable}}disabled{{/unless}}> Evading</label>{{/if}}
+            {{#if aeroTurn.airToGround}}<span class="w-badge warn" title="Made an air-to-ground attack this turn: −3 to attacks against it">AIR-TO-GROUND</span>{{/if}}
           </div>
         </div>
         <div class="mf-panel">
@@ -139,7 +142,7 @@
       <div class="mf-panel">
         <h4>Weapons by Arc {{#if editable}}<button type="button" class="fire-weapons" title="Fire several weapons together (one declaration, one card)"><i class="fas fa-crosshairs"></i> Fire…</button> <button type="button" class="add-weapon"><i class="fas fa-plus"></i> Add</button>{{/if}}</h4>
         <table class="wt">
-          <thead><tr><th class="w-name">Weapon</th><th>Arc</th><th>Ht</th><th>Dmg</th><th title="Cluster/launcher size">Clus</th><th>S</th><th>M</th><th>L</th><th>E</th><th>Ammo Type</th><th>Rds</th><th></th></tr></thead>
+          <thead><tr><th class="w-name">Weapon</th><th>Arc</th><th>Ht</th><th>Dmg</th><th title="Cluster/launcher size">Clus</th><th title="Longest aerospace range bracket (Short 0–6, Medium 7–12, Long 13–20, Extreme 21–25 hexes; capital ×2)">Range</th><th title="Capital-scale weapon">Cap</th><th>Ammo Type</th><th>Rds</th><th></th></tr></thead>
           <tbody>
             {{#each weapons}}
             <tr class="w-row{{#if destroyed}} w-destroyed{{/if}}{{#if fired}} w-fired{{/if}}">
@@ -148,10 +151,10 @@
               <td><input type="number" min="0" class="weapon-field n" data-weapon-id="{{id}}" data-field="heat" value="{{heat}}" {{#unless ../editable}}disabled{{/unless}} /></td>
               <td><input type="number" min="0" class="weapon-field n" data-weapon-id="{{id}}" data-field="damage" value="{{damage}}" {{#unless ../editable}}disabled{{/unless}} /></td>
               <td class="w-clus"><input type="number" min="0" class="weapon-field n" data-weapon-id="{{id}}" data-field="clusterSize" value="{{clusterSize}}" title="Cluster / launcher size (0 = single)" {{#unless ../editable}}disabled{{/unless}} />{{#if clusterSize}}<select class="weapon-field w-grp" data-weapon-id="{{id}}" data-field="clusterGroup" title="Damage grouping: 5-point groups (LRM, MRM, ATM) or each missile / pellet separately (SRM, LB-X)" {{#unless ../editable}}disabled{{/unless}}><option value="" {{#unless clusterGroup}}selected{{/unless}}>auto</option><option value="five" {{#if (eq clusterGroup "five")}}selected{{/if}}>5-pt</option><option value="each" {{#if (eq clusterGroup "each")}}selected{{/if}}>each</option></select>{{/if}}</td>
-              <td><input type="number" min="0" class="weapon-field n" data-weapon-id="{{id}}" data-field="rangeS" value="{{rangeS}}" {{#unless ../editable}}disabled{{/unless}} /></td>
-              <td><input type="number" min="0" class="weapon-field n" data-weapon-id="{{id}}" data-field="rangeM" value="{{rangeM}}" {{#unless ../editable}}disabled{{/unless}} /></td>
-              <td><input type="number" min="0" class="weapon-field n" data-weapon-id="{{id}}" data-field="rangeL" value="{{rangeL}}" {{#unless ../editable}}disabled{{/unless}} /></td>
-              <td><input type="number" min="0" class="weapon-field n" data-weapon-id="{{id}}" data-field="rangeE" value="{{rangeE}}" title="Extreme range" {{#unless ../editable}}disabled{{/unless}} /></td>
+              <td><select class="weapon-field w-arange" data-weapon-id="{{id}}" data-field="aeroRange" {{#unless ../editable}}disabled{{/unless}}>
+                <option value="short" {{#if (eq aeroMax "short")}}selected{{/if}}>Short</option><option value="medium" {{#if (eq aeroMax "medium")}}selected{{/if}}>Medium</option>
+                <option value="long" {{#if (eq aeroMax "long")}}selected{{/if}}>Long</option><option value="extreme" {{#if (eq aeroMax "extreme")}}selected{{/if}}>Extreme</option></select></td>
+              <td><input type="checkbox" class="weapon-flag" data-weapon-id="{{id}}" data-field="capital" {{checked capital}} title="Capital-scale weapon" {{#unless ../editable}}disabled{{/unless}} /></td>
               <td><input type="text" class="weapon-field" data-weapon-id="{{id}}" data-field="ammoType" value="{{ammoType}}" placeholder="— none —" {{#unless ../editable}}disabled{{/unless}} /></td>
               <td><input type="number" min="0" class="weapon-field n" data-weapon-id="{{id}}" data-field="ammo" value="{{ammo}}" {{#unless ../editable}}disabled{{/unless}} /></td>
               <td class="w-actions">
@@ -199,6 +202,8 @@
           <label class="mf-stat"><span class="k">Engine Type</span><input type="text" name="system.engineType" value="{{system.engineType}}" {{#unless editable}}disabled{{/unless}} /></label>
           <label class="mf-stat"><span class="k">Engine Rating</span><input type="number" min="0" name="system.engineRating" value="{{system.engineRating}}" {{#unless editable}}disabled{{/unless}} /></label>
           <label class="mf-stat"><span class="k">Heat Sinks</span><input type="number" min="0" name="system.heatSinks.count" value="{{heatSinks.count}}" {{#unless editable}}disabled{{/unless}} /></label>
+          <label class="mf-stat"><span class="k">OmniFighter</span><input type="checkbox" name="system.omni" {{checked system.omni}} {{#unless editable}}disabled{{/unless}} /></label>
+          <label class="mf-stat"><span class="k">CASE</span><input type="checkbox" name="system.hasCASE" {{checked system.hasCASE}} {{#unless editable}}disabled{{/unless}} /></label>
           <label class="mf-stat"><span class="k">Cost (C-bills)</span><input type="number" min="0" name="system.cost" value="{{system.cost}}" {{#unless editable}}disabled{{/unless}} /></label>
           <label class="mf-stat"><span class="k">Battle Value</span><input type="number" min="0" name="system.bv" value="{{system.bv}}" {{#unless editable}}disabled{{/unless}} /></label>
         </div>

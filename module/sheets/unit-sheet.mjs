@@ -1,6 +1,7 @@
 import { MechFoundryActorSheetV2 } from "./base-actor-sheet.mjs";
 import { currentTurnKey, fireWeapons, firedThisTurn, usesAmmo, weaponToHitPreview } from "../helpers/tw-combat.mjs";
 import { MOVE_MODES, movedThisTurn, setMovement } from "../helpers/tw-movement.mjs";
+import { aeroMaxBracket, aeroTurnState, isAero, setAeroTurn } from "../helpers/tw-aero.mjs";
 import { physicalAttack } from "../helpers/tw-physical.mjs";
 import { sideslipCheck, skidCheck, vehicleCrash } from "../helpers/tw-skid.mjs";
 
@@ -54,6 +55,7 @@ export class MechFoundryUnitSheet extends MechFoundryActorSheetV2 {
     context.weapons = (this.actor.system.weapons || []).map(w => ({
       ...w,
       toHit: toHit[w.id] || null,
+      aeroMax: aeroMaxBracket(w),
       destroyed: !!w.destroyed,
       fired: fired[w.id] !== undefined,
       outOfAmmo: usesAmmo(w) && (Number(w.ammo) || 0) <= 0
@@ -72,6 +74,7 @@ export class MechFoundryUnitSheet extends MechFoundryActorSheetV2 {
         ]
       };
     }
+    if (isAero(this.actor)) context.aeroTurn = { ...aeroTurnState(this.actor), inCombat: !!currentTurnKey() };
     return context;
   }
 
@@ -92,11 +95,24 @@ export class MechFoundryUnitSheet extends MechFoundryActorSheetV2 {
     html.on('click', '.toggle-weapon-destroyed', this._onToggleWeaponDestroyed.bind(this));
     html.on('change', '.weapon-field', this._onWeaponFieldChange.bind(this));
     html.on('change', '.turn-move-field', this._onTurnMoveChange.bind(this));
+    html.on('change', '.weapon-flag', this._onWeaponFlagChange.bind(this));
+    html.on('change', '.aero-evading', (ev) => setAeroTurn(this.actor, { evading: ev.currentTarget.checked }));
     html.on('click', '.physical-attack', (ev) => { ev.preventDefault(); physicalAttack(this.actor); });
     html.on('click', '.fire-weapons', (ev) => { ev.preventDefault(); fireWeapons(this.actor); });
     html.on('click', '.skid-check', (ev) => { ev.preventDefault(); skidCheck(this.actor); });
     html.on('click', '.sideslip-check', (ev) => { ev.preventDefault(); sideslipCheck(this.actor); });
     html.on('click', '.vehicle-crash', (ev) => { ev.preventDefault(); vehicleCrash(this.actor); });
+  }
+
+  /** A boolean weapon field (e.g. Capital) from a checkbox. */
+  async _onWeaponFlagChange(event) {
+    const { weaponId, field } = event.currentTarget.dataset;
+    const checked = event.currentTarget.checked;
+    await this._updateWeapons(w => {
+      const wpn = w.find(x => x.id === weaponId);
+      if (!wpn) return false;
+      wpn[field] = checked;
+    });
   }
 
   /** Set this turn's movement mode or hexes moved. */

@@ -16,6 +16,10 @@ import { beginRecording, endRecording, writeDoc } from "./gm-relay.mjs";
 import { currentTurnKey } from "./tw-turn.mjs";
 import { autoAttackMods, movedThisTurn, pilotUnconscious, rangeDependentMods, terrainMods, vehicleWeaponLocation } from "./tw-movement.mjs";
 import { damagePSRUpdate, queuePSR, standsThisTurn, warriorDamage } from "./tw-psr.mjs";
+import {
+  aeroAngleMod, aeroAttackMods, aeroFireBlock, aeroMaxBracket, aeroRangeBracket, aeroTurnState, aeroWeaponMods,
+  airToGroundMods, isAero, isAirToGround
+} from "./tw-aero.mjs";
 
 const { DialogV2 } = foundry.applications.api;
 
@@ -841,12 +845,14 @@ async function applyVehicleCrit(effect, c, rolls) {
 const AERO_HIT_FIGHTER = {
   nose: { 2: ['nose', 'Weapon'], 3: ['nose', 'Sensors'], 4: ['rightWing', 'Heat Sink'], 5: ['rightWing', 'Weapon'], 6: ['nose', 'Avionics'], 7: ['nose', 'Control'], 8: ['nose', 'FCS'], 9: ['leftWing', 'Weapon'], 10: ['leftWing', 'Heat Sink'], 11: ['nose', 'Gear'], 12: ['nose', 'Weapon'] },
   aft:  { 2: ['aft', 'Weapon'], 3: ['aft', 'Heat Sink'], 4: ['rightWing', 'Fuel'], 5: ['rightWing', 'Weapon'], 6: ['aft', 'Engine'], 7: ['aft', 'Control'], 8: ['aft', 'Engine'], 9: ['leftWing', 'Weapon'], 10: ['leftWing', 'Fuel'], 11: ['aft', 'Heat Sink'], 12: ['aft', 'Weapon'] },
-  side: { 2: ['nose', 'Weapon'], 3: ['wing', 'Gear'], 4: ['nose', 'Sensors'], 5: ['nose', 'Crew'], 6: ['wing', 'Weapon'], 7: ['wing', 'Avionics'], 8: ['wing', 'Bomb'], 9: ['aft', 'Control'], 10: ['aft', 'Engine'], 11: ['wing', 'Gear'], 12: ['aft', 'Weapon'] }
+  side: { 2: ['nose', 'Weapon'], 3: ['wing', 'Gear'], 4: ['nose', 'Sensors'], 5: ['nose', 'Crew'], 6: ['wing', 'Weapon'], 7: ['wing', 'Avionics'], 8: ['wing', 'Bomb'], 9: ['aft', 'Control'], 10: ['aft', 'Engine'], 11: ['wing', 'Gear'], 12: ['aft', 'Weapon'] },
+  above: { 2: ['nose', 'Weapon'], 3: ['wing', 'Gear'], 4: ['nose', 'Sensors'], 5: ['nose', 'Crew'], 6: ['wing', 'Weapon'], 7: ['nose', 'Avionics'], 8: ['wing', 'Weapon'], 9: ['aft', 'Control'], 10: ['aft', 'Engine'], 11: ['wing', 'Gear'], 12: ['aft', 'Weapon'] }
 };
 const AERO_HIT_DROPSHIP = {
   nose: { 2: ['nose', 'Crew'], 3: ['nose', 'Avionics'], 4: ['rightWing', 'Weapon'], 5: ['rightWing', 'Thruster'], 6: ['nose', 'FCS'], 7: ['nose', 'Weapon'], 8: ['nose', 'Control'], 9: ['leftWing', 'Thruster'], 10: ['leftWing', 'Weapon'], 11: ['nose', 'Sensors'], 12: ['nose', 'K-F Boom'] },
   aft:  { 2: ['aft', 'Life Support'], 3: ['aft', 'Control'], 4: ['rightWing', 'Weapon'], 5: ['rightWing', 'Door'], 6: ['aft', 'Engine'], 7: ['aft', 'Weapon'], 8: ['aft', 'Docking Collar'], 9: ['leftWing', 'Door'], 10: ['leftWing', 'Weapon'], 11: ['aft', 'Gear'], 12: ['aft', 'Fuel'] },
-  side: { 2: ['nose', 'Weapon'], 3: ['nose', 'FCS'], 4: ['nose', 'Sensors'], 5: ['side', 'Thruster'], 6: ['side', 'Cargo'], 7: ['side', 'Weapon'], 8: ['side', 'Door'], 9: ['side', 'Thruster'], 10: ['aft', 'Avionics'], 11: ['aft', 'Engine'], 12: ['aft', 'Weapon'] }
+  side: { 2: ['nose', 'Weapon'], 3: ['nose', 'FCS'], 4: ['nose', 'Sensors'], 5: ['side', 'Thruster'], 6: ['side', 'Cargo'], 7: ['side', 'Weapon'], 8: ['side', 'Door'], 9: ['side', 'Thruster'], 10: ['aft', 'Avionics'], 11: ['aft', 'Engine'], 12: ['aft', 'Weapon'] },
+  above: { 2: ['nose', 'Weapon'], 3: ['nose', 'FCS'], 4: ['nose', 'Sensors'], 5: ['side', 'Thruster'], 6: ['side', 'Cargo'], 7: ['side', 'Weapon'], 8: ['side', 'Door'], 9: ['side', 'Thruster'], 10: ['aft', 'Avionics'], 11: ['aft', 'Engine'], 12: ['aft', 'Weapon'] }
 };
 const AERO_FACING_LABEL = { nose: 'Nose', aft: 'Aft', leftWing: 'Left Wing', rightWing: 'Right Wing' };
 
@@ -883,7 +889,7 @@ export async function resolveAeroAttack(target, direction, groupSizes, rolls) {
   const conditions = foundry.utils.deepClone(target.system.conditions || {});
   const crew = foundry.utils.deepClone(target.system.crew || {});
   const table = target.type === 'small_craft' ? AERO_HIT_DROPSHIP : AERO_HIT_FIGHTER;
-  const col = direction === 'left' || direction === 'right' ? 'side' : direction === 'rear' ? 'aft' : 'nose';
+  const col = direction === 'above' ? 'above' : direction === 'left' || direction === 'right' ? 'side' : direction === 'rear' ? 'aft' : 'nose';
 
   const groups = [], critResults = [], crewEvents = [];
   let destroyed = false;
@@ -892,7 +898,13 @@ export async function resolveAeroAttack(target, direction, groupSizes, rolls) {
     const locRoll = await new Roll("2d6").evaluate();
     rolls.push(locRoll);
     const [token, system] = table[col][locRoll.total];
-    const facing = resolveAeroFacing(token, direction);
+    let facing = resolveAeroFacing(token, direction);
+    // From above / below a "Wing" / "Side" result has no attack side: 1D6 picks it (1–3 left, 4–6 right).
+    if (direction === 'above' && (token === 'wing' || token === 'side')) {
+      const sr = await new Roll("1d6").evaluate();
+      rolls.push(sr);
+      facing = sr.total <= 3 ? 'leftWing' : 'rightWing';
+    }
     const slot = armor[facing];
 
     let remaining = g, siHit = false;
@@ -1372,6 +1384,8 @@ export function weaponBlock(actor, weapon) {
   if (actor?.system?.conditions?.shutdown) return `${actor.name} is shut down and can't fire.`;
   if (actor?.type === 'mech' && num(actor.system?.systemHits?.sensors) >= 2) return `${actor.name}'s sensors are destroyed: it can't fire weapons.`;
   if (weapon?.destroyed) return `${wName} is destroyed and can't fire.`;
+  const aeroWhy = aeroFireBlock(actor);
+  if (aeroWhy) return aeroWhy;
   if (currentTurnKey() && actor?.flags?.['mech-foundry']?.crashed?.key === currentTurnKey()) return `${actor.name} crashed this turn and can't attack.`;
   if (currentTurnKey() && actor?.flags?.['mech-foundry']?.clearing?.key === currentTurnKey()) return `${actor.name}'s crew is clearing a jam / malfunction this turn: no weapon attacks.`;
   if (actor?.type === 'ground_vehicle') {
@@ -1392,10 +1406,11 @@ export function weaponBlock(actor, weapon) {
 }
 
 /** Per-weapon data the target-number preview needs (browser and server share previewTN). */
-function weaponPreviewRow(actor, weapon, targetActor) {
-  const fixed = autoAttackMods(actor, weapon, null).filter(m => WEAPON_SPECIFIC.includes(m.key)).reduce((t, m) => t + m.value, 0);
+function weaponPreviewRow(actor, weapon, targetActor, mode = attackMode(actor, targetActor)) {
+  const fixed = autoAttackMods(actor, weapon, null).filter(m => WEAPON_SPECIFIC.includes(m.key)).reduce((t, m) => t + m.value, 0)
+    + aeroWeaponMods(weapon, targetActor).reduce((t, m) => t + m.value, 0);
   return {
-    id: weapon.id, fixed,
+    id: weapon.id, fixed, mode, maxB: aeroMaxBracket(weapon), capital: !!weapon.capital,
     s: num(weapon.rangeS ?? weapon.short), m: num(weapon.rangeM ?? weapon.medium),
     l: num(weapon.rangeL ?? weapon.long), e: num(weapon.rangeE ?? weapon.ext),
     min: num(weapon.rangeMin),
@@ -1408,15 +1423,60 @@ function weaponPreviewRow(actor, weapon, targetActor) {
  * @returns {{tn:number, oor:boolean, bracket:string, chance:number}}
  */
 export function previewTN(v, row) {
-  const rb = rangeBracket(v.range, { rangeS: row.s, rangeM: row.m, rangeL: row.l, rangeE: row.e });
+  const rb = shotRange(row.mode, v.range, { rangeS: row.s, rangeM: row.m, rangeL: row.l, rangeE: row.e, aeroRange: row.maxB, capital: row.capital });
   let tn = num(v.gunnery) + num(v.autoSum) + num(v.heat) + num(v.other) + num(v.terrain) + row.fixed + rb.mod;
-  if (v.range != null && row.min > 0 && v.range <= row.min) tn += row.min - v.range + 1;
-  if (row.prone && v.range != null) tn += v.range <= 1 ? -2 : 1;
+  if (row.mode === 'ground' && v.range != null && row.min > 0 && v.range <= row.min) tn += row.min - v.range + 1;
+  if (row.mode === 'ground' && row.prone && v.range != null) tn += v.range <= 1 ? -2 : 1;
   return { tn, oor: !rb.inRange, bracket: rb.bracket, chance: rb.inRange ? hitChance(tn) : 0 };
 }
 
-/** Sum of the terrain / cover / secondary-target modifiers. */
-function terrainSum(t) { return terrainMods(t).reduce((a, m) => a + m.value, 0); }
+/**
+ * How an attack is resolved: 'aero' (aerospace unit vs aerospace unit — the
+ * Aerospace Range and Attack Modifier tables), 'a2g' (aerospace unit vs ground
+ * target — strafing / striking / bombing) or 'ground'.
+ */
+export function attackMode(actor, targetActor) {
+  if (isAero(actor) && isAero(targetActor)) return 'aero';
+  if (isAirToGround(actor, targetActor)) return 'a2g';
+  return 'ground';
+}
+
+/** Range bracket for a shot by attack mode (air-to-ground attacks have no range modifier). */
+function shotRange(mode, range, weapon) {
+  if (mode === 'aero') return aeroRangeBracket(range, weapon);
+  if (mode === 'a2g') return { bracket: 'air-to-ground', mod: 0, inRange: true };
+  return rangeBracket(range, weapon);
+}
+
+/** Shared modifiers that don't apply to bombing (target movement, immobile). */
+const BOMB_EXCLUDED = ['targetMove', 'immobile', 'airborneVTOL', 'targetSkid'];
+
+/**
+ * The situational modifiers from the fire dialog, by attack mode: terrain /
+ * cover / secondary target (ground); atmospheric and screen hexes, secondary
+ * target and angle of attack (aero); the air-to-ground attack type, plus
+ * terrain except when bombing (a2g).
+ */
+function situationalMods(r, mode, actor, targetActor) {
+  if (mode === 'aero') {
+    const mods = [];
+    if (r.atmoHexes) mods.push({ label: `Atmospheric hexes ×${r.atmoHexes}`, value: 2 * r.atmoHexes });
+    if (r.screen) mods.push({ label: 'Into / out of a screen hex', value: 2 });
+    mods.push(...terrainMods({ secondary: r.terrain?.secondary }));
+    const angle = aeroAngleMod(targetActor, r.direction);
+    if (angle) mods.push(angle);
+    return mods;
+  }
+  if (mode === 'a2g') {
+    return [...airToGroundMods(actor, r.a2gType), ...(r.a2gType === 'bomb' ? [] : terrainMods(r.terrain || {}))];
+  }
+  return terrainMods(r.terrain || {});
+}
+
+/** Sum of the shared automatic modifiers the attack uses (bombing drops target movement). */
+function autoSumFor(r, mode) {
+  return (r.auto || []).filter(m => !(mode === 'a2g' && r.a2gType === 'bomb' && BOMB_EXCLUDED.includes(m.key))).reduce((t, m) => t + m.value, 0);
+}
 
 /**
  * To-hit preview for every weapon against the user's current target, for the
@@ -1429,14 +1489,17 @@ export function weaponToHitPreview(actor) {
   if (!targetActor || targetActor === actor) return {};
   const attackerToken = actor.getActiveTokens?.()[0] || null;
   const range = attackerToken ? measureHexes(attackerToken, target) : null;
-  const shared = autoAttackMods(actor, null, targetActor).filter(m => !WEAPON_SPECIFIC.includes(m.key));
+  const mode = attackMode(actor, targetActor);
+  const shared = [...autoAttackMods(actor, null, targetActor).filter(m => !WEAPON_SPECIFIC.includes(m.key)), ...aeroAttackMods(actor, targetActor)];
   const v = { gunnery: gunneryFor(actor), autoSum: shared.reduce((t, m) => t + m.value, 0), heat: heatToHitMod(actor), range, other: 0, terrain: 0 };
   const out = {};
   for (const w of actor.system.weapons || []) {
-    const row = weaponPreviewRow(actor, w, targetActor);
+    const row = weaponPreviewRow(actor, w, targetActor, mode);
     const p = previewTN(v, row);
     const parts = [`Gunnery ${v.gunnery}`, ...shared.map(m => `${m.label} ${m.value >= 0 ? '+' : ''}${m.value}`)];
-    if (row.fixed) parts.push(`Actuators +${row.fixed}`);
+    if (row.fixed) parts.push(`Weapon mods +${row.fixed}`);
+    if (mode === 'a2g') parts.push('air-to-ground: pick strafe / strike / bomb in the fire dialog');
+    if (mode === 'aero') parts.push('angle of attack added in the fire dialog');
     if (v.heat) parts.push(`Heat +${v.heat}`);
     parts.push(range == null ? 'range unknown (no token on the map)' : `Range ${range} (${p.bracket})`);
     out[w.id] = p.oor
@@ -1482,18 +1545,23 @@ export async function fireWeapons(actor, preselect = []) {
   const targetName = target?.name || '';
   const targetActor = target?.actor || null;
   const autoDist = attackerToken && target ? measureHexes(attackerToken, target) : null;
-  const shared = autoAttackMods(actor, null, targetActor).filter(m => !WEAPON_SPECIFIC.includes(m.key));
-  const rows = ready.map(w => weaponPreviewRow(actor, w, targetActor));
+  const mode = attackMode(actor, targetActor);
+  const shared = [...autoAttackMods(actor, null, targetActor).filter(m => !WEAPON_SPECIFIC.includes(m.key)), ...aeroAttackMods(actor, targetActor)];
+  const rows = ready.map(w => weaponPreviewRow(actor, w, targetActor, mode));
 
   const esc = (t) => foundry.utils.escapeHTML?.(String(t)) ?? String(t);
-  const dirOpts = ATTACK_DIRECTIONS.map(d => `<option value="${d.key}">${d.label}</option>`).join('');
+  const dirList = isAero(targetActor)
+    ? [...ATTACK_DIRECTIONS.map(d => d.key === 'front' ? { ...d, label: 'Nose' } : d.key === 'rear' ? { ...d, label: 'Aft' } : d), { key: 'above', label: 'Above / Below' }]
+    : ATTACK_DIRECTIONS;
+  const dirOpts = dirList.map(d => `<option value="${d.key}">${d.label}</option>`).join('');
   const modRows = shared.map(x => `
       <div class="form-group"><label>${esc(x.label)}${x.hint ? ` <span class="tw-hint">${esc(x.hint)}</span>` : ''}</label><input type="number" name="auto_${x.key}" value="${x.value}" /></div>`).join('');
-  const v0 = { gunnery, autoSum: shared.reduce((t, m) => t + m.value, 0), heat: heatMod, range: autoDist, other: 0, terrain: 0 };
+  const v0 = { gunnery, autoSum: shared.reduce((t, m) => t + m.value, 0), heat: heatMod, range: autoDist, other: 0,
+    terrain: mode === 'aero' ? num(aeroAngleMod(targetActor, 'front')?.value) : mode === 'a2g' ? airToGroundMods(actor, 'strafe').reduce((t, m) => t + m.value, 0) : 0 };
   const weaponRows = ready.map((w, i) => {
     const p = previewTN(v0, rows[i]);
     const r = rows[i];
-    const ranges = `${r.min ? `Min ${r.min} · ` : ''}${r.s}/${r.m}/${r.l}${r.e ? `/${r.e}` : ''}`;
+    const ranges = mode === 'aero' ? `${r.capital ? 'capital, ' : ''}to ${r.maxB}` : `${r.min ? `Min ${r.min} · ` : ''}${r.s}/${r.m}/${r.l}${r.e ? `/${r.e}` : ''}`;
     return `<tr>
         <td><input type="checkbox" name="w_${w.id}" ${preselect.includes(w.id) ? 'checked' : ''} /></td>
         <td class="tw-fw-name">${esc(w.name || 'Weapon')}<span class="tw-hint">${esc(w.location || w.arc || '')} · ${ranges}${usesAmmo(w) ? ` · ${num(w.ammo)} rds` : ''}</span></td>
@@ -1511,29 +1579,40 @@ export async function fireWeapons(actor, preselect = []) {
       <div class="form-group"><label>Range (hexes)</label><input type="number" name="range" value="${autoDist ?? ''}" /></div>
       ${modRows}
       <div class="form-group"><label>Heat</label><input type="number" name="heat" value="${heatMod}" /></div>
-      <fieldset class="tw-terrain"><legend>Terrain &amp; target</legend>
+      ${mode === 'a2g' ? `<fieldset class="tw-terrain"><legend>Air-to-ground attack</legend>
+        <div class="form-group"><label>Attack type</label><select name="a2gType"><option value="strafe">Strafing (+4; +2 more at NOE)</option><option value="strike">Striking (+2)</option><option value="bomb">Bombing (+2, + altitude; no terrain / target movement)</option></select></div>
+      </fieldset>` : ''}
+      ${mode === 'aero' ? `<fieldset class="tw-terrain"><legend>Aerospace</legend>
+        <div class="form-group"><label>Atmospheric hexes fired through (+2 each)</label><input type="number" name="atmoHexes" value="0" min="0" /></div>
+        <div class="form-group"><label>Firing into / out of a screen hex (+2)</label><input type="checkbox" name="screen" /></div>
+        <div class="form-group"><label>Secondary target</label><select name="secondary"><option value="none">No (primary)</option><option value="front">Yes, forward arc (+1)</option><option value="side">Yes, side/rear arc (+2)</option></select></div>
+      </fieldset>` : `<fieldset class="tw-terrain"><legend>Terrain &amp; target</legend>
         <div class="form-group"><label>Light woods hexes between</label><input type="number" name="lightWoods" value="0" min="0" /></div>
         <div class="form-group"><label>Heavy woods hexes between</label><input type="number" name="heavyWoods" value="0" min="0" /></div>
         <div class="form-group"><label>Target standing in</label><select name="targetWoods"><option value="none">Open</option><option value="light">Light woods (+1)</option><option value="heavy">Heavy woods (+2)</option></select></div>
         <div class="form-group"><label>Partial cover (+1; leg hits strike the cover)</label><input type="checkbox" name="partialCover" /></div>
         <div class="form-group"><label>Secondary target</label><select name="secondary"><option value="none">No (primary)</option><option value="front">Yes, front arc (+1)</option><option value="side">Yes, side/rear arc (+2)</option></select></div>
-      </fieldset>
+      </fieldset>`}
       <div class="form-group"><label>Other Mod</label><input type="number" name="other" value="0" /></div>
       <div class="form-group"><label>Attack Direction</label><select name="direction">${dirOpts}</select></div>
     </div>`;
 
   const read = (f) => ({
+    mode,
     gunnery: num(f.gunnery.value),
-    auto: shared.map(x => ({ label: x.label, value: num(f[`auto_${x.key}`]?.value) })),
+    auto: shared.map(x => ({ key: x.key, label: x.label, value: num(f[`auto_${x.key}`]?.value) })),
     range: f.range.value === '' ? null : num(f.range.value),
     heat: num(f.heat.value),
     terrain: {
-      lightWoods: Math.max(0, num(f.lightWoods.value)),
-      heavyWoods: Math.max(0, num(f.heavyWoods.value)),
-      targetWoods: f.targetWoods.value,
-      partialCover: !!f.partialCover.checked,
-      secondary: f.secondary.value
+      lightWoods: Math.max(0, num(f.lightWoods?.value)),
+      heavyWoods: Math.max(0, num(f.heavyWoods?.value)),
+      targetWoods: f.targetWoods?.value ?? 'none',
+      partialCover: !!f.partialCover?.checked,
+      secondary: f.secondary?.value ?? 'none'
     },
+    a2gType: f.a2gType?.value ?? 'strafe',
+    atmoHexes: Math.max(0, num(f.atmoHexes?.value)),
+    screen: !!f.screen?.checked,
     other: num(f.other.value),
     direction: f.direction.value,
     ids: ready.filter(w => f[`w_${w.id}`]?.checked).map(w => w.id)
@@ -1547,7 +1626,7 @@ export async function fireWeapons(actor, preselect = []) {
     if (!form?.querySelectorAll) return;
     const refresh = () => {
       const r = read(form.elements);
-      const v = { gunnery: r.gunnery, autoSum: r.auto.reduce((t, m) => t + m.value, 0), heat: r.heat, range: r.range, other: r.other, terrain: terrainSum(r.terrain) };
+      const v = { gunnery: r.gunnery, autoSum: autoSumFor(r, mode), heat: r.heat, range: r.range, other: r.other, terrain: situationalMods(r, mode, actor, targetActor).reduce((t, m) => t + m.value, 0) };
       rows.forEach(row => {
         const cell = form.querySelector(`.tw-fw-tn[data-wid="${row.id}"]`);
         if (!cell) return;
@@ -1606,16 +1685,20 @@ export async function fireWeapons(actor, preselect = []) {
 async function resolveWeaponShot(actor, weapon, target, result, rolls) {
   const targetName = target?.name || '';
   const targetActor = target?.actor || null;
-  const rb = rangeBracket(result.range, weapon);
-  const actuators = autoAttackMods(actor, weapon, null).filter(m => WEAPON_SPECIFIC.includes(m.key)).map(m => ({ label: m.label, value: m.value }));
+  const mode = result.mode || attackMode(actor, targetActor);
+  const rb = shotRange(mode, result.range, weapon);
+  const weaponMods = [...autoAttackMods(actor, weapon, null).filter(m => WEAPON_SPECIFIC.includes(m.key)), ...aeroWeaponMods(weapon, targetActor)]
+    .map(m => ({ label: m.label, value: m.value }));
+  const autos = (result.auto || []).filter(m => !(mode === 'a2g' && result.a2gType === 'bomb' && BOMB_EXCLUDED.includes(m.key)))
+    .map(m => ({ label: m.label, value: m.value }));
   const mods = [
     { label: "Gunnery", value: result.gunnery },
-    ...(result.auto || []),
-    ...actuators,
+    ...autos,
+    ...weaponMods,
     { label: `Range (${rb.bracket})`, value: rb.mod },
-    ...rangeDependentMods(weapon, targetActor, result.range),
+    ...(mode === 'ground' ? rangeDependentMods(weapon, targetActor, result.range) : []),
     { label: "Heat", value: result.heat },
-    ...terrainMods(result.terrain),
+    ...situationalMods(result, mode, actor, targetActor),
     { label: "Other", value: result.other }
   ].filter(m => m.value !== 0 || m.label === "Gunnery");
   const tn = mods.reduce((t, x) => t + x.value, 0);
@@ -1644,6 +1727,8 @@ async function resolveWeaponShot(actor, weapon, target, result, rolls) {
     const list = Object.entries(firedThisTurn(actor)).map(([id, heat]) => ({ id, heat }));
     list.push({ id: weapon.id, heat: num(weapon.heat) });
     upd['flags.mech-foundry.fired'] = { key: currentTurnKey(), list };
+    // An air-to-ground attacker is easier to hit this turn (−3 for its targets).
+    if (mode === 'a2g' && currentTurnKey()) upd['flags.mech-foundry.aeroTurn'] = { ...aeroTurnState(actor), airToGround: true, key: currentTurnKey() };
     if (actor.isOwner || game.user.isGM) await writeDoc(actor, upd);
   }
 
@@ -1665,7 +1750,7 @@ async function resolveWeaponShot(actor, weapon, target, result, rolls) {
     }
     const groupSizes = clusterSize > 0 ? groupDamage(total, clusterGroupSize(weapon)) : [total];
     const frag = await resolveDamageAgainst(targetActor, result.direction, groupSizes, rolls, targetName, {
-      partialCover: !!result.terrain?.partialCover && targetActor?.type === 'mech'
+      partialCover: mode !== 'aero' && !!result.terrain?.partialCover && targetActor?.type === 'mech'
     });
     hitResult = { cluster: clusterSize > 0, clusterInfo, total, ...frag };
   }

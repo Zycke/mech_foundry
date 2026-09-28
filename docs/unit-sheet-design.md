@@ -233,6 +233,18 @@ criticals and cluster grouping:
   Engine Damage. Crash damage reaching internal structure explodes a VTOL. Airborne VTOL targets
   (elevation 1+) are +1. The vehicle sheet shows VTOL elevation and the co-pilot / flight
   stabilizer flags.
+- **Aerospace attacks** (`tw-aero.mjs`; TW pp. 235, 237, 243, 77): fighter / small craft vs
+  aerospace targets use the Aerospace Weapon Range Table (standard 6/12/20/25, capital 12/24/40/50;
+  each weapon's longest bracket and Capital flag on the aero sheet) and the Aerospace Attack
+  Modifiers: pilot damage +1/box, FCS +2/box, sensors +1/box (+5 destroyed), exceeded Safe Thrust
+  +2, out of control +2, NOE vs air +2 (+1 OmniFighter), target at 0 velocity −2, target evading
+  (+3 fighter / +2 small craft; evading fighters can't attack), target made an air-to-ground
+  attack −3, angle of attack (nose +1, side +2), capital weapon vs <500 t +5, atmospheric hexes
+  +2 each, screen hex +2, secondary target. Above / Below attacks use their own hit-location
+  column (a "Wing" result rolls 1D6 for the side). Against ground targets the dialog offers
+  strafing (+4, +2 more at NOE), striking (+2) or bombing (+2 + altitude; no terrain or target
+  movement modifiers); air-to-ground has no range modifier and flags the attacker −3 to hit that
+  turn. Per-turn aero state (evading, air-to-ground, thrust) is the `aeroTurn` actor flag.
 **Intentional house rules** (deliberate divergences — don't "correct" toward the book):
 - Combat vehicles roll a critical on any hit that penetrates to internal structure, in
   addition to the tables' marked results (2/12, or 8 on side attacks).
