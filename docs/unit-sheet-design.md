@@ -255,6 +255,16 @@ criticals and cluster grouping:
   13 or less or on the avoid roll), ammunition (19+: most damaging per-shot ammo × rounds / 10 to SI,
   / 20 with CASE, min 1; pilot 1) and pilot damage (21+). Random-movement and pilot-damage avoid
   numbers (5/6/7/8/10 and 6/9) are from the aerospace record-sheet heat scale — `AERO_HEAT`.
+- **Aero maneuvering & landing** (TW pp. 77, 84–87, 92–93): the aero sheet's Maneuver… declares
+  the turn's thrust (velocity changes + facing changes at the Changing Facing Cost Table rate +
+  special maneuver cost), new velocity, evasive action, and hazards; it shows the minimum straight
+  movement (aero map / ground map), records thrust and evasion for the attack modifiers, and rolls
+  the Control Rolls the move requires (special maneuver with its control modifier, more than one
+  roll, thrust above SI, velocity over 2× Safe in atmosphere, stalling, 3+ altitudes descended,
+  ceiling). Land… rolls a landing Control Roll with the Landing Modifiers (terrain halved for
+  vertical landings); a horizontal failure applies the Failed Braking Maneuver Table (6+: 20 damage
+  to the nose, gear damaged). Not automated: token movement on the aero map, re-entry, ramming
+  damage, capital missiles, large craft.
 **Intentional house rules** (deliberate divergences — don't "correct" toward the book):
 - Combat vehicles roll a critical on any hit that penetrates to internal structure, in
   addition to the tables' marked results (2/12, or 8 on side attacks).

@@ -2,7 +2,7 @@ import { MechFoundryUnitSheet } from "./unit-sheet.mjs";
 import { actorSkillRating, applyCrewDamage, CREW_DAMAGE, AERO_GUNNERY_SKILLS, AERO_PILOTING_SKILLS } from "../helpers/atow-conversion.mjs";
 import { weaponAttack } from "../helpers/tw-combat.mjs";
 import { wakeRoll } from "../helpers/tw-falls.mjs";
-import { randomMovement, resolveAeroHeat, rollPendingControl } from "../helpers/tw-aero-flight.mjs";
+import { aeroLanding, aeroManeuver, randomMovement, resolveAeroHeat, rollPendingControl } from "../helpers/tw-aero-flight.mjs";
 import { pendingPSR } from "../helpers/tw-psr.mjs";
 
 const { DialogV2 } = foundry.applications.api;
@@ -186,6 +186,8 @@ export class MechFoundryAerospaceFighterSheet extends MechFoundryUnitSheet {
     html.on('click', '.resolve-heat', (ev) => { ev.preventDefault(); resolveAeroHeat(this.actor); });
     html.on('click', '.control-roll', (ev) => { ev.preventDefault(); rollPendingControl(this.actor); });
     html.on('click', '.random-move', (ev) => { ev.preventDefault(); randomMovement(this.actor); });
+    html.on('click', '.aero-maneuver', (ev) => { ev.preventDefault(); aeroManeuver(this.actor); });
+    html.on('click', '.aero-landing', (ev) => { ev.preventDefault(); aeroLanding(this.actor); });
   }
 
   _applyActiveTab() {

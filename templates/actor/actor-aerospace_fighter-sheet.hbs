@@ -73,7 +73,7 @@
 
       <div class="mf-grid2">
         <div class="mf-panel">
-          <h4>Flight</h4>
+          <h4>Flight {{#if editable}}<span class="mf-h4-actions"><button type="button" class="aero-maneuver" title="Declare this turn's thrust, facing changes and special maneuvers; rolls any Control Rolls they require"><i class="fas fa-plane"></i> Maneuver…</button> <button type="button" class="aero-landing" title="Landing Control Roll"><i class="fas fa-plane-arrival"></i> Land…</button></span>{{/if}}</h4>
           <div class="mf-stats">
             <label class="mf-stat"><span class="k">Safe Thrust</span><input type="number" min="0" name="system.thrust.safe" value="{{flight.safe}}" {{#unless editable}}disabled{{/unless}} /></label>
             <div class="mf-stat"><span class="k">Max Thrust</span><span class="v derived">{{flight.max}}</span></div>
