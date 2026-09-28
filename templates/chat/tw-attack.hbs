@@ -26,6 +26,8 @@
     {{/if}}
   </div>
 
+  {{#if ammoLine}}<div class="tw-atk-ammo"><i class="fas fa-box"></i> {{ammoLine}}</div>{{/if}}
+
   {{#if hitResult}}
     {{#if hitResult.cluster}}
     <div class="tw-cluster">
@@ -46,7 +48,7 @@
       {{/each}}
       {{#each hitResult.critResults}}<div class="tw-hl-event tw-crit-line">▸ Crit {{this.facingLabel}}: <strong>{{this.system}}</strong></div>{{/each}}
       {{#if hitResult.destroyed}}<div class="tw-hl-destroyed">UNIT DESTROYED</div>{{/if}}
-      {{#unless hitResult.applied}}<div class="tw-atk-dmg"><em>No permission — apply the above to {{hitResult.targetName}} manually.</em></div>{{/unless}}
+      {{#unless hitResult.applied}}<div class="tw-atk-dmg"><em>Couldn't apply automatically (no permission and no GM available) — apply the above to {{hitResult.targetName}} manually.</em></div>{{/unless}}
     {{else if hitResult.vehicle}}
       {{#each hitResult.groups}}
       <div class="tw-hit-loc">
@@ -59,7 +61,7 @@
       {{#each hitResult.motives}}<div class="tw-hl-event">▸ Motive ({{this.roll}}): {{this.text}}</div>{{/each}}
       {{#each hitResult.critResults}}<div class="tw-hl-event tw-crit-line">▸ Crit {{this.facingLabel}} ({{this.roll}}): <strong>{{this.effect}}</strong>{{#if this.note}} <em>({{this.note}})</em>{{/if}}</div>{{/each}}
       {{#if hitResult.destroyed}}<div class="tw-hl-destroyed">VEHICLE DESTROYED</div>{{/if}}
-      {{#unless hitResult.applied}}<div class="tw-atk-dmg"><em>No permission — apply the above to {{hitResult.targetName}} manually.</em></div>{{/unless}}
+      {{#unless hitResult.applied}}<div class="tw-atk-dmg"><em>Couldn't apply automatically (no permission and no GM available) — apply the above to {{hitResult.targetName}} manually.</em></div>{{/unless}}
     {{else if hitResult.isMech}}
       {{#each hitResult.groups}}
       <div class="tw-hit-loc">
@@ -79,7 +81,7 @@
       {{#if hitResult.ammoExplosion}}<div class="tw-hl-event tw-crit-line"><strong>Ammunition explosion — resolve internal damage</strong></div>{{/if}}
       {{#if hitResult.pilotNote}}<div class="tw-hl-event tw-crit-line"><strong>{{hitResult.pilotNote}}</strong></div>{{/if}}
       {{#if hitResult.destroyedByCrit}}<div class="tw-hl-destroyed">UNIT DESTROYED</div>{{/if}}
-      {{#unless hitResult.applied}}<div class="tw-atk-dmg"><em>No permission — apply the above to {{hitResult.targetName}} manually.</em></div>{{/unless}}
+      {{#unless hitResult.applied}}<div class="tw-atk-dmg"><em>Couldn't apply automatically (no permission and no GM available) — apply the above to {{hitResult.targetName}} manually.</em></div>{{/unless}}
     {{else}}
       <div class="tw-atk-dmg">
         <strong>{{hitResult.total}}</strong> damage{{#if hitResult.hasTarget}} to {{hitResult.targetName}}{{/if}} — resolve hit location manually{{#if hitResult.hasTarget}} (non-mech target){{/if}}.

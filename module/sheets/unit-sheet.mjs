@@ -1,4 +1,5 @@
 import { MechFoundryActorSheetV2 } from "./base-actor-sheet.mjs";
+import { currentTurnKey, firedThisTurn, usesAmmo } from "../helpers/tw-combat.mjs";
 
 /** Weight classes offered on unit sheets (free-form fallback allowed). */
 const WEIGHT_CLASSES = ['Light', 'Medium', 'Heavy', 'Assault'];
@@ -43,7 +44,15 @@ export class MechFoundryUnitSheet extends MechFoundryActorSheetV2 {
     context.isBattleArmor = this.actor.type === 'battle_armor';
     context.typeLabel = TYPE_LABELS[this.actor.type] || 'Unit';
     context.weightClasses = WEIGHT_CLASSES;
-    context.weapons = (this.actor.system.weapons || []).map(w => ({ ...w }));
+    // Per-weapon state: fired this turn (only meaningful during combat), out of
+    // ammunition, destroyed (set by crits or the row's toggle).
+    const fired = currentTurnKey() ? firedThisTurn(this.actor) : {};
+    context.weapons = (this.actor.system.weapons || []).map(w => ({
+      ...w,
+      destroyed: !!w.destroyed,
+      fired: fired[w.id] !== undefined,
+      outOfAmmo: usesAmmo(w) && (Number(w.ammo) || 0) <= 0
+    }));
     return context;
   }
 
@@ -61,7 +70,23 @@ export class MechFoundryUnitSheet extends MechFoundryActorSheetV2 {
     html.on('click', '.add-weapon', this._onAddWeapon.bind(this));
     html.on('click', '.remove-weapon', this._onRemoveWeapon.bind(this));
     html.on('click', '.duplicate-weapon', this._onDuplicateWeapon.bind(this));
+    html.on('click', '.toggle-weapon-destroyed', this._onToggleWeaponDestroyed.bind(this));
     html.on('change', '.weapon-field', this._onWeaponFieldChange.bind(this));
+  }
+
+  /**
+   * Mark a weapon destroyed or repaired. Mech crit slots set this automatically;
+   * vehicle/aero 'Weapon Destroyed' crits don't say which weapon, so the owner
+   * marks it here.
+   */
+  async _onToggleWeaponDestroyed(event) {
+    event.preventDefault();
+    const id = event.currentTarget.dataset.weaponId;
+    await this._updateWeapons(w => {
+      const wpn = w.find(x => x.id === id);
+      if (!wpn) return false;
+      wpn.destroyed = !wpn.destroyed;
+    });
   }
 
   /** Insert a copy of a weapon (new id) directly after the original. */
@@ -73,6 +98,7 @@ export class MechFoundryUnitSheet extends MechFoundryActorSheetV2 {
       if (i < 0) return false;
       const copy = foundry.utils.deepClone(w[i]);
       copy.id = foundry.utils.randomID();
+      delete copy.destroyed; // a fresh copy starts intact
       w.splice(i + 1, 0, copy);
     });
   }

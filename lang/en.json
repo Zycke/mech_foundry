@@ -158,6 +158,8 @@
   "MECHFOUNDRY.SpentXP": "Spent XP",
 
   "MECHFOUNDRY.SettingShowRollDetails": "Show Roll Details",
+  "MECHFOUNDRY.SettingGMDamageRelay": "Relay Player Combat Damage Through GM",
+  "MECHFOUNDRY.SettingGMDamageRelayHint": "When a player's attack hits a unit they don't own, the active GM's client applies the damage, criticals and crew injuries automatically. Only combat damage fields can be written this way. Requires a GM to be logged in; turn off to have players apply damage manually.",
   "MECHFOUNDRY.SettingShowRollDetailsHint": "Show detailed roll information in chat messages.",
   "MECHFOUNDRY.SettingDefaultDifficulty": "Default Difficulty",
   "MECHFOUNDRY.SettingDefaultDifficultyHint": "The default difficulty modifier for action checks.",

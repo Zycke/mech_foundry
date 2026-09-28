@@ -135,7 +135,7 @@
           <thead><tr><th class="w-name">Weapon</th><th>Arc</th><th>Ht</th><th>Dmg</th><th title="Cluster/launcher size">Clus</th><th>S</th><th>M</th><th>L</th><th>E</th><th>Ammo Type</th><th>Rds</th><th></th></tr></thead>
           <tbody>
             {{#each weapons}}
-            <tr>
+            <tr class="w-row{{#if destroyed}} w-destroyed{{/if}}{{#if fired}} w-fired{{/if}}">
               <td class="w-name"><input type="text" class="weapon-field" data-weapon-id="{{id}}" data-field="name" value="{{name}}" placeholder="Weapon" {{#unless ../editable}}disabled{{/unless}} /></td>
               <td><input type="text" class="weapon-field loc" data-weapon-id="{{id}}" data-field="location" value="{{location}}" placeholder="Nose" {{#unless ../editable}}disabled{{/unless}} /></td>
               <td><input type="number" min="0" class="weapon-field n" data-weapon-id="{{id}}" data-field="heat" value="{{heat}}" {{#unless ../editable}}disabled{{/unless}} /></td>
@@ -148,7 +148,9 @@
               <td><input type="text" class="weapon-field" data-weapon-id="{{id}}" data-field="ammoType" value="{{ammoType}}" placeholder="— none —" {{#unless ../editable}}disabled{{/unless}} /></td>
               <td><input type="number" min="0" class="weapon-field n" data-weapon-id="{{id}}" data-field="ammo" value="{{ammo}}" {{#unless ../editable}}disabled{{/unless}} /></td>
               <td class="w-actions">
-                {{#if ../editable}}<button type="button" class="weapon-attack" data-weapon-id="{{id}}" title="Attack"><i class="fas fa-bolt"></i></button>{{/if}}
+                {{#if destroyed}}<span class="w-badge dmg">DESTROYED</span>{{else if outOfAmmo}}<span class="w-badge warn">NO AMMO</span>{{else if fired}}<span class="w-badge">FIRED</span>{{/if}}
+                {{#if ../editable}}{{#unless destroyed}}<button type="button" class="weapon-attack" data-weapon-id="{{id}}" title="{{#if fired}}Already fired this turn{{else if outOfAmmo}}Out of ammunition{{else}}Attack{{/if}}" {{#if fired}}disabled{{else if outOfAmmo}}disabled{{/if}}><i class="fas fa-bolt"></i></button>{{/unless}}{{/if}}
+                {{#if ../editable}}<a class="toggle-weapon-destroyed" data-weapon-id="{{id}}" title="{{#if destroyed}}Mark repaired{{else}}Mark destroyed{{/if}}"><i class="fas {{#if destroyed}}fa-screwdriver-wrench{{else}}fa-ban{{/if}}"></i></a>{{/if}}
                 {{#if ../editable}}<a class="duplicate-weapon" data-weapon-id="{{id}}" title="Duplicate"><i class="fas fa-clone"></i></a>{{/if}}
                 {{#if ../editable}}<a class="remove-weapon" data-weapon-id="{{id}}" title="Remove"><i class="fas fa-trash"></i></a>{{/if}}
               </td>

@@ -47,6 +47,7 @@ import { ShopApplication } from "./apps/shop.mjs";
 import { ATOW_SKILLS, ATOW_TRAITS, ATOW_TRAIT_DESCRIPTIONS } from "./data/atow-lists.mjs";
 import { woundDescription, conditionDescription } from "./data/status-descriptions.mjs";
 import { SocketHandler, SOCKET_EVENTS } from "./helpers/socket-handler.mjs";
+import { initGMRelay } from "./helpers/gm-relay.mjs";
 import { OpposedRollHelper } from "./helpers/opposed-rolls.mjs";
 import { DiceMechanics } from "./helpers/dice-mechanics.mjs";
 import { ItemEffectsHelper, EFFECT_CATEGORIES, getEffectTypeOptions } from "./helpers/effects-helper.mjs";
@@ -237,6 +238,7 @@ Hooks.once('ready', async function() {
 
   // Initialize socket handler for cross-player communication
   SocketHandler.initialize();
+  initGMRelay();
   ShopApplication.initSocket();
 
   // Make OpposedRollHelper available globally
@@ -499,6 +501,17 @@ function _registerHandlebarsHelpers() {
 /* -------------------------------------------- */
 
 function _registerSystemSettings() {
+  // Let players' attacks damage units they don't own by relaying the write through
+  // the active GM's client (see helpers/gm-relay.mjs).
+  game.settings.register("mech-foundry", "gmDamageRelay", {
+    name: "MECHFOUNDRY.SettingGMDamageRelay",
+    hint: "MECHFOUNDRY.SettingGMDamageRelayHint",
+    scope: "world",
+    config: true,
+    type: Boolean,
+    default: true
+  });
+
   // Whether to show roll details in chat
   game.settings.register("mech-foundry", "showRollDetails", {
     name: "MECHFOUNDRY.SettingShowRollDetails",
@@ -589,6 +602,17 @@ Hooks.on("preCreateCombatant", (combatant, data, options, userId) => {
 // Initiative ties are broken by RFL in MechFoundryCombat#_sortCombatants
 // (see documents/combat.mjs) — sorting the derived combat.turns array here
 // would have no persistent effect.
+
+// A new round (or the end of combat) resets "fired this turn": refresh open
+// unit sheets so their weapon badges and Attack buttons update.
+function refreshCombatantSheets(combat) {
+  for (const c of combat?.combatants ?? []) {
+    const sheet = c.actor?.sheet;
+    if (sheet?.rendered) sheet.render(false);
+  }
+}
+Hooks.on("updateCombat", (combat, changes) => { if ("round" in changes) refreshCombatantSheets(combat); });
+Hooks.on("deleteCombat", (combat) => refreshCombatantSheets(combat));
 
 // Total Warfare turn-phase bar in the combat tracker.
 Hooks.on("renderCombatTracker", (app, html) => {

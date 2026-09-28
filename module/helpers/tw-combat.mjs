@@ -12,6 +12,7 @@ import {
   actorSkillRating, applyCrewDamage, CREW_DAMAGE,
   MECH_GUNNERY_SKILLS, VEHICLE_GUNNERY_SKILLS, AERO_GUNNERY_SKILLS
 } from "./atow-conversion.mjs";
+import { writeDoc } from "./gm-relay.mjs";
 
 const { DialogV2 } = foundry.applications.api;
 
@@ -29,6 +30,33 @@ const num = (v) => Number(v) || 0;
 export function heatToHitMod(actor) {
   const h = num(actor?.system?.heat?.value);
   return [8, 13, 17, 24].filter(t => h >= t).length;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Fired-weapon tracking (per turn)                                    */
+/* ------------------------------------------------------------------ */
+
+/** Key identifying "this turn": the running combat's round, or null outside combat. */
+export function currentTurnKey() {
+  const c = game.combat;
+  return c?.started ? `${c.id}:${c.round}` : null;
+}
+
+/**
+ * Weapons an actor has fired this turn, as { weaponId: heat }. Stored in the
+ * actor flag `mech-foundry.fired` = { key, list: [{id, heat}] } — a list, not a
+ * keyed object, because Foundry merges object updates and would carry last
+ * turn's entries forward. A record from another turn reads as empty.
+ */
+export function firedThisTurn(actor) {
+  const rec = actor?.flags?.['mech-foundry']?.fired;
+  if (!rec || rec.key !== currentTurnKey()) return {};
+  return Object.fromEntries((rec.list || []).map(e => [e.id, num(e.heat)]));
+}
+
+/** Does this weapon draw from ammunition? (Energy weapons leave Ammo Type blank.) */
+export function usesAmmo(weapon) {
+  return String(weapon?.ammoType ?? '').trim() !== '';
 }
 
 /** Resolve the crew Gunnery rating, deriving from a linked character when present. */
@@ -102,13 +130,13 @@ const MECH_LOC_LABEL = {
 const REAR_ARMOR_KEY = { ct: 'ctRear', lt: 'ltRear', rt: 'rtRear' };
 
 /**
- * Apply a block of damage to a mech, starting at a rolled location and
- * transferring inward through destroyed locations. Mutates and saves the actor.
- * @returns {object} summary for the chat card.
+ * Apply a block of damage to in-memory mech state ({armor, structure}), starting
+ * at a rolled location and transferring inward through destroyed locations.
+ * Pure: mutates `state` only. Callers accumulate every damage group for an
+ * attack and save once (see resolveDamageAgainst).
  */
-export async function applyMechDamage(target, startLoc, amount, { rear = false } = {}) {
-  const armor = foundry.utils.deepClone(target.system.armor || {});
-  const structure = foundry.utils.deepClone(target.system.structure || {});
+export function applyMechDamageToState(state, startLoc, amount, { rear = false } = {}) {
+  const { armor, structure } = state;
   const events = [];
   const structureHits = [];
   let loc = startLoc;
@@ -142,27 +170,33 @@ export async function applyMechDamage(target, startLoc, amount, { rear = false }
     else { loc = MECH_TRANSFER[loc]; useRear = false; }
   }
 
-  const update = { 'system.armor': armor, 'system.structure': structure };
-  const applied = (target.isOwner || game.user.isGM);
-  if (applied) await target.update(update);
-
   return {
-    applied, destroyed,
-    startLabel: MECH_LOC_LABEL[startLoc] || startLoc,
-    events, structureHits,
+    destroyed, events, structureHits,
     overflow: remaining > 0 && !destroyed ? remaining : 0
   };
 }
 
-/** Zero a mech location's armor + structure (limb/head blown off). Returns true if the head. */
-export async function blowOffMechLocation(target, loc) {
-  const armor = foundry.utils.deepClone(target.system.armor || {});
-  const structure = foundry.utils.deepClone(target.system.structure || {});
+/**
+ * Apply a single block of damage to a mech actor and save it (directly, or via
+ * the GM relay when this user doesn't own the target).
+ */
+export async function applyMechDamage(target, startLoc, amount, opts = {}) {
+  const state = {
+    armor: foundry.utils.deepClone(target.system.armor || {}),
+    structure: foundry.utils.deepClone(target.system.structure || {})
+  };
+  const result = applyMechDamageToState(state, startLoc, amount, opts);
+  const applied = await writeDoc(target, { 'system.armor': state.armor, 'system.structure': state.structure });
+  return { ...result, applied };
+}
+
+/** Zero a location's armor + structure in memory (limb/head blown off). Returns true if the head. */
+function blowOffLocationState(state, loc) {
+  const { armor, structure } = state;
   if (armor[loc]) armor[loc].value = 0;
   const rearKey = REAR_ARMOR_KEY[loc];
   if (rearKey && armor[rearKey]) armor[rearKey].value = 0;
   if (structure[loc]) structure[loc].value = 0;
-  if (target.isOwner || game.user.isGM) await target.update({ 'system.armor': armor, 'system.structure': structure });
   return loc === 'head';
 }
 
@@ -462,8 +496,7 @@ export async function resolveVehicleAttack(target, direction, groupSizes, rolls)
   const cruise = Number(target.system.movement?.cruise) || 0;
   crits.motiveHits = Math.min(Math.max(3, cruise), Number(crits.motiveHits) || 0);
 
-  const applied = target.isOwner || game.user.isGM;
-  if (applied) await target.update({ 'system.armor': armor, 'system.structure': structure, 'system.crits': crits, 'system.conditions': conditions, 'system.crew': crew });
+  const applied = await writeDoc(target, { 'system.armor': armor, 'system.structure': structure, 'system.crits': crits, 'system.conditions': conditions, 'system.crew': crew });
 
   // Apply crew damage to a linked crew actor.
   const linked = target.system.crew?.actorId ? game.actors.get(target.system.crew.actorId) : null;
@@ -572,8 +605,7 @@ export async function resolveAeroAttack(target, direction, groupSizes, rolls) {
     }
   }
 
-  const applied = target.isOwner || game.user.isGM;
-  if (applied) await target.update({ 'system.armor': armor, 'system.structuralIntegrity': si, 'system.crits': crits, 'system.conditions': conditions, 'system.crew': crew });
+  const applied = await writeDoc(target, { 'system.armor': armor, 'system.structuralIntegrity': si, 'system.crits': crits, 'system.conditions': conditions, 'system.crew': crew });
   const linked = crew.actorId ? game.actors.get(crew.actorId) : null;
   if (applied && linked) for (const ev of crewEvents) await applyCrewDamage(linked, ev);
 
@@ -609,7 +641,10 @@ export async function resolveMechHeat(actor) {
   const dissipation = num(sinks.count) * (sinks.type === 'double' ? 2 : 1);
   const engineHits = num(sys.systemHits?.engine);
   const engineHeat = engineHits >= 2 ? 10 : engineHits === 1 ? 5 : 0;
-  const weaponsHeatTotal = (sys.weapons || []).reduce((s, w) => s + num(w.heat), 0);
+  // Only weapons actually fired this turn (via their Attack buttons) generate heat.
+  const fired = firedThisTurn(actor);
+  const firedCount = Object.keys(fired).length;
+  const weaponsHeatTotal = Object.values(fired).reduce((s, h) => s + num(h), 0);
 
   const moveOpts = [['stationary', 'Stationary'], ['walked', 'Walked (+1)'], ['ran', 'Ran (+2)'], ['jumped', 'Jumped (+1/hex, min 3)']]
     .map(([k, l]) => `<option value="${k}">${l}</option>`).join('');
@@ -619,7 +654,7 @@ export async function resolveMechHeat(actor) {
       <div class="form-group"><label>Movement</label><select name="move">${moveOpts}</select></div>
       <div class="form-group"><label>Jump hexes</label><input type="number" name="hexes" value="0" /></div>
       <div class="form-group"><label>Stand attempts</label><input type="number" name="stand" value="0" /></div>
-      <div class="form-group"><label>Weapons heat</label><input type="number" name="weapons" value="${weaponsHeatTotal}" /></div>
+      <div class="form-group"><label>Weapons heat <span class="tw-hint">${firedCount} fired this turn</span></label><input type="number" name="weapons" value="${weaponsHeatTotal}" /></div>
       <div class="form-group"><label>Engine-hit heat</label><input type="number" name="engine" value="${engineHeat}" /></div>
       <div class="form-group"><label>Heat-sink dissipation</label><input type="number" name="sinks" value="${dissipation}" /></div>
     </div>`;
@@ -651,7 +686,8 @@ export async function resolveMechHeat(actor) {
   const newHeat = Math.max(0, current + gain - r.sinks);
   const effects = mechHeatEffects(newHeat);
 
-  const update = { 'system.heat.value': newHeat };
+  // Heat is resolved: this turn's fired-weapon record is spent.
+  const update = { 'system.heat.value': newHeat, 'flags.mech-foundry.fired': { key: currentTurnKey(), list: [] } };
   if (effects.auto) update['system.conditions.shutdown'] = true;
   if (actor.isOwner || game.user.isGM) await actor.update(update);
 
@@ -700,7 +736,12 @@ export async function resolveDamageAgainst(targetActor, direction, groupSizes, r
     const heatSinks = foundry.utils.deepClone(targetActor.system.heatSinks || { count: 0, type: 'single' });
     const weapons = foundry.utils.deepClone(targetActor.system.weapons || []);
     const crew = foundry.utils.deepClone(targetActor.system.pilot || {});
-    const state = { destroyed: false, pilotKilled: false, ammo: false };
+    // All damage for this attack accumulates here and is saved in one write.
+    const dmgState = {
+      armor: foundry.utils.deepClone(targetActor.system.armor || {}),
+      structure: foundry.utils.deepClone(targetActor.system.structure || {})
+    };
+    const state = { destroyed: false, pilotUnconscious: false, ammo: false };
     const ensureSlots = (loc) => {
       if (!Array.isArray(critSlots[loc]) || critSlots[loc].length === 0) critSlots[loc] = standardMechSlots()[loc];
       return critSlots[loc];
@@ -708,7 +749,7 @@ export async function resolveDamageAgainst(targetActor, direction, groupSizes, r
     for (const g of groupSizes) {
       const locRoll = await rollMechLocation(direction);
       rolls.push(locRoll.roll);
-      const dmg = await applyMechDamage(targetActor, locRoll.loc, g, { rear: locRoll.rear });
+      const dmg = applyMechDamageToState(dmgState, locRoll.loc, g, { rear: locRoll.rear });
       groups.push({
         damage: g, locLabel: locRoll.label + (locRoll.rear ? ' (rear)' : ''),
         locDice: locRoll.dice, crit: locRoll.crit,
@@ -720,8 +761,7 @@ export async function resolveDamageAgainst(targetActor, direction, groupSizes, r
         const cc = await rollDeterminingCrit(cl);
         rolls.push(cc.roll);
         if (cc.blowOff) {
-          const wasHead = await blowOffMechLocation(targetActor, cl);
-          if (wasHead) state.destroyed = true;
+          if (blowOffLocationState(dmgState, cl)) state.destroyed = true;
           critChecks.push({ locLabel: MECH_LOC_LABEL[cl] || cl, total: cc.total, text: cc.text, slots: [] });
           continue;
         }
@@ -740,28 +780,26 @@ export async function resolveDamageAgainst(targetActor, direction, groupSizes, r
         }
       }
     }
-    if (targetActor.isOwner || game.user.isGM) {
-      await targetActor.update({
-        'system.critSlots': critSlots, 'system.systemHits': systemHits,
-        'system.heatSinks': heatSinks, 'system.weapons': weapons, 'system.pilot': crew
-      });
-    }
+    const applied = await writeDoc(targetActor, {
+      'system.armor': dmgState.armor, 'system.structure': dmgState.structure,
+      'system.critSlots': critSlots, 'system.systemHits': systemHits,
+      'system.heatSinks': heatSinks, 'system.weapons': weapons, 'system.pilot': crew
+    });
     // Cockpit crit: knock a linked pilot unconscious (same pattern the system
     // uses when fatigue drops a character).
     let pilotNote = '';
     if (state.pilotUnconscious) {
       const linked = game.actors.get(crew.actorId);
-      if (linked && (linked.isOwner || game.user.isGM)) {
-        await linked.update({ 'system.unconscious': true });
+      if (linked && await writeDoc(linked, { 'system.unconscious': true })) {
         ui.notifications.warn(`${linked.name} has fallen unconscious!`);
         pilotNote = `${linked.name} is unconscious`;
       } else if (linked) {
-        pilotNote = `${linked.name} is unconscious — no permission, mark manually`;
+        pilotNote = `${linked.name} is unconscious — couldn't update them, mark manually`;
       }
     }
     return {
       isMech: true, groups, critChecks, destroyedByCrit: state.destroyed, ammoExplosion: state.ammo, pilotNote,
-      applied: targetActor.isOwner || game.user.isGM, hasTarget: true, targetName: targetActor.name
+      applied, hasTarget: true, targetName: targetActor.name
     };
   } else if (tt === 'ground_vehicle') {
     return await resolveVehicleAttack(targetActor, direction, groupSizes, rolls);
@@ -781,6 +819,19 @@ export async function resolveDamageAgainst(targetActor, direction, groupSizes, r
  */
 export async function weaponAttack(actor, weapon) {
   if (!actor || !weapon) return;
+
+  // Can this weapon fire right now?
+  const wName = weapon.name || 'Weapon';
+  if (weapon.destroyed) { ui.notifications.warn(`${wName} is destroyed and can't fire.`); return; }
+  if (actor.system?.conditions?.shutdown) { ui.notifications.warn(`${actor.name} is shut down and can't fire.`); return; }
+  if (usesAmmo(weapon) && num(weapon.ammo) <= 0) {
+    ui.notifications.warn(`${wName} is out of ammunition (set its Rds on the Combat tab to reload).`);
+    return;
+  }
+  if (currentTurnKey() && firedThisTurn(actor)[weapon.id] !== undefined) {
+    ui.notifications.warn(`${wName} has already fired this turn.`);
+    return;
+  }
 
   const gunnery = gunneryFor(actor);
   const heatMod = heatToHitMod(actor);
@@ -841,6 +892,27 @@ export async function weaponAttack(actor, weapon) {
   const hit = rb.inRange && roll.total >= tn;
   const margin = roll.total - tn;
 
+  // The weapon fired (an out-of-range shot can't be declared, so it doesn't
+  // count): spend one shot of ammunition and record it for the heat phase.
+  let ammoLine = null;
+  if (rb.inRange) {
+    const upd = {};
+    if (usesAmmo(weapon)) {
+      const weapons = foundry.utils.deepClone(actor.system.weapons || []);
+      const w = weapons.find(x => x.id === weapon.id);
+      if (w) {
+        const before = num(w.ammo);
+        w.ammo = Math.max(0, before - 1);
+        ammoLine = `${w.ammoType}: ${before} → ${w.ammo} shots left`;
+        upd['system.weapons'] = weapons;
+      }
+    }
+    const list = Object.entries(firedThisTurn(actor)).map(([id, heat]) => ({ id, heat }));
+    list.push({ id: weapon.id, heat: num(weapon.heat) });
+    upd['flags.mech-foundry.fired'] = { key: currentTurnKey(), list };
+    if (actor.isOwner || game.user.isGM) await actor.update(upd);
+  }
+
   const mods = [
     { label: "Gunnery", value: result.gunnery },
     { label: "Attacker move", value: result.attackerMove },
@@ -891,6 +963,7 @@ export async function weaponAttack(actor, weapon) {
       hit, margin: Math.abs(margin),
       outOfRange: !rb.inRange,
       damage: perHit,
+      ammoLine,
       hitResult
     }
   );

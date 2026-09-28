@@ -114,6 +114,16 @@ criticals and cluster grouping:
 - **Heat phase:** mech "Resolve" nets Heat Point Table gains vs. sink dissipation.
 - **Turn phases:** combat-tracker phase bar (Initiative→Movement→Weapon→Physical→Heat→End).
 - **Area effects:** Scene-Region blast tool (v14) applying damage to enclosed units.
+- **GM relay** (`module/helpers/gm-relay.mjs`): a player's attack on a unit they don't own
+  is applied by the active GM's client over the system socket. The GM client re-validates
+  each request (damage fields only per unit type; characters/NPCs may only be set
+  unconscious; crew damage by table key only). Needs a GM logged in; the GM can turn it off
+  with the "Relay Player Combat Damage Through GM" world setting, in which case the card says
+  to apply it manually.
+- **Fired weapons:** firing records the weapon for the current combat round (blocks a second
+  shot that round), spends one shot of ammo if the weapon has an ammo type, and the heat
+  phase defaults to the heat of weapons actually fired. Destroyed (crit slot or the row's
+  toggle) and out-of-ammo weapons can't fire; sheets badge FIRED / NO AMMO / DESTROYED.
 **Intentional house rules** (deliberate divergences — don't "correct" toward the book):
 - Combat vehicles roll a critical on any hit that penetrates to internal structure, in
   addition to the tables' marked results (2/12, or 8 on side attacks).

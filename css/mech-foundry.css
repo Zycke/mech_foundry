@@ -7501,3 +7501,14 @@
 .tw-phase-bar .tw-next-phase:hover { border-color: var(--mf-amber, #f2a53a); }
 .mech-foundry.tw-phase-banner { border: 1px solid var(--mf-steel); border-left: 3px solid var(--mf-amber); border-radius: 3px; background: var(--mf-panel); color: var(--mf-ink); padding: 5px 8px; font-family: var(--mf-font-head); text-transform: uppercase; letter-spacing: 0.04em; }
 .mech-foundry.tw-phase-banner i { color: var(--mf-amber); }
+
+/* ---- Weapon state: fired / destroyed / out of ammo ---- */
+.mech-foundry.mech-sheet tr.w-destroyed td input { text-decoration: line-through; color: var(--mf-danger); opacity: 0.7; }
+.mech-foundry.mech-sheet tr.w-fired td { background: rgba(242,165,58,0.06); }
+.mech-foundry.mech-sheet .w-badge { display: inline-block; font-family: var(--mf-font-head); font-size: 0.58rem; letter-spacing: 0.05em; padding: 0 5px; margin-right: 4px; border-radius: 6px; border: 1px solid var(--mf-steel); color: var(--mf-amber); vertical-align: middle; }
+.mech-foundry.mech-sheet .w-badge.dmg { color: var(--mf-danger); border-color: #6b2a26; }
+.mech-foundry.mech-sheet .w-badge.warn { color: var(--mf-hazard); border-color: #6b5417; }
+.mech-foundry.mech-sheet .weapon-attack[disabled] { opacity: 0.35; cursor: not-allowed; }
+.mech-foundry.mech-sheet .toggle-weapon-destroyed { color: var(--mf-ink-dim); cursor: pointer; margin-left: 6px; }
+.mech-foundry.mech-sheet .toggle-weapon-destroyed:hover { color: var(--mf-danger); }
+.mech-foundry.tw-attack-card .tw-atk-ammo { margin-top: 4px; font-size: 0.74rem; color: var(--mf-ink-dim); font-family: var(--mf-font-mono); }

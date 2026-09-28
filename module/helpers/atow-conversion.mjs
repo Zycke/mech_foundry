@@ -11,6 +11,7 @@
  * Table by the skill's complexity code.
  */
 import { getSkillLevelFromXP } from "./xp-math.mjs";
+import { registerRelayHandler, relayRequest } from "./gm-relay.mjs";
 
 
 /** Base Target Numbers by skill complexity code (Basic Action Check Table). */
@@ -69,16 +70,37 @@ export const CREW_DAMAGE = {
  */
 export async function applyCrewDamage(actor, event) {
   if (!actor || !event) return false;
-  if (!(actor.isOwner || game.user.isGM)) {
-    ui.notifications.warn(`You lack permission to apply damage to ${actor?.name ?? "the linked actor"}.`);
-    return false;
+  if (actor.isOwner || game.user.isGM) {
+    await applyCrewDamageDirect(actor, event);
+    return true;
   }
+  // Not ours to modify (e.g. an attack injuring the GM's crew): ask the GM to
+  // apply it. Only the event's table key is sent; the GM looks the values up.
+  const key = Object.keys(CREW_DAMAGE).find(k => CREW_DAMAGE[k] === event);
+  const ok = key ? await relayRequest('crewDamage', { uuid: actor.uuid, key }) : false;
+  if (!ok) ui.notifications.warn(`Couldn't apply damage to ${actor.name}: no permission and no GM available to relay it.`);
+  return ok;
+}
+
+/** Apply a crew-damage event through the character's own applyDamage(). */
+async function applyCrewDamageDirect(actor, event) {
   // For armor-ignoring events, pass rawDamageForKnockdown so applyDamage skips
   // the BAR reduction step (the value is then applied directly).
   const raw = event.ignoresArmor ? event.bd : null;
   await actor.applyDamage(event.bd, event.ap, event.type, null, !!event.subduing, false, raw);
-  return true;
 }
+
+// GM side of the relay: apply a crew-damage event by table key to a character/NPC.
+registerRelayHandler('crewDamage', async (payload) => {
+  const actor = await fromUuid(payload?.uuid);
+  const event = CREW_DAMAGE[payload?.key];
+  if (!actor || actor.documentName !== 'Actor' || !['character', 'npc'].includes(actor.type)) {
+    throw new Error("Crew damage target must be a character or NPC");
+  }
+  if (!event) throw new Error(`Unknown crew damage event "${payload?.key}"`);
+  await applyCrewDamageDirect(actor, event);
+  return true;
+});
 
 /**
  * Find the first matching skill Item on an actor (by exact name, trying each
