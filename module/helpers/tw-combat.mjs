@@ -1,13 +1,15 @@
 /**
- * Total Warfare combat automation — shared logic for mech / vehicle / aerospace
- * unit sheets. This first phase implements the GATOR to-hit sequence: a weapon's
- * Attack button opens a modifier dialog, rolls 2d6 against the assembled target
- * number, and posts a chat card. Hit-location, cluster-hit and damage resolution
- * are layered on in later phases (their tables are verified from Total Warfare
- * before shipping).
+ * Total Warfare combat automation — shared logic for mech / ground vehicle /
+ * aerospace / small-craft unit sheets. Covers the full weapon-fire sequence:
+ * a GATOR to-hit dialog (2d6 vs. an assembled target number), then, on a hit,
+ * the target-type hit-location table, damage through armor→structure(/SI) with
+ * transfer, cluster grouping, motive damage and criticals (mech determining-
+ * crits resolved against the per-location critical-slot model), plus the mech
+ * heat phase and Scene-Region area attacks. Rules verified against Total Warfare
+ * and the A Time of War conversion (see atow-conversion.mjs).
  */
 import {
-  actorSkillRating,
+  actorSkillRating, applyCrewDamage, CREW_DAMAGE,
   MECH_GUNNERY_SKILLS, VEHICLE_GUNNERY_SKILLS, AERO_GUNNERY_SKILLS
 } from "./atow-conversion.mjs";
 
@@ -112,30 +114,28 @@ export async function applyMechDamage(target, startLoc, amount, { rear = false }
   let guard = 0;
 
   while (remaining > 0 && loc && guard++ < 12) {
-    let absorbedThisLoc = false;
     // Armor (rear on the initially-struck torso only).
     const rearKey = useRear ? REAR_ARMOR_KEY[loc] : null;
     const armorSlot = rearKey ? armor[rearKey] : armor[loc];
     if (armorSlot && armorSlot.value > 0) {
       const a = Math.min(armorSlot.value, remaining);
-      armorSlot.value -= a; remaining -= a; absorbedThisLoc = true;
+      armorSlot.value -= a; remaining -= a;
     }
     if (remaining <= 0) break;
-    // Internal structure.
+
+    // Internal structure. A location with no structure record or zero max is
+    // treated as absent (unconfigured mech) and stops the transfer.
     const st = structure[loc];
-    if (st && st.value > 0) {
+    if (!st || (Number(st.max) || 0) <= 0) break;
+    if (st.value > 0) {
       const a = Math.min(st.value, remaining);
-      st.value -= a; remaining -= a; absorbedThisLoc = true;
-      structureHits.push(loc);
-      if (st.value <= 0) {
-        events.push(`${MECH_LOC_LABEL[loc]} destroyed`);
-        if (loc === 'ct') { destroyed = true; loc = null; }
-        else { loc = MECH_TRANSFER[loc]; useRear = false; }
-        continue;
-      }
+      st.value -= a; remaining -= a; structureHits.push(loc);
+      if (st.value > 0) break; // absorbed without destroying the location
+      events.push(`${MECH_LOC_LABEL[loc]} destroyed`);
     }
-    if (!absorbedThisLoc) break; // nothing here to absorb (unconfigured location)
-    break; // structure absorbed the rest without being destroyed
+    // Structure is gone (destroyed now or already) and damage remains → transfer.
+    if (loc === 'ct') { destroyed = true; loc = null; }
+    else { loc = MECH_TRANSFER[loc]; useRear = false; }
   }
 
   const update = { 'system.armor': armor, 'system.structure': structure };
@@ -163,14 +163,10 @@ export async function blowOffMechLocation(target, loc) {
 }
 
 const MECH_TORSO = new Set(['ct', 'lt', 'rt']);
-const MECH_LIMB = new Set(['la', 'ra', 'll', 'rl']);
 
 /* ------------------------------------------------------------------ */
 /*  Mech critical slots                                                 */
 /* ------------------------------------------------------------------ */
-
-/** Critical slot counts per location (standard biped). */
-export const SLOT_COUNTS = { head: 6, ct: 12, lt: 12, rt: 12, la: 12, ra: 12, ll: 6, rl: 6 };
 
 /** Component types selectable for a critical slot, with effect semantics. */
 export const SLOT_TYPES = [
@@ -363,7 +359,7 @@ function resolveVehicleFacing(token, direction, hasTurret, isVTOL) {
 }
 
 /** The crit-table column for a facing. */
-function vehicleCritColumn(facing, isVTOL) {
+function vehicleCritColumn(facing) {
   if (facing === 'turret') return 'turret';
   if (facing === 'rotor') return 'rotor';
   if (facing === 'front') return 'front';
@@ -419,7 +415,7 @@ export async function resolveVehicleAttack(target, direction, groupSizes, rolls)
       const cRoll = await new Roll("2d6").evaluate();
       rolls.push(cRoll);
       const table = isVTOL ? VTOL_VEHICLE_CRITS : GROUND_VEHICLE_CRITS;
-      const effect = table[vehicleCritColumn(facing, isVTOL)]?.[cRoll.total] || 'No Critical Hit';
+      const effect = table[vehicleCritColumn(facing)]?.[cRoll.total] || 'No Critical Hit';
       critResults.push({ facingLabel: VEHICLE_FACING_LABEL[facing] || facing, roll: cRoll.total, effect });
       if (applyVehicleCrit(effect, facing, direction, crits, conditions, structure, crew)) destroyed = true;
       if (['Driver Hit', 'Commander Hit', 'Co-Pilot Hit', 'Pilot Hit'].includes(effect)) crewEvents.push(CREW_DAMAGE.vehicleCrewHit);
