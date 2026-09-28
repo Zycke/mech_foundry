@@ -1,4 +1,4 @@
-# Unit Actor Sheet Design — Mech / Ground Vehicle / Aerospace Fighter
+# Unit Actor Sheet Design — Mech / Ground Vehicle / Aerospace Fighter / Battle Armor
 
 Status: **approved design, in implementation.** Source rules: *Total Warfare* (record-sheet
 data model + sequence of play) with standard canonical values for the combat chapter (the
@@ -265,6 +265,24 @@ criticals and cluster grouping:
   vertical landings); a horizontal failure applies the Failed Braking Maneuver Table (6+: 20 damage
   to the nose, gear damaged). Not automated: token movement on the aero map, re-entry, ramming
   damage, capital missiles, large craft.
+- **Battle armor** (`tw-infantry.mjs`, sheet `battle-armor-sheet.mjs`; TW pp. 214–219, 228–229):
+  one actor is the whole unit (Squad / Point of 1–6; tech base default IS 4, Clan 5, ComStar /
+  WoB 6). Each trooper has its own damage track of Armor Value + 1 boxes (the last is the
+  soldier); the sheet's boxes are clickable. Details holds armor value, manipulators (left /
+  right), stealth (basic / prototype / standard / improved), mimetic, camo, fire-resistant,
+  magnetic clamps and body-mounted missiles (jettisoned flag). The squad leader links to a
+  character: Gunnery/Battlesuit for Gunnery, Piloting/Battlesuit for the Anti-'Mech Skill.
+  *Attacks against battle armor:* +1 for non-infantry attackers; stealth +S/M/L by bracket,
+  mimetic +3/+2/+1 and camo +2/+1 by hexes the unit moved; each damage group strikes a random
+  live trooper (1D6, re-rolled) and excess is wasted; area-effect damage (the Area Attack tool)
+  hits every trooper. The unit is destroyed (skull status) when every trooper is.
+  *Battle armor attacks:* infantry never add attacker movement; secondary targets are only +1;
+  attacks into their own hex are range 1 (anti-personnel weapons use the Rifle, Ballistic range
+  row from 0). All troopers fire each weapon together: non-missile weapons roll the Cluster Hits
+  Table for live troopers (one trooper always hits), missiles for troopers × launcher size over
+  the fewest columns (54 → 27 + 27), AP weapons turn troopers hitting into damage on the Rifle,
+  Ballistic column (2-point groups, one AP attack per turn). Every hit rolls its own location;
+  only missile launchers spend ammunition.
 **Intentional house rules** (deliberate divergences — don't "correct" toward the book):
 - Combat vehicles roll a critical on any hit that penetrates to internal structure, in
   addition to the tables' marked results (2/12, or 8 on side attacks).

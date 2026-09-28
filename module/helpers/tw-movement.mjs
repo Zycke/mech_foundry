@@ -10,6 +10,7 @@
  * A record from another turn reads as stationary / 0 hexes.
  */
 import { currentTurnKey } from "./tw-turn.mjs";
+import { concealmentMods, isInfantry } from "./tw-infantry.mjs";
 
 const num = (v) => Number(v) || 0;
 
@@ -73,6 +74,7 @@ function walkMP(actor) {
   const mv = actor?.system?.movement || {};
   if (actor?.type === 'ground_vehicle') return vehicleEffectiveCruise(actor);
   if (actor?.type === 'mech') return mechEffectiveMP(actor).walk;
+  if (isInfantry(actor)) return num(mv.ground);
   return num(mv.walk);
 }
 
@@ -102,6 +104,8 @@ export function movementPSRReasons(actor) {
 /** Infer a movement mode from hexes moved. */
 export function inferMode(actor, hexes) {
   if (hexes <= 0) return 'stationary';
+  // Infantry don't run: moving past their ground MP means they jumped.
+  if (isInfantry(actor)) return hexes > walkMP(actor) && num(actor.system?.movement?.jump) > 0 ? 'jumped' : 'walked';
   return hexes <= walkMP(actor) ? 'walked' : 'ran';
 }
 
@@ -294,8 +298,8 @@ export function autoAttackMods(attacker, weapon, targetActor) {
   const mods = [];
   const add = (key, label, value, hint = '') => mods.push({ key, label, value, hint });
 
-  // Attacker movement (ground units only).
-  if (TRACKED_TYPES.has(attacker?.type)) {
+  // Attacker movement (ground units only; infantry never add it).
+  if (TRACKED_TYPES.has(attacker?.type) && !isInfantry(attacker)) {
     const mv = movedThisTurn(attacker);
     const m = MOVE_MODES.find(x => x.key === mv.mode);
     const lbl = attacker.type === 'ground_vehicle' ? m.vlabel : m.label;
@@ -335,7 +339,9 @@ export function autoAttackMods(attacker, weapon, targetActor) {
       const v = targetMoveMod(mv.hexes) + (mv.mode === 'jumped' ? 1 : 0);
       add('targetMove', 'Target movement', v, `${mv.hexes} hex${mv.mode === 'jumped' ? ', jumped' : ''}`);
     }
-    if (targetActor.type === 'battle_armor') add('battleArmor', 'Battle armor target', 1, '');
+    // Battle armor's spread-out formation: +1 for non-infantry attackers.
+    if (targetActor.type === 'battle_armor' && !isInfantry(attacker)) add('battleArmor', 'Battle armor target', 1, '');
+    for (const m of concealmentMods(targetActor, movedThisTurn(targetActor).hexes)) add(m.key, m.label, m.value, m.hint);
     // Airborne VTOL: an additional +1 target movement modifier (TW p. 197).
     if (targetActor.type === 'ground_vehicle' && targetActor.system?.movementType === 'vtol' && num(targetActor.system?.elevation) >= 1) add('airborneVTOL', 'Airborne VTOL', 1, `elevation ${num(targetActor.system.elevation)}`);
     if (skidded(targetActor)) add('targetSkid', 'Target skidded', 2, '');

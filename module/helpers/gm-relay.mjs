@@ -26,6 +26,7 @@ const UPDATE_WHITELIST = {
   ground_vehicle: ['system.armor', 'system.structure', 'system.crits', 'system.conditions', 'system.crew', 'system.weapons', 'system.elevation'],
   aerospace_fighter: ['system.armor', 'system.structuralIntegrity', 'system.crits', 'system.conditions', 'system.crew', 'flags.mech-foundry.psr'],
   small_craft: ['system.armor', 'system.structuralIntegrity', 'system.crits', 'system.conditions', 'system.crew', 'flags.mech-foundry.psr'],
+  battle_armor: ['system.troopers', 'system.attached'],
   character: ['system.unconscious'],
   npc: ['system.unconscious']
 };

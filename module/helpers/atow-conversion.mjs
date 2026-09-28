@@ -31,6 +31,9 @@ export const VEHICLE_GUNNERY_SKILLS = ["Gunnery/Ground Vehicle", "Gunnery"];
 export const VEHICLE_DRIVING_SKILLS = ["Driving/Ground Vehicles", "Driving/Ground Vehicle", "Driving"];
 export const AERO_GUNNERY_SKILLS = ["Gunnery/Aerospace", "Gunnery"];
 export const AERO_PILOTING_SKILLS = ["Piloting/Aerospace", "Piloting"];
+/** Battle armor: Gunnery/Battlesuit for weapon attacks, Piloting/Battlesuit for Anti-'Mech. */
+export const BATTLESUIT_GUNNERY_SKILLS = ["Gunnery/Battlesuit", "Gunnery"];
+export const BATTLESUIT_ANTIMECH_SKILLS = ["Piloting/Battlesuit"];
 
 /**
  * Convert an AToW skill Level to a Total Warfare Skill Rating.

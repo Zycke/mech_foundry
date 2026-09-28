@@ -698,6 +698,44 @@
       "biography": "",
       "squadSize": 0,
       "armorType": "",
+      "techBase": "is",
+      "weightClass": "medium",
+      "chassis": "humanoid",
+      "armorValue": 0,
+      "troopers": [],
+      "movement": {
+        "ground": 1,
+        "jump": 0,
+        "vtol": 0,
+        "umu": 0
+      },
+      "manipulators": {
+        "left": "none",
+        "right": "none"
+      },
+      "equipment": {
+        "stealth": "none",
+        "mimetic": false,
+        "camo": false,
+        "fireResistant": false,
+        "magneticClamps": false,
+        "bodyMissiles": false,
+        "missilesJettisoned": false
+      },
+      "crew": {
+        "name": "",
+        "gunnery": 4,
+        "antiMech": 5,
+        "actorId": ""
+      },
+      "attached": {
+        "uuid": "",
+        "mode": "",
+        "key": ""
+      },
+      "era": "",
+      "cost": 0,
+      "bv": 0,
       "weapons": []
     },
     "installation": {

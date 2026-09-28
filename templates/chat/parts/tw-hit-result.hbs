@@ -7,7 +7,31 @@
   </div>
   {{/if}}
 
-  {{#if hr.aero}}
+  {{#if hr.baFire}}
+  {{#each hr.baFire.columns}}
+  <div class="tw-cluster">
+    <span class="tw-hl-label">Cluster</span>
+    <span class="tw-hl-dice">{{#each this.dice}}<span class="tw-die">{{this}}</span>{{/each}}</span>
+    <span class="tw-cluster-hits">{{#if this.auto}}automatic{{else}}column {{this.size}}{{/if}}: <strong>{{this.hits}}</strong> hit</span>
+  </div>
+  {{/each}}
+  <div class="tw-hl-event">▸ {{hr.baFire.note}} · {{hr.baFire.total}} dmg</div>
+  {{/if}}
+
+  {{#if hr.ba}}
+    {{#each hr.groups}}
+    <div class="tw-hit-loc">
+      <span class="tw-hl-dice">{{#each this.dice}}<span class="tw-die">{{this}}</span>{{/each}}</span>
+      <span class="tw-hl-loc">{{#if this.trooper}}Trooper #{{this.trooper}}{{else}}no trooper left{{/if}}{{#if this.area}} (area effect){{/if}}</span>
+      <span class="tw-hl-dmg">{{this.damage}}</span>
+      {{#if this.killed}}<span class="tw-hl-crit">KILLED</span>{{/if}}
+    </div>
+    {{#if this.wasted}}<div class="tw-hl-event">▸ {{this.wasted}} excess damage wasted</div>{{/if}}
+    {{/each}}
+    <div class="tw-hl-event">▸ {{hr.remaining}} of {{hr.squad}} troopers left</div>
+    {{#if hr.destroyed}}<div class="tw-hl-destroyed">UNIT DESTROYED</div>{{/if}}
+    {{#unless hr.applied}}<div class="tw-atk-dmg"><em>Couldn't apply automatically (no permission and no GM available) — apply the above to {{hr.targetName}} manually.</em></div>{{/unless}}
+  {{else if hr.aero}}
     {{#each hr.groups}}
     <div class="tw-hit-loc">
       <span class="tw-hl-dice">{{#each this.dice}}<span class="tw-die">{{this}}</span>{{/each}}</span>

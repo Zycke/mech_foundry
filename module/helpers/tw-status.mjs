@@ -7,6 +7,7 @@
 import { pilotUnconscious } from "./tw-movement.mjs";
 import { pendingPSR } from "./tw-psr.mjs";
 import { crewStunnedNow } from "./tw-combat.mjs";
+import { liveTroopers } from "./tw-infantry.mjs";
 
 const UNIT_TYPES = new Set(['mech', 'ground_vehicle', 'aerospace_fighter', 'small_craft', 'battle_armor']);
 
@@ -28,6 +29,7 @@ const gone = (loc) => !!loc && n(loc.max) > 0 && n(loc.value) <= 0;
  * Is the unit destroyed (TW "Destroying a Unit")? 'Mech: head or center torso
  * destroyed, three engine hits, cockpit destroyed, or its (sheet-only) warrior
  * killed. Vehicle: internal structure gone. Aerospace: Structural Integrity 0.
+ * Battle armor: every trooper destroyed.
  */
 export function unitDestroyed(actor) {
   const sys = actor?.system || {};
@@ -40,6 +42,7 @@ export function unitDestroyed(actor) {
   }
   if (actor?.type === 'ground_vehicle') return gone(sys.structure) || !!sys.conditions?.crewKilled;
   if (actor?.type === 'aerospace_fighter' || actor?.type === 'small_craft') return gone(sys.structuralIntegrity);
+  if (actor?.type === 'battle_armor') return liveTroopers(actor) <= 0;
   return false;
 }
 

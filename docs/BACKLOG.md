@@ -160,6 +160,14 @@ Rules detail for what *is* automated lives in `docs/unit-sheet-design.md`.
       - Minor: Straight Movement Table has no small-craft column (small craft use the
         *aerodyne DropShip* column); Landing terrain modifiers "halved" for vertical
         landings (rounded *toward zero*).
+- [?] **Battle armor readings** (current interpretation in parentheses):
+      - TW's Golem example says 25 missiles on a roll of 7 give 14 hits; the Cluster Hits
+        Table supplied gives 16 (*the table is used*).
+      - "Determine a hit location separately for each missile hit" (every battle armor
+        missile hit — LRMs included — rolls its own location; a weapon can be set to 5-point
+        groups instead).
+      - Anti-'Mech Skill for a linked character (*Piloting/Battlesuit*); battle armor Gunnery
+        uses Gunnery/Battlesuit.
 - [?] **Cluster weapons against aerospace units** — damage is grouped as on the ground
       (5-point groups for LRM / MRM / ATM, per missile / pellet for SRM / LB-X). Confirm
       whether fighters and small craft should take cluster damage differently.
@@ -213,7 +221,12 @@ Rules detail for what *is* automated lives in `docs/unit-sheet-design.md`.
       fighters; VSTOL gating for VIFF / vertical landings.
 
 **Other units & setup**
-- [ ] Battle armor and conventional infantry combat (next — needs rules / tables).
+- [ ] Conventional infantry combat (next); battle armor anti-'Mech attacks and mechanized
+      battle armor (in progress).
+- [ ] Battle armor: burst-fire damage against conventional infantry, bomb racks, pop-up mines,
+      Narc, squad support weapons, inferno self-detonation, torpedoes / multi-purpose
+      missiles, UMU / VTOL movement rules, infantry carriers (cargo bays, mounting, the
+      Infantry Destroyed if Carrying Unit Destroyed Table), jettisoning launchers as an action.
 - [ ] Record-sheet importer (MegaMek `.mtf` / `.blk`) or a compendium of designs.
 - [ ] Damage log / struck-location highlight on the unit sheets.
 

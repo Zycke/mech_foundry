@@ -10,7 +10,7 @@
  */
 import {
   actorSkillRating, applyCrewDamage, CREW_DAMAGE, VEHICLE_DRIVING_SKILLS,
-  MECH_GUNNERY_SKILLS, VEHICLE_GUNNERY_SKILLS, AERO_GUNNERY_SKILLS
+  MECH_GUNNERY_SKILLS, VEHICLE_GUNNERY_SKILLS, AERO_GUNNERY_SKILLS, BATTLESUIT_GUNNERY_SKILLS
 } from "./atow-conversion.mjs";
 import { beginRecording, endRecording, writeDoc } from "./gm-relay.mjs";
 import { currentTurnKey } from "./tw-turn.mjs";
@@ -20,6 +20,10 @@ import {
   aeroAngleMod, aeroAttackMods, aeroFireBlock, aeroMaxBracket, aeroRangeBracket, aeroTurnState, aeroWeaponMods,
   airToGroundMods, isAero, isAirToGround
 } from "./tw-aero.mjs";
+import {
+  apFiredThisTurn, baAttackHits, baWeaponKind, ciRangeBracket, isBattleArmor, isInfantry, liveTroopers,
+  resolveBattleArmorDamage, stealthMod, stealthRow
+} from "./tw-infantry.mjs";
 
 const { DialogV2 } = foundry.applications.api;
 
@@ -81,7 +85,8 @@ export function gunneryFor(actor) {
   if (linked) {
     const cands = actor.type === 'mech' ? MECH_GUNNERY_SKILLS
       : actor.type === 'ground_vehicle' ? VEHICLE_GUNNERY_SKILLS
-        : AERO_GUNNERY_SKILLS;
+        : actor.type === 'battle_armor' ? BATTLESUIT_GUNNERY_SKILLS
+          : AERO_GUNNERY_SKILLS;
     const r = actorSkillRating(linked, cands);
     if (r) return r.rating;
   }
@@ -1144,9 +1149,11 @@ export async function resolveMechHeat(actor) {
  * fragment (without the cluster/total wrapper the caller adds).
  */
 export async function resolveDamageAgainst(targetActor, direction, groupSizes, rolls, targetName = '', {
-  noPSR = false, locationRoller = null, extraPSR = [], forceMotive = false, partialCover = false, explode = null
+  noPSR = false, locationRoller = null, extraPSR = [], forceMotive = false, partialCover = false, explode = null,
+  areaEffect = false
 } = {}) {
   const tt = targetActor?.type;
+  if (tt === 'battle_armor') return await resolveBattleArmorDamage(targetActor, groupSizes, rolls, { areaEffect, writeDoc });
   if (tt === 'mech') {
     const groups = [];
     const critChecks = [];
@@ -1413,9 +1420,29 @@ export function weaponBlock(actor, weapon) {
     const loc = mechWeaponLocation(weapon);
     if (loc && locationGone(actor, loc)) return `${wName}'s location (${MECH_LOC_LABEL[loc]}) is destroyed.`;
   }
-  if (usesAmmo(weapon) && num(weapon.ammo) <= 0) return `${wName} is out of ammunition (set its Rds on the Combat tab to reload).`;
+  if (isBattleArmor(actor)) {
+    if (liveTroopers(actor) <= 0) return `${actor.name} has no troopers left.`;
+    if (weapon?.ap && apFiredThisTurn(actor, firedThisTurn(actor))) return `${actor.name} has already made its anti-personnel attack this turn.`;
+  }
+  if (weaponTracksAmmo(actor, weapon) && num(weapon.ammo) <= 0) return `${wName} is out of ammunition (set its Rds on the Combat tab to reload).`;
   if (currentTurnKey() && firedThisTurn(actor)[weapon.id] !== undefined) return `${wName} has already fired this turn.`;
   return null;
+}
+
+/** Does firing this weapon spend ammunition? (Battle armor: missile launchers only.) */
+export function weaponTracksAmmo(actor, weapon) {
+  if (isBattleArmor(actor)) return baWeaponKind(weapon) === 'missile' && usesAmmo(weapon);
+  return usesAmmo(weapon);
+}
+
+/**
+ * Ground range bracket for a weapon: infantry attacks into their own hex count
+ * as range 1, except anti-personnel weapons, which use the Conventional
+ * Infantry Range Modifier Table (Rifle, Ballistic) from range 0.
+ */
+function groundRange(range, weapon, infantryAttacker) {
+  if (infantryAttacker && weapon?.ap) return ciRangeBracket('rifleBallistic', range);
+  return rangeBracket(infantryAttacker && range === 0 ? 1 : range, weapon);
 }
 
 /** Per-weapon data the target-number preview needs (browser and server share previewTN). */
@@ -1427,7 +1454,8 @@ function weaponPreviewRow(actor, weapon, targetActor, mode = attackMode(actor, t
     s: num(weapon.rangeS ?? weapon.short), m: num(weapon.rangeM ?? weapon.medium),
     l: num(weapon.rangeL ?? weapon.long), e: num(weapon.rangeE ?? weapon.ext),
     min: num(weapon.rangeMin),
-    prone: targetActor?.type === 'mech' && !!targetActor.system?.conditions?.prone
+    prone: targetActor?.type === 'mech' && !!targetActor.system?.conditions?.prone,
+    inf: isInfantry(actor), ap: !!weapon.ap, stealth: stealthRow(targetActor, actor)
   };
 }
 
@@ -1436,8 +1464,10 @@ function weaponPreviewRow(actor, weapon, targetActor, mode = attackMode(actor, t
  * @returns {{tn:number, oor:boolean, bracket:string, chance:number}}
  */
 export function previewTN(v, row) {
-  const rb = shotRange(row.mode, v.range, { rangeS: row.s, rangeM: row.m, rangeL: row.l, rangeE: row.e, aeroRange: row.maxB, capital: row.capital });
+  const rb = shotRange(row.mode, v.range, { rangeS: row.s, rangeM: row.m, rangeL: row.l, rangeE: row.e, aeroRange: row.maxB, capital: row.capital, ap: row.ap }, row.inf);
   let tn = num(v.gunnery) + num(v.autoSum) + num(v.heat) + num(v.other) + num(v.terrain) + row.fixed + rb.mod;
+  const si = ['Short', 'Medium', 'Long'].indexOf(String(rb.bracket).split(' ')[0]);
+  if (si >= 0 && row.stealth) tn += num(row.stealth[si]);
   if (row.mode === 'ground' && v.range != null && row.min > 0 && v.range <= row.min) tn += row.min - v.range + 1;
   if (row.mode === 'ground' && row.prone && v.range != null) tn += v.range <= 1 ? -2 : 1;
   return { tn, oor: !rb.inRange, bracket: rb.bracket, chance: rb.inRange ? hitChance(tn) : 0 };
@@ -1455,10 +1485,10 @@ export function attackMode(actor, targetActor) {
 }
 
 /** Range bracket for a shot by attack mode (air-to-ground attacks have no range modifier). */
-function shotRange(mode, range, weapon) {
+function shotRange(mode, range, weapon, infantryAttacker = false) {
   if (mode === 'aero') return aeroRangeBracket(range, weapon);
   if (mode === 'a2g') return { bracket: 'air-to-ground', mod: 0, inRange: true };
-  return rangeBracket(range, weapon);
+  return groundRange(range, weapon, infantryAttacker);
 }
 
 /** Shared modifiers that don't apply to bombing (target movement, immobile). */
@@ -1604,7 +1634,9 @@ export async function fireWeapons(actor, preselect = []) {
         <div class="form-group"><label>Heavy woods hexes between</label><input type="number" name="heavyWoods" value="0" min="0" /></div>
         <div class="form-group"><label>Target standing in</label><select name="targetWoods"><option value="none">Open</option><option value="light">Light woods (+1)</option><option value="heavy">Heavy woods (+2)</option></select></div>
         <div class="form-group"><label>Partial cover (+1; leg hits strike the cover)</label><input type="checkbox" name="partialCover" /></div>
-        <div class="form-group"><label>Secondary target</label><select name="secondary"><option value="none">No (primary)</option><option value="front">Yes, front arc (+1)</option><option value="side">Yes, side/rear arc (+2)</option></select></div>
+        <div class="form-group"><label>Secondary target</label><select name="secondary"><option value="none">No (primary)</option>${isInfantry(actor)
+          ? '<option value="front">Yes (+1; infantry have no arcs)</option>'
+          : '<option value="front">Yes, front arc (+1)</option><option value="side">Yes, side/rear arc (+2)</option>'}</select></div>
       </fieldset>`}
       <div class="form-group"><label>Other Mod</label><input type="number" name="other" value="0" /></div>
       <div class="form-group"><label>Attack Direction</label><select name="direction">${dirOpts}</select></div>
@@ -1699,7 +1731,9 @@ async function resolveWeaponShot(actor, weapon, target, result, rolls) {
   const targetName = target?.name || '';
   const targetActor = target?.actor || null;
   const mode = result.mode || attackMode(actor, targetActor);
-  const rb = shotRange(mode, result.range, weapon);
+  const baAttacker = isBattleArmor(actor);
+  const rb = shotRange(mode, result.range, weapon, isInfantry(actor));
+  const stealth = mode === 'ground' ? stealthMod(targetActor, rb.bracket, actor) : 0;
   const weaponMods = [...autoAttackMods(actor, weapon, null).filter(m => WEAPON_SPECIFIC.includes(m.key)), ...aeroWeaponMods(weapon, targetActor)]
     .map(m => ({ label: m.label, value: m.value }));
   const autos = (result.auto || []).filter(m => !(mode === 'a2g' && result.a2gType === 'bomb' && BOMB_EXCLUDED.includes(m.key)))
@@ -1709,6 +1743,7 @@ async function resolveWeaponShot(actor, weapon, target, result, rolls) {
     ...autos,
     ...weaponMods,
     { label: `Range (${rb.bracket})`, value: rb.mod },
+    { label: 'Stealth armor', value: stealth },
     ...(mode === 'ground' ? rangeDependentMods(weapon, targetActor, result.range) : []),
     { label: "Heat", value: result.heat },
     ...situationalMods(result, mode, actor, targetActor),
@@ -1727,7 +1762,7 @@ async function resolveWeaponShot(actor, weapon, target, result, rolls) {
   let ammoLine = null;
   if (rb.inRange) {
     const upd = {};
-    if (usesAmmo(weapon)) {
+    if (weaponTracksAmmo(actor, weapon)) {
       const weapons = foundry.utils.deepClone(actor.system.weapons || []);
       const w = weapons.find(x => x.id === weapon.id);
       if (w) {
@@ -1751,7 +1786,17 @@ async function resolveWeaponShot(actor, weapon, target, result, rolls) {
   let hitResult = null;
   const perHit = num(weapon.damage);
   const clusterSize = num(weapon.clusterSize);
-  if (hit && perHit > 0) {
+  // Battle armor: every live trooper fires; the Cluster Hits Table (by troopers,
+  // or troopers × launcher size for missiles) says how many hit.
+  if (hit && baAttacker && (perHit > 0 || weapon.ap)) {
+    const ba = await baAttackHits(actor, weapon, rolls, clusterHits);
+    const frag = ba.groups.length
+      ? await resolveDamageAgainst(targetActor, result.direction, ba.groups, rolls, targetName, {
+        partialCover: !!result.terrain?.partialCover && targetActor?.type === 'mech'
+      })
+      : { groups: [], applied: true, hasTarget: !!targetActor, targetName };
+    hitResult = { baFire: ba, total: ba.total, ...frag };
+  } else if (hit && perHit > 0) {
     let clusterInfo = null;
     let total = perHit;
     if (clusterSize > 0) {
@@ -1834,7 +1879,7 @@ export async function areaAttack() {
       let tot = clusterHits(r.cluster, cRoll.total) * r.damage;
       while (tot > 0) { groupSizes.push(Math.min(5, tot)); tot -= 5; }
     } else groupSizes.push(r.damage);
-    const frag = await resolveDamageAgainst(t.actor, 'front', groupSizes, rolls, t.name);
+    const frag = await resolveDamageAgainst(t.actor, 'front', groupSizes, rolls, t.name, { areaEffect: true });
     lines.push({ name: t.name, destroyed: !!(frag.destroyed || frag.destroyedByCrit), applied: frag.applied });
   }
 

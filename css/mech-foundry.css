@@ -7575,3 +7575,13 @@
 .mech-foundry .mf-panel > h4 .mf-h4-actions { margin-left: auto; display: inline-flex; gap: 4px; }
 .mech-foundry .mf-panel > h4 .mf-h4-actions button,
 .mech-foundry .mf-panel > h4 .resolve-heat { padding: 2px 8px; font-size: 0.68rem; width: auto; line-height: 1.4; }
+
+/* ---- Battle armor: trooper damage tracks ---- */
+.mech-foundry.battle-armor-sheet .ba-trooper { display: flex; align-items: center; gap: 10px; margin-bottom: 5px; }
+.mech-foundry.battle-armor-sheet .ba-trooper .ba-tn { flex: 0 0 26px; font-family: var(--mf-font-mono); font-size: 0.78rem; color: var(--mf-amber-2); }
+.mech-foundry.battle-armor-sheet .ba-trooper .pips { display: flex; flex-wrap: wrap; gap: 3px; flex: 1 1 auto; }
+.mech-foundry.battle-armor-sheet .ba-trooper .crit-pip.soldier { border-radius: 50%; border-color: var(--mf-amber); }
+.mech-foundry.battle-armor-sheet .ba-trooper .ba-state { flex: 0 0 auto; font-size: 0.72rem; color: var(--mf-ink-dim); }
+.mech-foundry.battle-armor-sheet .ba-trooper.dead .ba-state { color: var(--mf-danger); font-weight: 600; }
+.mech-foundry.battle-armor-sheet .ba-trooper.dead .ba-tn { color: var(--mf-danger); text-decoration: line-through; }
+.mech-foundry.battle-armor-sheet .wt select.loc { width: 64px; }
