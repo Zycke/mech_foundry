@@ -183,6 +183,9 @@ criticals and cluster grouping:
   there). The Fire… button opens one declaration for several weapons: shared modifiers and
   terrain once, a checklist with each weapon's live target number and the heat of the checked
   weapons, then every checked weapon rolls and resolves in turn into one chat message.
+- **Token status icons** (`tw-status.mjs`): Prone, Shut Down, Warrior Unconscious, Immobile, Out
+  of Control and PSR Pending are mirrored onto unit tokens from the unit's data (and a linked
+  character's unconsciousness) by whichever client made the change.
 **Intentional house rules** (deliberate divergences — don't "correct" toward the book):
 - Combat vehicles roll a critical on any hit that penetrates to internal structure, in
   addition to the tables' marked results (2/12, or 8 on side attacks).
