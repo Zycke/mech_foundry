@@ -168,7 +168,7 @@
               <td><input type="text" class="weapon-field loc" data-weapon-id="{{id}}" data-field="location" value="{{location}}" {{#unless ../editable}}disabled{{/unless}} /></td>
               <td><input type="number" min="0" class="weapon-field n" data-weapon-id="{{id}}" data-field="heat" value="{{heat}}" {{#unless ../editable}}disabled{{/unless}} /></td>
               <td><input type="number" min="0" class="weapon-field n" data-weapon-id="{{id}}" data-field="damage" value="{{damage}}" {{#unless ../editable}}disabled{{/unless}} /></td>
-              <td><input type="number" min="0" class="weapon-field n" data-weapon-id="{{id}}" data-field="clusterSize" value="{{clusterSize}}" title="Cluster / launcher size (0 = single)" {{#unless ../editable}}disabled{{/unless}} /></td>
+              <td class="w-clus"><input type="number" min="0" class="weapon-field n" data-weapon-id="{{id}}" data-field="clusterSize" value="{{clusterSize}}" title="Cluster / launcher size (0 = single)" {{#unless ../editable}}disabled{{/unless}} />{{#if clusterSize}}<select class="weapon-field w-grp" data-weapon-id="{{id}}" data-field="clusterGroup" title="Damage grouping: 5-point groups (LRM, MRM, ATM) or each missile / pellet separately (SRM, LB-X)" {{#unless ../editable}}disabled{{/unless}}><option value="" {{#unless clusterGroup}}selected{{/unless}}>auto</option><option value="five" {{#if (eq clusterGroup "five")}}selected{{/if}}>5-pt</option><option value="each" {{#if (eq clusterGroup "each")}}selected{{/if}}>each</option></select>{{/if}}</td>
               <td><input type="number" min="0" class="weapon-field n" data-weapon-id="{{id}}" data-field="rangeMin" value="{{rangeMin}}" title="Minimum range (0 = none)" {{#unless ../editable}}disabled{{/unless}} /></td>
               <td><input type="number" min="0" class="weapon-field n" data-weapon-id="{{id}}" data-field="rangeS" value="{{rangeS}}" {{#unless ../editable}}disabled{{/unless}} /></td>
               <td><input type="number" min="0" class="weapon-field n" data-weapon-id="{{id}}" data-field="rangeM" value="{{rangeM}}" {{#unless ../editable}}disabled{{/unless}} /></td>
@@ -233,7 +233,14 @@
             {{#each this.slots}}
             <div class="csl-row {{#if this.hit}}hit{{/if}}">
               <span class="csl-idx">{{this.index}}</span>
+              {{#if this.linkable}}
+              <select class="critslot-field csl-name" data-loc="{{../key}}" data-index="{{subtract this.index 1}}" data-field="weaponId" title="{{#if (eq this.type "ammo")}}Which weapon this ammunition feeds (sets the explosion damage){{else}}Which weapon this slot holds{{/if}}" {{#unless ../../editable}}disabled{{/unless}}>
+                <option value="">{{#if this.name}}{{this.name}} (unlinked){{else}}— pick weapon —{{/if}}</option>
+                {{#each this.options}}<option value="{{this.id}}" {{#if this.selected}}selected{{/if}}>{{this.label}}</option>{{/each}}
+              </select>
+              {{else}}
               <input type="text" class="critslot-field csl-name" data-loc="{{../key}}" data-index="{{subtract this.index 1}}" data-field="name" value="{{this.name}}" placeholder="—" {{#unless ../../editable}}disabled{{/unless}} />
+              {{/if}}
               <select class="critslot-field csl-type" data-loc="{{../key}}" data-index="{{subtract this.index 1}}" data-field="type" {{#unless ../../editable}}disabled{{/unless}}>
                 {{#each ../../slotTypes}}<option value="{{this.key}}" {{#if (eq this.key ../type)}}selected{{/if}}>{{this.label}}</option>{{/each}}
               </select>

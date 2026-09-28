@@ -14,7 +14,7 @@ import {
 } from "./atow-conversion.mjs";
 import { writeDoc } from "./gm-relay.mjs";
 import { currentTurnKey } from "./tw-turn.mjs";
-import { autoAttackMods, movedThisTurn, rangeDependentMods, terrainMods } from "./tw-movement.mjs";
+import { autoAttackMods, movedThisTurn, pilotUnconscious, rangeDependentMods, terrainMods } from "./tw-movement.mjs";
 import { damagePSRUpdate, queuePSR, standsThisTurn, warriorDamage } from "./tw-psr.mjs";
 
 const { DialogV2 } = foundry.applications.api;
@@ -48,6 +48,26 @@ export function firedThisTurn(actor) {
 /** Does this weapon draw from ammunition? (Energy weapons leave Ammo Type blank.) */
 export function usesAmmo(weapon) {
   return String(weapon?.ammoType ?? '').trim() !== '';
+}
+
+/**
+ * Damage per hit-location group for a cluster weapon: 5-point groups (LRM, MRM,
+ * ATM, rockets) or each missile / pellet on its own (SRM, Streak SRM, LB-X
+ * cluster). `clusterGroup` on the weapon: 'five', 'each', or blank = by name.
+ */
+export function clusterGroupSize(weapon) {
+  const each = Math.max(1, num(weapon?.damage));
+  if (weapon?.clusterGroup === 'each') return each;
+  if (weapon?.clusterGroup === 'five') return 5;
+  return /\bsrm\b|\blb[\s-]?\d+[\s-]?x\b/i.test(weapon?.name || '') ? each : 5;
+}
+
+/** Split damage into groups of `size` (the last may be smaller). */
+export function groupDamage(total, size = 5) {
+  const out = [];
+  let t = Math.max(0, num(total));
+  while (t > 0) { out.push(Math.min(size, t)); t -= size; }
+  return out;
 }
 
 /** Resolve the crew Gunnery rating, deriving from a linked character when present. */
@@ -126,7 +146,7 @@ export const REAR_ARMOR_KEY = { ct: 'ctRear', lt: 'ltRear', rt: 'rtRear' };
  * Pure: mutates `state` only. Callers accumulate every damage group for an
  * attack and save once (see resolveDamageAgainst).
  */
-export function applyMechDamageToState(state, startLoc, amount, { rear = false } = {}) {
+export function applyMechDamageToState(state, startLoc, amount, { rear = false, internal = false, contain = false } = {}) {
   const { armor, structure } = state;
   const events = [];
   const structureHits = [];
@@ -134,16 +154,19 @@ export function applyMechDamageToState(state, startLoc, amount, { rear = false }
   let remaining = amount;
   let destroyed = false;
   let useRear = rear;
+  let skipArmor = internal; // ammo explosions strike the first location's structure directly
+  let vented = 0;
   let guard = 0;
 
   while (remaining > 0 && loc && guard++ < 12) {
     // Armor (rear on the initially-struck torso only).
     const rearKey = useRear ? REAR_ARMOR_KEY[loc] : null;
     const armorSlot = rearKey ? armor[rearKey] : armor[loc];
-    if (armorSlot && armorSlot.value > 0) {
+    if (!skipArmor && armorSlot && armorSlot.value > 0) {
       const a = Math.min(armorSlot.value, remaining);
       armorSlot.value -= a; remaining -= a;
     }
+    skipArmor = false;
     if (remaining <= 0) break;
 
     // Internal structure. A location with no structure record or zero max is
@@ -156,13 +179,15 @@ export function applyMechDamageToState(state, startLoc, amount, { rear = false }
       if (st.value > 0) break; // absorbed without destroying the location
       events.push(`${MECH_LOC_LABEL[loc]} destroyed`);
     }
-    // Structure is gone (destroyed now or already) and damage remains → transfer.
+    // Structure is gone (destroyed now or already) and damage remains → transfer
+    // (unless CASE contains an explosion: the rest is vented).
     if (loc === 'ct') { destroyed = true; loc = null; }
+    else if (contain) { vented = remaining; remaining = 0; loc = null; }
     else { loc = MECH_TRANSFER[loc]; useRear = false; }
   }
 
   return {
-    destroyed, events, structureHits,
+    destroyed, events, structureHits, vented,
     overflow: remaining > 0 && !destroyed ? remaining : 0
   };
 }
@@ -209,6 +234,7 @@ export const SLOT_TYPES = [
   { key: 'weapon', label: 'Weapon' },
   { key: 'ammo', label: 'Ammunition' },
   { key: 'heatSink', label: 'Heat Sink' },
+  { key: 'case', label: 'CASE' },
   { key: 'equipment', label: 'Equipment' }
 ];
 
@@ -266,14 +292,32 @@ function applyMechCritSlotEffect(slot, systemHits, heatSinks, weapons, crew, sta
       return 'Cockpit — PILOT KILLED';
     case 'actuator': return `${slot.name || 'Actuator'} destroyed`;
     case 'weapon': {
-      const w = weapons.find(x => !x.destroyed && slot.name && x.name === slot.name);
+      // Linked slot → that weapon; otherwise the first intact weapon of the same name.
+      const w = slot.weaponId ? weapons.find(x => x.id === slot.weaponId)
+        : weapons.find(x => !x.destroyed && slot.name && x.name === slot.name);
       if (w) w.destroyed = true;
-      return `${slot.name || 'Weapon'} destroyed`;
+      return `${slot.name || w?.name || 'Weapon'} destroyed`;
     }
-    case 'ammo': state.ammo = true; return `${slot.name || 'Ammunition'} — EXPLOSION (resolve)`;
+    case 'ammo': return `${slot.name || 'Ammunition'} hit`; // the explosion resolves after this crit
     case 'heatSink': heatSinks.count = Math.max(0, (Number(heatSinks.count) || 0) - 1); return 'Heat Sink destroyed';
     default: return `${slot.name || 'Equipment'} destroyed`;
   }
+}
+
+/**
+ * An ammunition bin's explosion: the weapon it feeds (the slot's link, else the
+ * weapon whose Ammo Type appears in the slot name), the shots in the bin (one
+ * ton: Shots/Ton, or everything left if that's unset) and damage = shots ×
+ * damage per shot (a full salvo for cluster weapons). Null if nothing matches.
+ */
+export function ammoExplosionDamage(slot, weapons) {
+  const w = (slot?.weaponId && weapons.find(x => x.id === slot.weaponId))
+    || weapons.find(x => usesAmmo(x) && slot?.name && slot.name.includes(String(x.ammoType).trim()));
+  if (!w) return null;
+  const left = Math.max(0, num(w.ammo));
+  const shots = num(w.shotsPerTon) > 0 ? Math.min(left, num(w.shotsPerTon)) : left;
+  const perShot = num(w.damage) * Math.max(1, num(w.clusterSize));
+  return { weapon: w, shots, perShot, damage: shots * perShot };
 }
 
 /**
@@ -695,13 +739,29 @@ export async function resolveMechHeat(actor) {
   const effects = mechHeatEffects(newHeat);
 
   // Shutdown: automatic at 30+, otherwise an avoid roll from 14+ (Heat Scale).
-  // A reactor shutdown forces a Piloting Skill Roll at +3 that phase.
+  // A reactor shutdown forces a Piloting Skill Roll at +3 that phase. A 'Mech
+  // already shut down tries to restart instead: automatic below 14 heat,
+  // otherwise a roll against the same avoid number (never at 30+, and not
+  // with an unconscious warrior).
   const heatRolls = [];
-  let shutdownCheck = null, shutsDown = false;
-  if (!sys.conditions?.shutdown) {
+  let shutdownCheck = null, shutsDown = false, startupCheck = null, restarts = false;
+  const avoidAt = (h) => [[26, 10], [22, 8], [18, 6], [14, 4]].find(([t]) => h >= t)?.[1] ?? null;
+  if (sys.conditions?.shutdown) {
+    if (num(sys.systemHits?.engine) >= 3) startupCheck = { text: 'engine destroyed — cannot restart' };
+    else if (pilotUnconscious(actor)) startupCheck = { text: 'warrior unconscious — cannot restart' };
+    else if (newHeat >= 30) startupCheck = { text: 'heat 30+ — stays shut down' };
+    else if (newHeat < 14) { restarts = true; startupCheck = { text: 'heat below 14 — restarts automatically' }; }
+    else {
+      const need = avoidAt(newHeat);
+      const sr = await new Roll("2d6").evaluate();
+      heatRolls.push(sr);
+      restarts = sr.total >= need;
+      startupCheck = { text: `startup roll ${sr.total} vs ${need}+: ${restarts ? 'restarts' : 'stays shut down'}` };
+    }
+  } else {
     if (effects.auto) shutsDown = true;
     else if (newHeat >= 14) {
-      const avoid = [[26, 10], [22, 8], [18, 6], [14, 4]].find(([h]) => newHeat >= h)[1];
+      const avoid = avoidAt(newHeat);
       const sr = await new Roll("2d6").evaluate();
       heatRolls.push(sr);
       shutsDown = sr.total < avoid;
@@ -719,7 +779,33 @@ export async function resolveMechHeat(actor) {
       psrNote = 'Piloting Skill Roll required (reactor shut down, +3) — roll it from the sheet';
     }
   }
+  if (restarts) update['system.conditions.shutdown'] = false;
   if (actor.isOwner || game.user.isGM) await actor.update(update);
+
+  // Ammunition explosion avoid roll at 19+ (4+ / 6+ at 23 / 8+ at 28): on a
+  // failure the bin that would do the most damage explodes.
+  let ammoCheck = null, ammoFrag = null;
+  if (newHeat >= 19) {
+    const need = newHeat >= 28 ? 8 : newHeat >= 23 ? 6 : 4;
+    const bins = [];
+    for (const [loc, slots] of Object.entries(sys.critSlots || {})) {
+      (slots || []).forEach((slot, index) => {
+        if (slot?.type !== 'ammo' || slot.hit) return;
+        const ex = ammoExplosionDamage(slot, sys.weapons || []);
+        if (ex?.damage > 0) bins.push({ loc, index, damage: ex.damage, name: slot.name });
+      });
+    }
+    if (bins.length) {
+      const ar = await new Roll("2d6").evaluate();
+      heatRolls.push(ar);
+      const explodes = ar.total < need;
+      ammoCheck = { total: ar.total, avoid: need, explodes };
+      if (explodes) {
+        const bin = bins.sort((a, b) => b.damage - a.damage)[0];
+        ammoFrag = await resolveDamageAgainst(actor, 'front', [], heatRolls, actor.name, { explode: { loc: bin.loc, index: bin.index } });
+      }
+    } else ammoCheck = { none: true };
+  }
 
   // Overheating with Life Support damaged injures the warrior: 1 point at 15+,
   // 2 at 25+ (hit ladder + consciousness); a linked pilot also takes the AToW
@@ -729,7 +815,7 @@ export async function resolveMechHeat(actor) {
   if (num(sys.systemHits?.lifeSupport) > 0 && newHeat >= 15) {
     const ev = newHeat >= 25 ? CREW_DAMAGE.overheat25 : CREW_DAMAGE.overheat15;
     const linked = sys.pilot?.actorId ? game.actors.get(sys.pilot.actorId) : null;
-    const crew = foundry.utils.deepClone(sys.pilot || {});
+    const crew = foundry.utils.deepClone(actor.system.pilot || {}); // fresh: an ammo explosion may have hurt them
     warriorLines = await warriorDamage(crew, newHeat >= 25 ? 2 : 1, { linked: !!linked, rolls: heatRolls, source: 'life support' });
     await writeDoc(actor, { 'system.pilot': crew });
     if (linked) {
@@ -749,7 +835,7 @@ export async function resolveMechHeat(actor) {
 
   const cardContent = await foundry.applications.handlebars.renderTemplate(
     "systems/mech-foundry/templates/chat/tw-heat.hbs",
-    { lines, newHeat, effects, autoShutdown: effects.auto && shutsDown, shutdownCheck, psrNote, pilotDamage, warriorLines }
+    { lines, newHeat, effects, autoShutdown: effects.auto && shutsDown, shutdownCheck, startupCheck, restarts, ammoCheck, ammoFrag, psrNote, pilotDamage, warriorLines }
   );
   await ChatMessage.create({
     speaker: ChatMessage.getSpeaker({ actor }),
@@ -764,7 +850,9 @@ export async function resolveMechHeat(actor) {
  * the appropriate hit-location / motive / critical tables. Returns a chat-card
  * fragment (without the cluster/total wrapper the caller adds).
  */
-export async function resolveDamageAgainst(targetActor, direction, groupSizes, rolls, targetName = '', { noPSR = false, locationRoller = null, extraPSR = [], forceMotive = false } = {}) {
+export async function resolveDamageAgainst(targetActor, direction, groupSizes, rolls, targetName = '', {
+  noPSR = false, locationRoller = null, extraPSR = [], forceMotive = false, partialCover = false, explode = null
+} = {}) {
   const tt = targetActor?.type;
   if (tt === 'mech') {
     const groups = [];
@@ -779,25 +867,20 @@ export async function resolveDamageAgainst(targetActor, direction, groupSizes, r
       armor: foundry.utils.deepClone(targetActor.system.armor || {}),
       structure: foundry.utils.deepClone(targetActor.system.structure || {})
     };
-    const state = { destroyed: false, pilotUnconscious: false, ammo: false };
+    const state = { destroyed: false, pilotUnconscious: false };
     const newCrits = [];   // actuator crits this attack (leg ones trigger PSRs)
     let headHits = 0;      // every hit on the head injures the warrior
+    const explosions = []; // struck ammunition bins, exploded after the crits: { loc, slot }
+    const explosionLines = [];
+    let explosionCount = 0;
+    let totalDamage = groupSizes.reduce((a, b) => a + b, 0);
     const ensureSlots = (loc) => {
       if (!Array.isArray(critSlots[loc]) || critSlots[loc].length === 0) critSlots[loc] = standardMechSlots()[loc];
       return critSlots[loc];
     };
-    for (const g of groupSizes) {
-      const locRoll = locationRoller ? await locationRoller(direction) : await rollMechLocation(direction);
-      rolls.push(locRoll.roll);
-      if (locRoll.loc === 'head') headHits++;
-      const dmg = applyMechDamageToState(dmgState, locRoll.loc, g, { rear: locRoll.rear });
-      groups.push({
-        damage: g, locLabel: locRoll.label + (locRoll.rear ? ' (rear)' : ''),
-        locDice: locRoll.dice, crit: locRoll.crit,
-        events: dmg.events, destroyed: dmg.destroyed, overflow: dmg.overflow
-      });
-      const checkLocs = new Set(dmg.structureHits);
-      if (locRoll.crit) checkLocs.add(locRoll.loc);
+
+    // Determining Critical Hits for each location whose structure was struck.
+    const critCheck = async (checkLocs) => {
       for (const cl of checkLocs) {
         const cc = await rollDeterminingCrit(cl);
         rolls.push(cc.roll);
@@ -816,12 +899,63 @@ export async function resolveDamageAgainst(targetActor, direction, groupSizes, r
             if (slot.hit) { slotResults.push({ index: idx, text: `${slot.name || slot.type} (already destroyed)` }); continue; }
             slot.hit = true;
             if (slot.type === 'actuator') newCrits.push({ loc: cl, name: slot.name });
+            if (slot.type === 'ammo') explosions.push({ loc: cl, slot });
             slotResults.push({ index: idx, text: applyMechCritSlotEffect(slot, systemHits, heatSinks, weapons, crew, state) });
           }
           critChecks.push({ locLabel: MECH_LOC_LABEL[cl] || cl, total: cc.total, text: cc.text, slots: slotResults });
         }
       }
+    };
+
+    for (const g of groupSizes) {
+      const locRoll = locationRoller ? await locationRoller(direction) : await rollMechLocation(direction);
+      rolls.push(locRoll.roll);
+      // Partial cover: leg hits strike the cover instead.
+      if (partialCover && (locRoll.loc === 'll' || locRoll.loc === 'rl')) {
+        groups.push({ damage: g, locLabel: `${locRoll.label} — hits the cover`, locDice: locRoll.dice, crit: false, events: [], covered: true });
+        totalDamage -= g;
+        continue;
+      }
+      if (locRoll.loc === 'head') headHits++;
+      const dmg = applyMechDamageToState(dmgState, locRoll.loc, g, { rear: locRoll.rear });
+      groups.push({
+        damage: g, locLabel: locRoll.label + (locRoll.rear ? ' (rear)' : ''),
+        locDice: locRoll.dice, crit: locRoll.crit,
+        events: dmg.events, destroyed: dmg.destroyed, overflow: dmg.overflow
+      });
+      const checkLocs = new Set(dmg.structureHits);
+      if (locRoll.crit) checkLocs.add(locRoll.loc);
+      await critCheck(checkLocs);
     }
+
+    // A heat-induced explosion names its bin up front.
+    if (explode) {
+      const slot = ensureSlots(explode.loc)[explode.index];
+      if (slot && !slot.hit) { slot.hit = true; explosions.push({ loc: explode.loc, slot }); }
+    }
+
+    // Ammunition explosions: the bin's shots × damage per shot, straight into the
+    // location's internal structure, transferring onward unless CASE contains it.
+    // Their structure damage can cause further criticals (and further explosions).
+    let guard = 0;
+    while (explosions.length && guard++ < 20) {
+      const { loc, slot } = explosions.shift();
+      const ex = ammoExplosionDamage(slot, weapons);
+      const where = MECH_LOC_LABEL[loc] || loc;
+      if (!ex) { explosionLines.push(`${slot.name || 'Ammunition'} (${where}): not linked to a weapon — resolve the explosion manually`); continue; }
+      if (ex.damage <= 0) { explosionLines.push(`${slot.name || 'Ammunition'} (${where}): bin empty — no explosion`); continue; }
+      ex.weapon.ammo = Math.max(0, num(ex.weapon.ammo) - ex.shots);
+      explosionCount++;
+      totalDamage += ex.damage;
+      const contained = (critSlots[loc] || []).some(x => x.type === 'case');
+      const res = applyMechDamageToState(dmgState, loc, ex.damage, { internal: true, contain: contained });
+      explosionLines.push(`AMMUNITION EXPLOSION — ${slot.name || ex.weapon.ammoType} (${where}): ${ex.shots} shot${ex.shots === 1 ? '' : 's'} × ${ex.perShot} = ${ex.damage} internal damage`);
+      for (const ev of res.events) explosionLines.push(ev);
+      if (res.vented) explosionLines.push(`CASE vents the remaining ${res.vented}`);
+      if (res.destroyed) state.destroyed = true;
+      await critCheck(new Set(res.structureHits));
+    }
+
     // Warrior damage: 1 per head hit, 2 for an ammunition explosion. A linked
     // pilot takes the matching A Time of War damage after the save.
     const linkedPilot = crew.actorId ? game.actors.get(crew.actorId) : null;
@@ -831,7 +965,7 @@ export async function resolveDamageAgainst(targetActor, direction, groupSizes, r
       warriorLines.push(...await warriorDamage(crew, 1, { linked: !!linkedPilot, rolls, source: 'head hit' }));
       if (linkedPilot) crewEvents.push(CREW_DAMAGE.pilotHit);
     }
-    if (state.ammo) {
+    for (let i = 0; i < explosionCount; i++) {
       warriorLines.push(...await warriorDamage(crew, 2, { linked: !!linkedPilot, rolls, source: 'ammo explosion' }));
       if (linkedPilot) crewEvents.push(CREW_DAMAGE.ammoExplosion);
     }
@@ -839,7 +973,7 @@ export async function resolveDamageAgainst(targetActor, direction, groupSizes, r
     // Piloting Skill Rolls this damage forces (queued on the target, rolled from its sheet).
     let psr = { updates: {}, reasons: [] };
     if (!noPSR && !state.destroyed) {
-      psr = damagePSRUpdate(targetActor, { structure: dmgState.structure, systemHits }, newCrits, groupSizes.reduce((a, b) => a + b, 0), extraPSR);
+      psr = damagePSRUpdate(targetActor, { structure: dmgState.structure, systemHits }, newCrits, totalDamage, extraPSR);
     }
 
     const applied = await writeDoc(targetActor, {
@@ -862,7 +996,7 @@ export async function resolveDamageAgainst(targetActor, direction, groupSizes, r
       }
     }
     return {
-      isMech: true, groups, critChecks, destroyedByCrit: state.destroyed, ammoExplosion: state.ammo, pilotNote,
+      isMech: true, groups, critChecks, destroyedByCrit: state.destroyed, ammoExplosion: explosionCount > 0, explosionLines, pilotNote,
       warriorLines, psrReasons: psr.reasons.map(r => r.label),
       applied, hasTarget: true, targetName: targetActor.name
     };
@@ -1025,10 +1159,12 @@ export async function weaponAttack(actor, weapon) {
     }
 
     const groupSizes = [];
-    if (clusterSize > 0) { let t = total; while (t > 0) { groupSizes.push(Math.min(5, t)); t -= 5; } }
+    if (clusterSize > 0) groupSizes.push(...groupDamage(total, clusterGroupSize(weapon)));
     else groupSizes.push(total);
 
-    const frag = await resolveDamageAgainst(targetActor, result.direction, groupSizes, rolls, targetName);
+    const frag = await resolveDamageAgainst(targetActor, result.direction, groupSizes, rolls, targetName, {
+      partialCover: !!result.terrain?.partialCover && targetActor?.type === 'mech'
+    });
     hitResult = { cluster: clusterSize > 0, clusterInfo, total, ...frag };
   }
 

@@ -178,9 +178,18 @@ export class MechFoundryMechSheet extends MechFoundryUnitSheet {
 
     // Critical slots (Crits & Loadout tab).
     const cs = sys.critSlots || {};
+    // Weapon and ammunition slots link to a weapon (crits destroy that weapon;
+    // an ammo bin's explosion uses its weapon's shots and damage).
+    const weaponsList = sys.weapons || [];
+    const slotOptions = (type, weaponId) => weaponsList
+      .filter(w => type !== 'ammo' || String(w.ammoType || '').trim())
+      .map(w => ({ id: w.id, selected: w.id === weaponId, label: type === 'ammo' ? `Ammo (${w.ammoType}) — ${w.name || 'weapon'}` : (w.name || 'Weapon') }));
     context.critSlotLocations = CRIT_LOCATIONS.map(([key, label]) => ({
       key, label,
-      slots: (cs[key] || []).map((s, i) => ({ index: i + 1, name: s.name, type: s.type, hit: !!s.hit }))
+      slots: (cs[key] || []).map((s, i) => {
+        const linkable = s.type === 'weapon' || s.type === 'ammo';
+        return { index: i + 1, name: s.name, type: s.type, hit: !!s.hit, linkable, options: linkable ? slotOptions(s.type, s.weaponId) : [] };
+      })
     }));
     context.hasCritSlots = CRIT_LOCATIONS.some(([k]) => (cs[k] || []).length > 0);
     context.slotTypes = SLOT_TYPES;
@@ -281,7 +290,14 @@ export class MechFoundryMechSheet extends MechFoundryUnitSheet {
     await this._updateCritSlots(cs => {
       const slot = cs[loc]?.[parseInt(index)];
       if (!slot) return false;
+      if (field === 'weaponId') {
+        const w = (this.actor.system.weapons || []).find(x => x.id === value);
+        slot.weaponId = w ? w.id : '';
+        if (w) slot.name = slot.type === 'ammo' ? `Ammo (${w.ammoType})` : w.name;
+        return;
+      }
       slot[field] = value;
+      if (field === 'type' && value !== 'weapon' && value !== 'ammo') delete slot.weaponId;
     });
   }
 

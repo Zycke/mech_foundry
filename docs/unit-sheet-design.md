@@ -167,6 +167,17 @@ criticals and cluster grouping:
 - **Initiative** (A Time of War): 2D6, highest acts first, ties to the higher RFL; Combat Sense
   rolls 3D6 keeping the highest two. Combat units roll with their linked pilot / crew
   character's traits and break ties on that character's RFL (`MechFoundryCombatant`).
+- **Cluster grouping:** a cluster weapon's damage lands in 5-point groups (LRM, MRM, ATM) or one
+  location per missile / pellet (SRM, Streak SRM, LB-X); set per weapon (auto guesses from the name).
+- **Ammunition explosions:** weapon and ammo crit slots link to a weapon on the Crits tab. A struck
+  bin explodes for shots in the bin (Shots/Ton, capped at what's left) × damage per shot (a full
+  salvo for cluster weapons), straight into that location's internal structure and transferring
+  onward; a CASE slot in the location vents the rest. Explosion damage can cause further crits;
+  the warrior takes 2 per explosion. The heat phase rolls the 19+ avoid roll (4+/6+/8+) and blows
+  the most damaging bin on a failure.
+- **Restart:** a shut-down 'Mech restarts automatically below 14 heat, otherwise on a roll against
+  the shutdown avoid number (not at 30+, with a destroyed engine or an unconscious warrior).
+- **Partial cover:** besides +1 to hit, leg hits on a 'Mech in partial cover strike the cover.
 **Intentional house rules** (deliberate divergences — don't "correct" toward the book):
 - Combat vehicles roll a critical on any hit that penetrates to internal structure, in
   addition to the tables' marked results (2/12, or 8 on side attacks).

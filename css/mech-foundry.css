@@ -7542,3 +7542,7 @@
 .mech-foundry.mech-sheet .mf-panel > h4 .physical-attack { margin-left: auto; padding: 2px 9px; background: var(--mf-bg); color: var(--mf-amber-2); border: 1px solid var(--mf-steel); border-radius: 2px; font-size: 0.68rem; cursor: pointer; width: auto; }
 .mech-foundry.mech-sheet .mf-panel > h4 .physical-attack:hover { border-color: var(--mf-amber); }
 .mech-foundry .tw-self-head { margin-top: 6px; padding-top: 4px; border-top: 1px dashed rgba(128,128,128,.4); font-size: 0.78rem; font-weight: 600; }
+
+/* Cluster grouping picker beside the launcher size */
+.mech-foundry .w-clus { white-space: nowrap; }
+.mech-foundry .w-clus .w-grp { width: 46px; height: 20px; font-size: 0.66rem; padding: 0 2px; margin-left: 2px; }

@@ -49,7 +49,7 @@
     <div class="tw-hl-event tw-crit-line">▸ Crit check {{this.locLabel}} ({{this.total}}): <strong>{{this.text}}</strong></div>
     {{#each this.slots}}<div class="tw-hl-event tw-crit-slot">· slot {{this.index}}: {{this.text}}</div>{{/each}}
     {{/each}}
-    {{#if hr.ammoExplosion}}<div class="tw-hl-event tw-crit-line"><strong>Ammunition explosion — resolve internal damage</strong></div>{{/if}}
+    {{#each hr.explosionLines}}<div class="tw-hl-event tw-crit-line"><strong>{{this}}</strong></div>{{/each}}
     {{#if hr.pilotNote}}<div class="tw-hl-event tw-crit-line"><strong>{{hr.pilotNote}}</strong></div>{{/if}}
     {{#each hr.warriorLines}}<div class="tw-hl-event tw-crit-line">▸ {{this}}</div>{{/each}}
     {{#if hr.psrReasons.length}}<div class="tw-hl-event tw-psr-line"><i class="fas fa-person-falling"></i> Piloting Skill Roll required: {{#each hr.psrReasons}}{{this}}{{#unless @last}}, {{/unless}}{{/each}} — {{hr.targetName}}'s controller rolls it from the sheet</div>{{/if}}

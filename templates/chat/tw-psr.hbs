@@ -34,6 +34,7 @@
     <div class="tw-hl-event tw-crit-line">▸ Crit check {{this.locLabel}} ({{this.total}}): <strong>{{this.text}}</strong></div>
     {{#each this.slots}}<div class="tw-hl-event tw-crit-slot">· slot {{this.index}}: {{this.text}}</div>{{/each}}
     {{/each}}
+    {{#each fall.frag.explosionLines}}<div class="tw-hl-event tw-crit-line"><strong>{{this}}</strong></div>{{/each}}
     {{#each fall.frag.warriorLines}}<div class="tw-hl-event tw-crit-line">▸ {{this}}</div>{{/each}}
     {{#if fall.frag.destroyedByCrit}}<div class="tw-hl-destroyed">UNIT DESTROYED</div>{{/if}}
     <div class="tw-psr-reason">Avoid warrior damage — needs {{fall.warrior.tn}}+</div>
