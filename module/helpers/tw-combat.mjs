@@ -464,6 +464,101 @@ export async function resolveAeroAttack(target, direction, groupSizes, rolls) {
   return { aero: true, applied, hasTarget: true, targetName: target.name, groups, critResults, destroyed };
 }
 
+/* ------------------------------------------------------------------ */
+/*  Heat phase (Total Warfare Heat Point Table)                         */
+/* ------------------------------------------------------------------ */
+
+const HEAT_MOVE = { stationary: 0, walked: 1, ran: 2, jumped: 0 };
+
+/** Full mech heat-scale effects for the end-of-turn report. */
+function mechHeatEffects(h) {
+  const mp = Math.min(5, Math.floor(h / 5));
+  const toHit = [8, 13, 17, 24].filter(t => h >= t).length;
+  const pick = (rows) => { let hit = null; for (const r of rows) if (h >= r.at) hit = r; return hit; };
+  const sd = pick([{ at: 14, text: 'avoid 4+' }, { at: 18, text: 'avoid 6+' }, { at: 22, text: 'avoid 8+' }, { at: 26, text: 'avoid 10+' }, { at: 30, text: 'automatic' }]);
+  const ammo = pick([{ at: 19, text: 'avoid 4+' }, { at: 23, text: 'avoid 6+' }, { at: 28, text: 'avoid 8+' }]);
+  return { mp, toHit, shutdown: sd?.text || '—', ammo: ammo?.text || '—', auto: h >= 30 };
+}
+
+/**
+ * End-of-turn heat resolution for a mech: prompt for this turn's heat sources,
+ * net them against heat-sink dissipation, update system.heat, auto-shutdown at
+ * 30+, and post a breakdown card. Heat Point Table (Total Warfare p. 159).
+ */
+export async function resolveMechHeat(actor) {
+  if (!actor) return;
+  const sys = actor.system;
+  const current = num(sys.heat?.value);
+  const sinks = sys.heatSinks || { count: 0, type: 'single' };
+  const dissipation = num(sinks.count) * (sinks.type === 'double' ? 2 : 1);
+  const engineHits = num(sys.systemHits?.engine);
+  const engineHeat = engineHits >= 2 ? 10 : engineHits === 1 ? 5 : 0;
+  const weaponsHeatTotal = (sys.weapons || []).reduce((s, w) => s + num(w.heat), 0);
+
+  const moveOpts = [['stationary', 'Stationary'], ['walked', 'Walked (+1)'], ['ran', 'Ran (+2)'], ['jumped', 'Jumped (+1/hex, min 3)']]
+    .map(([k, l]) => `<option value="${k}">${l}</option>`).join('');
+
+  const content = `
+    <div class="tw-attack-dialog">
+      <div class="form-group"><label>Movement</label><select name="move">${moveOpts}</select></div>
+      <div class="form-group"><label>Jump hexes</label><input type="number" name="hexes" value="0" /></div>
+      <div class="form-group"><label>Stand attempts</label><input type="number" name="stand" value="0" /></div>
+      <div class="form-group"><label>Weapons heat</label><input type="number" name="weapons" value="${weaponsHeatTotal}" /></div>
+      <div class="form-group"><label>Engine-hit heat</label><input type="number" name="engine" value="${engineHeat}" /></div>
+      <div class="form-group"><label>Heat-sink dissipation</label><input type="number" name="sinks" value="${dissipation}" /></div>
+    </div>`;
+
+  const r = await DialogV2.wait({
+    window: { title: "Resolve Heat", icon: "fa-solid fa-fire" },
+    content,
+    buttons: [
+      {
+        action: "resolve", label: "Resolve", icon: "fa-solid fa-fire", default: true,
+        callback: (ev, b) => ({
+          move: b.form.elements.move.value,
+          hexes: num(b.form.elements.hexes.value),
+          stand: num(b.form.elements.stand.value),
+          weapons: num(b.form.elements.weapons.value),
+          engine: num(b.form.elements.engine.value),
+          sinks: num(b.form.elements.sinks.value)
+        })
+      },
+      { action: "cancel", label: "Cancel", icon: "fa-solid fa-times" }
+    ],
+    rejectClose: false
+  });
+  if (!r || r === "cancel") return;
+
+  const moveHeat = r.move === 'jumped' ? Math.max(3, r.hexes) : (HEAT_MOVE[r.move] || 0);
+  const standHeat = Math.max(0, r.stand);
+  const gain = moveHeat + standHeat + r.weapons + r.engine;
+  const newHeat = Math.max(0, current + gain - r.sinks);
+  const effects = mechHeatEffects(newHeat);
+
+  const update = { 'system.heat.value': newHeat };
+  if (effects.auto) update['system.conditions.shutdown'] = true;
+  if (actor.isOwner || game.user.isGM) await actor.update(update);
+
+  const lines = [
+    { label: 'Start of turn', value: current },
+    { label: r.move === 'jumped' ? `Jump (${r.hexes} hex)` : `Movement (${r.move})`, value: moveHeat },
+    { label: 'Stand attempts', value: standHeat },
+    { label: 'Weapons fire', value: r.weapons },
+    { label: 'Engine hits', value: r.engine },
+    { label: 'Heat sinks', value: -r.sinks }
+  ].filter(l => l.value !== 0 || l.label === 'Start of turn');
+
+  const cardContent = await foundry.applications.handlebars.renderTemplate(
+    "systems/mech-foundry/templates/chat/tw-heat.hbs",
+    { lines, newHeat, effects, autoShutdown: effects.auto }
+  );
+  await ChatMessage.create({
+    speaker: ChatMessage.getSpeaker({ actor }),
+    flavor: "Heat Phase",
+    content: cardContent
+  });
+}
+
 /**
  * Open the GATOR to-hit dialog for a weapon, roll 2d6, and post a chat card.
  * @param {Actor} actor   The attacking unit.

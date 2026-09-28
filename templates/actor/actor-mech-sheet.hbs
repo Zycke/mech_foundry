@@ -62,7 +62,7 @@
 
       <div class="mf-grid2">
         <div class="mf-panel">
-          <h4>Heat</h4>
+          <h4>Heat {{#if editable}}<button type="button" class="resolve-heat"><i class="fas fa-fire"></i> Resolve</button>{{/if}}</h4>
           <div class="heat">
             <div class="scale"><div class="fill" style="height: {{heat.pct}}%"></div></div>
             <div class="readout">

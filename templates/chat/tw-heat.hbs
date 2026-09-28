@@ -1,0 +1,17 @@
+<div class="mech-foundry tw-attack-card tw-heat-card">
+  <header class="tw-atk-head"><i class="fas fa-fire"></i> Heat Phase</header>
+  <div class="tw-heat-lines">
+    {{#each lines}}<div class="tw-heat-line"><span class="e">{{this.label}}</span><span class="v">{{#if (gte this.value 0)}}+{{/if}}{{this.value}}</span></div>{{/each}}
+  </div>
+  <div class="tw-atk-tn">
+    <span class="tw-atk-label">New Heat</span>
+    <span class="tw-atk-tnval">{{newHeat}}</span>
+  </div>
+  <div class="tw-atk-mods">
+    <span class="tw-mod">Move −{{effects.mp}} MP</span>
+    <span class="tw-mod">Fire +{{effects.toHit}}</span>
+    <span class="tw-mod">Shutdown {{effects.shutdown}}</span>
+    <span class="tw-mod">Ammo {{effects.ammo}}</span>
+  </div>
+  {{#if autoShutdown}}<div class="tw-hl-destroyed">AUTOMATIC SHUTDOWN (30+)</div>{{/if}}
+</div>

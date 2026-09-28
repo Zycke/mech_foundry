@@ -1,6 +1,6 @@
 import { MechFoundryUnitSheet } from "./unit-sheet.mjs";
 import { actorSkillRating, applyCrewDamage, CREW_DAMAGE, MECH_GUNNERY_SKILLS, MECH_PILOTING_SKILLS } from "../helpers/atow-conversion.mjs";
-import { weaponAttack } from "../helpers/tw-combat.mjs";
+import { weaponAttack, resolveMechHeat } from "../helpers/tw-combat.mjs";
 
 const { DialogV2 } = foundry.applications.api;
 
@@ -224,6 +224,7 @@ export class MechFoundryMechSheet extends MechFoundryUnitSheet {
     html.on('click', '.pilot-unlink', this._onPilotUnlink.bind(this));
     html.on('click', '.pilot-open', this._onPilotOpen.bind(this));
     html.on('click', '.weapon-attack', this._onWeaponAttack.bind(this));
+    html.on('click', '.resolve-heat', (ev) => { ev.preventDefault(); resolveMechHeat(this.actor); });
   }
 
   _applyActiveTab() {

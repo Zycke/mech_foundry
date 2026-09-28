@@ -7467,3 +7467,11 @@
 .mech-foundry.tw-attack-card .tw-cluster { display: flex; align-items: center; gap: 8px; margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--mf-line); }
 .mech-foundry.tw-attack-card .tw-cluster-hits { font-family: var(--mf-font-mono); font-size: 0.82rem; color: var(--mf-amber-2); }
 .mech-foundry.tw-attack-card .tw-hit-loc .tw-hl-dmg { font-family: var(--mf-font-mono); color: var(--mf-ink); margin-left: 6px; }
+
+/* ---- Heat resolve button + heat card ---- */
+.mech-foundry.mech-sheet .mf-panel > h4 .resolve-heat { margin-left: auto; padding: 2px 9px; background: var(--mf-bg); color: var(--mf-amber-2); border: 1px solid var(--mf-steel); border-radius: 2px; font-size: 0.68rem; cursor: pointer; width: auto; }
+.mech-foundry.mech-sheet .mf-panel > h4 .resolve-heat:hover { border-color: var(--mf-amber); }
+.mech-foundry.tw-heat-card .tw-heat-lines { margin: 4px 0; }
+.mech-foundry.tw-heat-card .tw-heat-line { display: flex; justify-content: space-between; font-size: 0.78rem; padding: 1px 0; border-bottom: 1px dotted var(--mf-line); }
+.mech-foundry.tw-heat-card .tw-heat-line .e { color: var(--mf-ink-dim); }
+.mech-foundry.tw-heat-card .tw-heat-line .v { font-family: var(--mf-font-mono); color: var(--mf-ink); }
