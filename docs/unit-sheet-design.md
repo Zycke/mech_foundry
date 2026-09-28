@@ -245,6 +245,16 @@ criticals and cluster grouping:
   strafing (+4, +2 more at NOE), striking (+2) or bombing (+2 + altitude; no terrain or target
   movement modifiers); air-to-ground has no range modifier and flags the attacker −3 to hit that
   turn. Per-turn aero state (evading, air-to-ground, thrust) is the `aeroTurn` actor flag.
+- **Control Rolls & aero heat** (`tw-aero-flight.mjs`; TW pp. 93, 161, 249): Avionics / Control
+  criticals and any damage in atmosphere (+1 per 20 damage) queue Control Rolls (Piloting + pilot
+  damage, avionics, life support, atmosphere +2 / fighter −1, above Safe Thrust +1, +1 per point
+  above 2× Safe); a failure puts the unit out of control (random movement next turn via the sheet's
+  Random move button, +2 to its attacks) and the GM's End Phase rolls to regain control. The aero
+  heat phase (sheet Resolve) sums weapons fired, +2 per engine hit and heat-causing weapons, minus
+  sinks (no movement heat), then rolls random movement (5+), shutdown (14+, auto at 30; restarts at
+  13 or less or on the avoid roll), ammunition (19+: most damaging per-shot ammo × rounds / 10 to SI,
+  / 20 with CASE, min 1; pilot 1) and pilot damage (21+). Random-movement and pilot-damage avoid
+  numbers (5/6/7/8/10 and 6/9) are from the aerospace record-sheet heat scale — `AERO_HEAT`.
 **Intentional house rules** (deliberate divergences — don't "correct" toward the book):
 - Combat vehicles roll a critical on any hit that penetrates to internal structure, in
   addition to the tables' marked results (2/12, or 8 on side attacks).

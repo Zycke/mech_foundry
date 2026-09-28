@@ -31,6 +31,13 @@
 
     {{!-- ===================== STATUS ===================== --}}
     <div class="tab" data-tab="status">
+      {{#if controlPending}}
+      <div class="mf-psr-banner">
+        <i class="fas fa-plane"></i>
+        <span class="t">Control Roll required: {{#each controlPending}}{{this}}{{#unless @last}}, {{/unless}}{{/each}}</span>
+        {{#if editable}}<button type="button" class="control-roll"><i class="fas fa-dice"></i> Roll Control</button>{{/if}}
+      </div>
+      {{/if}}
       <div class="mf-grid2">
         <div class="mf-panel">
           <h4>Armor by Facing <span class="hint">current / max · threshold</span></h4>
@@ -48,7 +55,7 @@
           </div>
         </div>
         <div class="mf-panel">
-          <h4>Heat</h4>
+          <h4>Heat {{#if editable}}<button type="button" class="resolve-heat" title="End-of-turn heat: weapons, engine damage, heat sinks, then the avoid rolls"><i class="fas fa-fire"></i> Resolve</button>{{/if}}</h4>
           <div class="heat">
             <div class="scale"><div class="fill" style="height: {{heat.pct}}%"></div></div>
             <div class="readout">
@@ -80,6 +87,7 @@
             <label class="chk"><input type="checkbox" name="system.conditions.outOfControl" {{checked conditions.outOfControl}} {{#unless editable}}disabled{{/unless}}> Out of Control</label>
             <label class="chk" title="Operating in an atmosphere (control rolls +2; damage forces control rolls)"><input type="checkbox" name="system.flight.inAtmosphere" {{checked system.flight.inAtmosphere}} {{#unless editable}}disabled{{/unless}}> In atmosphere</label>
             {{#if aeroTurn.inCombat}}<label class="chk" title="Evasive action this turn: attacks against it +3 (fighter) / +2 (small craft); it can't attack"><input type="checkbox" class="aero-evading" {{checked aeroTurn.evading}} {{#unless editable}}disabled{{/unless}}> Evading</label>{{/if}}
+            {{#if conditions.outOfControl}}{{#if editable}}<button type="button" class="random-move" title="Out of control: roll on the Random Movement Table"><i class="fas fa-shuffle"></i> Random move</button>{{/if}}{{/if}}
             {{#if aeroTurn.airToGround}}<span class="w-badge warn" title="Made an air-to-ground attack this turn: −3 to attacks against it">AIR-TO-GROUND</span>{{/if}}
           </div>
         </div>

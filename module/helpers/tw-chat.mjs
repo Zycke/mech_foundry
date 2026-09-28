@@ -8,6 +8,8 @@
  */
 import { pendingPSR } from "./tw-psr.mjs";
 import { rollPendingPSR } from "./tw-falls.mjs";
+import { rollPendingControl } from "./tw-aero-flight.mjs";
+import { isAero } from "./tw-aero.mjs";
 
 const { DialogV2 } = foundry.applications.api;
 
@@ -23,7 +25,7 @@ export function cardActionsHTML(message) {
   const parts = [];
   for (const uuid of f.psr || []) {
     const a = fromUuidSync(uuid);
-    if (a?.isOwner && pendingPSR(a)) parts.push(button('psr', `Roll PSR — ${esc(a.name)}`, 'fa-person-falling', `data-uuid="${uuid}"`));
+    if (a?.isOwner && pendingPSR(a)) parts.push(button('psr', `${isAero(a) ? 'Roll Control' : 'Roll PSR'} — ${esc(a.name)}`, isAero(a) ? 'fa-plane' : 'fa-person-falling', `data-uuid="${uuid}"`));
   }
   if (game.user.isGM && f.failed?.length) {
     parts.push(f.applied ? '<span class="tw-card-done">Applied</span>'
@@ -64,7 +66,7 @@ async function onAction(message, btn) {
   const action = btn.dataset.mfAction;
   if (action === 'psr') {
     const a = await fromUuid(btn.dataset.uuid);
-    if (a) await rollPendingPSR(a);
+    if (a) await (isAero(a) ? rollPendingControl(a) : rollPendingPSR(a));
   } else if (action === 'apply') {
     await applyCard(message);
   } else if (action === 'undo') {

@@ -18,6 +18,7 @@
     {{/each}}
     {{#each hr.critResults}}<div class="tw-hl-event tw-crit-line">▸ Crit {{this.facingLabel}}: <strong>{{this.system}}</strong></div>{{/each}}
     {{#each hr.warriorLines}}<div class="tw-hl-event tw-crit-line">▸ {{this}}</div>{{/each}}
+    {{#if hr.psrReasons.length}}<div class="tw-hl-event tw-psr-line"><i class="fas fa-plane"></i> Control Roll required: {{#each hr.psrReasons}}{{this}}{{#unless @last}}, {{/unless}}{{/each}}</div>{{/if}}
     {{#if hr.destroyed}}<div class="tw-hl-destroyed">UNIT DESTROYED</div>{{/if}}
     {{#unless hr.applied}}<div class="tw-atk-dmg"><em>Couldn't apply automatically (no permission and no GM available) — apply the above to {{hr.targetName}} manually.</em></div>{{/unless}}
   {{else if hr.vehicle}}

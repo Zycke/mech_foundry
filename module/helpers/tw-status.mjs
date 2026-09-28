@@ -17,7 +17,7 @@ export const UNIT_STATUSES = [
   { id: 'mfPilotOut', name: 'Warrior Unconscious', img: 'icons/svg/unconscious.svg' },
   { id: 'mfImmobile', name: 'Immobile', img: 'icons/svg/net.svg' },
   { id: 'mfOutOfControl', name: 'Out of Control', img: 'icons/svg/daze.svg' },
-  { id: 'mfPSR', name: 'Piloting Skill Roll Pending', img: 'icons/svg/hazard.svg' },
+  { id: 'mfPSR', name: 'Piloting / Control Roll Pending', img: 'icons/svg/hazard.svg' },
   { id: 'mfStunned', name: 'Crew Stunned', img: 'icons/svg/paralysis.svg' }
 ];
 

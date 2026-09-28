@@ -870,7 +870,7 @@ function applyAeroCrit(system, crits, conditions, crew, crewEvents) {
     case 'FCS': crits.fcs = Math.min(3, (Number(crits.fcs) || 0) + 1); break;
     case 'Gear': crits.landingGear = true; break;
     case 'Life Support': crits.lifeSupport = true; break;
-    case 'Control': conditions.outOfControl = true; break;
+    case 'Control': break; // forces a Control Roll (queued after the attack)
     case 'Crew': crewEvents.push(CREW_DAMAGE.pilotHit); break; // hit ladder + consciousness after the loop
     default: break; // Weapon / Heat Sink / Fuel / Bomb / Thruster / Door / Cargo / Docking Collar / K-F Boom — reported only
   }
@@ -920,6 +920,16 @@ export async function resolveAeroAttack(target, direction, groupSizes, rolls) {
     }
   }
 
+  // Control Rolls (TW p. 93): an Avionics or Control critical, and any damage
+  // taken in an atmosphere (+1 per 20 points of this attack's damage).
+  const controlReasons = [];
+  for (const c of critResults) {
+    if (c.system === 'Avionics') controlReasons.push({ key: 'avionics', label: 'Avionics critical', mod: 0 });
+    if (c.system === 'Control') controlReasons.push({ key: 'control', label: 'Control critical', mod: 0 });
+  }
+  const dealt = groupSizes.reduce((a, b) => a + b, 0);
+  if (target.system.flight?.inAtmosphere && dealt > 0) controlReasons.push({ key: 'atmoDamage', label: `Damaged in atmosphere (${dealt})`, mod: Math.floor(dealt / 20) });
+
   // Crew hits: advance the hit ladder; a sheet-only pilot rolls consciousness,
   // and an unconscious pilot's craft goes out of control.
   const linked = crew.actorId ? game.actors.get(crew.actorId) : null;
@@ -929,10 +939,13 @@ export async function resolveAeroAttack(target, direction, groupSizes, rolls) {
   }
   if (!linked && crew.unconscious) conditions.outOfControl = true;
 
-  const applied = await writeDoc(target, { 'system.armor': armor, 'system.structuralIntegrity': si, 'system.crits': crits, 'system.conditions': conditions, 'system.crew': crew });
+  const applied = await writeDoc(target, {
+    'system.armor': armor, 'system.structuralIntegrity': si, 'system.crits': crits, 'system.conditions': conditions, 'system.crew': crew,
+    ...(controlReasons.length && !destroyed ? { 'flags.mech-foundry.psr': queuePSR(target, controlReasons) } : {})
+  });
   if (applied && linked) for (const ev of crewEvents) await applyCrewDamage(linked, ev);
 
-  return { aero: true, applied, hasTarget: true, targetName: target.name, groups, critResults, destroyed, warriorLines };
+  return { aero: true, applied, hasTarget: true, targetName: target.name, groups, critResults, destroyed, warriorLines, psrReasons: destroyed ? [] : controlReasons.map(r => r.label), controlRoll: true };
 }
 
 /* ------------------------------------------------------------------ */

@@ -8,11 +8,12 @@
     <span class="tw-atk-tnval">{{newHeat}}</span>
   </div>
   <div class="tw-atk-mods">
-    <span class="tw-mod">Move −{{effects.mp}} MP</span>
+    {{#unless aero}}<span class="tw-mod">Move −{{effects.mp}} MP</span>{{/unless}}
     <span class="tw-mod">Fire +{{effects.toHit}}</span>
-    <span class="tw-mod">Shutdown {{effects.shutdown}}</span>
-    <span class="tw-mod">Ammo {{effects.ammo}}</span>
+    {{#unless aero}}<span class="tw-mod">Shutdown {{effects.shutdown}}</span>
+    <span class="tw-mod">Ammo {{effects.ammo}}</span>{{/unless}}
   </div>
+  {{#each notes}}<div class="tw-hl-event">▸ {{this}}</div>{{/each}}
   {{#each warriorLines}}<div class="tw-hl-event tw-crit-line">▸ {{this}}</div>{{/each}}
   {{#if pilotDamage}}<div class="tw-hl-event">▸ Life support: {{pilotDamage}}</div>{{/if}}
   {{#if shutdownCheck}}<div class="tw-hl-event">▸ Shutdown avoid roll {{shutdownCheck.total}} vs {{shutdownCheck.avoid}}+: <strong>{{#if shutdownCheck.shutsDown}}SHUTS DOWN{{else}}avoided{{/if}}</strong></div>{{/if}}
