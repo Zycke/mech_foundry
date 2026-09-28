@@ -114,5 +114,11 @@ criticals and cluster grouping:
 - **Heat phase:** mech "Resolve" nets Heat Point Table gains vs. sink dissipation.
 - **Turn phases:** combat-tracker phase bar (Initiative→Movement→Weapon→Physical→Heat→End).
 - **Area effects:** Scene-Region blast tool (v14) applying damage to enclosed units.
+**Intentional house rules** (deliberate divergences — don't "correct" toward the book):
+- Combat vehicles roll a critical on any hit that penetrates to internal structure, in
+  addition to the tables' marked results (2/12, or 8 on side attacks).
+- A mech cockpit critical knocks a *linked* pilot character unconscious rather than killing
+  them (an unlinked sheet-only pilot is still marked killed); the mech is out of action.
+
 Sources verified from Total Warfare (hit-location pp.193–237, cluster p.117, crits p.124,
 heat p.159) and the AToW conversion.

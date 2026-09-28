@@ -435,7 +435,10 @@ export async function resolveVehicleAttack(target, direction, groupSizes, rolls)
       else if (eff.mp > 0) crits.motiveHits = Math.min(3, (Number(crits.motiveHits) || 0) + eff.mp);
     }
 
-    // Critical hit (2/12, side-8, or structure penetrated).
+    // Critical hit: the table's marked results (2/12, or 8 on side attacks)
+    // AND any hit that penetrates to internal structure. The penetration crit
+    // is an intentional house rule (confirmed by the user) beyond the vehicle
+    // tables' footnotes -- do not remove it to "match the book".
     if (flags.includes('C') || structureHit) {
       const cRoll = await new Roll("2d6").evaluate();
       rolls.push(cRoll);
