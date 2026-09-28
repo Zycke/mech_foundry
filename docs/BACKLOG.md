@@ -139,6 +139,86 @@ steps, commit path). Needs runtime testing on a live v14 world (per §0).
 
 ---
 
+## 7. Combat automation (Total Warfare) — open questions & not-automated systems
+
+Rules detail for what *is* automated lives in `docs/unit-sheet-design.md`.
+
+### 7a. Open rules questions (answers pending — the user is looking them up)
+
+- [?] **Aerospace heat-scale avoid numbers** — not in the pages supplied; taken from the
+      standard Aerospace Fighter record-sheet heat scale. One table in code
+      (`AERO_HEAT` in `module/helpers/tw-aero-flight.mjs`):
+      - Random movement avoid: 5+ at 5 heat, 6+ at 10, 7+ at 15, 8+ at 20, 10+ at 25.
+      - Pilot damage avoid: 6+ at 21 heat, 9+ at 27.
+- [?] **Ambiguous table readings** (current interpretation in parentheses):
+      - Control Roll Table "Above 2× Safe Thrust: +1 per velocity point above 2× Safe
+        Thrust" (uses the *thrust spent this turn*, not velocity).
+      - Atmospheric Control Modifiers "+1 per 20 points of damage" (counts *each attack's*
+        damage separately, not the turn's total).
+      - Linked pilot's aero heat damage (uses the AToW crew-damage table's *pilot-hit* row,
+        1B/3).
+      - Minor: Straight Movement Table has no small-craft column (small craft use the
+        *aerodyne DropShip* column); Landing terrain modifiers "halved" for vertical
+        landings (rounded *toward zero*).
+- [?] **Cluster weapons against aerospace units** — damage is grouped as on the ground
+      (5-point groups for LRM / MRM / ATM, per missile / pellet for SRM / LB-X). Confirm
+      whether fighters and small craft should take cluster damage differently.
+
+### 7b. Not automated (candidates to automate later)
+
+**Map / movement**
+- [ ] Elevation and level differences (physical attacks by level, LOS, falls into lower
+      hexes — the Fall… button takes levels by hand).
+- [ ] Firing arcs and automatic attack direction from token facing; torso twists,
+      rear-mounted weapons, turret arcs.
+- [ ] Token displacement: pushes, charges, death from above, skids, sideslips (chat card
+      tells players what to move).
+- [ ] Movement enforcement (MP limits per mode), out-of-phase warnings, a GM phase
+      checklist (who hasn't moved / fired / resolved heat, "Resolve heat for all").
+- [ ] Terrain detection from the map (woods, water, pavement, buildings) — dialog inputs today.
+- [ ] Buildings: movement, damage absorption, collapse, building PSRs.
+- [ ] Water / underwater, hull down, life support while submerged; hover vehicles sinking
+      when immobilized over water.
+- [ ] Motive-damage timing (TW applies it at the end of the phase; applied immediately).
+- [ ] Crew Stunned "no faster than Cruising" and Flight Stabilizer "Cruising only" (noted,
+      not enforced).
+
+**Weapons & equipment**
+- [ ] Per-weapon special rules: pulse (−2), Streak, Ultra / Rotary AC rate of fire and
+      jams, LB-X ammo switching, Artemis, AMS, flamer heat, one-shot, Narc / TAG.
+- [ ] Explosive components (Gauss rifles) and vehicle "Weapon Destroyed" explosions.
+- [ ] Indirect fire / artillery / spotting; C3, ECM.
+- [ ] Aimed shots against immobile targets.
+- [ ] MASC, superchargers, TSM.
+- [ ] Ammo bins in crit slots vs. the weapon's pooled ammo count (bin size from Shots/Ton).
+
+**'Mechs**
+- [ ] Four-legged 'Mechs; IndustrialMechs; small cockpits (+1 PSR); heavy-duty gyros;
+      fission-engine radiation.
+- [ ] Physical-attack restrictions while prone; wrecking ball self-hit on a 2; spot welder
+      +2 heat.
+
+**Vehicles**
+- [ ] Cargo / Infantry Hit (card note only).
+- [ ] Physical attacks against flying VTOLs (table not supplied).
+
+**Aerospace**
+- [ ] Aero token movement on the map (velocity, facing, straight-movement enforcement);
+      the high-altitude map; re-entry.
+- [ ] Ramming damage (to-hit table supplied, damage not).
+- [ ] Strafing every hex along a flight path (one target per shot today).
+- [ ] Stalling / altitude loss in atmosphere; shutdown drift in space; failed vertical
+      landing crashes.
+- [ ] Capital missiles; large craft (DropShips / WarShips: arc heat, bays); conventional
+      fighters; VSTOL gating for VIFF / vertical landings.
+
+**Other units & setup**
+- [ ] Battle armor and conventional infantry combat (next — needs rules / tables).
+- [ ] Record-sheet importer (MegaMek `.mtf` / `.blk`) or a compendium of designs.
+- [ ] Damage log / struck-location highlight on the unit sheets.
+
+---
+
 ## Done this engagement (for reference)
 
 - v14 compat: namespaced APIs (`renderTemplate`, `measurePath`, chat `rolls`), AOE →
