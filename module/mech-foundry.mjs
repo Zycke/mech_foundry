@@ -12,7 +12,7 @@
 // Import document classes
 import { MechFoundryActor } from "./documents/actor.mjs";
 import { MechFoundryItem } from "./documents/item.mjs";
-import { MechFoundryCombat } from "./documents/combat.mjs";
+import { MechFoundryCombat, MechFoundryCombatant, hasCombatSense } from "./documents/combat.mjs";
 
 // Import sheet classes
 import { MechFoundryActorSheet } from "./sheets/actor-sheet.mjs";
@@ -122,6 +122,7 @@ Hooks.once('init', function() {
   CONFIG.Actor.documentClass = MechFoundryActor;
   CONFIG.Item.documentClass = MechFoundryItem;
   CONFIG.Combat.documentClass = MechFoundryCombat;
+  CONFIG.Combatant.documentClass = MechFoundryCombatant;
 
   // Token bar attributes for combat units: the derived Total Armor / Total
   // Structure pools (bars) plus heat as a trackable single value. These appear
@@ -588,13 +589,8 @@ Hooks.on("preCreateCombatant", (combatant, data, options, userId) => {
   const actor = combatant.actor;
   if (!actor) return;
 
-  // Check for Combat Sense trait
-  const hasCombatSense = actor.items.some(i =>
-    i.type === 'trait' &&
-    i.name.toLowerCase().includes('combat sense')
-  );
-
-  if (hasCombatSense) {
+  // Check for Combat Sense trait (a combat unit uses its linked warrior's)
+  if (hasCombatSense(actor)) {
     // preCreate hooks are NOT awaited by Foundry, so the roll must be evaluated
     // synchronously for updateSource to affect the persisted document.
     // Roll 3d6 and keep the highest 2.

@@ -1,6 +1,26 @@
 import { pendingPSR } from "../helpers/tw-psr.mjs";
 import { endPhaseRecovery } from "../helpers/tw-falls.mjs";
 
+/** Unit actor types whose initiative is their linked pilot / crew character's. */
+const UNIT_TYPES = new Set(['mech', 'ground_vehicle', 'aerospace_fighter', 'small_craft', 'battle_armor']);
+
+/**
+ * The actor whose A Time of War traits and attributes govern initiative: a
+ * combat unit uses its linked pilot / crew character; anything else itself.
+ * @param {Actor} actor
+ */
+export function initiativeActor(actor) {
+  if (!actor || !UNIT_TYPES.has(actor.type)) return actor;
+  const crew = actor.system?.pilot || actor.system?.crew || {};
+  return (crew.actorId && game.actors?.get(crew.actorId)) || actor;
+}
+
+/** Does this actor (or a unit's linked warrior) have the Combat Sense trait? */
+export function hasCombatSense(actor) {
+  const a = initiativeActor(actor);
+  return !!a?.items?.some(i => i.type === 'trait' && i.name.toLowerCase().includes('combat sense'));
+}
+
 /**
  * Extend the base Combat document for the Mech Foundry system.
  *
@@ -56,12 +76,25 @@ export class MechFoundryCombat extends Combat {
     // Higher initiative goes first.
     if (ia !== null && ib !== null && ia !== ib) return ib - ia;
 
-    // Tie (or both unrolled): break in favor of higher RFL (total, incl. modifiers).
-    const rflA = a.actor?.system?.attributes?.rfl?.total ?? 0;
-    const rflB = b.actor?.system?.attributes?.rfl?.total ?? 0;
+    // Tie (or both unrolled): break in favor of higher RFL (total, incl. modifiers);
+    // a unit uses its linked warrior's RFL.
+    const rflA = initiativeActor(a.actor)?.system?.attributes?.rfl?.total ?? 0;
+    const rflB = initiativeActor(b.actor)?.system?.attributes?.rfl?.total ?? 0;
     if (rflA !== rflB) return rflB - rflA;
 
     // Stable final fallback by document id.
     return (a.id ?? "").localeCompare(b.id ?? "");
+  }
+}
+
+/**
+ * Combatant: A Time of War initiative is 2D6, or 3D6 keeping the highest two
+ * with Combat Sense. A combat unit rolls with its linked warrior's traits.
+ * @extends {Combatant}
+ */
+export class MechFoundryCombatant extends Combatant {
+  /** @override */
+  _getInitiativeFormula() {
+    return hasCombatSense(this.actor) ? "3d6kh2" : super._getInitiativeFormula();
   }
 }

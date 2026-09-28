@@ -164,6 +164,9 @@ criticals and cluster grouping:
   a missed DFA is a 2-level fall on the rear. Displacement (pushes, charges, DFAs) is noted on
   the card for the players to move tokens. Not modelled: level differences, TSM, the wrecking
   ball's self-hit on a 2, the spot welder's +2 heat.
+- **Initiative** (A Time of War): 2D6, highest acts first, ties to the higher RFL; Combat Sense
+  rolls 3D6 keeping the highest two. Combat units roll with their linked pilot / crew
+  character's traits and break ties on that character's RFL (`MechFoundryCombatant`).
 **Intentional house rules** (deliberate divergences — don't "correct" toward the book):
 - Combat vehicles roll a critical on any hit that penetrates to internal structure, in
   addition to the tables' marked results (2/12, or 8 on side attacks).
