@@ -989,7 +989,7 @@ Hooks.on('updateActor', async (actor, changes, options, userId) => {
  * Runs on every client (rendering is local), so no user guard.
  */
 Hooks.on('updateActor', (actor, changes) => {
-  if (!['mech', 'ground_vehicle', 'aerospace_fighter'].includes(actor.type)) return;
+  if (!['mech', 'ground_vehicle', 'aerospace_fighter', 'small_craft'].includes(actor.type)) return;
   const sys = changes?.system;
   if (!sys || !('armor' in sys || 'structure' in sys || 'structuralIntegrity' in sys)) return;
   for (const company of game.actors) {

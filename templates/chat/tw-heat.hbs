@@ -13,5 +13,6 @@
     <span class="tw-mod">Shutdown {{effects.shutdown}}</span>
     <span class="tw-mod">Ammo {{effects.ammo}}</span>
   </div>
+  {{#if pilotDamage}}<div class="tw-hl-event">▸ Life support: {{pilotDamage}}</div>{{/if}}
   {{#if autoShutdown}}<div class="tw-hl-destroyed">AUTOMATIC SHUTDOWN (30+)</div>{{/if}}
 </div>

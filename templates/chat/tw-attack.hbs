@@ -57,7 +57,7 @@
       </div>
       {{/each}}
       {{#each hitResult.motives}}<div class="tw-hl-event">▸ Motive ({{this.roll}}): {{this.text}}</div>{{/each}}
-      {{#each hitResult.critResults}}<div class="tw-hl-event tw-crit-line">▸ Crit {{this.facingLabel}} ({{this.roll}}): <strong>{{this.effect}}</strong></div>{{/each}}
+      {{#each hitResult.critResults}}<div class="tw-hl-event tw-crit-line">▸ Crit {{this.facingLabel}} ({{this.roll}}): <strong>{{this.effect}}</strong>{{#if this.note}} <em>({{this.note}})</em>{{/if}}</div>{{/each}}
       {{#if hitResult.destroyed}}<div class="tw-hl-destroyed">VEHICLE DESTROYED</div>{{/if}}
       {{#unless hitResult.applied}}<div class="tw-atk-dmg"><em>No permission — apply the above to {{hitResult.targetName}} manually.</em></div>{{/unless}}
     {{else if hitResult.isMech}}

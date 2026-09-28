@@ -10,6 +10,8 @@
  * recognise a TN below 0). Base Target Numbers come from the Basic Action Check
  * Table by the skill's complexity code.
  */
+import { getSkillLevelFromXP } from "./xp-math.mjs";
+
 
 /** Base Target Numbers by skill complexity code (Basic Action Check Table). */
 export const BASE_TN_BY_COMPLEXITY = { SB: 7, SA: 8, CB: 8, CA: 9 };
@@ -91,7 +93,12 @@ export function actorSkillRating(actor, candidateNames, baseTN = MECH_SKILL_BASE
   for (const name of candidateNames) {
     const skill = actor.items.find(i => i.type === 'skill' && i.name === name);
     if (skill) {
-      const level = Number(skill.system?.level) || 0;
+      // Skill Level is XP-derived everywhere in this system (system.level is a
+      // display-only value that is never persisted), so derive it the same way.
+      // -1 means untrained (XP below Level 0): skip so a trained fallback skill
+      // — or the sheet's manually entered rating — is used instead.
+      const level = Number(getSkillLevelFromXP(skill.system?.xp));
+      if (!Number.isFinite(level) || level < 0) continue;
       return { rating: skillLevelToRating(level, baseTN), skillName: name, level };
     }
   }

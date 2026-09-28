@@ -26,7 +26,7 @@ const SYSTEM_HITS = [
   { key: 'engine', label: 'Engine', max: 3 },
   { key: 'gyro', label: 'Gyro', max: 2 },
   { key: 'sensors', label: 'Sensors', max: 2 },
-  { key: 'lifeSupport', label: 'Life Support', max: 1 }
+  { key: 'lifeSupport', label: 'Life Support', max: 2 }
 ];
 
 /** Pilot hit ladder length (0 undamaged … 6 dead). */

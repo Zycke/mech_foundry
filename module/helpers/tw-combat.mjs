@@ -61,10 +61,14 @@ export function rangeBracket(distance, weapon) {
   const s = num(weapon.rangeS ?? weapon.short);
   const m = num(weapon.rangeM ?? weapon.medium);
   const l = num(weapon.rangeL ?? weapon.long);
+  const e = num(weapon.rangeE ?? weapon.ext); // aerospace / capital Extreme bracket
   if (distance == null) return { bracket: '—', mod: 0, inRange: true, unknown: true };
+  // No ranges entered on the weapon: don't auto-miss; let the player's roll stand.
+  if (!s && !m && !l && !e) return { bracket: 'ranges not set', mod: 0, inRange: true, unknown: true };
   if (s && distance <= s) return { bracket: 'Short', mod: 0, inRange: true };
   if (m && distance <= m) return { bracket: 'Medium', mod: 2, inRange: true };
   if (l && distance <= l) return { bracket: 'Long', mod: 4, inRange: true };
+  if (e && distance <= e) return { bracket: 'Extreme', mod: 6, inRange: true };
   return { bracket: 'Out of range', mod: 0, inRange: false };
 }
 
@@ -272,9 +276,9 @@ const CLUSTER_TABLE = {
   4:  [1, 1, 2, 2, 3, 3, 4, 4, 4, 5, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9, 9, 10, 10, 10, 11, 11, 11, 12, 12, 18],
   5:  [1, 2, 2, 3, 3, 4, 4, 5, 6, 7, 8, 8, 9, 9, 10, 10, 11, 11, 12, 13, 14, 15, 16, 16, 17, 17, 17, 18, 18, 24],
   6:  [1, 2, 2, 3, 4, 4, 5, 5, 6, 7, 8, 8, 9, 9, 10, 10, 11, 11, 12, 13, 14, 15, 16, 16, 17, 17, 17, 18, 18, 24],
-  7:  [1, 2, 3, 3, 4, 4, 5, 5, 6, 7, 8, 8, 9, 9, 10, 11, 11, 12, 13, 14, 15, 16, 16, 17, 17, 17, 18, 18, 18, 24],
+  7:  [1, 2, 3, 3, 4, 4, 5, 5, 6, 7, 8, 8, 9, 9, 10, 10, 11, 11, 12, 13, 14, 15, 16, 16, 17, 17, 17, 18, 18, 24],
   8:  [2, 2, 3, 3, 4, 4, 5, 5, 6, 7, 8, 8, 9, 9, 10, 10, 11, 11, 12, 13, 14, 15, 16, 16, 17, 17, 17, 18, 18, 24],
-  9:  [2, 2, 3, 4, 5, 5, 6, 6, 7, 8, 9, 10, 11, 11, 12, 13, 14, 14, 15, 16, 17, 18, 19, 20, 21, 21, 22, 23, 23, 32],
+  9:  [2, 2, 3, 4, 5, 6, 6, 7, 8, 9, 10, 11, 11, 12, 13, 14, 14, 15, 16, 17, 18, 19, 20, 21, 21, 22, 23, 23, 24, 32],
   10: [2, 3, 3, 4, 5, 6, 6, 7, 8, 9, 10, 11, 11, 12, 13, 14, 14, 15, 16, 17, 18, 19, 20, 21, 21, 22, 23, 23, 24, 32],
   11: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 40],
   12: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 40]
@@ -380,6 +384,8 @@ export async function resolveVehicleAttack(target, direction, groupSizes, rolls)
   const crew = foundry.utils.deepClone(target.system.crew || {});
   const isVTOL = target.system.movementType === 'vtol';
   const hasTurret = !!target.system.hasTurret;
+  const isICE = /\bice\b|internal combustion/i.test(target.system.engineType || '');
+  const carriesAmmo = (target.system.weapons || []).some(w => String(w.ammoType || '').trim() && (Number(w.ammo) || 0) > 0);
   const col = direction === 'left' || direction === 'right' ? 'side' : direction === 'rear' ? 'rear' : 'front';
 
   const groups = [], motives = [], critResults = [], crewEvents = [];
@@ -415,8 +421,13 @@ export async function resolveVehicleAttack(target, direction, groupSizes, rolls)
       const cRoll = await new Roll("2d6").evaluate();
       rolls.push(cRoll);
       const table = isVTOL ? VTOL_VEHICLE_CRITS : GROUND_VEHICLE_CRITS;
-      const effect = table[vehicleCritColumn(facing)]?.[cRoll.total] || 'No Critical Hit';
-      critResults.push({ facingLabel: VEHICLE_FACING_LABEL[facing] || facing, roll: cRoll.total, effect });
+      let effect = table[vehicleCritColumn(facing)]?.[cRoll.total] || 'No Critical Hit';
+      // Table footnotes: Fuel Tank applies to ICE engines only (otherwise Engine
+      // Hit); Ammunition with no ammo aboard becomes Weapon Destroyed.
+      let note = '';
+      if (effect === 'Fuel Tank' && !isICE) { effect = 'Engine Hit'; note = 'non-ICE engine: Fuel Tank → Engine Hit'; }
+      else if (effect === 'Ammunition' && !carriesAmmo) { effect = 'Weapon Destroyed'; note = 'no ammunition: → Weapon Destroyed'; }
+      critResults.push({ facingLabel: VEHICLE_FACING_LABEL[facing] || facing, roll: cRoll.total, effect, note });
       if (applyVehicleCrit(effect, facing, direction, crits, conditions, structure, crew)) destroyed = true;
       if (['Driver Hit', 'Commander Hit', 'Co-Pilot Hit', 'Pilot Hit'].includes(effect)) crewEvents.push(CREW_DAMAGE.vehicleCrewHit);
       else if (effect === 'Crew Stunned') crewEvents.push(CREW_DAMAGE.vehicleStunned);
@@ -617,6 +628,16 @@ export async function resolveMechHeat(actor) {
   if (effects.auto) update['system.conditions.shutdown'] = true;
   if (actor.isOwner || game.user.isGM) await actor.update(update);
 
+  // MechWarrior/Pilot/Crew Damage Table: overheating with Life Support damaged
+  // injures the pilot (0E/2D* at 15+, 0E/4D* at 25+) — applied to a linked pilot.
+  let pilotDamage = '';
+  if (num(sys.systemHits?.lifeSupport) > 0 && newHeat >= 15) {
+    const ev = newHeat >= 25 ? CREW_DAMAGE.overheat25 : CREW_DAMAGE.overheat15;
+    const linked = sys.pilot?.actorId ? game.actors.get(sys.pilot.actorId) : null;
+    if (linked && await applyCrewDamage(linked, ev)) pilotDamage = `${linked.name} takes ${ev.bd} damage (${ev.label})`;
+    else pilotDamage = `Pilot takes ${ev.bd} damage (${ev.label}) — apply manually`;
+  }
+
   const lines = [
     { label: 'Start of turn', value: current },
     { label: r.move === 'jumped' ? `Jump (${r.hexes} hex)` : `Movement (${r.move})`, value: moveHeat },
@@ -628,7 +649,7 @@ export async function resolveMechHeat(actor) {
 
   const cardContent = await foundry.applications.handlebars.renderTemplate(
     "systems/mech-foundry/templates/chat/tw-heat.hbs",
-    { lines, newHeat, effects, autoShutdown: effects.auto }
+    { lines, newHeat, effects, autoShutdown: effects.auto, pilotDamage }
   );
   await ChatMessage.create({
     speaker: ChatMessage.getSpeaker({ actor }),
@@ -732,7 +753,8 @@ export async function weaponAttack(actor, weapon) {
     .map(m => `<option value="${m.mod}">${m.label} (+${m.mod})</option>`).join('');
   const dirOpts = ATTACK_DIRECTIONS.map(d => `<option value="${d.key}">${d.label}</option>`).join('');
   const s = num(weapon.rangeS ?? weapon.short), m = num(weapon.rangeM ?? weapon.medium), l = num(weapon.rangeL ?? weapon.long);
-  const rangeHint = `S ${s} / M ${m} / L ${l}`;
+  const e = num(weapon.rangeE ?? weapon.ext);
+  const rangeHint = `S ${s} / M ${m} / L ${l}${e ? ` / E ${e}` : ''}`;
 
   const content = `
     <div class="tw-attack-dialog">
@@ -828,7 +850,7 @@ export async function weaponAttack(actor, weapon) {
       dice, rollTotal: roll.total,
       hit, margin: Math.abs(margin),
       outOfRange: !rb.inRange,
-      damage,
+      damage: perHit,
       hitResult
     }
   );
