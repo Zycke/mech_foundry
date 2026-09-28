@@ -261,6 +261,9 @@ export function autoAttackMods(attacker, weapon, targetActor) {
     add('attackerMove', 'Attacker movement', MODE_MOD[mv.mode], `${lbl}${mv.hexes ? `, ${mv.hexes} hex` : ''}${mv.modeSet ? '' : currentTurnKey() ? ' (auto)' : ''}`);
   }
   if (attacker?.type === 'mech' && attacker.system?.conditions?.prone) add('attackerProne', 'Attacker prone', 2, '');
+  // Skidding (TW p. 63): +1 to a skidding unit's attacks, +2 to attacks against it, that turn.
+  const skidded = (a) => !!currentTurnKey() && a?.flags?.['mech-foundry']?.skid?.key === currentTurnKey();
+  if (skidded(attacker)) add('attackerSkid', 'Attacker skidded', 1, '');
 
   // Attacker 'Mech damage (weapon attacks only).
   if (attacker?.type === 'mech') {
@@ -285,6 +288,7 @@ export function autoAttackMods(attacker, weapon, targetActor) {
       add('targetMove', 'Target movement', v, `${mv.hexes} hex${mv.mode === 'jumped' ? ', jumped' : ''}`);
     }
     if (targetActor.type === 'battle_armor') add('battleArmor', 'Battle armor target', 1, '');
+    if (skidded(targetActor)) add('targetSkid', 'Target skidded', 2, '');
   }
   return mods;
 }

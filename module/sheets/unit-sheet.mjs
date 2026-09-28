@@ -2,6 +2,7 @@ import { MechFoundryActorSheetV2 } from "./base-actor-sheet.mjs";
 import { currentTurnKey, fireWeapons, firedThisTurn, usesAmmo, weaponToHitPreview } from "../helpers/tw-combat.mjs";
 import { MOVE_MODES, movedThisTurn, setMovement } from "../helpers/tw-movement.mjs";
 import { physicalAttack } from "../helpers/tw-physical.mjs";
+import { sideslipCheck, skidCheck, vehicleCrash } from "../helpers/tw-skid.mjs";
 
 /** Weight classes offered on unit sheets (free-form fallback allowed). */
 const WEIGHT_CLASSES = ['Light', 'Medium', 'Heavy', 'Assault'];
@@ -93,6 +94,9 @@ export class MechFoundryUnitSheet extends MechFoundryActorSheetV2 {
     html.on('change', '.turn-move-field', this._onTurnMoveChange.bind(this));
     html.on('click', '.physical-attack', (ev) => { ev.preventDefault(); physicalAttack(this.actor); });
     html.on('click', '.fire-weapons', (ev) => { ev.preventDefault(); fireWeapons(this.actor); });
+    html.on('click', '.skid-check', (ev) => { ev.preventDefault(); skidCheck(this.actor); });
+    html.on('click', '.sideslip-check', (ev) => { ev.preventDefault(); sideslipCheck(this.actor); });
+    html.on('click', '.vehicle-crash', (ev) => { ev.preventDefault(); vehicleCrash(this.actor); });
   }
 
   /** Set this turn's movement mode or hexes moved. */

@@ -60,6 +60,13 @@
             <label class="chk"><input type="checkbox" name="system.conditions.immobile" {{checked conditions.immobile}} {{#unless editable}}disabled{{/unless}}> Immobile</label>
             <label class="chk"><input type="checkbox" name="system.conditions.turretJammed" {{checked conditions.turretJammed}} {{#unless editable}}disabled{{/unless}}> Turret Jam</label>
           </div>
+          {{#if editable}}
+          <div class="mf-actions">
+            {{#if movement.sideslips}}<button type="button" class="sideslip-check" title="Flanking and turned, about to enter a new hex: Driving Skill Roll to avoid sideslipping"><i class="fas fa-wind"></i> Sideslip…</button>
+            {{else}}<button type="button" class="skid-check" title="Flanking and turned on pavement, about to enter a new hex: Driving Skill Roll to avoid skidding"><i class="fas fa-road"></i> Skid…</button>{{/if}}
+            {{#if movement.canCrash}}<button type="button" class="vehicle-crash" title="The sideslip ran into terrain or a unit at or above its elevation"><i class="fas fa-burst"></i> Crash…</button>{{/if}}
+          </div>
+          {{/if}}
           {{#if turnMove}}
           <div class="mf-turnmove" title="Used for attack modifiers and heat. Hexes add up automatically as the token moves during combat.">
             <span class="k">This turn</span>
@@ -86,6 +93,7 @@
           {{#if showTurret}}<label class="chk"><input type="checkbox" name="system.crits.stabTurret" {{checked crits.stabTurret}} {{#unless editable}}disabled{{/unless}}> Stab: Turret</label>{{/if}}
         </div>
         {{#if movement.motivePenalty}}<div class="penalty-line">▸ Motive/rotor damage: −{{movement.motivePenalty}} Cruise MP → Cruise {{movement.effCruise}} / Flank {{movement.effFlank}}</div>{{/if}}
+        {{#if movement.drivingMod}}<div class="penalty-line">▸ Motive damage: +{{movement.drivingMod}} to Driving Skill Rolls</div>{{/if}}
       </div>
 
       <div class="mf-panel">

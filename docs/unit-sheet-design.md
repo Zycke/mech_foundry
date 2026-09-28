@@ -203,6 +203,15 @@ criticals and cluster grouping:
   destroyed leg: 1 MP, no running; −1 per 5 heat; −1 Jump per jump jet hit) and the movement
   mode is inferred from it. Leaving the Movement Phase queues a PSR for 'Mechs that ran with a
   damaged hip or gyro, or jumped with a damaged gyro, hip, leg or foot actuators.
+- **Skidding, sideslipping, crashes** (`tw-skid.mjs`, TW pp. 62–63, 67): the map has no pavement /
+  facing data, so these are sheet actions. Skid… (running 'Mech / flanking non-hover vehicle that
+  turned on pavement): Piloting / Driving + skid modifier by hexes moved; a failure skids ⌈hexes/2⌉
+  and ends movement — a 'Mech falls, then takes half its falling damage per hex skidded on the fall
+  column; a vehicle rolls one Motive System Damage result. +1 to the skidder's attacks, +2 against
+  it, that turn. Sideslip… (flanking hover / VTOL / WiGE that turned): Driving roll; slips the margin
+  of failure (at most hexes entered − 1), added to its movement for the target modifier. Crash…
+  (VTOL / WiGE): hexes × tons / 10 in 5-point groups on the struck side; no attacks that turn.
+  Motive damage now also accumulates its +1 / +2 / +3 Driving modifier, shown on the vehicle sheet.
 **Intentional house rules** (deliberate divergences — don't "correct" toward the book):
 - Combat vehicles roll a critical on any hit that penetrates to internal structure, in
   addition to the tables' marked results (2/12, or 8 on side attacks).

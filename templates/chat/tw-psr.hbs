@@ -14,6 +14,7 @@
   </div>
   {{/each}}
 
+  {{#each notes}}<div class="tw-hl-event tw-psr-line">▸ {{this}}</div>{{/each}}
   {{#if stays}}<div class="tw-hl-event">▸ Stays standing.</div>{{/if}}
   {{#if stood}}<div class="tw-hl-event">▸ Back on its feet.</div>{{/if}}
   {{#if woke}}<div class="tw-hl-event">▸ Regains consciousness.</div>{{/if}}
@@ -48,4 +49,5 @@
     {{#each fall.warriorLines}}<div class="tw-hl-event tw-crit-line">▸ {{this}}</div>{{/each}}
   </div>
   {{/if}}
+  {{#if skidFrag}}{{> "systems/mech-foundry/templates/chat/parts/tw-hit-result.hbs" hr=skidFrag}}{{/if}}
 </div>

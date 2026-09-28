@@ -492,6 +492,8 @@ export async function resolveVehicleAttack(target, direction, groupSizes, rolls,
     const typeMod = MOTIVE_TYPE_MOD[target.system.movementType] ?? 0;
     const eff = motiveEffect(mRoll.total + dirMod + typeMod);
     motives.push({ roll: mRoll.total + dirMod + typeMod, text: eff.text });
+    // Minor / moderate / heavy damage add +1 / +2 / +3 to Driving Skill Rolls (cumulative).
+    if (eff.level >= 1 && eff.level <= 3) crits.motiveDriving = num(crits.motiveDriving) + eff.level;
     if (eff.level === 4) conditions.immobile = true;
     else if (eff.mp > 0) crits.motiveHits = Math.min(3, (Number(crits.motiveHits) || 0) + eff.mp);
   };
@@ -1121,6 +1123,7 @@ export function weaponBlock(actor, weapon) {
   if (actor?.system?.conditions?.shutdown) return `${actor.name} is shut down and can't fire.`;
   if (actor?.type === 'mech' && num(actor.system?.systemHits?.sensors) >= 2) return `${actor.name}'s sensors are destroyed: it can't fire weapons.`;
   if (weapon?.destroyed) return `${wName} is destroyed and can't fire.`;
+  if (currentTurnKey() && actor?.flags?.['mech-foundry']?.crashed?.key === currentTurnKey()) return `${actor.name} crashed this turn and can't attack.`;
   if (actor?.type === 'mech') {
     const loc = mechWeaponLocation(weapon);
     if (loc && locationGone(actor, loc)) return `${wName}'s location (${MECH_LOC_LABEL[loc]}) is destroyed.`;

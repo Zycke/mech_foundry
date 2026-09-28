@@ -109,7 +109,7 @@ export async function resolveFall(actor, { levels = 0, rearOnly = false, rolls =
   }
 
   return {
-    damage, levels, facingRoll: fr.total, facing: f.label,
+    damage, levels, facingRoll: fr.total, facing: f.label, dir,
     location: rearOnly ? 'Rear' : f.loc, frag, warrior, warriorLines
   };
 }

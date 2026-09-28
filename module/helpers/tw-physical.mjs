@@ -223,7 +223,7 @@ export async function physicalAttack(actor) {
   const types = actor.type === 'mech' ? Object.entries(PHYSICAL_TYPES) : [['charge', PHYSICAL_TYPES.charge]];
   const typeOpts = types.map(([k, v]) => `<option value="${k}">${v.label}</option>`).join('');
   const wpnOpts = Object.entries(PHYSICAL_WEAPONS).map(([k, w]) => `<option value="${k}">${w.label} (${w.mod >= 0 ? '+' : ''}${w.mod})</option>`).join('');
-  const auto = autoAttackMods(actor, null, targetActor).filter(m => ['attackerMove', 'attackerProne', 'targetMove', 'immobile', 'battleArmor'].includes(m.key));
+  const auto = autoAttackMods(actor, null, targetActor).filter(m => ['attackerMove', 'attackerProne', 'attackerSkid', 'targetMove', 'immobile', 'battleArmor', 'targetSkid'].includes(m.key));
   const modRows = auto.map(x => `
       <div class="form-group"><label>${esc(x.label)}${x.hint ? ` <span class="tw-hint">${esc(x.hint)}</span>` : ''}</label><input type="number" name="auto_${x.key}" value="${x.value}" /></div>`).join('');
   const dirOpts = ATTACK_DIRECTIONS.map(d => `<option value="${d.key}">${d.label}</option>`).join('');

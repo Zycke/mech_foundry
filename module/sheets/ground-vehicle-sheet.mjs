@@ -86,6 +86,9 @@ export class MechFoundryGroundVehicleSheet extends MechFoundryUnitSheet {
       cruise, flank: Math.ceil(cruise * 1.5),
       type: sys.movementType || 'tracked',
       motivePenalty: motiveHits,
+      drivingMod: Number(sys.crits?.motiveDriving) || 0,
+      sideslips: ['hover', 'vtol', 'wige'].includes(sys.movementType),
+      canCrash: ['vtol', 'wige'].includes(sys.movementType),
       effCruise, effFlank: Math.ceil(effCruise * 1.5)
     };
     context.movementTypes = MOVEMENT_TYPES;
