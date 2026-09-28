@@ -12,7 +12,7 @@ import {
   actorSkillRating, applyCrewDamage, CREW_DAMAGE,
   MECH_GUNNERY_SKILLS, VEHICLE_GUNNERY_SKILLS, AERO_GUNNERY_SKILLS
 } from "./atow-conversion.mjs";
-import { writeDoc } from "./gm-relay.mjs";
+import { beginRecording, endRecording, writeDoc } from "./gm-relay.mjs";
 import { currentTurnKey } from "./tw-turn.mjs";
 import { autoAttackMods, movedThisTurn, pilotUnconscious, rangeDependentMods, terrainMods } from "./tw-movement.mjs";
 import { damagePSRUpdate, queuePSR, standsThisTurn, warriorDamage } from "./tw-psr.mjs";
@@ -738,6 +738,7 @@ export async function resolveMechHeat(actor) {
   const newHeat = Math.max(0, current + gain - r.sinks);
   const effects = mechHeatEffects(newHeat);
 
+  beginRecording();
   // Shutdown: automatic at 30+, otherwise an avoid roll from 14+ (Heat Scale).
   // A reactor shutdown forces a Piloting Skill Roll at +3 that phase. A 'Mech
   // already shut down tries to restart instead: automatic below 14 heat,
@@ -780,7 +781,7 @@ export async function resolveMechHeat(actor) {
     }
   }
   if (restarts) update['system.conditions.shutdown'] = false;
-  if (actor.isOwner || game.user.isGM) await actor.update(update);
+  if (actor.isOwner || game.user.isGM) await writeDoc(actor, update);
 
   // Ammunition explosion avoid roll at 19+ (4+ / 6+ at 23 / 8+ at 28): on a
   // failure the bin that would do the most damage explodes.
@@ -838,6 +839,7 @@ export async function resolveMechHeat(actor) {
     { lines, newHeat, effects, autoShutdown: effects.auto && shutsDown, shutdownCheck, startupCheck, restarts, ammoCheck, ammoFrag, psrNote, pilotDamage, warriorLines }
   );
   await ChatMessage.create({
+    flags: { 'mech-foundry': endRecording() },
     speaker: ChatMessage.getSpeaker({ actor }),
     flavor: "Heat Phase",
     content: cardContent,
@@ -1224,15 +1226,18 @@ export async function fireWeapons(actor, preselect = []) {
 
   const rolls = [];
   const cards = [];
+  beginRecording();
   for (const id of ids) {
     const weapon = (actor.system.weapons || []).find(w => w.id === id);
     if (!weapon || weaponBlock(actor, weapon)) continue;
     const ctx = await resolveWeaponShot(actor, weapon, target, result, rolls);
     cards.push(await foundry.applications.handlebars.renderTemplate("systems/mech-foundry/templates/chat/tw-attack.hbs", ctx));
   }
+  const recorded = endRecording();
   if (!cards.length) return;
   const names = ids.map(id => all.find(w => w.id === id)?.name || 'Weapon');
   await ChatMessage.create({
+    flags: { 'mech-foundry': recorded },
     speaker: ChatMessage.getSpeaker({ actor }),
     flavor: cards.length === 1 ? `${names[0]} Attack` : `Weapons Fire — ${cards.length} weapons${targetName ? ` at ${targetName}` : ''}`,
     content: cards.length === 1 ? cards[0] : `<div class="mech-foundry tw-fire-group">${cards.join('')}</div>`,

@@ -50,6 +50,7 @@ import { SocketHandler, SOCKET_EVENTS } from "./helpers/socket-handler.mjs";
 import { initGMRelay } from "./helpers/gm-relay.mjs";
 import { registerMovementTracking } from "./helpers/tw-movement.mjs";
 import { registerUnitStatuses } from "./helpers/tw-status.mjs";
+import { registerCombatChat } from "./helpers/tw-chat.mjs";
 import { registerToHitRefresh } from "./sheets/unit-sheet.mjs";
 import { OpposedRollHelper } from "./helpers/opposed-rolls.mjs";
 import { DiceMechanics } from "./helpers/dice-mechanics.mjs";
@@ -579,6 +580,8 @@ function _registerSystemSettings() {
 registerMovementTracking();
 // Token status icons mirror unit conditions (prone, shut down, PSR pending…).
 registerUnitStatuses();
+// Roll PSR / Apply / Undo buttons on combat chat cards.
+registerCombatChat();
 // Weapon rows show to-hit vs the current target; keep them fresh.
 Hooks.once("ready", () => registerToHitRefresh());
 
@@ -792,8 +795,11 @@ Hooks.on("combatRound", async (combat, updateData, updateOptions) => {
 /*  Chat Message Hooks                          */
 /* -------------------------------------------- */
 
-// Handle Apply Damage buttons and Defender Choice buttons in chat messages
-Hooks.on('renderChatMessage', (message, html, data) => {
+// Handle Apply Damage buttons and Defender Choice buttons in chat messages.
+// v13+ passes an HTMLElement to renderChatMessageHTML (renderChatMessage, which
+// passed jQuery, is deprecated); wrap it so the handlers below stay unchanged.
+Hooks.on('renderChatMessageHTML', (message, element, data) => {
+  const html = $(element);
   // Apply Damage button handler
   html.find('.apply-damage').click(async (event) => {
     event.preventDefault();

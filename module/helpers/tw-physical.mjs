@@ -10,7 +10,7 @@
  * the rules here assume both units stand at the same level.
  */
 import { currentTurnKey } from "./tw-turn.mjs";
-import { writeDoc } from "./gm-relay.mjs";
+import { beginRecording, endRecording, writeDoc } from "./gm-relay.mjs";
 import {
   autoAttackMods, destroyedActuators, locationDestroyed, movedThisTurn,
   pilotUnconscious, terrainMods, weaponArm
@@ -313,6 +313,7 @@ export async function resolvePhysicalAttack(actor, target, r) {
   const shown = mods.filter(m => m.value !== 0 || m.label === 'Piloting');
   const tn = sum(mods);
 
+  beginRecording();
   const roll = await new Roll("2d6").evaluate();
   const rolls = [roll];
   const hit = roll.total >= tn;
@@ -321,7 +322,7 @@ export async function resolvePhysicalAttack(actor, target, r) {
   // Record the attack (one per turn; two punches may combine).
   const key = currentTurnKey();
   if (key && (actor.isOwner || game.user.isGM)) {
-    await actor.update({ 'flags.mech-foundry.physical': { key, list: [...physicalThisTurn(actor), type] } });
+    await writeDoc(actor, { 'flags.mech-foundry.physical': { key, list: [...physicalThisTurn(actor), type] } });
   }
 
   const notes = [];
@@ -405,7 +406,7 @@ export async function resolvePhysicalAttack(actor, target, r) {
       hitResult, selfResult, notes
     }
   );
-  await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), flavor: `${spec.label}`, content: cardContent, rolls });
+  await ChatMessage.create({ flags: { 'mech-foundry': endRecording() }, speaker: ChatMessage.getSpeaker({ actor }), flavor: `${spec.label}`, content: cardContent, rolls });
   if (fall) await postCard(actor, 'Death From Above — Missed', { results: [], fall }, []);
   return { hit, tn, mods: shown, hitResult, selfResult, notes, fall };
 }

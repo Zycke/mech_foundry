@@ -186,6 +186,11 @@ criticals and cluster grouping:
 - **Token status icons** (`tw-status.mjs`): Prone, Shut Down, Warrior Unconscious, Immobile, Out
   of Control and PSR Pending are mirrored onto unit tokens from the unit's data (and a linked
   character's unconsciousness) by whichever client made the change.
+- **Chat-card actions** (`tw-chat.mjs`; recorder in `gm-relay.mjs`): every combat flow records
+  the prior value of each field it writes. Cards then offer **Roll PSR** (to owners of units left
+  with a pending roll), **Apply damage** (GM; writes that couldn't be made because no GM was
+  online) and **Undo** (GM; restores every unit the card changed — AToW damage to linked
+  characters is not undone). The system's chat hook now uses v14's `renderChatMessageHTML`.
 **Intentional house rules** (deliberate divergences — don't "correct" toward the book):
 - Combat vehicles roll a critical on any hit that penetrates to internal structure, in
   addition to the tables' marked results (2/12, or 8 on side attacks).

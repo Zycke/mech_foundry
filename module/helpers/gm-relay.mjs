@@ -63,14 +63,61 @@ export async function relayRequest(op, payload) {
   });
 }
 
+/* ------------------------------------------------------------------ */
+/*  Write recording (chat-card Undo / Apply / Roll PSR)                 */
+/* ------------------------------------------------------------------ */
+
+let recorder = null;
+
+/**
+ * Start recording combat writes for one chat card: the prior value of every
+ * field written (for Undo), writes that couldn't be applied (for a GM's Apply)
+ * and units that now have a Piloting Skill Roll pending (for Roll PSR).
+ */
+export function beginRecording() {
+  recorder = { undo: new Map(), failed: [], psr: new Set() };
+  return recorder;
+}
+
+/** Stop recording and return the chat-message flags to store (or {} if nothing). */
+export function endRecording() {
+  const r = recorder;
+  recorder = null;
+  if (!r) return {};
+  const undo = [...r.undo].map(([uuid, data]) => ({ uuid, data }));
+  const flags = {};
+  if (undo.length) flags.undo = undo;
+  if (r.failed.length) flags.failed = r.failed;
+  if (r.psr.size) flags.psr = [...r.psr];
+  return flags;
+}
+
 /**
  * Update a document, directly when this user may, otherwise via the GM relay.
  * @returns {Promise<boolean>} true if the write was applied.
  */
 export async function writeDoc(doc, data) {
   if (!doc) return false;
-  if (doc.isOwner || game.user.isGM) { await doc.update(data); return true; }
-  return relayRequest('update', { uuid: doc.uuid, data });
+  const snapshot = recorder ? { doc, data, prior: null } : null;
+  // Take the "before" values now, before the update lands.
+  if (snapshot) snapshot.prior = Object.fromEntries(Object.keys(data).map(k => {
+    const v = foundry.utils.getProperty(doc, k);
+    return [k, v === undefined ? null : foundry.utils.deepClone(v)];
+  }));
+  let applied;
+  if (doc.isOwner || game.user.isGM) { await doc.update(data); applied = true; }
+  else applied = await relayRequest('update', { uuid: doc.uuid, data });
+  if (snapshot) recordPrior(doc, data, snapshot.prior, applied);
+  return applied;
+}
+
+function recordPrior(doc, data, priorValues, applied) {
+  if (!recorder || !doc?.uuid) return;
+  if (!applied) { recorder.failed.push({ uuid: doc.uuid, data: foundry.utils.deepClone(data) }); return; }
+  const prior = recorder.undo.get(doc.uuid) ?? {};
+  for (const [k, v] of Object.entries(priorValues)) if (!(k in prior)) prior[k] = v; // keep the earliest
+  recorder.undo.set(doc.uuid, prior);
+  if (data['flags.mech-foundry.psr']?.reasons?.length) recorder.psr.add(doc.uuid);
 }
 
 /** Socket listener — call once from the ready hook. */

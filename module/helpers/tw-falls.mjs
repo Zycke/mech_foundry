@@ -7,7 +7,7 @@ import {
   actorSkillRating, applyCrewDamage, CREW_DAMAGE,
   MECH_PILOTING_SKILLS, VEHICLE_DRIVING_SKILLS, AERO_PILOTING_SKILLS
 } from "./atow-conversion.mjs";
-import { writeDoc } from "./gm-relay.mjs";
+import { beginRecording, endRecording, writeDoc } from "./gm-relay.mjs";
 import { currentTurnKey } from "./tw-turn.mjs";
 import { isImmobile, linkedCrew, pilotUnconscious } from "./tw-movement.mjs";
 import { consciousnessNumber, pendingPSR, phaseDamageSoFar, psrDamageMods, standsThisTurn, warriorDamage } from "./tw-psr.mjs";
@@ -51,7 +51,7 @@ export function fiveGroups(total) {
 
 export async function postCard(actor, flavor, ctx, rolls) {
   const content = await foundry.applications.handlebars.renderTemplate("systems/mech-foundry/templates/chat/tw-psr.hbs", { title: flavor, ...ctx });
-  await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), flavor, content, rolls });
+  await ChatMessage.create({ flags: { 'mech-foundry': endRecording() }, speaker: ChatMessage.getSpeaker({ actor }), flavor, content, rolls });
 }
 
 /**
@@ -118,6 +118,7 @@ export async function resolveFall(actor, { levels = 0, rearOnly = false, rolls =
 export async function rollPendingPSR(actor) {
   const p = pendingPSR(actor);
   if (!p) { ui.notifications.info(`${actor.name} has no Piloting Skill Roll pending.`); return; }
+  beginRecording();
   const rolls = [], results = [];
   const base = psrDamageMods(actor.system).filter(m => !m.gyroDestroyed);
   const piloting = pilotingFor(actor);
@@ -159,6 +160,7 @@ export async function standUp(actor) {
   if (sys.conditions?.shutdown) { ui.notifications.warn(`${actor.name} is shut down and can't stand.`); return; }
   if (pilotUnconscious(actor)) { ui.notifications.warn(`${actor.name}'s warrior is unconscious.`); return; }
 
+  beginRecording();
   const rolls = [];
   const key = currentTurnKey();
   const update = key ? { 'flags.mech-foundry.stands': { key, count: standsThisTurn(actor) + 1 } } : {};
@@ -170,7 +172,7 @@ export async function standUp(actor) {
   rolls.push(roll);
   Object.assign(res, { total: roll.total, dice: diceOf(roll), success: roll.total >= res.tn });
   if (res.success) update['system.conditions'] = { ...(sys.conditions || {}), prone: false };
-  if (Object.keys(update).length) await actor.update(update);
+  if (Object.keys(update).length) await writeDoc(actor, update);
   const fall = res.success ? null : await resolveFall(actor, { levels: 0, rolls, plus20 });
   await postCard(actor, 'Stand Up', { results: [res], fall, stood: res.success }, rolls);
   return { res, fall };
@@ -191,6 +193,7 @@ export async function manualFall(actor) {
     rejectClose: false
   });
   if (!r || r === "cancel") return;
+  beginRecording();
   const rolls = [];
   const fall = await resolveFall(actor, { levels: r.levels, rolls, plus20: phaseDamageSoFar(actor) >= 20 });
   await postCard(actor, 'Fall', { results: [], fall }, rolls);
@@ -209,6 +212,7 @@ export async function wakeRoll(actor, { auto = false } = {}) {
   if (num(crew.hits) >= 6) return null;
   if (auto && crew.unconsciousKey && crew.unconsciousKey === currentTurnKey()) return null;
   const tn = consciousnessNumber(crew.hits);
+  beginRecording();
   const roll = await new Roll("2d6").evaluate();
   const success = roll.total >= tn;
   if (success) { crew.unconscious = false; crew.unconsciousKey = ''; await writeDoc(actor, { [path]: crew }); }
