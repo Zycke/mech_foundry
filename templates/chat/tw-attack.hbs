@@ -29,68 +29,14 @@
   {{#if ammoLine}}<div class="tw-atk-ammo"><i class="fas fa-box"></i> {{ammoLine}}</div>{{/if}}
 
   {{#if hitResult}}
-    {{#if hitResult.cluster}}
-    <div class="tw-cluster">
-      <span class="tw-hl-label">Cluster</span>
-      <span class="tw-hl-dice">{{#each hitResult.clusterInfo.dice}}<span class="tw-die">{{this}}</span>{{/each}}</span>
-      <span class="tw-cluster-hits"><strong>{{hitResult.clusterInfo.missiles}}</strong> / {{hitResult.clusterInfo.size}} hit · {{hitResult.total}} dmg</span>
-    </div>
-    {{/if}}
-
-    {{#if hitResult.aero}}
-      {{#each hitResult.groups}}
-      <div class="tw-hit-loc">
-        <span class="tw-hl-dice">{{#each this.dice}}<span class="tw-die">{{this}}</span>{{/each}}</span>
-        <span class="tw-hl-loc">{{this.facingLabel}}</span>
-        <span class="tw-hl-dmg">{{this.damage}}</span>
-        {{#if this.siHit}}<span class="tw-hl-crit">SI</span>{{/if}}
-      </div>
-      {{/each}}
-      {{#each hitResult.critResults}}<div class="tw-hl-event tw-crit-line">▸ Crit {{this.facingLabel}}: <strong>{{this.system}}</strong></div>{{/each}}
-      {{#each hitResult.warriorLines}}<div class="tw-hl-event tw-crit-line">▸ {{this}}</div>{{/each}}
-      {{#if hitResult.destroyed}}<div class="tw-hl-destroyed">UNIT DESTROYED</div>{{/if}}
-      {{#unless hitResult.applied}}<div class="tw-atk-dmg"><em>Couldn't apply automatically (no permission and no GM available) — apply the above to {{hitResult.targetName}} manually.</em></div>{{/unless}}
-    {{else if hitResult.vehicle}}
-      {{#each hitResult.groups}}
-      <div class="tw-hit-loc">
-        <span class="tw-hl-dice">{{#each this.dice}}<span class="tw-die">{{this}}</span>{{/each}}</span>
-        <span class="tw-hl-loc">{{this.facingLabel}}</span>
-        <span class="tw-hl-dmg">{{#if this.rotorDamage}}{{this.rotorDamage}} <em>(÷10 of {{this.damage}}, −1 Cruise)</em>{{else}}{{this.damage}}{{/if}}</span>
-        {{#if this.structureHit}}<span class="tw-hl-crit">STRUCTURE</span>{{/if}}
-      </div>
-      {{/each}}
-      {{#each hitResult.motives}}<div class="tw-hl-event">▸ Motive ({{this.roll}}): {{this.text}}</div>{{/each}}
-      {{#each hitResult.critResults}}<div class="tw-hl-event tw-crit-line">▸ Crit {{this.facingLabel}} ({{this.roll}}): <strong>{{this.effect}}</strong>{{#if this.note}} <em>({{this.note}})</em>{{/if}}</div>{{/each}}
-      {{#if hitResult.destroyed}}<div class="tw-hl-destroyed">VEHICLE DESTROYED</div>{{/if}}
-      {{#unless hitResult.applied}}<div class="tw-atk-dmg"><em>Couldn't apply automatically (no permission and no GM available) — apply the above to {{hitResult.targetName}} manually.</em></div>{{/unless}}
-    {{else if hitResult.isMech}}
-      {{#each hitResult.groups}}
-      <div class="tw-hit-loc">
-        <span class="tw-hl-dice">{{#each this.locDice}}<span class="tw-die">{{this}}</span>{{/each}}</span>
-        <span class="tw-hl-loc">{{this.locLabel}}</span>
-        <span class="tw-hl-dmg">{{this.damage}}</span>
-        {{#if this.crit}}<span class="tw-hl-crit">CRIT CHECK</span>{{/if}}
-      </div>
-      {{#each this.events}}<div class="tw-hl-event">▸ {{this}}</div>{{/each}}
-      {{#if this.destroyed}}<div class="tw-hl-destroyed">UNIT DESTROYED</div>{{/if}}
-      {{#if this.overflow}}<div class="tw-hl-event">▸ {{this.overflow}} excess damage lost</div>{{/if}}
-      {{/each}}
-      {{#each hitResult.critChecks}}
-      <div class="tw-hl-event tw-crit-line">▸ Crit check {{this.locLabel}} ({{this.total}}): <strong>{{this.text}}</strong></div>
-      {{#each this.slots}}<div class="tw-hl-event tw-crit-slot">· slot {{this.index}}: {{this.text}}</div>{{/each}}
-      {{/each}}
-      {{#if hitResult.ammoExplosion}}<div class="tw-hl-event tw-crit-line"><strong>Ammunition explosion — resolve internal damage</strong></div>{{/if}}
-      {{#if hitResult.pilotNote}}<div class="tw-hl-event tw-crit-line"><strong>{{hitResult.pilotNote}}</strong></div>{{/if}}
-      {{#each hitResult.warriorLines}}<div class="tw-hl-event tw-crit-line">▸ {{this}}</div>{{/each}}
-      {{#if hitResult.psrReasons.length}}<div class="tw-hl-event tw-psr-line"><i class="fas fa-person-falling"></i> Piloting Skill Roll required: {{#each hitResult.psrReasons}}{{this}}{{#unless @last}}, {{/unless}}{{/each}} — {{hitResult.targetName}}'s controller rolls it from the sheet</div>{{/if}}
-      {{#if hitResult.destroyedByCrit}}<div class="tw-hl-destroyed">UNIT DESTROYED</div>{{/if}}
-      {{#unless hitResult.applied}}<div class="tw-atk-dmg"><em>Couldn't apply automatically (no permission and no GM available) — apply the above to {{hitResult.targetName}} manually.</em></div>{{/unless}}
-    {{else}}
-      <div class="tw-atk-dmg">
-        <strong>{{hitResult.total}}</strong> damage{{#if hitResult.hasTarget}} to {{hitResult.targetName}}{{/if}} — resolve hit location manually{{#if hitResult.hasTarget}} (non-mech target){{/if}}.
-      </div>
-    {{/if}}
+  {{> "systems/mech-foundry/templates/chat/parts/tw-hit-result.hbs" hr=hitResult}}
   {{else if hit}}
   <div class="tw-atk-dmg">Damage: <strong>{{damage}}</strong></div>
+  {{/if}}
+
+  {{#each notes}}<div class="tw-hl-event tw-psr-line">▸ {{this}}</div>{{/each}}
+  {{#if selfResult}}
+  <div class="tw-self-head">Damage to {{attackerName}}</div>
+  {{> "systems/mech-foundry/templates/chat/parts/tw-hit-result.hbs" hr=selfResult}}
   {{/if}}
 </div>

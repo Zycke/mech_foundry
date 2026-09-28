@@ -102,15 +102,16 @@ export function phaseDamageSoFar(actor) {
  * @param {object} after          { structure, systemHits } after this damage
  * @param {object[]} newCrits     actuator crits this attack: [{ loc, name }]
  * @param {number} damage         total damage this attack
+ * @param {object[]} extra        further reasons from the attack itself (e.g. kicked, charged)
  */
-export function damagePSRUpdate(actor, after, newCrits, damage) {
+export function damagePSRUpdate(actor, after, newCrits, damage, extra = []) {
   const key = currentPhaseKey();
   const before = phaseDamageSoFar(actor);
   const total = before + num(damage);
   const updates = key ? { 'flags.mech-foundry.phaseDamage': { key, total } } : {};
   if (actor.system?.conditions?.prone) return { updates, reasons: [] }; // already down
 
-  const reasons = [];
+  const reasons = [...extra];
   const plus20 = total >= 20;
   if (plus20 && before < 20) reasons.push({ key: 'dmg20', label: '20+ damage this phase', mod: 1 });
 

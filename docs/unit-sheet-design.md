@@ -149,6 +149,21 @@ criticals and cluster grouping:
   (+1 per level above 1, destroyed gyro +6; automatic if unconscious, immobile or over 12).
   Stand (PSR, +1 heat per attempt) and a manual Fall… (levels) are on the sheet. The heat phase
   now rolls the shutdown avoid roll from 14+.
+- **Physical attacks** (`tw-physical.mjs`, TW pp. 144–151): the mech sheet's Physical button
+  (vehicles: Charge) covers punch, kick, club, push, the Physical Weapon Attacks Table, charge and
+  death from above. To-hit = Piloting + the Physical Attack Modifiers value + movement / target /
+  terrain modifiers (no heat or sensors; no terrain for DFA) + actuator damage (arm +2 each and
+  half punch damage, hand +1, leg +2 and half kick damage, foot +1, shoulder +2 to push) +
+  relative Piloting for charge / DFA. Blocks: shoulder / hand / hip hits, destroyed limbs, arms
+  whose weapons fired, weapons fired before a charge / DFA, a jump before a charge (DFA needs
+  one), one physical attack per turn (two punches may combine), no punching / clubbing vehicles
+  or infantry, 'Mechs can't charge vehicles, only 'Mechs are pushed. Damage: punch ⌈t/10⌉, kick
+  and club ⌈t/5⌉, charge ⌈t/10 × hexes⌉ (attacker takes ⌈target t/10⌉), DFA ⌈t/10 × 3⌉ on the
+  Punch table (attacker ⌈t/5⌉ on the Kick table); charges force a motive roll on vehicles.
+  PSRs: kicked 0, missed kick 0, pushed 0, charged +2 / charging +2, DFA target +2 / attacker +4;
+  a missed DFA is a 2-level fall on the rear. Displacement (pushes, charges, DFAs) is noted on
+  the card for the players to move tokens. Not modelled: level differences, TSM, the wrecking
+  ball's self-hit on a 2, the spot welder's +2 heat.
 **Intentional house rules** (deliberate divergences — don't "correct" toward the book):
 - Combat vehicles roll a critical on any hit that penetrates to internal structure, in
   addition to the tables' marked results (2/12, or 8 on side attacks).

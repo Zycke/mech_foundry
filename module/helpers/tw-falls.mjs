@@ -49,7 +49,7 @@ export function fiveGroups(total) {
   return groups;
 }
 
-async function postCard(actor, flavor, ctx, rolls) {
+export async function postCard(actor, flavor, ctx, rolls) {
   const content = await foundry.applications.handlebars.renderTemplate("systems/mech-foundry/templates/chat/tw-psr.hbs", { title: flavor, ...ctx });
   await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), flavor, content, rolls });
 }

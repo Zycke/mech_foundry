@@ -1,0 +1,62 @@
+{{!-- Damage resolution for one struck unit (hr = a resolveDamageAgainst result). Used by tw-attack.hbs. --}}
+  {{#if hr.cluster}}
+  <div class="tw-cluster">
+    <span class="tw-hl-label">Cluster</span>
+    <span class="tw-hl-dice">{{#each hr.clusterInfo.dice}}<span class="tw-die">{{this}}</span>{{/each}}</span>
+    <span class="tw-cluster-hits"><strong>{{hr.clusterInfo.missiles}}</strong> / {{hr.clusterInfo.size}} hit · {{hr.total}} dmg</span>
+  </div>
+  {{/if}}
+
+  {{#if hr.aero}}
+    {{#each hr.groups}}
+    <div class="tw-hit-loc">
+      <span class="tw-hl-dice">{{#each this.dice}}<span class="tw-die">{{this}}</span>{{/each}}</span>
+      <span class="tw-hl-loc">{{this.facingLabel}}</span>
+      <span class="tw-hl-dmg">{{this.damage}}</span>
+      {{#if this.siHit}}<span class="tw-hl-crit">SI</span>{{/if}}
+    </div>
+    {{/each}}
+    {{#each hr.critResults}}<div class="tw-hl-event tw-crit-line">▸ Crit {{this.facingLabel}}: <strong>{{this.system}}</strong></div>{{/each}}
+    {{#each hr.warriorLines}}<div class="tw-hl-event tw-crit-line">▸ {{this}}</div>{{/each}}
+    {{#if hr.destroyed}}<div class="tw-hl-destroyed">UNIT DESTROYED</div>{{/if}}
+    {{#unless hr.applied}}<div class="tw-atk-dmg"><em>Couldn't apply automatically (no permission and no GM available) — apply the above to {{hr.targetName}} manually.</em></div>{{/unless}}
+  {{else if hr.vehicle}}
+    {{#each hr.groups}}
+    <div class="tw-hit-loc">
+      <span class="tw-hl-dice">{{#each this.dice}}<span class="tw-die">{{this}}</span>{{/each}}</span>
+      <span class="tw-hl-loc">{{this.facingLabel}}</span>
+      <span class="tw-hl-dmg">{{#if this.rotorDamage}}{{this.rotorDamage}} <em>(÷10 of {{this.damage}}, −1 Cruise)</em>{{else}}{{this.damage}}{{/if}}</span>
+      {{#if this.structureHit}}<span class="tw-hl-crit">STRUCTURE</span>{{/if}}
+    </div>
+    {{/each}}
+    {{#each hr.motives}}<div class="tw-hl-event">▸ Motive ({{this.roll}}): {{this.text}}</div>{{/each}}
+    {{#each hr.critResults}}<div class="tw-hl-event tw-crit-line">▸ Crit {{this.facingLabel}} ({{this.roll}}): <strong>{{this.effect}}</strong>{{#if this.note}} <em>({{this.note}})</em>{{/if}}</div>{{/each}}
+    {{#if hr.destroyed}}<div class="tw-hl-destroyed">VEHICLE DESTROYED</div>{{/if}}
+    {{#unless hr.applied}}<div class="tw-atk-dmg"><em>Couldn't apply automatically (no permission and no GM available) — apply the above to {{hr.targetName}} manually.</em></div>{{/unless}}
+  {{else if hr.isMech}}
+    {{#each hr.groups}}
+    <div class="tw-hit-loc">
+      <span class="tw-hl-dice">{{#each this.locDice}}<span class="tw-die">{{this}}</span>{{/each}}</span>
+      <span class="tw-hl-loc">{{this.locLabel}}</span>
+      <span class="tw-hl-dmg">{{this.damage}}</span>
+      {{#if this.crit}}<span class="tw-hl-crit">CRIT CHECK</span>{{/if}}
+    </div>
+    {{#each this.events}}<div class="tw-hl-event">▸ {{this}}</div>{{/each}}
+    {{#if this.destroyed}}<div class="tw-hl-destroyed">UNIT DESTROYED</div>{{/if}}
+    {{#if this.overflow}}<div class="tw-hl-event">▸ {{this.overflow}} excess damage lost</div>{{/if}}
+    {{/each}}
+    {{#each hr.critChecks}}
+    <div class="tw-hl-event tw-crit-line">▸ Crit check {{this.locLabel}} ({{this.total}}): <strong>{{this.text}}</strong></div>
+    {{#each this.slots}}<div class="tw-hl-event tw-crit-slot">· slot {{this.index}}: {{this.text}}</div>{{/each}}
+    {{/each}}
+    {{#if hr.ammoExplosion}}<div class="tw-hl-event tw-crit-line"><strong>Ammunition explosion — resolve internal damage</strong></div>{{/if}}
+    {{#if hr.pilotNote}}<div class="tw-hl-event tw-crit-line"><strong>{{hr.pilotNote}}</strong></div>{{/if}}
+    {{#each hr.warriorLines}}<div class="tw-hl-event tw-crit-line">▸ {{this}}</div>{{/each}}
+    {{#if hr.psrReasons.length}}<div class="tw-hl-event tw-psr-line"><i class="fas fa-person-falling"></i> Piloting Skill Roll required: {{#each hr.psrReasons}}{{this}}{{#unless @last}}, {{/unless}}{{/each}} — {{hr.targetName}}'s controller rolls it from the sheet</div>{{/if}}
+    {{#if hr.destroyedByCrit}}<div class="tw-hl-destroyed">UNIT DESTROYED</div>{{/if}}
+    {{#unless hr.applied}}<div class="tw-atk-dmg"><em>Couldn't apply automatically (no permission and no GM available) — apply the above to {{hr.targetName}} manually.</em></div>{{/unless}}
+  {{else}}
+    <div class="tw-atk-dmg">
+      <strong>{{hr.total}}</strong> damage{{#if hr.hasTarget}} to {{hr.targetName}}{{/if}} — resolve hit location manually{{#if hr.hasTarget}} (non-mech target){{/if}}.
+    </div>
+  {{/if}}

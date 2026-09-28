@@ -1,6 +1,7 @@
 import { MechFoundryActorSheetV2 } from "./base-actor-sheet.mjs";
 import { currentTurnKey, firedThisTurn, usesAmmo } from "../helpers/tw-combat.mjs";
 import { MOVE_MODES, movedThisTurn, setMovement } from "../helpers/tw-movement.mjs";
+import { physicalAttack } from "../helpers/tw-physical.mjs";
 
 /** Weight classes offered on unit sheets (free-form fallback allowed). */
 const WEIGHT_CLASSES = ['Light', 'Medium', 'Heavy', 'Assault'];
@@ -88,6 +89,7 @@ export class MechFoundryUnitSheet extends MechFoundryActorSheetV2 {
     html.on('click', '.toggle-weapon-destroyed', this._onToggleWeaponDestroyed.bind(this));
     html.on('change', '.weapon-field', this._onWeaponFieldChange.bind(this));
     html.on('change', '.turn-move-field', this._onTurnMoveChange.bind(this));
+    html.on('click', '.physical-attack', (ev) => { ev.preventDefault(); physicalAttack(this.actor); });
   }
 
   /** Set this turn's movement mode or hexes moved. */

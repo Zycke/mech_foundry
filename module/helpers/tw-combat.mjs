@@ -113,12 +113,12 @@ const MECH_HIT_LOCATION = {
 /** Damage transfer: destroyed location → where excess flows (null = terminal). */
 const MECH_TRANSFER = { la: 'lt', ra: 'rt', ll: 'lt', rl: 'rt', lt: 'ct', rt: 'ct', ct: null, head: null };
 
-const MECH_LOC_LABEL = {
+export const MECH_LOC_LABEL = {
   head: 'Head', ct: 'Center Torso', lt: 'Left Torso', rt: 'Right Torso',
   la: 'Left Arm', ra: 'Right Arm', ll: 'Left Leg', rl: 'Right Leg'
 };
 
-const REAR_ARMOR_KEY = { ct: 'ctRear', lt: 'ltRear', rt: 'rtRear' };
+export const REAR_ARMOR_KEY = { ct: 'ctRear', lt: 'ltRear', rt: 'rtRear' };
 
 /**
  * Apply a block of damage to in-memory mech state ({armor, structure}), starting
@@ -410,7 +410,7 @@ function vehicleCritColumn(facing) {
  * location, apply armor→structure damage, and roll motive/critical effects as
  * the location table dictates. Mutates and saves the target once.
  */
-export async function resolveVehicleAttack(target, direction, groupSizes, rolls) {
+export async function resolveVehicleAttack(target, direction, groupSizes, rolls, { forceMotive = false } = {}) {
   const armor = foundry.utils.deepClone(target.system.armor || {});
   const structure = foundry.utils.deepClone(target.system.structure || { value: 0, max: 0 });
   const crits = foundry.utils.deepClone(target.system.crits || {});
@@ -426,6 +426,18 @@ export async function resolveVehicleAttack(target, direction, groupSizes, rolls)
   let destroyed = false;
 
   const hitTable = isVTOL ? VTOL_HIT_LOCATION : VEHICLE_HIT_LOCATION;
+  // One roll on the Motive System Damage Table (2d6 + attack direction + motive type).
+  const rollMotive = async () => {
+    const mRoll = await new Roll("2d6").evaluate();
+    rolls.push(mRoll);
+    const dirMod = direction === 'rear' ? 1 : (direction === 'left' || direction === 'right') ? 2 : 0;
+    const typeMod = MOTIVE_TYPE_MOD[target.system.movementType] ?? 0;
+    const eff = motiveEffect(mRoll.total + dirMod + typeMod);
+    motives.push({ roll: mRoll.total + dirMod + typeMod, text: eff.text });
+    if (eff.level === 4) conditions.immobile = true;
+    else if (eff.mp > 0) crits.motiveHits = Math.min(3, (Number(crits.motiveHits) || 0) + eff.mp);
+  };
+
   for (const g of groupSizes) {
     const locRoll = await new Roll("2d6").evaluate();
     rolls.push(locRoll);
@@ -449,16 +461,7 @@ export async function resolveVehicleAttack(target, direction, groupSizes, rolls)
     });
 
     // Motive system damage (†, ground vehicles).
-    if (flags.includes('M')) {
-      const mRoll = await new Roll("2d6").evaluate();
-      rolls.push(mRoll);
-      const dirMod = direction === 'rear' ? 1 : (direction === 'left' || direction === 'right') ? 2 : 0;
-      const typeMod = MOTIVE_TYPE_MOD[target.system.movementType] ?? 0;
-      const eff = motiveEffect(mRoll.total + dirMod + typeMod);
-      motives.push({ roll: mRoll.total + dirMod + typeMod, text: eff.text });
-      if (eff.level === 4) conditions.immobile = true;
-      else if (eff.mp > 0) crits.motiveHits = Math.min(3, (Number(crits.motiveHits) || 0) + eff.mp);
-    }
+    if (flags.includes('M')) await rollMotive();
 
     // Critical hit: the table's marked results (2/12, or 8 on side attacks)
     // AND any hit that penetrates to internal structure. The penetration crit
@@ -481,6 +484,9 @@ export async function resolveVehicleAttack(target, direction, groupSizes, rolls)
       else if (effect === 'Crew Killed') crewEvents.push(CREW_DAMAGE.vehicleKilled);
     }
   }
+
+  // Charges force a motive roll on any vehicle involved (TW charging rules).
+  if (forceMotive) await rollMotive();
 
   // Cruising MP can't drop below 0: cap the MP loss at the vehicle's cruise
   // (never below the 3-hit motive track the sheet already shows).
@@ -758,7 +764,7 @@ export async function resolveMechHeat(actor) {
  * the appropriate hit-location / motive / critical tables. Returns a chat-card
  * fragment (without the cluster/total wrapper the caller adds).
  */
-export async function resolveDamageAgainst(targetActor, direction, groupSizes, rolls, targetName = '', { noPSR = false } = {}) {
+export async function resolveDamageAgainst(targetActor, direction, groupSizes, rolls, targetName = '', { noPSR = false, locationRoller = null, extraPSR = [], forceMotive = false } = {}) {
   const tt = targetActor?.type;
   if (tt === 'mech') {
     const groups = [];
@@ -781,7 +787,7 @@ export async function resolveDamageAgainst(targetActor, direction, groupSizes, r
       return critSlots[loc];
     };
     for (const g of groupSizes) {
-      const locRoll = await rollMechLocation(direction);
+      const locRoll = locationRoller ? await locationRoller(direction) : await rollMechLocation(direction);
       rolls.push(locRoll.roll);
       if (locRoll.loc === 'head') headHits++;
       const dmg = applyMechDamageToState(dmgState, locRoll.loc, g, { rear: locRoll.rear });
@@ -833,7 +839,7 @@ export async function resolveDamageAgainst(targetActor, direction, groupSizes, r
     // Piloting Skill Rolls this damage forces (queued on the target, rolled from its sheet).
     let psr = { updates: {}, reasons: [] };
     if (!noPSR && !state.destroyed) {
-      psr = damagePSRUpdate(targetActor, { structure: dmgState.structure, systemHits }, newCrits, groupSizes.reduce((a, b) => a + b, 0));
+      psr = damagePSRUpdate(targetActor, { structure: dmgState.structure, systemHits }, newCrits, groupSizes.reduce((a, b) => a + b, 0), extraPSR);
     }
 
     const applied = await writeDoc(targetActor, {
@@ -861,7 +867,7 @@ export async function resolveDamageAgainst(targetActor, direction, groupSizes, r
       applied, hasTarget: true, targetName: targetActor.name
     };
   } else if (tt === 'ground_vehicle') {
-    return await resolveVehicleAttack(targetActor, direction, groupSizes, rolls);
+    return await resolveVehicleAttack(targetActor, direction, groupSizes, rolls, { forceMotive });
   } else if (tt === 'aerospace_fighter' || tt === 'small_craft') {
     return await resolveAeroAttack(targetActor, direction, groupSizes, rolls);
   }
