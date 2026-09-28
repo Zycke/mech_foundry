@@ -7539,10 +7539,27 @@
 .mech-foundry .tw-phase-psr { font-size: 0.78rem; margin-top: 4px; color: var(--mf-amber); }
 
 /* Physical attack button (sits beside Add in the Weapons header) */
-.mech-foundry.mech-sheet .mf-panel > h4 .physical-attack { margin-left: auto; padding: 2px 9px; background: var(--mf-bg); color: var(--mf-amber-2); border: 1px solid var(--mf-steel); border-radius: 2px; font-size: 0.68rem; cursor: pointer; width: auto; }
+.mech-foundry.mech-sheet .mf-panel > h4 .fire-weapons { margin-left: auto; }
+.mech-foundry.mech-sheet .mf-panel > h4 .fire-weapons,
+.mech-foundry.mech-sheet .mf-panel > h4 .physical-attack { padding: 2px 9px; background: var(--mf-bg); color: var(--mf-amber-2); border: 1px solid var(--mf-steel); border-radius: 2px; font-size: 0.68rem; cursor: pointer; width: auto; }
+.mech-foundry.mech-sheet .mf-panel > h4 .fire-weapons:hover,
 .mech-foundry.mech-sheet .mf-panel > h4 .physical-attack:hover { border-color: var(--mf-amber); }
 .mech-foundry .tw-self-head { margin-top: 6px; padding-top: 4px; border-top: 1px dashed rgba(128,128,128,.4); font-size: 0.78rem; font-weight: 600; }
 
 /* Cluster grouping picker beside the launcher size */
 .mech-foundry .w-clus { white-space: nowrap; }
 .mech-foundry .w-clus .w-grp { width: 46px; height: 20px; font-size: 0.66rem; padding: 0 2px; margin-left: 2px; }
+
+/* To-hit number on the weapon row's attack button (vs the current target) */
+.mech-foundry .weapon-attack.has-tohit { min-width: 34px; font-family: var(--mf-font-mono); font-weight: 700; }
+.mech-foundry .weapon-attack:disabled { opacity: 0.45; cursor: not-allowed; }
+.mech-foundry .weapon-attack .w-tohit { font-size: 0.72rem; }
+
+/* Fire dialog */
+.tw-fire-dialog table.tw-fire-weapons { width: 100%; border-collapse: collapse; margin: 4px 0 6px; font-size: 0.82rem; }
+.tw-fire-dialog table.tw-fire-weapons th { text-align: left; font-size: 0.72rem; opacity: 0.75; border-bottom: 1px solid rgba(128,128,128,.4); }
+.tw-fire-dialog table.tw-fire-weapons td { padding: 2px 4px; border-bottom: 1px solid rgba(128,128,128,.15); vertical-align: middle; }
+.tw-fire-dialog .tw-fw-name .tw-hint { display: block; font-size: 0.7rem; }
+.tw-fire-dialog .tw-fw-tn { font-family: monospace; font-weight: 700; white-space: nowrap; }
+.tw-fire-dialog .tw-fire-heat { margin: 0 0 6px; font-size: 0.8rem; }
+.mech-foundry.tw-fire-group > .tw-attack-card + .tw-attack-card { margin-top: 6px; }

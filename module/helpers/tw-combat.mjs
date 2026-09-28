@@ -1011,26 +1011,114 @@ export async function resolveDamageAgainst(targetActor, direction, groupSizes, r
   };
 }
 
+/* ------------------------------------------------------------------ */
+/*  Weapon fire: to-hit preview, the fire dialog, and resolving shots   */
+/* ------------------------------------------------------------------ */
+
+const TWO_D6_WAYS = { 2: 1, 3: 2, 4: 3, 5: 4, 6: 5, 7: 6, 8: 5, 9: 4, 10: 3, 11: 2, 12: 1 };
+
+/** Chance (whole percent) of rolling tn or better on 2D6. */
+export function hitChance(tn) {
+  if (tn <= 2) return 100;
+  if (tn > 12) return 0;
+  let ways = 0;
+  for (let t = tn; t <= 12; t++) ways += TWO_D6_WAYS[t];
+  return Math.round((ways / 36) * 100);
+}
+
+/** Why a weapon can't fire right now, or null. */
+export function weaponBlock(actor, weapon) {
+  const wName = weapon?.name || 'Weapon';
+  if (actor?.system?.conditions?.shutdown) return `${actor.name} is shut down and can't fire.`;
+  if (weapon?.destroyed) return `${wName} is destroyed and can't fire.`;
+  if (usesAmmo(weapon) && num(weapon.ammo) <= 0) return `${wName} is out of ammunition (set its Rds on the Combat tab to reload).`;
+  if (currentTurnKey() && firedThisTurn(actor)[weapon.id] !== undefined) return `${wName} has already fired this turn.`;
+  return null;
+}
+
+/** Per-weapon data the target-number preview needs (browser and server share previewTN). */
+function weaponPreviewRow(actor, weapon, targetActor) {
+  const fixed = autoAttackMods(actor, weapon, null).filter(m => m.key === 'actuators').reduce((t, m) => t + m.value, 0);
+  return {
+    id: weapon.id, fixed,
+    s: num(weapon.rangeS ?? weapon.short), m: num(weapon.rangeM ?? weapon.medium),
+    l: num(weapon.rangeL ?? weapon.long), e: num(weapon.rangeE ?? weapon.ext),
+    min: num(weapon.rangeMin),
+    prone: targetActor?.type === 'mech' && !!targetActor.system?.conditions?.prone
+  };
+}
+
 /**
- * Open the GATOR to-hit dialog for a weapon, roll 2d6, and post a chat card.
+ * Target number for one weapon from the dialog's shared values.
+ * @returns {{tn:number, oor:boolean, bracket:string, chance:number}}
+ */
+export function previewTN(v, row) {
+  const rb = rangeBracket(v.range, { rangeS: row.s, rangeM: row.m, rangeL: row.l, rangeE: row.e });
+  let tn = num(v.gunnery) + num(v.autoSum) + num(v.heat) + num(v.other) + num(v.terrain) + row.fixed + rb.mod;
+  if (v.range != null && row.min > 0 && v.range <= row.min) tn += row.min - v.range + 1;
+  if (row.prone && v.range != null) tn += v.range <= 1 ? -2 : 1;
+  return { tn, oor: !rb.inRange, bracket: rb.bracket, chance: rb.inRange ? hitChance(tn) : 0 };
+}
+
+/** Sum of the terrain / cover / secondary-target modifiers. */
+function terrainSum(t) { return terrainMods(t).reduce((a, m) => a + m.value, 0); }
+
+/**
+ * To-hit preview for every weapon against the user's current target, for the
+ * weapon rows on the sheet: { weaponId: {text, title, oor} }. Terrain isn't
+ * known here, so it assumes open ground; the fire dialog adds it.
+ */
+export function weaponToHitPreview(actor) {
+  const target = [...(game.user?.targets ?? [])][0] || null;
+  const targetActor = target?.actor || null;
+  if (!targetActor || targetActor === actor) return {};
+  const attackerToken = actor.getActiveTokens?.()[0] || null;
+  const range = attackerToken ? measureHexes(attackerToken, target) : null;
+  const shared = autoAttackMods(actor, null, targetActor);
+  const v = { gunnery: gunneryFor(actor), autoSum: shared.reduce((t, m) => t + m.value, 0), heat: heatToHitMod(actor), range, other: 0, terrain: 0 };
+  const out = {};
+  for (const w of actor.system.weapons || []) {
+    const row = weaponPreviewRow(actor, w, targetActor);
+    const p = previewTN(v, row);
+    const parts = [`Gunnery ${v.gunnery}`, ...shared.map(m => `${m.label} ${m.value >= 0 ? '+' : ''}${m.value}`)];
+    if (row.fixed) parts.push(`Actuators +${row.fixed}`);
+    if (v.heat) parts.push(`Heat +${v.heat}`);
+    parts.push(range == null ? 'range unknown (no token on the map)' : `Range ${range} (${p.bracket})`);
+    out[w.id] = p.oor
+      ? { text: 'OOR', oor: true, title: `Out of range vs ${target.name} (${range} hexes)` }
+      : { text: `${p.tn}+`, oor: false, title: `vs ${target.name}: needs ${p.tn}+ (${p.chance}%) · ${parts.join(' · ')} · terrain not included` };
+  }
+  return out;
+}
+
+/**
+ * Open the GATOR to-hit dialog for one weapon (a fire group of one).
  * @param {Actor} actor   The attacking unit.
  * @param {object} weapon The weapon entry from the actor's system.weapons.
  */
 export async function weaponAttack(actor, weapon) {
   if (!actor || !weapon) return;
+  return fireWeapons(actor, [weapon.id]);
+}
 
-  // Can this weapon fire right now?
-  const wName = weapon.name || 'Weapon';
-  if (weapon.destroyed) { ui.notifications.warn(`${wName} is destroyed and can't fire.`); return; }
+/**
+ * The fire dialog: shared modifiers once, a checklist of the weapons able to
+ * fire with each one's live target number, then every checked weapon is rolled
+ * and resolved in turn and posted as one chat card. Total Warfare declares all
+ * of a unit's shots together; this is that declaration.
+ * @param {Actor} actor
+ * @param {string[]} preselect  weapon ids checked when the dialog opens
+ */
+export async function fireWeapons(actor, preselect = []) {
+  if (!actor) return;
+  const all = actor.system.weapons || [];
+  if (preselect.length === 1) {
+    const why = weaponBlock(actor, all.find(w => w.id === preselect[0]));
+    if (why) { ui.notifications.warn(why); return; }
+  }
   if (actor.system?.conditions?.shutdown) { ui.notifications.warn(`${actor.name} is shut down and can't fire.`); return; }
-  if (usesAmmo(weapon) && num(weapon.ammo) <= 0) {
-    ui.notifications.warn(`${wName} is out of ammunition (set its Rds on the Combat tab to reload).`);
-    return;
-  }
-  if (currentTurnKey() && firedThisTurn(actor)[weapon.id] !== undefined) {
-    ui.notifications.warn(`${wName} has already fired this turn.`);
-    return;
-  }
+  const ready = all.filter(w => !weaponBlock(actor, w));
+  if (!ready.length) { ui.notifications.warn(`${actor.name} has no weapons able to fire.`); return; }
 
   const gunnery = gunneryFor(actor);
   const heatMod = heatToHitMod(actor);
@@ -1039,70 +1127,133 @@ export async function weaponAttack(actor, weapon) {
   const targetName = target?.name || '';
   const targetActor = target?.actor || null;
   const autoDist = attackerToken && target ? measureHexes(attackerToken, target) : null;
-  const autoMods = autoAttackMods(actor, weapon, targetActor);
+  const shared = autoAttackMods(actor, null, targetActor);
+  const rows = ready.map(w => weaponPreviewRow(actor, w, targetActor));
 
   const esc = (t) => foundry.utils.escapeHTML?.(String(t)) ?? String(t);
   const dirOpts = ATTACK_DIRECTIONS.map(d => `<option value="${d.key}">${d.label}</option>`).join('');
-  const s = num(weapon.rangeS ?? weapon.short), m = num(weapon.rangeM ?? weapon.medium), l = num(weapon.rangeL ?? weapon.long);
-  const e = num(weapon.rangeE ?? weapon.ext);
-  const minR = num(weapon.rangeMin);
-  const rangeHint = `${minR ? `Min ${minR} / ` : ''}S ${s} / M ${m} / L ${l}${e ? ` / E ${e}` : ''}`;
-  const modRows = autoMods.map(x => `
+  const modRows = shared.map(x => `
       <div class="form-group"><label>${esc(x.label)}${x.hint ? ` <span class="tw-hint">${esc(x.hint)}</span>` : ''}</label><input type="number" name="auto_${x.key}" value="${x.value}" /></div>`).join('');
+  const v0 = { gunnery, autoSum: shared.reduce((t, m) => t + m.value, 0), heat: heatMod, range: autoDist, other: 0, terrain: 0 };
+  const weaponRows = ready.map((w, i) => {
+    const p = previewTN(v0, rows[i]);
+    const r = rows[i];
+    const ranges = `${r.min ? `Min ${r.min} · ` : ''}${r.s}/${r.m}/${r.l}${r.e ? `/${r.e}` : ''}`;
+    return `<tr>
+        <td><input type="checkbox" name="w_${w.id}" ${preselect.includes(w.id) ? 'checked' : ''} /></td>
+        <td class="tw-fw-name">${esc(w.name || 'Weapon')}<span class="tw-hint">${esc(w.location || w.arc || '')} · ${ranges}${usesAmmo(w) ? ` · ${num(w.ammo)} rds` : ''}</span></td>
+        <td class="tw-fw-heat">${num(w.heat) ? `${num(w.heat)}H` : ''}</td>
+        <td class="tw-fw-tn" data-wid="${w.id}">${p.oor ? 'OOR' : `${p.tn}+ <span class="tw-hint">${p.chance}%</span>`}</td>
+      </tr>`;
+  }).join('');
 
   const content = `
-    <div class="tw-attack-dialog">
+    <div class="tw-attack-dialog tw-fire-dialog">
       <p class="tw-atk-target">${targetName ? `Target: <strong>${esc(targetName)}</strong>` : 'No target selected — enter range manually.'}</p>
+      <table class="tw-fire-weapons"><thead><tr><th></th><th>Weapon</th><th>Heat</th><th>To-hit</th></tr></thead><tbody>${weaponRows}</tbody></table>
+      <p class="tw-fire-heat">Heat from checked weapons: <strong class="tw-fire-heatsum">${ready.filter(w => preselect.includes(w.id)).reduce((t, w) => t + num(w.heat), 0)}</strong></p>
       <div class="form-group"><label>Gunnery Skill</label><input type="number" name="gunnery" value="${gunnery}" /></div>
-      <div class="form-group"><label>Range (hexes) <span class="tw-hint">${rangeHint}</span></label><input type="number" name="range" value="${autoDist ?? ''}" /></div>
+      <div class="form-group"><label>Range (hexes)</label><input type="number" name="range" value="${autoDist ?? ''}" /></div>
       ${modRows}
       <div class="form-group"><label>Heat</label><input type="number" name="heat" value="${heatMod}" /></div>
       <fieldset class="tw-terrain"><legend>Terrain &amp; target</legend>
         <div class="form-group"><label>Light woods hexes between</label><input type="number" name="lightWoods" value="0" min="0" /></div>
         <div class="form-group"><label>Heavy woods hexes between</label><input type="number" name="heavyWoods" value="0" min="0" /></div>
         <div class="form-group"><label>Target standing in</label><select name="targetWoods"><option value="none">Open</option><option value="light">Light woods (+1)</option><option value="heavy">Heavy woods (+2)</option></select></div>
-        <div class="form-group"><label>Partial cover (+1)</label><input type="checkbox" name="partialCover" /></div>
+        <div class="form-group"><label>Partial cover (+1; leg hits strike the cover)</label><input type="checkbox" name="partialCover" /></div>
         <div class="form-group"><label>Secondary target</label><select name="secondary"><option value="none">No (primary)</option><option value="front">Yes, front arc (+1)</option><option value="side">Yes, side/rear arc (+2)</option></select></div>
       </fieldset>
       <div class="form-group"><label>Other Mod</label><input type="number" name="other" value="0" /></div>
       <div class="form-group"><label>Attack Direction</label><select name="direction">${dirOpts}</select></div>
     </div>`;
 
+  const read = (f) => ({
+    gunnery: num(f.gunnery.value),
+    auto: shared.map(x => ({ label: x.label, value: num(f[`auto_${x.key}`]?.value) })),
+    range: f.range.value === '' ? null : num(f.range.value),
+    heat: num(f.heat.value),
+    terrain: {
+      lightWoods: Math.max(0, num(f.lightWoods.value)),
+      heavyWoods: Math.max(0, num(f.heavyWoods.value)),
+      targetWoods: f.targetWoods.value,
+      partialCover: !!f.partialCover.checked,
+      secondary: f.secondary.value
+    },
+    other: num(f.other.value),
+    direction: f.direction.value,
+    ids: ready.filter(w => f[`w_${w.id}`]?.checked).map(w => w.id)
+  });
+
+  // Live preview: recompute every weapon's target number (and the checked
+  // weapons' heat) as the form changes. Best-effort; the static values above
+  // stand if the dialog doesn't expose its element.
+  const wire = (root) => {
+    const form = root?.querySelector?.('form') ?? root;
+    if (!form?.querySelectorAll) return;
+    const refresh = () => {
+      const r = read(form.elements);
+      const v = { gunnery: r.gunnery, autoSum: r.auto.reduce((t, m) => t + m.value, 0), heat: r.heat, range: r.range, other: r.other, terrain: terrainSum(r.terrain) };
+      rows.forEach(row => {
+        const cell = form.querySelector(`.tw-fw-tn[data-wid="${row.id}"]`);
+        if (!cell) return;
+        const p = previewTN(v, row);
+        cell.innerHTML = p.oor ? 'OOR' : `${p.tn}+ <span class="tw-hint">${p.chance}%</span>`;
+      });
+      const heat = ready.filter(w => r.ids.includes(w.id)).reduce((t, w) => t + num(w.heat), 0);
+      const hs = form.querySelector('.tw-fire-heatsum');
+      if (hs) hs.textContent = String(heat);
+    };
+    form.addEventListener('input', refresh);
+    form.addEventListener('change', refresh);
+    refresh();
+  };
+
   const result = await DialogV2.wait({
-    window: { title: `Attack — ${weapon.name || 'Weapon'}`, icon: "fa-solid fa-crosshairs" },
+    window: { title: `Fire Weapons — ${actor.name}`, icon: "fa-solid fa-crosshairs" },
     content,
+    render: (event, dialog) => wire(dialog?.element ?? event?.target?.element ?? (dialog instanceof HTMLElement ? dialog : null)),
     buttons: [
-      {
-        action: "roll", label: "Roll Attack", icon: "fa-solid fa-dice", default: true,
-        callback: (ev, button) => {
-          const f = button.form.elements;
-          return {
-            gunnery: num(f.gunnery.value),
-            auto: autoMods.map(x => ({ label: x.label, value: num(f[`auto_${x.key}`]?.value) })),
-            range: f.range.value === '' ? null : num(f.range.value),
-            heat: num(f.heat.value),
-            terrain: {
-              lightWoods: Math.max(0, num(f.lightWoods.value)),
-              heavyWoods: Math.max(0, num(f.heavyWoods.value)),
-              targetWoods: f.targetWoods.value,
-              partialCover: !!f.partialCover.checked,
-              secondary: f.secondary.value
-            },
-            other: num(f.other.value),
-            direction: f.direction.value
-          };
-        }
-      },
+      { action: "roll", label: "Fire", icon: "fa-solid fa-dice", default: true, callback: (ev, button) => read(button.form.elements) },
       { action: "cancel", label: "Cancel", icon: "fa-solid fa-times" }
     ],
     rejectClose: false
   });
   if (!result || result === "cancel") return;
+  const ids = result.ids ?? preselect;
+  if (!ids.length) { ui.notifications.info("No weapons checked."); return; }
 
+  const rolls = [];
+  const cards = [];
+  for (const id of ids) {
+    const weapon = (actor.system.weapons || []).find(w => w.id === id);
+    if (!weapon || weaponBlock(actor, weapon)) continue;
+    const ctx = await resolveWeaponShot(actor, weapon, target, result, rolls);
+    cards.push(await foundry.applications.handlebars.renderTemplate("systems/mech-foundry/templates/chat/tw-attack.hbs", ctx));
+  }
+  if (!cards.length) return;
+  const names = ids.map(id => all.find(w => w.id === id)?.name || 'Weapon');
+  await ChatMessage.create({
+    speaker: ChatMessage.getSpeaker({ actor }),
+    flavor: cards.length === 1 ? `${names[0]} Attack` : `Weapons Fire — ${cards.length} weapons${targetName ? ` at ${targetName}` : ''}`,
+    content: cards.length === 1 ? cards[0] : `<div class="mech-foundry tw-fire-group">${cards.join('')}</div>`,
+    rolls
+  });
+}
+
+/**
+ * Roll and resolve one weapon's shot with the fire dialog's values: spends
+ * ammunition and records the shot for the heat phase, then on a hit rolls the
+ * cluster table and hit locations. Returns the tw-attack.hbs context.
+ */
+async function resolveWeaponShot(actor, weapon, target, result, rolls) {
+  const targetName = target?.name || '';
+  const targetActor = target?.actor || null;
   const rb = rangeBracket(result.range, weapon);
+  const actuators = autoAttackMods(actor, weapon, null).filter(m => m.key === 'actuators').map(m => ({ label: m.label, value: m.value }));
   const mods = [
     { label: "Gunnery", value: result.gunnery },
-    ...result.auto,
+    ...(result.auto || []),
+    ...actuators,
     { label: `Range (${rb.bracket})`, value: rb.mod },
     ...rangeDependentMods(weapon, targetActor, result.range),
     { label: "Heat", value: result.heat },
@@ -1112,6 +1263,7 @@ export async function weaponAttack(actor, weapon) {
   const tn = mods.reduce((t, x) => t + x.value, 0);
 
   const roll = await new Roll("2d6").evaluate();
+  rolls.push(roll);
   const dice = roll.dice[0]?.results?.map(r => r.result) ?? [];
   const hit = rb.inRange && roll.total >= tn;
   const margin = roll.total - tn;
@@ -1134,13 +1286,12 @@ export async function weaponAttack(actor, weapon) {
     const list = Object.entries(firedThisTurn(actor)).map(([id, heat]) => ({ id, heat }));
     list.push({ id: weapon.id, heat: num(weapon.heat) });
     upd['flags.mech-foundry.fired'] = { key: currentTurnKey(), list };
-    if (actor.isOwner || game.user.isGM) await actor.update(upd);
+    if (actor.isOwner || game.user.isGM) await writeDoc(actor, upd);
   }
 
-  // On a hit, resolve damage. Cluster weapons (clusterSize > 0) roll the Cluster
-  // Hits Table for the number of sub-munitions, then apply damage in 5-point
-  // groups, each rolling its own hit location. Direct-fire weapons are one group.
-  const rolls = [roll];
+  // On a hit: cluster weapons roll the Cluster Hits Table for the number of
+  // sub-munitions, then group damage by the weapon's type (5-point groups or
+  // each missile); each group rolls its own hit location.
   let hitResult = null;
   const perHit = num(weapon.damage);
   const clusterSize = num(weapon.clusterSize);
@@ -1152,44 +1303,22 @@ export async function weaponAttack(actor, weapon) {
       rolls.push(cRoll);
       const missiles = clusterHits(clusterSize, cRoll.total);
       total = missiles * perHit;
-      clusterInfo = {
-        size: clusterSize, missiles, perHit, total,
-        rollTotal: cRoll.total, dice: cRoll.dice[0]?.results?.map(r => r.result) ?? []
-      };
+      clusterInfo = { size: clusterSize, missiles, perHit, total, rollTotal: cRoll.total, dice: cRoll.dice[0]?.results?.map(r => r.result) ?? [] };
     }
-
-    const groupSizes = [];
-    if (clusterSize > 0) groupSizes.push(...groupDamage(total, clusterGroupSize(weapon)));
-    else groupSizes.push(total);
-
+    const groupSizes = clusterSize > 0 ? groupDamage(total, clusterGroupSize(weapon)) : [total];
     const frag = await resolveDamageAgainst(targetActor, result.direction, groupSizes, rolls, targetName, {
       partialCover: !!result.terrain?.partialCover && targetActor?.type === 'mech'
     });
     hitResult = { cluster: clusterSize > 0, clusterInfo, total, ...frag };
   }
 
-  const content2 = await foundry.applications.handlebars.renderTemplate(
-    "systems/mech-foundry/templates/chat/tw-attack.hbs",
-    {
-      weaponName: weapon.name || 'Weapon',
-      location: weapon.location || weapon.arc || '',
-      targetName,
-      mods, tn,
-      dice, rollTotal: roll.total,
-      hit, margin: Math.abs(margin),
-      outOfRange: !rb.inRange,
-      damage: perHit,
-      ammoLine,
-      hitResult
-    }
-  );
-
-  await ChatMessage.create({
-    speaker: ChatMessage.getSpeaker({ actor }),
-    flavor: `${weapon.name || 'Weapon'} Attack`,
-    content: content2,
-    rolls
-  });
+  return {
+    weaponName: weapon.name || 'Weapon',
+    location: weapon.location || weapon.arc || '',
+    targetName, mods, tn, dice, rollTotal: roll.total,
+    hit, margin: Math.abs(margin), outOfRange: !rb.inRange,
+    damage: perHit, ammoLine, hitResult
+  };
 }
 
 /* ------------------------------------------------------------------ */

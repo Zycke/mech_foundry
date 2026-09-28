@@ -1,5 +1,5 @@
 import { MechFoundryActorSheetV2 } from "./base-actor-sheet.mjs";
-import { currentTurnKey, firedThisTurn, usesAmmo } from "../helpers/tw-combat.mjs";
+import { currentTurnKey, fireWeapons, firedThisTurn, usesAmmo, weaponToHitPreview } from "../helpers/tw-combat.mjs";
 import { MOVE_MODES, movedThisTurn, setMovement } from "../helpers/tw-movement.mjs";
 import { physicalAttack } from "../helpers/tw-physical.mjs";
 
@@ -49,8 +49,10 @@ export class MechFoundryUnitSheet extends MechFoundryActorSheetV2 {
     // Per-weapon state: fired this turn (only meaningful during combat), out of
     // ammunition, destroyed (set by crits or the row's toggle).
     const fired = currentTurnKey() ? firedThisTurn(this.actor) : {};
+    const toHit = weaponToHitPreview(this.actor); // vs the user's current target
     context.weapons = (this.actor.system.weapons || []).map(w => ({
       ...w,
+      toHit: toHit[w.id] || null,
       destroyed: !!w.destroyed,
       fired: fired[w.id] !== undefined,
       outOfAmmo: usesAmmo(w) && (Number(w.ammo) || 0) <= 0
@@ -90,6 +92,7 @@ export class MechFoundryUnitSheet extends MechFoundryActorSheetV2 {
     html.on('change', '.weapon-field', this._onWeaponFieldChange.bind(this));
     html.on('change', '.turn-move-field', this._onTurnMoveChange.bind(this));
     html.on('click', '.physical-attack', (ev) => { ev.preventDefault(); physicalAttack(this.actor); });
+    html.on('click', '.fire-weapons', (ev) => { ev.preventDefault(); fireWeapons(this.actor); });
   }
 
   /** Set this turn's movement mode or hexes moved. */
@@ -163,4 +166,20 @@ export class MechFoundryUnitSheet extends MechFoundryActorSheetV2 {
       wpn[field] = numeric ? Math.max(0, parseInt(raw) || 0) : raw;
     });
   }
+}
+
+/**
+ * Keep the weapon rows' to-hit numbers current: re-render open unit sheets
+ * when this user changes target, or when a token moves / a unit updates
+ * (range and movement modifiers change). Debounced.
+ */
+export function registerToHitRefresh() {
+  const refresh = foundry.utils.debounce(() => {
+    for (const app of foundry.applications.instances?.values?.() ?? []) {
+      if (app instanceof MechFoundryUnitSheet && app.rendered) app.render(false);
+    }
+  }, 150);
+  Hooks.on("targetToken", (user) => { if (user === game.user) refresh(); });
+  Hooks.on("updateToken", (doc, changes) => { if ('x' in changes || 'y' in changes || 'rotation' in changes) refresh(); });
+  Hooks.on("updateActor", () => { if (game.user.targets?.size) refresh(); });
 }

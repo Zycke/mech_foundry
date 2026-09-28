@@ -156,7 +156,7 @@
     {{!-- ===================== COMBAT ===================== --}}
     <div class="tab" data-tab="combat">
       <div class="mf-panel">
-        <h4>Weapons {{#if editable}}<button type="button" class="physical-attack" title="Physical attack: punch, kick, club, push, charge, death from above"><i class="fas fa-hand-fist"></i> Physical</button> <button type="button" class="add-weapon"><i class="fas fa-plus"></i> Add</button>{{/if}}</h4>
+        <h4>Weapons {{#if editable}}<button type="button" class="fire-weapons" title="Fire several weapons together (one declaration, one card)"><i class="fas fa-crosshairs"></i> Fire…</button> <button type="button" class="physical-attack" title="Physical attack: punch, kick, club, push, charge, death from above"><i class="fas fa-hand-fist"></i> Physical</button> <button type="button" class="add-weapon"><i class="fas fa-plus"></i> Add</button>{{/if}}</h4>
         <table class="wt">
           <thead>
             <tr><th class="w-name">Weapon</th><th>Loc</th><th>Ht</th><th>Dmg</th><th title="Cluster/launcher size">Clus</th><th title="Minimum range">Min</th><th>S</th><th>M</th><th>L</th><th>Ammo Type</th><th>Rds</th><th></th></tr>
@@ -177,7 +177,7 @@
               <td><input type="number" min="0" class="weapon-field n" data-weapon-id="{{id}}" data-field="ammo" value="{{ammo}}" {{#unless ../editable}}disabled{{/unless}} /></td>
               <td class="w-actions">
                 {{#if destroyed}}<span class="w-badge dmg">DESTROYED</span>{{else if outOfAmmo}}<span class="w-badge warn">NO AMMO</span>{{else if fired}}<span class="w-badge">FIRED</span>{{/if}}
-                {{#if ../editable}}{{#unless destroyed}}<button type="button" class="weapon-attack" data-weapon-id="{{id}}" title="{{#if fired}}Already fired this turn{{else if outOfAmmo}}Out of ammunition{{else}}Attack{{/if}}" {{#if fired}}disabled{{else if outOfAmmo}}disabled{{/if}}><i class="fas fa-bolt"></i></button>{{/unless}}{{/if}}
+                {{#if ../editable}}{{#unless destroyed}}<button type="button" class="weapon-attack{{#if toHit}} has-tohit{{/if}}" data-weapon-id="{{id}}" title="{{#if fired}}Already fired this turn{{else if outOfAmmo}}Out of ammunition{{else if toHit}}{{toHit.title}}{{else}}Attack (target a token to see the to-hit number){{/if}}" {{#if fired}}disabled{{else if outOfAmmo}}disabled{{else if toHit.oor}}disabled{{/if}}>{{#if toHit}}<span class="w-tohit">{{toHit.text}}</span>{{else}}<i class="fas fa-bolt"></i>{{/if}}</button>{{/unless}}{{/if}}
                 {{#if ../editable}}<a class="toggle-weapon-destroyed" data-weapon-id="{{id}}" title="{{#if destroyed}}Mark repaired{{else}}Mark destroyed{{/if}}"><i class="fas {{#if destroyed}}fa-screwdriver-wrench{{else}}fa-ban{{/if}}"></i></a>{{/if}}
                 {{#if ../editable}}<a class="duplicate-weapon" data-weapon-id="{{id}}" title="Duplicate"><i class="fas fa-clone"></i></a>{{/if}}
                 {{#if ../editable}}<a class="remove-weapon" data-weapon-id="{{id}}" title="Remove"><i class="fas fa-trash"></i></a>{{/if}}

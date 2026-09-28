@@ -49,6 +49,7 @@ import { woundDescription, conditionDescription } from "./data/status-descriptio
 import { SocketHandler, SOCKET_EVENTS } from "./helpers/socket-handler.mjs";
 import { initGMRelay } from "./helpers/gm-relay.mjs";
 import { registerMovementTracking } from "./helpers/tw-movement.mjs";
+import { registerToHitRefresh } from "./sheets/unit-sheet.mjs";
 import { OpposedRollHelper } from "./helpers/opposed-rolls.mjs";
 import { DiceMechanics } from "./helpers/dice-mechanics.mjs";
 import { ItemEffectsHelper, EFFECT_CATEGORIES, getEffectTypeOptions } from "./helpers/effects-helper.mjs";
@@ -575,6 +576,8 @@ function _registerSystemSettings() {
 
 // Total Warfare: per-turn hexes moved, from token moves during combat.
 registerMovementTracking();
+// Weapon rows show to-hit vs the current target; keep them fresh.
+Hooks.once("ready", () => registerToHitRefresh());
 
 // Override initiative formula
 Hooks.once("init", function() {

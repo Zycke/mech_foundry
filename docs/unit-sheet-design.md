@@ -178,6 +178,11 @@ criticals and cluster grouping:
 - **Restart:** a shut-down 'Mech restarts automatically below 14 heat, otherwise on a roll against
   the shutdown avoid number (not at 30+, with a destroyed engine or an unconscious warrior).
 - **Partial cover:** besides +1 to hit, leg hits on a 'Mech in partial cover strike the cover.
+- **Weapon fire UI:** with a token targeted, each weapon row's attack button shows its target
+  number (hover for the chance and the modifiers; OOR buttons are disabled; terrain isn't known
+  there). The Fire… button opens one declaration for several weapons: shared modifiers and
+  terrain once, a checklist with each weapon's live target number and the heat of the checked
+  weapons, then every checked weapon rolls and resolves in turn into one chat message.
 **Intentional house rules** (deliberate divergences — don't "correct" toward the book):
 - Combat vehicles roll a critical on any hit that penetrates to internal structure, in
   addition to the tables' marked results (2/12, or 8 on side attacks).
