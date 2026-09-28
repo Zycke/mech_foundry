@@ -10,6 +10,9 @@
  * recognise a TN below 0). Base Target Numbers come from the Basic Action Check
  * Table by the skill's complexity code.
  */
+import { getSkillLevelFromXP } from "./xp-math.mjs";
+import { registerRelayHandler, relayRequest } from "./gm-relay.mjs";
+
 
 /** Base Target Numbers by skill complexity code (Basic Action Check Table). */
 export const BASE_TN_BY_COMPLEXITY = { SB: 7, SA: 8, CB: 8, CA: 9 };
@@ -28,6 +31,12 @@ export const VEHICLE_GUNNERY_SKILLS = ["Gunnery/Ground Vehicle", "Gunnery"];
 export const VEHICLE_DRIVING_SKILLS = ["Driving/Ground Vehicles", "Driving/Ground Vehicle", "Driving"];
 export const AERO_GUNNERY_SKILLS = ["Gunnery/Aerospace", "Gunnery"];
 export const AERO_PILOTING_SKILLS = ["Piloting/Aerospace", "Piloting"];
+/** Battle armor: Gunnery/Battlesuit for weapon attacks, Piloting/Battlesuit for Anti-'Mech. */
+export const BATTLESUIT_GUNNERY_SKILLS = ["Gunnery/Battlesuit", "Gunnery"];
+export const BATTLESUIT_ANTIMECH_SKILLS = ["Piloting/Battlesuit"];
+/** Conventional infantry: Small Arms (7/SB, Base TN 7) for the platoon's Gunnery. */
+export const INFANTRY_GUNNERY_SKILLS = ["Small Arms"];
+export const INFANTRY_SKILL_BASE_TN = 7;
 
 /**
  * Convert an AToW skill Level to a Total Warfare Skill Rating.
@@ -67,16 +76,37 @@ export const CREW_DAMAGE = {
  */
 export async function applyCrewDamage(actor, event) {
   if (!actor || !event) return false;
-  if (!(actor.isOwner || game.user.isGM)) {
-    ui.notifications.warn(`You lack permission to apply damage to ${actor?.name ?? "the linked actor"}.`);
-    return false;
+  if (actor.isOwner || game.user.isGM) {
+    await applyCrewDamageDirect(actor, event);
+    return true;
   }
+  // Not ours to modify (e.g. an attack injuring the GM's crew): ask the GM to
+  // apply it. Only the event's table key is sent; the GM looks the values up.
+  const key = Object.keys(CREW_DAMAGE).find(k => CREW_DAMAGE[k] === event);
+  const ok = key ? await relayRequest('crewDamage', { uuid: actor.uuid, key }) : false;
+  if (!ok) ui.notifications.warn(`Couldn't apply damage to ${actor.name}: no permission and no GM available to relay it.`);
+  return ok;
+}
+
+/** Apply a crew-damage event through the character's own applyDamage(). */
+async function applyCrewDamageDirect(actor, event) {
   // For armor-ignoring events, pass rawDamageForKnockdown so applyDamage skips
   // the BAR reduction step (the value is then applied directly).
   const raw = event.ignoresArmor ? event.bd : null;
   await actor.applyDamage(event.bd, event.ap, event.type, null, !!event.subduing, false, raw);
-  return true;
 }
+
+// GM side of the relay: apply a crew-damage event by table key to a character/NPC.
+registerRelayHandler('crewDamage', async (payload) => {
+  const actor = await fromUuid(payload?.uuid);
+  const event = CREW_DAMAGE[payload?.key];
+  if (!actor || actor.documentName !== 'Actor' || !['character', 'npc'].includes(actor.type)) {
+    throw new Error("Crew damage target must be a character or NPC");
+  }
+  if (!event) throw new Error(`Unknown crew damage event "${payload?.key}"`);
+  await applyCrewDamageDirect(actor, event);
+  return true;
+});
 
 /**
  * Find the first matching skill Item on an actor (by exact name, trying each
@@ -91,7 +121,12 @@ export function actorSkillRating(actor, candidateNames, baseTN = MECH_SKILL_BASE
   for (const name of candidateNames) {
     const skill = actor.items.find(i => i.type === 'skill' && i.name === name);
     if (skill) {
-      const level = Number(skill.system?.level) || 0;
+      // Skill Level is XP-derived everywhere in this system (system.level is a
+      // display-only value that is never persisted), so derive it the same way.
+      // -1 means untrained (XP below Level 0): skip so a trained fallback skill
+      // — or the sheet's manually entered rating — is used instead.
+      const level = Number(getSkillLevelFromXP(skill.system?.xp));
+      if (!Number.isFinite(level) || level < 0) continue;
       return { rating: skillLevelToRating(level, baseTN), skillName: name, level };
     }
   }

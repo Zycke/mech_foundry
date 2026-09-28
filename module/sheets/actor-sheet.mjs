@@ -1201,13 +1201,15 @@ export class MechFoundryActorSheet extends HandlebarsApplicationMixin(ActorSheet
 
     // Check if MedTech skill is present
     const medtechSkill = this.actor.items.find(i => i.type === 'skill' && i.name.toLowerCase().includes('medtech'));
-    const hasSkill = !!medtechSkill;
+    // Skill level is derived from XP (system.level is display-only and never saved).
+    // XP below Level 0 means untrained, which takes the attribute check below.
+    const skillLevel = medtechSkill ? MechFoundryActor.getSkillLevelFromXP(medtechSkill.system?.xp) : -1;
+    const hasSkill = skillLevel >= 0;
 
     // Calculate modifier based on skill or attribute check
     let baseMod = 0;
     let checkType = '';
     if (hasSkill) {
-      const skillLevel = medtechSkill.system?.level || 0;
       const linkedAttr1 = medtechSkill.system?.linkedAttribute1;
       const linkedAttr2 = medtechSkill.system?.linkedAttribute2;
       let linkMod = 0;
@@ -1371,13 +1373,15 @@ export class MechFoundryActorSheet extends HandlebarsApplicationMixin(ActorSheet
 
     // Check if MedTech skill is present
     const medtechSkill = this.actor.items.find(i => i.type === 'skill' && i.name.toLowerCase().includes('medtech'));
-    const hasSkill = !!medtechSkill;
+    // Skill level is derived from XP (system.level is display-only and never saved).
+    // XP below Level 0 means untrained, which takes the attribute check below.
+    const skillLevel = medtechSkill ? MechFoundryActor.getSkillLevelFromXP(medtechSkill.system?.xp) : -1;
+    const hasSkill = skillLevel >= 0;
 
     // Calculate modifier based on skill or attribute check
     let baseMod = 0;
     let checkType = '';
     if (hasSkill) {
-      const skillLevel = medtechSkill.system?.level || 0;
       const linkedAttr1 = medtechSkill.system?.linkedAttribute1;
       const linkedAttr2 = medtechSkill.system?.linkedAttribute2;
       let linkMod = 0;
@@ -1558,14 +1562,16 @@ export class MechFoundryActorSheet extends HandlebarsApplicationMixin(ActorSheet
 
     // Check if Surgery skill is present
     const surgerySkill = this.actor.items.find(i => i.type === 'skill' && i.name.toLowerCase().includes('surgery'));
-    const hasSkill = !!surgerySkill;
+    // Skill level is derived from XP (system.level is display-only and never saved).
+    // XP below Level 0 means untrained, which takes the attribute check below.
+    const skillLevel = surgerySkill ? MechFoundryActor.getSkillLevelFromXP(surgerySkill.system?.xp) : -1;
+    const hasSkill = skillLevel >= 0;
 
     // Calculate modifier based on skill or attribute check
     let baseMod = 0;
     let checkType = '';
     if (hasSkill) {
       // Skill check: skill level + linked attribute linkMods
-      const skillLevel = surgerySkill.system?.level || 0;
       const linkedAttr1 = surgerySkill.system?.linkedAttribute1;
       const linkedAttr2 = surgerySkill.system?.linkedAttribute2;
       let linkMod = 0;

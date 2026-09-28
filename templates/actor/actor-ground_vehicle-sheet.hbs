@@ -33,6 +33,7 @@
 
     {{!-- ===================== STATUS ===================== --}}
     <div class="tab" data-tab="status">
+      {{> "systems/mech-foundry/templates/actor/parts/attached-infantry.hbs" ai=attachedInfantry kind="vehicle" editable=editable}}
       <div class="mf-grid2">
         <div class="mf-panel">
           <h4>Armor by Facing <span class="hint">current / max</span></h4>
@@ -60,6 +61,21 @@
             <label class="chk"><input type="checkbox" name="system.conditions.immobile" {{checked conditions.immobile}} {{#unless editable}}disabled{{/unless}}> Immobile</label>
             <label class="chk"><input type="checkbox" name="system.conditions.turretJammed" {{checked conditions.turretJammed}} {{#unless editable}}disabled{{/unless}}> Turret Jam</label>
           </div>
+          {{#if editable}}
+          <div class="mf-actions">
+            {{#if movement.sideslips}}<button type="button" class="sideslip-check" title="Flanking and turned, about to enter a new hex: Driving Skill Roll to avoid sideslipping"><i class="fas fa-wind"></i> Sideslip…</button>
+            {{else}}<button type="button" class="skid-check" title="Flanking and turned on pavement, about to enter a new hex: Driving Skill Roll to avoid skidding"><i class="fas fa-road"></i> Skid…</button>{{/if}}
+            {{#if showRotor}}<label class="mf-elev" title="VTOL elevation (levels above the ground); 0 = landed">Elev <input type="number" min="0" name="system.elevation" value="{{system.elevation}}" {{#unless editable}}disabled{{/unless}} /></label>{{/if}}
+            {{#if movement.canCrash}}<button type="button" class="vehicle-crash" title="The sideslip ran into terrain or a unit at or above its elevation"><i class="fas fa-burst"></i> Crash…</button>{{/if}}
+          </div>
+          {{/if}}
+          {{#if turnMove}}
+          <div class="mf-turnmove" title="Used for attack modifiers and heat. Hexes add up automatically as the token moves during combat.">
+            <span class="k">This turn</span>
+            <select class="turn-move-field" data-field="mode" {{#unless editable}}disabled{{/unless}}>{{#each turnMove.modes}}<option value="{{key}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select>
+            <input type="number" min="0" class="turn-move-field" data-field="hexes" value="{{turnMove.hexes}}" {{#unless editable}}disabled{{/unless}} /><span class="k">hexes</span>
+          </div>
+          {{/if}}
         </div>
       </div>
 
@@ -77,8 +93,13 @@
           <label class="chk"><input type="checkbox" name="system.crits.stabRight" {{checked crits.stabRight}} {{#unless editable}}disabled{{/unless}}> Stab: Right</label>
           <label class="chk"><input type="checkbox" name="system.crits.stabRear" {{checked crits.stabRear}} {{#unless editable}}disabled{{/unless}}> Stab: Rear</label>
           {{#if showTurret}}<label class="chk"><input type="checkbox" name="system.crits.stabTurret" {{checked crits.stabTurret}} {{#unless editable}}disabled{{/unless}}> Stab: Turret</label>{{/if}}
+          {{#if showRotor}}<label class="chk" title="VTOL: no faster than Cruising, +3 Driving, +1 to hit"><input type="checkbox" name="system.crits.flightStabilizer" {{checked crits.flightStabilizer}} {{#unless editable}}disabled{{/unless}}> Flight Stabilizer</label>{{/if}}
         </div>
-        {{#if movement.motivePenalty}}<div class="penalty-line">▸ Motive damage: −{{movement.motivePenalty}} Cruise MP · +{{toHitFromMotive}} to hit this unit</div>{{/if}}
+        {{#if movement.motivePenalty}}<div class="penalty-line">▸ Motive / engine damage → Cruise {{movement.effCruise}} / Flank {{movement.effFlank}}</div>{{/if}}
+        {{#if crewState.drivingTotal}}<div class="penalty-line">▸ Driving Skill Rolls +{{crewState.drivingTotal}} (motive, driver, commander)</div>{{/if}}
+        {{#if crewState.killed}}<div class="penalty-line dmg">▸ CREW KILLED — immobile, out of the fight</div>
+        {{else if crewState.stunned}}<div class="penalty-line dmg">▸ CREW STUNNED this turn — no firing, no faster than Cruising</div>{{/if}}
+        {{#if conditions.turretJammed}}<div class="penalty-line">▸ Turret jammed {{#if editable}}<button type="button" class="clear-jam" title="Spend this turn's Weapon Attack Phase clearing the jam (no weapon attacks)"><i class="fas fa-screwdriver-wrench"></i> Clear jam</button>{{/if}}</div>{{/if}}
       </div>
 
       <div class="mf-panel">
@@ -98,7 +119,11 @@
             </div>
             <div class="flags" style="margin-top:6px">
               <label class="chk"><input type="checkbox" class="crew-hit-flag" data-flag="driverHit" {{checked crew.driverHit}} {{#unless editable}}disabled{{/unless}}> Driver hit</label>
+              {{#if showRotor}}
+              <label class="chk"><input type="checkbox" class="crew-hit-flag" data-flag="coPilotHit" {{checked crew.coPilotHit}} {{#unless editable}}disabled{{/unless}}> Co-pilot hit</label>
+              {{else}}
               <label class="chk"><input type="checkbox" class="crew-hit-flag" data-flag="commanderHit" {{checked crew.commanderHit}} {{#unless editable}}disabled{{/unless}}> Commander hit</label>
+              {{/if}}
             </div>
           </div>
           <div class="skillpair">
@@ -118,22 +143,27 @@
     {{!-- ===================== COMBAT ===================== --}}
     <div class="tab" data-tab="combat">
       <div class="mf-panel">
-        <h4>Weapons {{#if editable}}<button type="button" class="add-weapon"><i class="fas fa-plus"></i> Add</button>{{/if}}</h4>
+        <h4>Weapons {{#if editable}}<button type="button" class="fire-weapons" title="Fire several weapons together (one declaration, one card)"><i class="fas fa-crosshairs"></i> Fire…</button> <button type="button" class="physical-attack" title="Charge attack"><i class="fas fa-truck-monster"></i> Charge</button> <button type="button" class="add-weapon"><i class="fas fa-plus"></i> Add</button>{{/if}}</h4>
         <table class="wt">
-          <thead><tr><th class="w-name">Weapon</th><th>Loc</th><th>Dmg</th><th>S</th><th>M</th><th>L</th><th>Ammo Type</th><th>Rds</th><th></th></tr></thead>
+          <thead><tr><th class="w-name">Weapon</th><th>Loc</th><th>Dmg</th><th title="Cluster/launcher size">Clus</th><th title="Minimum range">Min</th><th>S</th><th>M</th><th>L</th><th title="Against conventional infantry: the weapon's row on the Non-Infantry Weapon Damage table (auto guesses from the name)">vs Inf</th><th>Ammo Type</th><th>Rds</th><th></th></tr></thead>
           <tbody>
             {{#each weapons}}
-            <tr>
+            <tr class="w-row{{#if destroyed}} w-destroyed{{/if}}{{#if fired}} w-fired{{/if}}">
               <td class="w-name"><input type="text" class="weapon-field" data-weapon-id="{{id}}" data-field="name" value="{{name}}" placeholder="Weapon" {{#unless ../editable}}disabled{{/unless}} /></td>
               <td><input type="text" class="weapon-field loc" data-weapon-id="{{id}}" data-field="location" value="{{location}}" {{#unless ../editable}}disabled{{/unless}} /></td>
               <td><input type="number" min="0" class="weapon-field n" data-weapon-id="{{id}}" data-field="damage" value="{{damage}}" {{#unless ../editable}}disabled{{/unless}} /></td>
+              <td class="w-clus"><input type="number" min="0" class="weapon-field n" data-weapon-id="{{id}}" data-field="clusterSize" value="{{clusterSize}}" title="Cluster / launcher size (0 = single)" {{#unless ../editable}}disabled{{/unless}} />{{#if clusterSize}}<select class="weapon-field w-grp" data-weapon-id="{{id}}" data-field="clusterGroup" title="Damage grouping: 5-point groups (LRM, MRM, ATM) or each missile / pellet separately (SRM, LB-X)" {{#unless ../editable}}disabled{{/unless}}><option value="" {{#unless clusterGroup}}selected{{/unless}}>auto</option><option value="five" {{#if (eq clusterGroup "five")}}selected{{/if}}>5-pt</option><option value="each" {{#if (eq clusterGroup "each")}}selected{{/if}}>each</option></select>{{/if}}</td>
+              <td><input type="number" min="0" class="weapon-field n" data-weapon-id="{{id}}" data-field="rangeMin" value="{{rangeMin}}" title="Minimum range (0 = none)" {{#unless ../editable}}disabled{{/unless}} /></td>
               <td><input type="number" min="0" class="weapon-field n" data-weapon-id="{{id}}" data-field="rangeS" value="{{rangeS}}" {{#unless ../editable}}disabled{{/unless}} /></td>
               <td><input type="number" min="0" class="weapon-field n" data-weapon-id="{{id}}" data-field="rangeM" value="{{rangeM}}" {{#unless ../editable}}disabled{{/unless}} /></td>
               <td><input type="number" min="0" class="weapon-field n" data-weapon-id="{{id}}" data-field="rangeL" value="{{rangeL}}" {{#unless ../editable}}disabled{{/unless}} /></td>
+              <td><select class="weapon-field w-inf" data-weapon-id="{{id}}" data-field="infClass" {{#unless ../editable}}disabled{{/unless}}><option value="" {{#unless infClass}}selected{{/unless}}>auto</option><option value="direct" {{#if (eq infClass "direct")}}selected{{/if}}>direct</option><option value="clusterBallistic" {{#if (eq infClass "clusterBallistic")}}selected{{/if}}>clus. ball.</option><option value="pulse" {{#if (eq infClass "pulse")}}selected{{/if}}>pulse</option><option value="clusterMissile" {{#if (eq infClass "clusterMissile")}}selected{{/if}}>clus. missile</option><option value="burst" {{#if (eq infClass "burst")}}selected{{/if}}>burst</option><option value="ae" {{#if (eq infClass "ae")}}selected{{/if}}>area</option></select></td>
               <td><input type="text" class="weapon-field" data-weapon-id="{{id}}" data-field="ammoType" value="{{ammoType}}" placeholder="— none —" {{#unless ../editable}}disabled{{/unless}} /></td>
               <td><input type="number" min="0" class="weapon-field n" data-weapon-id="{{id}}" data-field="ammo" value="{{ammo}}" {{#unless ../editable}}disabled{{/unless}} /></td>
               <td class="w-actions">
-                <button type="button" class="weapon-attack" title="Attack"><i class="fas fa-bolt"></i></button>
+                {{#if destroyed}}<span class="w-badge dmg">DESTROYED</span>{{else if malfunction}}<span class="w-badge warn">JAMMED</span>{{#if ../editable}}<a class="clear-malfunction" data-weapon-id="{{id}}" title="Spend this turn's Weapon Attack Phase clearing the malfunction (no weapon attacks)"><i class="fas fa-screwdriver-wrench"></i></a>{{/if}}{{else if outOfAmmo}}<span class="w-badge warn">NO AMMO</span>{{else if fired}}<span class="w-badge">FIRED</span>{{/if}}
+                {{#if ../editable}}{{#unless destroyed}}<button type="button" class="weapon-attack{{#if toHit}} has-tohit{{/if}}" data-weapon-id="{{id}}" title="{{#if fired}}Already fired this turn{{else if outOfAmmo}}Out of ammunition{{else if toHit}}{{toHit.title}}{{else}}Attack (target a token to see the to-hit number){{/if}}" {{#if fired}}disabled{{else if outOfAmmo}}disabled{{else if toHit.oor}}disabled{{/if}}>{{#if toHit}}<span class="w-tohit">{{toHit.text}}</span>{{else}}<i class="fas fa-bolt"></i>{{/if}}</button>{{/unless}}{{/if}}
+                {{#if ../editable}}<a class="toggle-weapon-destroyed" data-weapon-id="{{id}}" title="{{#if destroyed}}Mark repaired{{else}}Mark destroyed{{/if}}"><i class="fas {{#if destroyed}}fa-screwdriver-wrench{{else}}fa-ban{{/if}}"></i></a>{{/if}}
                 {{#if ../editable}}<a class="duplicate-weapon" data-weapon-id="{{id}}" title="Duplicate"><i class="fas fa-clone"></i></a>{{/if}}
                 {{#if ../editable}}<a class="remove-weapon" data-weapon-id="{{id}}" title="Remove"><i class="fas fa-trash"></i></a>{{/if}}
               </td>
@@ -161,6 +191,9 @@
         </table>
         <div class="flags" style="margin-top:8px">
           <label class="chk"><input type="checkbox" name="system.hasTurret" {{checked system.hasTurret}} {{#unless editable}}disabled{{/unless}}> Has Turret</label>
+          <label class="chk" title="An ammunition explosion goes into the rear armor instead (excess ignored) and stuns the crew"><input type="checkbox" name="system.hasCASE" {{checked system.hasCASE}} {{#unless editable}}disabled{{/unless}}> CASE</label>
+          <label class="chk" title="Dedicated cargo / infantry bay (makes Cargo/Infantry Hit crits possible)"><input type="checkbox" name="system.hasCargo" {{checked system.hasCargo}} {{#unless editable}}disabled{{/unless}}> Cargo / infantry bay</label>
+          <label class="chk" title="OmniVehicles carry mechanized battle armor without losing MP; other vehicles need battle armor with magnetic clamps (−1 Cruising MP)"><input type="checkbox" name="system.omni" {{checked system.omni}} {{#unless editable}}disabled{{/unless}}> OmniVehicle</label>
         </div>
       </div>
       <div class="mf-panel">

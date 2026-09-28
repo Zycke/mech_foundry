@@ -12,7 +12,7 @@
 // Import document classes
 import { MechFoundryActor } from "./documents/actor.mjs";
 import { MechFoundryItem } from "./documents/item.mjs";
-import { MechFoundryCombat } from "./documents/combat.mjs";
+import { MechFoundryCombat, MechFoundryCombatant, hasCombatSense } from "./documents/combat.mjs";
 
 // Import sheet classes
 import { MechFoundryActorSheet } from "./sheets/actor-sheet.mjs";
@@ -23,6 +23,7 @@ import { MechFoundryMechSheet } from "./sheets/mech-sheet.mjs";
 import { MechFoundryGroundVehicleSheet } from "./sheets/ground-vehicle-sheet.mjs";
 import { MechFoundryAerospaceFighterSheet } from "./sheets/aerospace-fighter-sheet.mjs";
 import { MechFoundryBattleArmorSheet } from "./sheets/battle-armor-sheet.mjs";
+import { MechFoundryInfantrySheet } from "./sheets/infantry-sheet.mjs";
 import { MechFoundryInstallationSheet } from "./sheets/installation-sheet.mjs";
 
 // Import helper/utility classes
@@ -47,6 +48,12 @@ import { ShopApplication } from "./apps/shop.mjs";
 import { ATOW_SKILLS, ATOW_TRAITS, ATOW_TRAIT_DESCRIPTIONS } from "./data/atow-lists.mjs";
 import { woundDescription, conditionDescription } from "./data/status-descriptions.mjs";
 import { SocketHandler, SOCKET_EVENTS } from "./helpers/socket-handler.mjs";
+import { initGMRelay } from "./helpers/gm-relay.mjs";
+import { registerMovementTracking } from "./helpers/tw-movement.mjs";
+import { registerUnitStatuses } from "./helpers/tw-status.mjs";
+import { registerCombatChat } from "./helpers/tw-chat.mjs";
+import { registerToHitRefresh } from "./sheets/unit-sheet.mjs";
+import { registerMegaMekImport } from "./helpers/megamek-import-ui.mjs";
 import { OpposedRollHelper } from "./helpers/opposed-rolls.mjs";
 import { DiceMechanics } from "./helpers/dice-mechanics.mjs";
 import { ItemEffectsHelper, EFFECT_CATEGORIES, getEffectTypeOptions } from "./helpers/effects-helper.mjs";
@@ -63,6 +70,8 @@ Hooks.once('init', function() {
     MechFoundryActor,
     MechFoundryItem,
     DiceMechanics,
+    /** Fire a Total Warfare area attack (Scene Region blast) — GM tool. */
+    areaAttack: () => import("./helpers/tw-combat.mjs").then(m => m.areaAttack()),
     ItemEffectsHelper,
     EFFECT_CATEGORIES,
     getEffectTypeOptions,
@@ -118,6 +127,7 @@ Hooks.once('init', function() {
   CONFIG.Actor.documentClass = MechFoundryActor;
   CONFIG.Item.documentClass = MechFoundryItem;
   CONFIG.Combat.documentClass = MechFoundryCombat;
+  CONFIG.Combatant.documentClass = MechFoundryCombatant;
 
   // Token bar attributes for combat units: the derived Total Armor / Total
   // Structure pools (bars) plus heat as a trackable single value. These appear
@@ -170,6 +180,11 @@ Hooks.once('init', function() {
     types: ["battle_armor"],
     makeDefault: true,
     label: "MECHFOUNDRY.SheetBattleArmor"
+  });
+  ActorsCollection.registerSheet("mech-foundry", MechFoundryInfantrySheet, {
+    types: ["infantry"],
+    makeDefault: true,
+    label: "MECHFOUNDRY.SheetInfantry"
   });
   ActorsCollection.registerSheet("mech-foundry", MechFoundryInstallationSheet, {
     types: ["installation"],
@@ -235,6 +250,7 @@ Hooks.once('ready', async function() {
 
   // Initialize socket handler for cross-player communication
   SocketHandler.initialize();
+  initGMRelay();
   ShopApplication.initSocket();
 
   // Make OpposedRollHelper available globally
@@ -497,6 +513,17 @@ function _registerHandlebarsHelpers() {
 /* -------------------------------------------- */
 
 function _registerSystemSettings() {
+  // Let players' attacks damage units they don't own by relaying the write through
+  // the active GM's client (see helpers/gm-relay.mjs).
+  game.settings.register("mech-foundry", "gmDamageRelay", {
+    name: "MECHFOUNDRY.SettingGMDamageRelay",
+    hint: "MECHFOUNDRY.SettingGMDamageRelayHint",
+    scope: "world",
+    config: true,
+    type: Boolean,
+    default: true
+  });
+
   // Whether to show roll details in chat
   game.settings.register("mech-foundry", "showRollDetails", {
     name: "MECHFOUNDRY.SettingShowRollDetails",
@@ -556,6 +583,17 @@ function _registerSystemSettings() {
 /*  Combat Hooks                                */
 /* -------------------------------------------- */
 
+// Total Warfare: per-turn hexes moved, from token moves during combat.
+registerMovementTracking();
+// Token status icons mirror unit conditions (prone, shut down, PSR pending…).
+registerUnitStatuses();
+// Roll PSR / Apply / Undo buttons on combat chat cards.
+registerCombatChat();
+// Weapon rows show to-hit vs the current target; keep them fresh.
+Hooks.once("ready", () => registerToHitRefresh());
+// "Import MegaMek Units" button in the Actors sidebar.
+registerMegaMekImport();
+
 // Override initiative formula
 Hooks.once("init", function() {
   CONFIG.Combat.initiative = {
@@ -569,13 +607,8 @@ Hooks.on("preCreateCombatant", (combatant, data, options, userId) => {
   const actor = combatant.actor;
   if (!actor) return;
 
-  // Check for Combat Sense trait
-  const hasCombatSense = actor.items.some(i =>
-    i.type === 'trait' &&
-    i.name.toLowerCase().includes('combat sense')
-  );
-
-  if (hasCombatSense) {
+  // Check for Combat Sense trait (a combat unit uses its linked warrior's)
+  if (hasCombatSense(actor)) {
     // preCreate hooks are NOT awaited by Foundry, so the roll must be evaluated
     // synchronously for updateSource to affect the persisted document.
     // Roll 3d6 and keep the highest 2.
@@ -587,6 +620,48 @@ Hooks.on("preCreateCombatant", (combatant, data, options, userId) => {
 // Initiative ties are broken by RFL in MechFoundryCombat#_sortCombatants
 // (see documents/combat.mjs) — sorting the derived combat.turns array here
 // would have no persistent effect.
+
+// A new round (or the end of combat) resets "fired this turn": refresh open
+// unit sheets so their weapon badges and Attack buttons update.
+function refreshCombatantSheets(combat) {
+  for (const c of combat?.combatants ?? []) {
+    const sheet = c.actor?.sheet;
+    if (sheet?.rendered) sheet.render(false);
+  }
+}
+Hooks.on("updateCombat", (combat, changes) => { if ("round" in changes) refreshCombatantSheets(combat); });
+Hooks.on("deleteCombat", (combat) => refreshCombatantSheets(combat));
+
+// Total Warfare turn-phase bar in the combat tracker.
+Hooks.on("renderCombatTracker", (app, html) => {
+  const combat = game.combat;
+  if (!combat || typeof combat.nextPhase !== "function") return;
+  const el = html instanceof HTMLElement ? html : html?.[0];
+  if (!el || el.querySelector(".tw-phase-bar")) return;
+  const bar = document.createElement("div");
+  bar.className = "tw-phase-bar";
+  bar.innerHTML = `<span class="tw-phase-label">Phase: <strong>${combat.phaseName}</strong></span>` +
+    (game.user.isGM ? `<button type="button" class="tw-next-phase"><i class="fas fa-forward-step"></i> Next Phase</button>` : "");
+  el.prepend(bar);
+  bar.querySelector(".tw-next-phase")?.addEventListener("click", () => combat.nextPhase());
+});
+
+// Total Warfare area-attack tool in the token scene controls (GM only).
+Hooks.on("getSceneControlButtons", (controls) => {
+  if (!game.user.isGM) return;
+  const tokenCtl = Array.isArray(controls) ? controls.find(c => c.name === "token") : controls?.token;
+  const tool = {
+    name: "twAreaAttack",
+    title: "Area Attack (Total Warfare)",
+    icon: "fa-solid fa-burst",
+    button: true,
+    onClick: () => game.mechfoundry?.areaAttack?.(),
+    onChange: () => game.mechfoundry?.areaAttack?.()
+  };
+  if (!tokenCtl) return;
+  if (Array.isArray(tokenCtl.tools)) tokenCtl.tools.push(tool);
+  else if (tokenCtl.tools && typeof tokenCtl.tools === "object") tokenCtl.tools[tool.name] = tool;
+});
 
 // Reset firstAidUsedThisCombat when combat ends
 Hooks.on("deleteCombat", async (combat) => {
@@ -729,8 +804,11 @@ Hooks.on("combatRound", async (combat, updateData, updateOptions) => {
 /*  Chat Message Hooks                          */
 /* -------------------------------------------- */
 
-// Handle Apply Damage buttons and Defender Choice buttons in chat messages
-Hooks.on('renderChatMessage', (message, html, data) => {
+// Handle Apply Damage buttons and Defender Choice buttons in chat messages.
+// v13+ passes an HTMLElement to renderChatMessageHTML (renderChatMessage, which
+// passed jQuery, is deprecated); wrap it so the handlers below stay unchanged.
+Hooks.on('renderChatMessageHTML', (message, element, data) => {
+  const html = $(element);
   // Apply Damage button handler
   html.find('.apply-damage').click(async (event) => {
     event.preventDefault();
@@ -956,7 +1034,7 @@ Hooks.on('updateActor', async (actor, changes, options, userId) => {
  * Runs on every client (rendering is local), so no user guard.
  */
 Hooks.on('updateActor', (actor, changes) => {
-  if (!['mech', 'ground_vehicle', 'aerospace_fighter'].includes(actor.type)) return;
+  if (!['mech', 'ground_vehicle', 'aerospace_fighter', 'small_craft'].includes(actor.type)) return;
   const sys = changes?.system;
   if (!sys || !('armor' in sys || 'structure' in sys || 'structuralIntegrity' in sys)) return;
   for (const company of game.actors) {

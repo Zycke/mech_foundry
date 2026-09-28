@@ -10,6 +10,7 @@
       "aerospace_fighter",
       "small_craft",
       "battle_armor",
+      "infantry",
       "installation"
     ],
     "templates": {
@@ -319,6 +320,7 @@
       "tonnage": 0,
       "weightClass": "",
       "techBase": "",
+      "omni": false,
       "era": "",
       "movement": {
         "walk": 0,
@@ -422,6 +424,16 @@
         "sensors": 0,
         "lifeSupport": 0
       },
+      "critSlots": {
+        "head": [],
+        "ct": [],
+        "lt": [],
+        "rt": [],
+        "la": [],
+        "ra": [],
+        "ll": [],
+        "rl": []
+      },
       "conditions": {
         "shutdown": false,
         "prone": false
@@ -432,7 +444,9 @@
         "gunnery": 4,
         "piloting": 5,
         "hits": 0,
-        "actorId": ""
+        "actorId": "",
+        "unconscious": false,
+        "unconsciousKey": ""
       }
     },
     "ground_vehicle": {
@@ -440,6 +454,7 @@
       "weightClass": "",
       "tonnage": 0,
       "techBase": "",
+      "omni": false,
       "era": "",
       "movementType": "tracked",
       "movement": {
@@ -491,11 +506,22 @@
         "stabLeft": false,
         "stabRight": false,
         "stabRear": false,
-        "stabTurret": false
+        "stabTurret": false,
+        "motiveHalvings": 0,
+        "motiveMinor": false,
+        "motiveModerate": false,
+        "motiveHeavy": false,
+        "motiveDriving": 0,
+        "turretJams": 0,
+        "flightStabilizer": false
       },
       "conditions": {
         "immobile": false,
-        "turretJammed": false
+        "turretJammed": false,
+        "stunned": false,
+        "stunFrom": 0,
+        "stunnedThrough": 0,
+        "crewKilled": false
       },
       "elevation": 0,
       "crew": {
@@ -504,9 +530,12 @@
         "driving": 5,
         "driverHit": false,
         "commanderHit": false,
-        "actorId": ""
+        "actorId": "",
+        "coPilotHit": false
       },
-      "weapons": []
+      "weapons": [],
+      "hasCASE": false,
+      "hasCargo": false
     },
     "aerospace_fighter": {
       "biography": "",
@@ -568,7 +597,8 @@
       "flight": {
         "velocity": 0,
         "altitude": 0,
-        "thrustSpent": 0
+        "thrustSpent": 0,
+        "inAtmosphere": false
       },
       "conditions": {
         "shutdown": false,
@@ -579,9 +609,13 @@
         "gunnery": 4,
         "piloting": 5,
         "hits": 0,
-        "actorId": ""
+        "actorId": "",
+        "unconscious": false,
+        "unconsciousKey": ""
       },
-      "weapons": []
+      "weapons": [],
+      "omni": false,
+      "hasCASE": false
     },
     "small_craft": {
       "biography": "",
@@ -643,7 +677,8 @@
       "flight": {
         "velocity": 0,
         "altitude": 0,
-        "thrustSpent": 0
+        "thrustSpent": 0,
+        "inAtmosphere": false
       },
       "conditions": {
         "shutdown": false,
@@ -654,14 +689,87 @@
         "gunnery": 4,
         "piloting": 5,
         "hits": 0,
-        "actorId": ""
+        "actorId": "",
+        "unconscious": false,
+        "unconsciousKey": ""
       },
-      "weapons": []
+      "weapons": [],
+      "omni": false,
+      "hasCASE": false
     },
     "battle_armor": {
       "biography": "",
       "squadSize": 0,
       "armorType": "",
+      "techBase": "is",
+      "weightClass": "medium",
+      "chassis": "humanoid",
+      "armorValue": 0,
+      "troopers": [],
+      "movement": {
+        "ground": 1,
+        "jump": 0,
+        "vtol": 0,
+        "umu": 0
+      },
+      "manipulators": {
+        "left": "none",
+        "right": "none"
+      },
+      "equipment": {
+        "stealth": "none",
+        "mimetic": false,
+        "camo": false,
+        "fireResistant": false,
+        "magneticClamps": false,
+        "bodyMissiles": false,
+        "missilesJettisoned": false
+      },
+      "crew": {
+        "name": "",
+        "gunnery": 4,
+        "antiMech": 5,
+        "actorId": ""
+      },
+      "attached": {
+        "uuid": "",
+        "mode": "",
+        "key": ""
+      },
+      "era": "",
+      "cost": 0,
+      "bv": 0,
+      "weapons": []
+    },
+    "infantry": {
+      "biography": "",
+      "techBase": "is",
+      "platoonType": "foot",
+      "mechanizedType": "tracked",
+      "weaponType": "rifleBallistic",
+      "troopers": {
+        "value": 28,
+        "max": 28,
+        "wound": 0
+      },
+      "movement": {
+        "ground": 1,
+        "jump": 0
+      },
+      "crew": {
+        "name": "",
+        "gunnery": 4,
+        "antiMech": 5,
+        "actorId": ""
+      },
+      "attached": {
+        "uuid": "",
+        "mode": "",
+        "key": ""
+      },
+      "era": "",
+      "cost": 0,
+      "bv": 0,
       "weapons": []
     },
     "installation": {

@@ -118,6 +118,8 @@ export function cargoFree(actor) {
 /* -------------------------------------------- */
 
 /** Each combat vehicle actor type → the cubicle component types that hold it. */
+// Cubicle types auto-filled from MTOE units. Small Craft Cubicles are deliberately
+// absent: small craft aren't MTOE-assignable, so they use the bay's manual dropdown.
 export const VEHICLE_CUBICLE_TYPES = {
   aerospace_fighter: ['aeroCubicle'],
   mech: ['mechCubicle'],

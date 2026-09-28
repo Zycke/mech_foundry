@@ -11,11 +11,13 @@ export const preloadHandlebarsTemplates = async function() {
     "systems/mech-foundry/templates/actor/actor-company-sheet.hbs",
     "systems/mech-foundry/templates/actor/actor-naval_ship-sheet.hbs",
     "systems/mech-foundry/templates/actor/parts/ship-arc-weapons.hbs",
+    "systems/mech-foundry/templates/actor/parts/attached-infantry.hbs",
     "systems/mech-foundry/templates/actor/actor-unit-sheet.hbs",
     "systems/mech-foundry/templates/actor/actor-mech-sheet.hbs",
     "systems/mech-foundry/templates/actor/actor-ground_vehicle-sheet.hbs",
     "systems/mech-foundry/templates/actor/actor-aerospace_fighter-sheet.hbs",
     "systems/mech-foundry/templates/actor/actor-battle_armor-sheet.hbs",
+    "systems/mech-foundry/templates/actor/actor-infantry-sheet.hbs",
     "systems/mech-foundry/templates/actor/actor-installation-sheet.hbs",
 
     // Item sheets
@@ -49,6 +51,10 @@ export const preloadHandlebarsTemplates = async function() {
     // Chat partials
     "systems/mech-foundry/templates/chat/skill-roll.hbs",
     "systems/mech-foundry/templates/chat/weapon-attack.hbs",
+    "systems/mech-foundry/templates/chat/tw-attack.hbs",
+    "systems/mech-foundry/templates/chat/parts/tw-hit-result.hbs",
+    "systems/mech-foundry/templates/chat/tw-heat.hbs",
+    "systems/mech-foundry/templates/chat/tw-psr.hbs",
     "systems/mech-foundry/templates/chat/aoe-attack.hbs",
     "systems/mech-foundry/templates/chat/opposed-roll.hbs",
 

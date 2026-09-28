@@ -139,6 +139,133 @@ steps, commit path). Needs runtime testing on a live v14 world (per §0).
 
 ---
 
+## 7. Combat automation (Total Warfare) — open questions & not-automated systems
+
+Rules detail for what *is* automated lives in `docs/unit-sheet-design.md`.
+
+### 7a. Open rules questions (answers pending — the user is looking them up)
+
+- [?] **Aerospace heat-scale avoid numbers** — not in the pages supplied; taken from the
+      standard Aerospace Fighter record-sheet heat scale. One table in code
+      (`AERO_HEAT` in `module/helpers/tw-aero-flight.mjs`):
+      - Random movement avoid: 5+ at 5 heat, 6+ at 10, 7+ at 15, 8+ at 20, 10+ at 25.
+      - Pilot damage avoid: 6+ at 21 heat, 9+ at 27.
+- [?] **Ambiguous table readings** (current interpretation in parentheses):
+      - Control Roll Table "Above 2× Safe Thrust: +1 per velocity point above 2× Safe
+        Thrust" (uses the *thrust spent this turn*, not velocity).
+      - Atmospheric Control Modifiers "+1 per 20 points of damage" (counts *each attack's*
+        damage separately, not the turn's total).
+      - Linked pilot's aero heat damage (uses the AToW crew-damage table's *pilot-hit* row,
+        1B/3).
+      - Minor: Straight Movement Table has no small-craft column (small craft use the
+        *aerodyne DropShip* column); Landing terrain modifiers "halved" for vertical
+        landings (rounded *toward zero*).
+- [?] **Battle armor readings** (current interpretation in parentheses):
+      - TW's Golem example says 25 missiles on a roll of 7 give 14 hits; the Cluster Hits
+        Table supplied gives 16 (*the table is used*).
+      - "Determine a hit location separately for each missile hit" (every battle armor
+        missile hit — LRMs included — rolls its own location; a weapon can be set to 5-point
+        groups instead).
+      - Anti-'Mech Skill for a linked character (*Piloting/Battlesuit*); battle armor Gunnery
+        uses Gunnery/Battlesuit.
+      - Vibro-claws and magnetic claws count as battle claws for anti-'Mech eligibility (TW
+        lists their anti-'Mech effects but only names basic manipulators, battle claws and
+        armored gloves as enabling the attacks).
+      - Swarm damage to a vehicle: no automatic critical roll (the "roll once on the
+        Determining Critical Hits Table" text is for 'Mechs); the vehicle's own crit rules
+        apply. Random side column: 1D6 1–2 front, 3 left, 4 right, 5–6 rear.
+      - A conventional platoon hit while swarming takes the whole damage group (battle armor:
+        one trooper absorbs up to its capacity, the rest goes to the unit).
+- [?] **Conventional infantry readings** (current interpretation in parentheses):
+      - "Clear terrain" doubling (applies when the fire dialog has the target in the open with no
+        partial cover).
+      - Battle armor non-missile weapons against a platoon (each trooper's hit is a separate
+        Non-Infantry-table hit at the weapon's damage); burst-fire weapons not on either subtable
+        (2D6).
+      - Anti-'Mech Skill for a linked character (not derived — entered on the sheet); platoon
+        Gunnery from Small Arms.
+- [?] **Cluster weapons against aerospace units** — damage is grouped as on the ground
+      (5-point groups for LRM / MRM / ATM, per missile / pellet for SRM / LB-X). Confirm
+      whether fighters and small craft should take cluster damage differently.
+
+### 7b. Not automated (candidates to automate later)
+
+**Map / movement**
+- [ ] Elevation and level differences (physical attacks by level, LOS, falls into lower
+      hexes — the Fall… button takes levels by hand).
+- [ ] Firing arcs and automatic attack direction from token facing; torso twists,
+      rear-mounted weapons, turret arcs.
+- [ ] Token displacement: pushes, charges, death from above, skids, sideslips (chat card
+      tells players what to move).
+- [ ] Movement enforcement (MP limits per mode), out-of-phase warnings, a GM phase
+      checklist (who hasn't moved / fired / resolved heat, "Resolve heat for all").
+- [ ] Terrain detection from the map (woods, water, pavement, buildings) — dialog inputs today.
+- [ ] Buildings: movement, damage absorption, collapse, building PSRs.
+- [ ] Water / underwater, hull down, life support while submerged; hover vehicles sinking
+      when immobilized over water.
+- [ ] Motive-damage timing (TW applies it at the end of the phase; applied immediately).
+- [ ] Crew Stunned "no faster than Cruising" and Flight Stabilizer "Cruising only" (noted,
+      not enforced).
+
+**Weapons & equipment**
+- [ ] Per-weapon special rules: pulse (−2), Streak, Ultra / Rotary AC rate of fire and
+      jams, LB-X ammo switching, Artemis, AMS, flamer heat, one-shot, Narc / TAG.
+- [ ] Explosive components (Gauss rifles) and vehicle "Weapon Destroyed" explosions.
+- [ ] Indirect fire / artillery / spotting; C3, ECM.
+- [ ] Aimed shots against immobile targets.
+- [ ] MASC, superchargers, TSM.
+- [ ] Ammo bins in crit slots vs. the weapon's pooled ammo count (bin size from Shots/Ton).
+
+**'Mechs**
+- [ ] Four-legged 'Mechs; IndustrialMechs; small cockpits (+1 PSR); heavy-duty gyros;
+      fission-engine radiation.
+- [ ] Physical-attack restrictions while prone; wrecking ball self-hit on a 2; spot welder
+      +2 heat.
+
+**Vehicles**
+- [ ] Cargo / Infantry Hit (card note only).
+- [ ] Physical attacks against flying VTOLs (table not supplied).
+
+**Aerospace**
+- [ ] Aero token movement on the map (velocity, facing, straight-movement enforcement);
+      the high-altitude map; re-entry.
+- [ ] Ramming damage (to-hit table supplied, damage not).
+- [ ] Strafing every hex along a flight path (one target per shot today).
+- [ ] Stalling / altitude loss in atmosphere; shutdown drift in space; failed vertical
+      landing crashes.
+- [ ] Capital missiles; large craft (DropShips / WarShips: arc heat, bays); conventional
+      fighters; VSTOL gating for VIFF / vertical landings.
+
+**Other units & setup**
+- [ ] Conventional infantry details: heat-effect weapons (infernos) and flamer heat, heavy-burst /
+      point-blank / anti-aircraft / non-penetrating platoon features (TechManual), field guns,
+      burst-fire against infantry in buildings, mechanized platoon movement types and prohibited
+      terrain, battle armor vibro-claw melee against infantry, custom (non-generic) platoons.
+- [ ] Infantry carriers: cargo bays, mounting / dismounting, the Infantry Destroyed if Carrying
+      Unit Destroyed Table, Cargo / Infantry Hit crits, damage from the carrier's movement.
+- [ ] Mechanized battle armor details: MP / timing limits on mounting (all MP spent, not the
+      carrier's last MP), riders not counting for initiative or stacking, weapons spanning several
+      locations, ammo dumping, trailers / Large Support Vehicles (two units), moving rider tokens
+      with the carrier, carrier destroyed in prohibited terrain.
+- [ ] Anti-'Mech details: four-legged 'Mech swarm location column, IndustrialMech −1 (use Other),
+      aimed shots on immobile targets, arms mounting physical weapons (the Pull off… dialog
+      leaves that to the player), water (swarmers without UMU drowned), stacking / domino
+      effects, moving the swarmer's token with the 'Mech, TAG + anti-'Mech in one turn.
+- [ ] Battle armor: bomb racks, pop-up mines, Narc, squad support weapons, inferno
+      self-detonation, torpedoes / multi-purpose missiles, UMU / VTOL movement rules,
+      jettisoning launchers as an action.
+- [ ] Importer follow-ups: equipment effects the importer only lists (Artemis IV/V cluster
+      bonus, MASC / TSM / superchargers, targeting computers, ECM / probes, C3, A-Pods, PPC
+      capacitors), physical weapons (hatchets, swords) into the physical-attack dialog, quad /
+      tripod / LAM 'Mechs, superheavy and dual-turret vehicles, support vehicle BAR, DropShips and
+      larger craft, field guns and custom infantry weapons, variable-damage weapons (Heavy Gauss,
+      VSP, Snub-nose PPC import with 0 damage), one-shot launchers, per-bin ammunition (bins are
+      pooled per weapon), per-location vehicle structure, re-importing over an existing actor, a
+      compendium of common designs.
+- [ ] Damage log / struck-location highlight on the unit sheets.
+
+---
+
 ## Done this engagement (for reference)
 
 - v14 compat: namespaced APIs (`renderTemplate`, `measurePath`, chat `rolls`), AOE →

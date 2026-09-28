@@ -32,6 +32,14 @@
 
     {{!-- ===================== STATUS ===================== --}}
     <div class="tab" data-tab="status">
+      {{> "systems/mech-foundry/templates/actor/parts/attached-infantry.hbs" ai=attachedInfantry kind="mech" editable=editable}}
+      {{#if psrPending}}
+      <div class="mf-psr-banner">
+        <i class="fas fa-person-falling"></i>
+        <span class="t">Piloting Skill Roll required: {{#each psrPending}}{{this}}{{#unless @last}}, {{/unless}}{{/each}}</span>
+        {{#if editable}}<button type="button" class="psr-roll"><i class="fas fa-dice"></i> Roll PSR</button>{{/if}}
+      </div>
+      {{/if}}
       <div class="mf-panel">
         <h4>Armor / Structure <span class="hint">A = armor · S = internal · current / max</span></h4>
         <div class="mech-map">
@@ -62,7 +70,7 @@
 
       <div class="mf-grid2">
         <div class="mf-panel">
-          <h4>Heat</h4>
+          <h4>Heat {{#if editable}}<button type="button" class="resolve-heat"><i class="fas fa-fire"></i> Resolve</button>{{/if}}</h4>
           <div class="heat">
             <div class="scale"><div class="fill" style="height: {{heat.pct}}%"></div></div>
             <div class="readout">
@@ -86,10 +94,27 @@
             <div class="mf-stat"><span class="k">Run</span><span class="v derived">{{movement.run}}</span></div>
             <label class="mf-stat"><span class="k">Jump</span><input type="number" min="0" name="system.movement.jump" value="{{movement.jump}}" {{#unless editable}}disabled{{/unless}} /></label>
           </div>
+          {{#if movement.effective.reduced}}
+          <div class="mf-effmp" title="Current MP after damage and heat">Now: Walk <strong>{{movement.effective.walk}}</strong> · Run <strong>{{movement.effective.run}}</strong> · Jump <strong>{{movement.effective.jump}}</strong> <span class="hint">({{#each movement.effective.notes}}{{this}}{{#unless @last}}, {{/unless}}{{/each}})</span></div>
+          {{/if}}
           <div class="flags">
             <label class="chk"><input type="checkbox" name="system.conditions.shutdown" {{checked conditions.shutdown}} {{#unless editable}}disabled{{/unless}}> Shutdown</label>
             <label class="chk"><input type="checkbox" name="system.conditions.prone" {{checked conditions.prone}} {{#unless editable}}disabled{{/unless}}> Prone</label>
           </div>
+          {{#if editable}}
+          <div class="mf-actions">
+            {{#if conditions.prone}}<button type="button" class="stand-up" title="Piloting Skill Roll to stand (+1 heat)"><i class="fas fa-person-arrow-up-from-line"></i> Stand</button>{{/if}}
+            <button type="button" class="mech-fall" title="Resolve a fall (damage, facing, warrior roll)"><i class="fas fa-person-falling"></i> Fall…</button>
+            <button type="button" class="skid-check" title="Running and turned on pavement, about to enter a new hex: Piloting Skill Roll to avoid skidding"><i class="fas fa-road"></i> Skid…</button>
+          </div>
+          {{/if}}
+          {{#if turnMove}}
+          <div class="mf-turnmove" title="Used for attack modifiers and heat. Hexes add up automatically as the token moves during combat.">
+            <span class="k">This turn</span>
+            <select class="turn-move-field" data-field="mode" {{#unless editable}}disabled{{/unless}}>{{#each turnMove.modes}}<option value="{{key}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select>
+            <input type="number" min="0" class="turn-move-field" data-field="hexes" value="{{turnMove.hexes}}" {{#unless editable}}disabled{{/unless}} /><span class="k">hexes</span>
+          </div>
+          {{/if}}
         </div>
       </div>
 
@@ -111,6 +136,13 @@
             <div class="consc" title="Consciousness / pilot hits">
               {{#each pilot.pips}}<span class="consc-pip {{#if this}}taken{{/if}}" data-level="{{add @index 1}}">{{add @index 1}}</span>{{/each}}
             </div>
+            <div class="consc-state">
+              {{#if pilot.dead}}<span class="w-badge dmg">KILLED</span>
+              {{else if pilot.unconscious}}<span class="w-badge dmg">UNCONSCIOUS</span>
+                {{#if editable}}{{#unless pilotLinked}}<button type="button" class="wake-roll" title="Consciousness roll to wake"><i class="fas fa-dice"></i> Wake roll</button>{{/unless}}{{/if}}
+              {{/if}}
+              {{#unless pilotLinked}}<label class="chk" title="Unconscious (Warrior Consciousness Table)"><input type="checkbox" name="system.pilot.unconscious" {{checked pilot.unconscious}} {{#unless editable}}disabled{{/unless}}> Out</label>{{/unless}}
+            </div>
           </div>
           <div class="skillpair">
             <div class="sk {{#if pilot.gunneryDerived}}derived{{/if}}"><span class="k">Gun</span>
@@ -129,25 +161,30 @@
     {{!-- ===================== COMBAT ===================== --}}
     <div class="tab" data-tab="combat">
       <div class="mf-panel">
-        <h4>Weapons {{#if editable}}<button type="button" class="add-weapon"><i class="fas fa-plus"></i> Add</button>{{/if}}</h4>
+        <h4>Weapons {{#if editable}}<button type="button" class="fire-weapons" title="Fire several weapons together (one declaration, one card)"><i class="fas fa-crosshairs"></i> Fire…</button> <button type="button" class="physical-attack" title="Physical attack: punch, kick, club, push, charge, death from above"><i class="fas fa-hand-fist"></i> Physical</button> <button type="button" class="add-weapon"><i class="fas fa-plus"></i> Add</button>{{/if}}</h4>
         <table class="wt">
           <thead>
-            <tr><th class="w-name">Weapon</th><th>Loc</th><th>Ht</th><th>Dmg</th><th>S</th><th>M</th><th>L</th><th>Ammo Type</th><th>Rds</th><th></th></tr>
+            <tr><th class="w-name">Weapon</th><th>Loc</th><th>Ht</th><th>Dmg</th><th title="Cluster/launcher size">Clus</th><th title="Minimum range">Min</th><th>S</th><th>M</th><th>L</th><th title="Against conventional infantry: the weapon's row on the Non-Infantry Weapon Damage table (auto guesses from the name)">vs Inf</th><th>Ammo Type</th><th>Rds</th><th></th></tr>
           </thead>
           <tbody>
             {{#each weapons}}
-            <tr>
+            <tr class="w-row{{#if destroyed}} w-destroyed{{/if}}{{#if fired}} w-fired{{/if}}">
               <td class="w-name"><input type="text" class="weapon-field" data-weapon-id="{{id}}" data-field="name" value="{{name}}" placeholder="Weapon" {{#unless ../editable}}disabled{{/unless}} /></td>
               <td><input type="text" class="weapon-field loc" data-weapon-id="{{id}}" data-field="location" value="{{location}}" {{#unless ../editable}}disabled{{/unless}} /></td>
               <td><input type="number" min="0" class="weapon-field n" data-weapon-id="{{id}}" data-field="heat" value="{{heat}}" {{#unless ../editable}}disabled{{/unless}} /></td>
               <td><input type="number" min="0" class="weapon-field n" data-weapon-id="{{id}}" data-field="damage" value="{{damage}}" {{#unless ../editable}}disabled{{/unless}} /></td>
+              <td class="w-clus"><input type="number" min="0" class="weapon-field n" data-weapon-id="{{id}}" data-field="clusterSize" value="{{clusterSize}}" title="Cluster / launcher size (0 = single)" {{#unless ../editable}}disabled{{/unless}} />{{#if clusterSize}}<select class="weapon-field w-grp" data-weapon-id="{{id}}" data-field="clusterGroup" title="Damage grouping: 5-point groups (LRM, MRM, ATM) or each missile / pellet separately (SRM, LB-X)" {{#unless ../editable}}disabled{{/unless}}><option value="" {{#unless clusterGroup}}selected{{/unless}}>auto</option><option value="five" {{#if (eq clusterGroup "five")}}selected{{/if}}>5-pt</option><option value="each" {{#if (eq clusterGroup "each")}}selected{{/if}}>each</option></select>{{/if}}</td>
+              <td><input type="number" min="0" class="weapon-field n" data-weapon-id="{{id}}" data-field="rangeMin" value="{{rangeMin}}" title="Minimum range (0 = none)" {{#unless ../editable}}disabled{{/unless}} /></td>
               <td><input type="number" min="0" class="weapon-field n" data-weapon-id="{{id}}" data-field="rangeS" value="{{rangeS}}" {{#unless ../editable}}disabled{{/unless}} /></td>
               <td><input type="number" min="0" class="weapon-field n" data-weapon-id="{{id}}" data-field="rangeM" value="{{rangeM}}" {{#unless ../editable}}disabled{{/unless}} /></td>
               <td><input type="number" min="0" class="weapon-field n" data-weapon-id="{{id}}" data-field="rangeL" value="{{rangeL}}" {{#unless ../editable}}disabled{{/unless}} /></td>
+              <td><select class="weapon-field w-inf" data-weapon-id="{{id}}" data-field="infClass" {{#unless ../editable}}disabled{{/unless}}><option value="" {{#unless infClass}}selected{{/unless}}>auto</option><option value="direct" {{#if (eq infClass "direct")}}selected{{/if}}>direct</option><option value="clusterBallistic" {{#if (eq infClass "clusterBallistic")}}selected{{/if}}>clus. ball.</option><option value="pulse" {{#if (eq infClass "pulse")}}selected{{/if}}>pulse</option><option value="clusterMissile" {{#if (eq infClass "clusterMissile")}}selected{{/if}}>clus. missile</option><option value="burst" {{#if (eq infClass "burst")}}selected{{/if}}>burst</option><option value="ae" {{#if (eq infClass "ae")}}selected{{/if}}>area</option></select></td>
               <td><input type="text" class="weapon-field" data-weapon-id="{{id}}" data-field="ammoType" value="{{ammoType}}" placeholder="— none —" {{#unless ../editable}}disabled{{/unless}} /></td>
               <td><input type="number" min="0" class="weapon-field n" data-weapon-id="{{id}}" data-field="ammo" value="{{ammo}}" {{#unless ../editable}}disabled{{/unless}} /></td>
               <td class="w-actions">
-                <button type="button" class="weapon-attack" title="Attack"><i class="fas fa-bolt"></i></button>
+                {{#if destroyed}}<span class="w-badge dmg">DESTROYED</span>{{else if outOfAmmo}}<span class="w-badge warn">NO AMMO</span>{{else if fired}}<span class="w-badge">FIRED</span>{{/if}}
+                {{#if ../editable}}{{#unless destroyed}}<button type="button" class="weapon-attack{{#if toHit}} has-tohit{{/if}}" data-weapon-id="{{id}}" title="{{#if fired}}Already fired this turn{{else if outOfAmmo}}Out of ammunition{{else if toHit}}{{toHit.title}}{{else}}Attack (target a token to see the to-hit number){{/if}}" {{#if fired}}disabled{{else if outOfAmmo}}disabled{{else if toHit.oor}}disabled{{/if}}>{{#if toHit}}<span class="w-tohit">{{toHit.text}}</span>{{else}}<i class="fas fa-bolt"></i>{{/if}}</button>{{/unless}}{{/if}}
+                {{#if ../editable}}<a class="toggle-weapon-destroyed" data-weapon-id="{{id}}" title="{{#if destroyed}}Mark repaired{{else}}Mark destroyed{{/if}}"><i class="fas {{#if destroyed}}fa-screwdriver-wrench{{else}}fa-ban{{/if}}"></i></a>{{/if}}
                 {{#if ../editable}}<a class="duplicate-weapon" data-weapon-id="{{id}}" title="Duplicate"><i class="fas fa-clone"></i></a>{{/if}}
                 {{#if ../editable}}<a class="remove-weapon" data-weapon-id="{{id}}" title="Remove"><i class="fas fa-trash"></i></a>{{/if}}
               </td>
@@ -190,8 +227,39 @@
         </div>
       </div>
       <div class="mf-panel">
-        <h4>Per-Location Criticals <span class="hint">detailed critical-slot lists arrive in a follow-up</span></h4>
-        <p class="logi-note">Head · Center Torso · L/R Torso · L/R Arm · L/R Leg — each will expand to its critical-slot list.</p>
+        <h4>Critical Slots <span class="hint">combat auto-resolves crits against these</span>
+          {{#if editable}}<button type="button" class="init-critslots"><i class="fas fa-wrench"></i> Init standard</button>{{/if}}
+        </h4>
+        {{#if hasCritSlots}}
+        <div class="critslot-grid">
+          {{#each critSlotLocations}}
+          <div class="critslot-loc">
+            <div class="csl-head">{{this.label}}</div>
+            {{#if this.slots.length}}
+            {{#each this.slots}}
+            <div class="csl-row {{#if this.hit}}hit{{/if}}">
+              <span class="csl-idx">{{this.index}}</span>
+              {{#if this.linkable}}
+              <select class="critslot-field csl-name" data-loc="{{../key}}" data-index="{{subtract this.index 1}}" data-field="weaponId" title="{{#if (eq this.type "ammo")}}Which weapon this ammunition feeds (sets the explosion damage){{else}}Which weapon this slot holds{{/if}}" {{#unless ../../editable}}disabled{{/unless}}>
+                <option value="">{{#if this.name}}{{this.name}} (unlinked){{else}}— pick weapon —{{/if}}</option>
+                {{#each this.options}}<option value="{{this.id}}" {{#if this.selected}}selected{{/if}}>{{this.label}}</option>{{/each}}
+              </select>
+              {{else}}
+              <input type="text" class="critslot-field csl-name" data-loc="{{../key}}" data-index="{{subtract this.index 1}}" data-field="name" value="{{this.name}}" placeholder="—" {{#unless ../../editable}}disabled{{/unless}} />
+              {{/if}}
+              <select class="critslot-field csl-type" data-loc="{{../key}}" data-index="{{subtract this.index 1}}" data-field="type" {{#unless ../../editable}}disabled{{/unless}}>
+                {{#each ../../slotTypes}}<option value="{{this.key}}" {{#if (eq this.key ../type)}}selected{{/if}}>{{this.label}}</option>{{/each}}
+              </select>
+              <input type="checkbox" class="critslot-hit" data-loc="{{../key}}" data-index="{{subtract this.index 1}}" title="Destroyed" {{checked this.hit}} {{#unless ../../editable}}disabled{{/unless}} />
+            </div>
+            {{/each}}
+            {{else}}<div class="csl-empty">— no slots —</div>{{/if}}
+          </div>
+          {{/each}}
+        </div>
+        {{else}}
+        <p class="logi-note">No critical slots yet. Click <strong>Init standard</strong> to lay out the standard biped components (engine, gyro, sensors, cockpit, actuators) plus empty slots you can name; combat will then resolve criticals to specific components automatically.</p>
+        {{/if}}
       </div>
     </div>
 
@@ -221,6 +289,9 @@
           <label class="mf-stat"><span class="k">Engine Rating</span><input type="number" min="0" name="system.engineRating" value="{{system.engineRating}}" {{#unless editable}}disabled{{/unless}} /></label>
           <label class="mf-stat"><span class="k">Cost (C-bills)</span><input type="number" min="0" name="system.cost" value="{{system.cost}}" {{#unless editable}}disabled{{/unless}} /></label>
           <label class="mf-stat"><span class="k">Battle Value</span><input type="number" min="0" name="system.bv" value="{{system.bv}}" {{#unless editable}}disabled{{/unless}} /></label>
+        </div>
+        <div class="flags">
+          <label class="chk" title="OmniMechs carry mechanized battle armor on their handholds without losing MP; other 'Mechs need battle armor with magnetic clamps (−1 Walking MP)"><input type="checkbox" name="system.omni" {{checked system.omni}} {{#unless editable}}disabled{{/unless}}> OmniMech</label>
         </div>
       </div>
       <div class="mf-panel">

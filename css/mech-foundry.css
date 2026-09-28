@@ -7429,3 +7429,175 @@
   border: 1px dashed var(--mf-steel); border-radius: 2px; cursor: pointer; width: auto;
 }
 .mech-foundry.naval-ship-sheet .bay-quick-add .quick-add-component:hover { border-color: var(--mf-amber); color: var(--mf-amber-2); border-style: solid; }
+
+/* ---- Total Warfare attack chat card ---- */
+.mech-foundry.tw-attack-card { border: 1px solid var(--mf-steel); border-radius: 4px; background: var(--mf-panel); color: var(--mf-ink); padding: 8px; font-family: var(--mf-font-body); }
+.mech-foundry.tw-attack-card .tw-atk-head { display: flex; align-items: center; gap: 6px; font-family: var(--mf-font-head); text-transform: uppercase; letter-spacing: 0.04em; color: var(--mf-amber-2); border-bottom: 1px solid var(--mf-line); padding-bottom: 4px; margin-bottom: 6px; }
+.mech-foundry.tw-attack-card .tw-atk-head i { color: var(--mf-amber); }
+.mech-foundry.tw-attack-card .tw-atk-loc { margin-left: auto; font-size: 0.72rem; color: var(--mf-ink-dim); }
+.mech-foundry.tw-attack-card .tw-atk-target { font-size: 0.82rem; color: var(--mf-ink-dim); margin-bottom: 4px; }
+.mech-foundry.tw-attack-card .tw-atk-tn { display: flex; justify-content: space-between; align-items: baseline; }
+.mech-foundry.tw-attack-card .tw-atk-tn .tw-atk-label { font-size: 0.72rem; text-transform: uppercase; color: var(--mf-ink-dim); }
+.mech-foundry.tw-attack-card .tw-atk-tnval { font-family: var(--mf-font-mono); font-size: 1.1rem; color: var(--mf-amber-2); }
+.mech-foundry.tw-attack-card .tw-atk-mods { display: flex; flex-wrap: wrap; gap: 4px; margin: 4px 0; }
+.mech-foundry.tw-attack-card .tw-mod { font-family: var(--mf-font-mono); font-size: 0.68rem; color: var(--mf-ink-dim); border: 1px solid var(--mf-line); border-radius: 8px; padding: 0 6px; }
+.mech-foundry.tw-attack-card .tw-atk-roll { display: flex; align-items: center; gap: 8px; margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--mf-line); }
+.mech-foundry.tw-attack-card .tw-die { display: inline-grid; place-items: center; width: 22px; height: 22px; background: #0e1216; border: 1px solid var(--mf-steel); border-radius: 3px; font-family: var(--mf-font-mono); margin-right: 3px; }
+.mech-foundry.tw-attack-card .tw-atk-total { font-family: var(--mf-font-mono); color: var(--mf-ink); }
+.mech-foundry.tw-attack-card .tw-atk-result { font-family: var(--mf-font-head); font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; margin-left: auto; }
+.mech-foundry.tw-attack-card .tw-atk-roll.hit .tw-atk-result { color: var(--mf-ok); }
+.mech-foundry.tw-attack-card .tw-atk-roll.miss .tw-atk-result { color: var(--mf-danger); }
+.mech-foundry.tw-attack-card .tw-atk-result.oor { color: var(--mf-hazard); }
+.mech-foundry.tw-attack-card .tw-atk-margin { font-size: 0.72rem; color: var(--mf-ink-dim); }
+.mech-foundry.tw-attack-card .tw-atk-dmg { margin-top: 6px; font-size: 0.8rem; color: var(--mf-amber); }
+/* Attack-dialog fields */
+.tw-attack-dialog .form-group { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+.tw-attack-dialog .form-group label { flex: 0 0 150px; }
+.tw-attack-dialog .tw-hint { color: #888; font-size: 0.8em; }
+
+/* ---- Attack card: hit location + damage ---- */
+.mech-foundry.tw-attack-card .tw-hit-loc { display: flex; align-items: center; gap: 8px; margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--mf-line); }
+.mech-foundry.tw-attack-card .tw-hl-label { font-size: 0.7rem; text-transform: uppercase; color: var(--mf-ink-dim); }
+.mech-foundry.tw-attack-card .tw-hl-loc { font-family: var(--mf-font-head); font-weight: 700; color: var(--mf-amber-2); text-transform: uppercase; letter-spacing: 0.04em; }
+.mech-foundry.tw-attack-card .tw-hl-crit { margin-left: auto; font-family: var(--mf-font-head); font-weight: 700; color: var(--mf-hazard); font-size: 0.72rem; }
+.mech-foundry.tw-attack-card .tw-hl-event { font-size: 0.76rem; color: var(--mf-danger); margin-top: 2px; }
+.mech-foundry.tw-attack-card .tw-hl-destroyed { margin-top: 4px; font-family: var(--mf-font-head); font-weight: 700; color: #fff; background: var(--mf-danger); text-align: center; border-radius: 3px; padding: 2px; letter-spacing: 0.08em; }
+
+/* ---- Attack card: cluster ---- */
+.mech-foundry.tw-attack-card .tw-cluster { display: flex; align-items: center; gap: 8px; margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--mf-line); }
+.mech-foundry.tw-attack-card .tw-cluster-hits { font-family: var(--mf-font-mono); font-size: 0.82rem; color: var(--mf-amber-2); }
+.mech-foundry.tw-attack-card .tw-hit-loc .tw-hl-dmg { font-family: var(--mf-font-mono); color: var(--mf-ink); margin-left: 6px; }
+
+/* ---- Heat resolve button + heat card ---- */
+.mech-foundry.mech-sheet .mf-panel > h4 .resolve-heat { margin-left: auto; padding: 2px 9px; background: var(--mf-bg); color: var(--mf-amber-2); border: 1px solid var(--mf-steel); border-radius: 2px; font-size: 0.68rem; cursor: pointer; width: auto; }
+.mech-foundry.mech-sheet .mf-panel > h4 .resolve-heat:hover { border-color: var(--mf-amber); }
+.mech-foundry.tw-heat-card .tw-heat-lines { margin: 4px 0; }
+.mech-foundry.tw-heat-card .tw-heat-line { display: flex; justify-content: space-between; font-size: 0.78rem; padding: 1px 0; border-bottom: 1px dotted var(--mf-line); }
+.mech-foundry.tw-heat-card .tw-heat-line .e { color: var(--mf-ink-dim); }
+.mech-foundry.tw-heat-card .tw-heat-line .v { font-family: var(--mf-font-mono); color: var(--mf-ink); }
+
+/* ---- Mech critical slots (Crits & Loadout) ---- */
+.mech-foundry.mech-sheet .mf-panel > h4 .init-critslots { margin-left: auto; padding: 2px 9px; background: var(--mf-bg); color: var(--mf-amber-2); border: 1px solid var(--mf-steel); border-radius: 2px; font-size: 0.68rem; cursor: pointer; width: auto; }
+.mech-foundry.mech-sheet .mf-panel > h4 .init-critslots:hover { border-color: var(--mf-amber); }
+.mech-foundry.mech-sheet .critslot-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+@media (max-width: 620px) { .mech-foundry.mech-sheet .critslot-grid { grid-template-columns: 1fr; } }
+.mech-foundry.mech-sheet .critslot-loc { background: #0e1216; border: 1px solid var(--mf-line); border-radius: 4px; padding: 5px 6px; }
+.mech-foundry.mech-sheet .csl-head { font-family: var(--mf-font-head); text-transform: uppercase; letter-spacing: 0.04em; font-size: 0.7rem; color: var(--mf-amber); border-bottom: 1px solid var(--mf-line); padding-bottom: 3px; margin-bottom: 4px; }
+.mech-foundry.mech-sheet .csl-row { display: flex; align-items: center; gap: 4px; margin-top: 2px; }
+.mech-foundry.mech-sheet .csl-row .csl-idx { width: 14px; text-align: right; font-family: var(--mf-font-mono); font-size: 0.62rem; color: var(--mf-ink-dim); }
+.mech-foundry.mech-sheet .csl-row .csl-name { flex: 1 1 auto; min-width: 40px; background: var(--mf-bg); border: 1px solid var(--mf-steel); border-radius: 2px; color: var(--mf-ink); font-size: 0.7rem; padding: 0 4px; height: 18px; }
+.mech-foundry.mech-sheet .csl-row .csl-type { flex: 0 0 84px; background: var(--mf-bg); border: 1px solid var(--mf-steel); border-radius: 2px; color: var(--mf-ink-dim); font-size: 0.64rem; height: 18px; }
+.mech-foundry.mech-sheet .csl-row .critslot-hit { accent-color: var(--mf-danger); }
+.mech-foundry.mech-sheet .csl-row.hit .csl-name { color: var(--mf-danger); text-decoration: line-through; }
+.mech-foundry.mech-sheet .csl-empty { color: var(--mf-ink-dim); font-size: 0.72rem; font-style: italic; }
+/* Attack card crit-slot detail */
+.mech-foundry.tw-attack-card .tw-crit-slot { color: var(--mf-ink-dim); margin-left: 12px; font-size: 0.72rem; }
+
+/* ---- Combat tracker phase bar + phase banner ---- */
+.tw-phase-bar { display: flex; align-items: center; gap: 8px; padding: 4px 8px; margin-bottom: 4px; background: var(--mf-panel, #1c232a); border: 1px solid var(--mf-line, #313b44); border-radius: 3px; }
+.tw-phase-bar .tw-phase-label { color: var(--mf-ink-dim, #8b98a3); font-size: 0.82em; }
+.tw-phase-bar .tw-phase-label strong { color: var(--mf-amber-2, #ffcf7a); }
+.tw-phase-bar .tw-next-phase { margin-left: auto; padding: 2px 8px; background: var(--mf-bg, #14181c); color: var(--mf-amber-2, #ffcf7a); border: 1px solid var(--mf-steel, #4d5b68); border-radius: 2px; font-size: 0.72em; cursor: pointer; width: auto; }
+.tw-phase-bar .tw-next-phase:hover { border-color: var(--mf-amber, #f2a53a); }
+.mech-foundry.tw-phase-banner { border: 1px solid var(--mf-steel); border-left: 3px solid var(--mf-amber); border-radius: 3px; background: var(--mf-panel); color: var(--mf-ink); padding: 5px 8px; font-family: var(--mf-font-head); text-transform: uppercase; letter-spacing: 0.04em; }
+.mech-foundry.tw-phase-banner i { color: var(--mf-amber); }
+
+/* ---- Weapon state: fired / destroyed / out of ammo ---- */
+.mech-foundry.mech-sheet tr.w-destroyed td input { text-decoration: line-through; color: var(--mf-danger); opacity: 0.7; }
+.mech-foundry.mech-sheet tr.w-fired td { background: rgba(242,165,58,0.06); }
+.mech-foundry.mech-sheet .w-badge { display: inline-block; font-family: var(--mf-font-head); font-size: 0.58rem; letter-spacing: 0.05em; padding: 0 5px; margin-right: 4px; border-radius: 6px; border: 1px solid var(--mf-steel); color: var(--mf-amber); vertical-align: middle; }
+.mech-foundry.mech-sheet .w-badge.dmg { color: var(--mf-danger); border-color: #6b2a26; }
+.mech-foundry.mech-sheet .w-badge.warn { color: var(--mf-hazard); border-color: #6b5417; }
+.mech-foundry.mech-sheet .weapon-attack[disabled] { opacity: 0.35; cursor: not-allowed; }
+.mech-foundry.mech-sheet .toggle-weapon-destroyed { color: var(--mf-ink-dim); cursor: pointer; margin-left: 6px; }
+.mech-foundry.mech-sheet .toggle-weapon-destroyed:hover { color: var(--mf-danger); }
+.mech-foundry.tw-attack-card .tw-atk-ammo { margin-top: 4px; font-size: 0.74rem; color: var(--mf-ink-dim); font-family: var(--mf-font-mono); }
+
+/* Per-turn movement record on unit sheets */
+.mech-foundry .mf-turnmove { display: flex; align-items: center; gap: 6px; margin-top: 8px; font-size: 0.78rem; }
+.mech-foundry .mf-turnmove .k { color: var(--mf-ink-dim); text-transform: uppercase; letter-spacing: .04em; font-size: 0.7rem; }
+.mech-foundry .mf-turnmove select { flex: 1; height: 24px; font-size: 0.78rem; }
+.mech-foundry .mf-turnmove input { width: 44px; height: 24px; text-align: center; }
+
+/* Attack dialog: terrain group */
+.tw-attack-dialog fieldset.tw-terrain { margin: 6px 0; padding: 4px 8px; border: 1px solid rgba(128,128,128,.35); border-radius: 4px; }
+.tw-attack-dialog fieldset.tw-terrain legend { font-size: 0.78rem; padding: 0 4px; opacity: .8; }
+
+/* Piloting Skill Rolls, falls, consciousness */
+.mech-foundry .mf-psr-banner { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; padding: 6px 10px;
+  border: 1px solid var(--mf-amber); border-radius: var(--mf-border-radius); background: rgba(242, 165, 58, 0.12); font-size: 0.8rem; }
+.mech-foundry .mf-psr-banner .t { flex: 1; }
+.mech-foundry .mf-psr-banner button, .mech-foundry .mf-actions button, .mech-foundry .consc-state button { width: auto; height: 24px; line-height: 22px; padding: 0 8px; font-size: 0.74rem; }
+.mech-foundry .mf-actions { display: flex; gap: 6px; margin-top: 8px; }
+.mech-foundry .consc-state { display: flex; align-items: center; gap: 6px; margin-top: 4px; font-size: 0.72rem; }
+.mech-foundry .consc-state .chk { margin-left: auto; }
+.mech-foundry .tw-psr-line { color: var(--mf-amber); }
+.mech-foundry .tw-psr-roll { margin: 4px 0; }
+.mech-foundry .tw-psr-reason { font-weight: 600; font-size: 0.8rem; margin-top: 4px; }
+.mech-foundry .tw-psr-reason .tw-psr-tn { font-weight: 400; opacity: 0.8; }
+.mech-foundry .tw-psr-fall { margin-top: 6px; border-top: 1px dashed rgba(128,128,128,.4); padding-top: 4px; }
+.mech-foundry .tw-phase-psr { font-size: 0.78rem; margin-top: 4px; color: var(--mf-amber); }
+
+/* Physical attack button (sits beside Add in the Weapons header) */
+.mech-foundry.mech-sheet .mf-panel > h4 .fire-weapons { margin-left: auto; }
+.mech-foundry.mech-sheet .mf-panel > h4 .fire-weapons,
+.mech-foundry.mech-sheet .mf-panel > h4 .physical-attack { padding: 2px 9px; background: var(--mf-bg); color: var(--mf-amber-2); border: 1px solid var(--mf-steel); border-radius: 2px; font-size: 0.68rem; cursor: pointer; width: auto; }
+.mech-foundry.mech-sheet .mf-panel > h4 .fire-weapons:hover,
+.mech-foundry.mech-sheet .mf-panel > h4 .physical-attack:hover { border-color: var(--mf-amber); }
+.mech-foundry .tw-self-head { margin-top: 6px; padding-top: 4px; border-top: 1px dashed rgba(128,128,128,.4); font-size: 0.78rem; font-weight: 600; }
+
+/* Cluster grouping picker beside the launcher size */
+.mech-foundry .w-clus { white-space: nowrap; }
+.mech-foundry .w-clus .w-grp { width: 46px; height: 20px; font-size: 0.66rem; padding: 0 2px; margin-left: 2px; }
+
+/* To-hit number on the weapon row's attack button (vs the current target) */
+.mech-foundry .weapon-attack.has-tohit { min-width: 34px; font-family: var(--mf-font-mono); font-weight: 700; }
+.mech-foundry .weapon-attack:disabled { opacity: 0.45; cursor: not-allowed; }
+.mech-foundry .weapon-attack .w-tohit { font-size: 0.72rem; }
+
+/* Fire dialog */
+.tw-fire-dialog table.tw-fire-weapons { width: 100%; border-collapse: collapse; margin: 4px 0 6px; font-size: 0.82rem; }
+.tw-fire-dialog table.tw-fire-weapons th { text-align: left; font-size: 0.72rem; opacity: 0.75; border-bottom: 1px solid rgba(128,128,128,.4); }
+.tw-fire-dialog table.tw-fire-weapons td { padding: 2px 4px; border-bottom: 1px solid rgba(128,128,128,.15); vertical-align: middle; }
+.tw-fire-dialog .tw-fw-name .tw-hint { display: block; font-size: 0.7rem; }
+.tw-fire-dialog .tw-fw-tn { font-family: monospace; font-weight: 700; white-space: nowrap; }
+.tw-fire-dialog .tw-fire-heat { margin: 0 0 6px; font-size: 0.8rem; }
+.mech-foundry.tw-fire-group > .tw-attack-card + .tw-attack-card { margin-top: 6px; }
+
+/* Combat chat-card action bar (Roll PSR / Apply / Undo) */
+.mech-foundry.tw-card-actions { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; padding-top: 4px; border-top: 1px dashed rgba(128,128,128,.4); }
+.mech-foundry.tw-card-actions button { flex: 0 0 auto; width: auto; height: 24px; line-height: 22px; padding: 0 8px; font-size: 0.74rem; }
+.mech-foundry.tw-card-actions .tw-card-done { font-size: 0.74rem; opacity: 0.7; font-style: italic; align-self: center; }
+.mech-foundry .mf-effmp { margin-top: 6px; font-size: 0.76rem; color: var(--mf-amber); }
+.mech-foundry .mf-effmp .hint { color: var(--mf-ink-dim); }
+.mech-foundry .mf-actions .mf-elev { display: inline-flex; align-items: center; gap: 4px; font-size: 0.74rem; }
+.mech-foundry .mf-actions .mf-elev input { width: 40px; height: 22px; text-align: center; }
+.mech-foundry .mf-panel > h4 .mf-h4-actions { margin-left: auto; display: inline-flex; gap: 4px; }
+.mech-foundry .mf-panel > h4 .mf-h4-actions button,
+.mech-foundry .mf-panel > h4 .resolve-heat { padding: 2px 8px; font-size: 0.68rem; width: auto; line-height: 1.4; }
+
+/* ---- Battle armor: trooper damage tracks ---- */
+.mech-foundry.battle-armor-sheet .ba-trooper { display: flex; align-items: center; gap: 10px; margin-bottom: 5px; }
+.mech-foundry.battle-armor-sheet .ba-trooper .ba-tn { flex: 0 0 26px; font-family: var(--mf-font-mono); font-size: 0.78rem; color: var(--mf-amber-2); }
+.mech-foundry.battle-armor-sheet .ba-trooper .pips { display: flex; flex-wrap: wrap; gap: 3px; flex: 1 1 auto; }
+.mech-foundry.battle-armor-sheet .ba-trooper .crit-pip.soldier { border-radius: 50%; border-color: var(--mf-amber); }
+.mech-foundry.battle-armor-sheet .ba-trooper .ba-state { flex: 0 0 auto; font-size: 0.72rem; color: var(--mf-ink-dim); }
+.mech-foundry.battle-armor-sheet .ba-trooper.dead .ba-state { color: var(--mf-danger); font-weight: 600; }
+.mech-foundry.battle-armor-sheet .ba-trooper.dead .ba-tn { color: var(--mf-danger); text-decoration: line-through; }
+.mech-foundry.battle-armor-sheet .wt select.loc { width: 64px; }
+.mech-foundry.mech-sheet .mf-panel > h4 .platoon-attack { margin-left: auto; }
+.mech-foundry.mech-sheet .mf-panel > h4 .platoon-attack,
+.mech-foundry.mech-sheet .mf-panel > h4 .anti-mech-attack { padding: 2px 9px; background: var(--mf-bg); color: var(--mf-amber-2); border: 1px solid var(--mf-steel); border-radius: 2px; font-size: 0.68rem; cursor: pointer; width: auto; }
+.mech-foundry.mech-sheet .mf-panel > h4 .platoon-attack:hover,
+.mech-foundry.mech-sheet .mf-panel > h4 .anti-mech-attack:hover { border-color: var(--mf-amber); }
+.mech-foundry.infantry-sheet .ci-range td, .mech-foundry.infantry-sheet .ci-range th { text-align: center; font-family: var(--mf-font-mono); font-size: 0.74rem; }
+.mech-foundry.mech-sheet .mf-panel > h4 .anti-mech-attack:disabled { opacity: 0.45; cursor: not-allowed; }
+.mech-foundry.mech-sheet .mf-infantry-on { border-color: #6b5417; }
+.mech-foundry .mf-actions { flex-wrap: wrap; }
+.mech-foundry.mech-sheet .wt select.w-inf { width: 58px; height: 20px; font-size: 0.64rem; padding: 0 2px; }
+
+/* ---- MegaMek import ---- */
+.mf-import-megamek { flex: 0 0 100%; margin-top: 4px; }
+.mech-foundry.mf-import-report .mf-import-unit { margin: 4px 0; font-size: 0.8rem; }
+.mech-foundry.mf-import-report .mf-import-unit ul { margin: 2px 0 0 1em; padding: 0; font-size: 0.74rem; }
+.mech-foundry.mf-import-report .mf-import-unit.failed { color: var(--mf-danger, #c33); }

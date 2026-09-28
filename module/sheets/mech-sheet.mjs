@@ -1,5 +1,14 @@
 import { MechFoundryUnitSheet } from "./unit-sheet.mjs";
 import { actorSkillRating, applyCrewDamage, CREW_DAMAGE, MECH_GUNNERY_SKILLS, MECH_PILOTING_SKILLS } from "../helpers/atow-conversion.mjs";
+import { weaponAttack, resolveMechHeat, standardMechSlots, SLOT_TYPES } from "../helpers/tw-combat.mjs";
+import { pendingPSR } from "../helpers/tw-psr.mjs";
+import { mechEffectiveMP } from "../helpers/tw-movement.mjs";
+import { manualFall, rollPendingPSR, standUp, wakeRoll } from "../helpers/tw-falls.mjs";
+
+const CRIT_LOCATIONS = [
+  ['head', 'Head'], ['ct', 'Center Torso'], ['lt', 'Left Torso'], ['rt', 'Right Torso'],
+  ['la', 'Left Arm'], ['ra', 'Right Arm'], ['ll', 'Left Leg'], ['rl', 'Right Leg']
+];
 
 const { DialogV2 } = foundry.applications.api;
 
@@ -20,7 +29,7 @@ const SYSTEM_HITS = [
   { key: 'engine', label: 'Engine', max: 3 },
   { key: 'gyro', label: 'Gyro', max: 2 },
   { key: 'sensors', label: 'Sensors', max: 2 },
-  { key: 'lifeSupport', label: 'Life Support', max: 1 }
+  { key: 'lifeSupport', label: 'Life Support', max: 2 }
 ];
 
 /** Pilot hit ladder length (0 undamaged … 6 dead). */
@@ -57,7 +66,7 @@ export class MechFoundryMechSheet extends MechFoundryUnitSheet {
   };
 
   /** Weapon fields stored as integers on this sheet. */
-  static NUMERIC_WEAPON_FIELDS = ['heat', 'damage', 'rangeS', 'rangeM', 'rangeL', 'ammo', 'shotsPerTon'];
+  static NUMERIC_WEAPON_FIELDS = ['heat', 'damage', 'rangeMin', 'rangeS', 'rangeM', 'rangeL', 'ammo', 'shotsPerTon', 'clusterSize'];
 
   /* -------------------------------------------- */
   /*  Context                                      */
@@ -110,7 +119,8 @@ export class MechFoundryMechSheet extends MechFoundryUnitSheet {
     context.movement = {
       walk,
       run: Math.ceil(walk * 1.5),
-      jump: Number(sys.movement?.jump) || 0
+      jump: Number(sys.movement?.jump) || 0,
+      effective: mechEffectiveMP(this.actor) // after leg / hip / jump-jet damage and heat
     };
 
     // Heat + live effects.
@@ -138,7 +148,9 @@ export class MechFoundryMechSheet extends MechFoundryUnitSheet {
       hits,
       pips: Array.from({ length: PILOT_HIT_MAX }, (_, i) => i < hits),
       gunneryDerived: false,
-      pilotingDerived: false
+      pilotingDerived: false,
+      unconscious: !!pilot.unconscious,
+      dead: hits >= PILOT_HIT_MAX
     };
     context.pilotLinked = linked ? { id: linked.id, uuid: linked.uuid, name: linked.name, img: linked.img } : null;
 
@@ -160,7 +172,29 @@ export class MechFoundryMechSheet extends MechFoundryUnitSheet {
     }
 
     context.conditions = sys.conditions || {};
+    // Linked pilots' consciousness is the character's AToW condition.
+    if (linked) context.pilot.unconscious = !!linked.system?.unconscious;
+    const psr = pendingPSR(this.actor);
+    context.psrPending = psr ? psr.reasons.map(r => r.label) : null;
     context.heatSinks = sys.heatSinks || { count: 0, type: 'single' };
+
+    // Critical slots (Crits & Loadout tab).
+    const cs = sys.critSlots || {};
+    // Weapon and ammunition slots link to a weapon (crits destroy that weapon;
+    // an ammo bin's explosion uses its weapon's shots and damage).
+    const weaponsList = sys.weapons || [];
+    const slotOptions = (type, weaponId) => weaponsList
+      .filter(w => type !== 'ammo' || String(w.ammoType || '').trim())
+      .map(w => ({ id: w.id, selected: w.id === weaponId, label: type === 'ammo' ? `Ammo (${w.ammoType}) — ${w.name || 'weapon'}` : (w.name || 'Weapon') }));
+    context.critSlotLocations = CRIT_LOCATIONS.map(([key, label]) => ({
+      key, label,
+      slots: (cs[key] || []).map((s, i) => {
+        const linkable = s.type === 'weapon' || s.type === 'ammo';
+        return { index: i + 1, name: s.name, type: s.type, hit: !!s.hit, linkable, options: linkable ? slotOptions(s.type, s.weaponId) : [] };
+      })
+    }));
+    context.hasCritSlots = CRIT_LOCATIONS.some(([k]) => (cs[k] || []).length > 0);
+    context.slotTypes = SLOT_TYPES;
 
     return context;
   }
@@ -223,6 +257,60 @@ export class MechFoundryMechSheet extends MechFoundryUnitSheet {
     html.on('click', '.pilot-unlink', this._onPilotUnlink.bind(this));
     html.on('click', '.pilot-open', this._onPilotOpen.bind(this));
     html.on('click', '.weapon-attack', this._onWeaponAttack.bind(this));
+    html.on('click', '.resolve-heat', (ev) => { ev.preventDefault(); resolveMechHeat(this.actor); });
+    html.on('click', '.init-critslots', this._onInitCritSlots.bind(this));
+    html.on('change', '.critslot-field', this._onCritSlotFieldChange.bind(this));
+    html.on('change', '.critslot-hit', this._onCritSlotHitToggle.bind(this));
+    html.on('click', '.psr-roll', (ev) => { ev.preventDefault(); rollPendingPSR(this.actor); });
+    html.on('click', '.stand-up', (ev) => { ev.preventDefault(); standUp(this.actor); });
+    html.on('click', '.mech-fall', (ev) => { ev.preventDefault(); manualFall(this.actor); });
+    html.on('click', '.wake-roll', (ev) => { ev.preventDefault(); wakeRoll(this.actor); });
+  }
+
+  async _updateCritSlots(mutator) {
+    const cs = foundry.utils.deepClone(this.actor.system.critSlots || {});
+    if (mutator(cs) === false) return;
+    await this.actor.update({ 'system.critSlots': cs });
+  }
+
+  /** Fill the standard biped layout for any location that has no slots yet. */
+  async _onInitCritSlots(event) {
+    event.preventDefault();
+    const std = standardMechSlots();
+    await this._updateCritSlots(cs => {
+      let filled = 0;
+      for (const [key] of CRIT_LOCATIONS) {
+        if (!Array.isArray(cs[key]) || cs[key].length === 0) { cs[key] = std[key]; filled++; }
+      }
+      if (!filled) { ui.notifications.info("Critical slots are already initialized."); return false; }
+    });
+  }
+
+  async _onCritSlotFieldChange(event) {
+    const { loc, index, field } = event.currentTarget.dataset;
+    const value = event.currentTarget.value;
+    await this._updateCritSlots(cs => {
+      const slot = cs[loc]?.[parseInt(index)];
+      if (!slot) return false;
+      if (field === 'weaponId') {
+        const w = (this.actor.system.weapons || []).find(x => x.id === value);
+        slot.weaponId = w ? w.id : '';
+        if (w) slot.name = slot.type === 'ammo' ? `Ammo (${w.ammoType})` : w.name;
+        return;
+      }
+      slot[field] = value;
+      if (field === 'type' && value !== 'weapon' && value !== 'ammo') delete slot.weaponId;
+    });
+  }
+
+  async _onCritSlotHitToggle(event) {
+    const { loc, index } = event.currentTarget.dataset;
+    const checked = event.currentTarget.checked;
+    await this._updateCritSlots(cs => {
+      const slot = cs[loc]?.[parseInt(index)];
+      if (!slot) return false;
+      slot.hit = checked;
+    });
   }
 
   _applyActiveTab() {
@@ -246,7 +334,7 @@ export class MechFoundryMechSheet extends MechFoundryUnitSheet {
     await this._updateWeapons(w => {
       w.push({
         id: foundry.utils.randomID(), name: '', location: '',
-        heat: 0, damage: 0, rangeS: 0, rangeM: 0, rangeL: 0, ammoType: '', ammo: 0
+        heat: 0, damage: 0, clusterSize: 0, rangeS: 0, rangeM: 0, rangeL: 0, ammoType: '', ammo: 0
       });
     });
   }
@@ -333,9 +421,11 @@ export class MechFoundryMechSheet extends MechFoundryUnitSheet {
     else ui.notifications.warn("Linked pilot actor was not found.");
   }
 
-  /** Placeholder until the combat-automation phase wires up attacks. */
-  _onWeaponAttack(event) {
+  /** Open the GATOR to-hit dialog for the clicked weapon. */
+  async _onWeaponAttack(event) {
     event.preventDefault();
-    ui.notifications.info("Weapon attacks are wired up in the combat-automation phase.");
+    const id = event.currentTarget.dataset.weaponId;
+    const weapon = (this.actor.system.weapons || []).find(w => w.id === id);
+    if (weapon) await weaponAttack(this.actor, weapon);
   }
 }

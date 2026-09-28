@@ -1,0 +1,46 @@
+<div class="mech-foundry tw-attack-card">
+  <header class="tw-atk-head">
+    <i class="fas fa-crosshairs"></i>
+    <span class="tw-atk-weapon">{{weaponName}}</span>
+    {{#if location}}<span class="tw-atk-loc">{{location}}</span>{{/if}}
+  </header>
+
+  {{#if targetName}}<div class="tw-atk-target">vs <strong>{{targetName}}</strong></div>{{/if}}
+
+  {{#if automatic}}
+  <div class="tw-atk-roll hit"><span class="tw-atk-result">AUTOMATIC HIT</span></div>
+  {{else}}
+  <div class="tw-atk-tn">
+    <span class="tw-atk-label">Target Number</span>
+    <span class="tw-atk-tnval">{{tn}}+</span>
+  </div>
+  <div class="tw-atk-mods">
+    {{#each mods}}<span class="tw-mod">{{this.label}} {{#if (gte this.value 0)}}+{{/if}}{{this.value}}</span>{{/each}}
+  </div>
+
+  <div class="tw-atk-roll {{#if hit}}hit{{else}}miss{{/if}}">
+    <span class="tw-atk-dice">{{#each dice}}<span class="tw-die">{{this}}</span>{{/each}}</span>
+    <span class="tw-atk-total">= {{rollTotal}}</span>
+    {{#if outOfRange}}
+    <span class="tw-atk-result oor">OUT OF RANGE</span>
+    {{else}}
+    <span class="tw-atk-result">{{#if hit}}HIT{{else}}MISS{{/if}}</span>
+    <span class="tw-atk-margin">by {{margin}}</span>
+    {{/if}}
+  </div>
+  {{/if}}
+
+  {{#if ammoLine}}<div class="tw-atk-ammo"><i class="fas fa-box"></i> {{ammoLine}}</div>{{/if}}
+
+  {{#if hitResult}}
+  {{> "systems/mech-foundry/templates/chat/parts/tw-hit-result.hbs" hr=hitResult}}
+  {{else if hit}}
+  <div class="tw-atk-dmg">Damage: <strong>{{damage}}</strong></div>
+  {{/if}}
+
+  {{#each notes}}<div class="tw-hl-event tw-psr-line">▸ {{this}}</div>{{/each}}
+  {{#if selfResult}}
+  <div class="tw-self-head">Damage to {{attackerName}}</div>
+  {{> "systems/mech-foundry/templates/chat/parts/tw-hit-result.hbs" hr=selfResult}}
+  {{/if}}
+</div>

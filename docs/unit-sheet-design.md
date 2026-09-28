@@ -1,4 +1,4 @@
-# Unit Actor Sheet Design — Mech / Ground Vehicle / Aerospace Fighter
+# Unit Actor Sheet Design — Mech / Ground Vehicle / Aerospace Fighter / Battle Armor / Infantry
 
 Status: **approved design, in implementation.** Source rules: *Total Warfare* (record-sheet
 data model + sequence of play) with standard canonical values for the combat chapter (the
@@ -96,7 +96,287 @@ Lives in `module/helpers/atow-conversion.mjs`.
 
 ## Rollout (reviewable commits)
 1. ✅ Mech data model + sheet.  2. ✅ Token-bar derived totals + prototype config.
-3. ✅ Ground-vehicle sheet.  4. ✅ Aerospace sheet.  5. Company integration polish (status
-derivation, ammo alignment).  6. Combat automation (its own multi-commit effort).
+3. ✅ Ground-vehicle sheet.  4. ✅ Aerospace sheet.  5. ✅ Company integration polish (status
+derivation, ammo alignment).  6. ✅ Combat automation.
 Pilot skill-derivation and pilot/crew → character damage write-back are wired for all three
 unit types (see the conversion section above).
+
+## Combat automation (implemented) — `module/helpers/tw-combat.mjs`
+GATOR to-hit dialog → 2d6 → chat card; on a hit the correct hit-location table for the
+target type resolves damage through armor→structure(/SI) with transfer, plus motive damage,
+criticals and cluster grouping:
+- **Mech:** 'Mech Hit Location + transfer; Determining Critical Hits rolled against a full
+  per-location **critical-slot model** (`system.critSlots`; standard biped layout via the
+  Crits tab "Init standard") — engine/gyro/sensors/life-support/cockpit, weapons, heat sinks,
+  ammo, actuators resolved to specific slots.
+- **Combat Vehicle / VTOL:** hit location + Motive System Damage + Ground/VTOL crit tables.
+- **Aerospace / Small Craft:** facing armor + threshold crits + Structural Integrity.
+- **Heat phase:** mech "Resolve" nets Heat Point Table gains vs. sink dissipation.
+- **Turn phases:** combat-tracker phase bar (Initiative→Movement→Weapon→Physical→Heat→End).
+- **Area effects:** Scene-Region blast tool (v14) applying damage to enclosed units.
+- **GM relay** (`module/helpers/gm-relay.mjs`): a player's attack on a unit they don't own
+  is applied by the active GM's client over the system socket. The GM client re-validates
+  each request (damage fields only per unit type; characters/NPCs may only be set
+  unconscious; crew damage by table key only). Needs a GM logged in; the GM can turn it off
+  with the "Relay Player Combat Damage Through GM" world setting, in which case the card says
+  to apply it manually.
+- **Fired weapons:** firing records the weapon for the current combat round (blocks a second
+  shot that round), spends one shot of ammo if the weapon has an ammo type, and the heat
+  phase defaults to the heat of weapons actually fired. Destroyed (crit slot or the row's
+  toggle) and out-of-ammo weapons can't fire; sheets badge FIRED / NO AMMO / DESTROYED.
+- **Movement & Attack Modifiers** (`module/helpers/tw-movement.mjs`, TW pp. 117–118): hexes
+  moved accumulate per turn from token moves during combat; the mode (stationary / walked /
+  ran / jumped) is inferred from Walk/Cruise MP unless set on the sheet's "This turn" row
+  (jumping must be set). The attack dialog pre-fills attacker and target movement, prone,
+  immobile (shutdown / unconscious pilot), battle-armor target, sensor hits and arm-actuator
+  damage for arm-mounted weapons; minimum range and prone-target range effects apply from the
+  entered range; woods, partial cover and secondary targets are dialog inputs. Every
+  pre-filled value is editable.
+- **Warrior damage & consciousness** (`tw-psr.mjs`): every head hit is 1 warrior hit, an ammo
+  explosion 2, overheating with damaged life support 1 (15+) or 2 (25+), a failed fall roll 1.
+  Each hit advances the pilot's hit ladder; a sheet-only pilot rolls the Warrior Consciousness
+  Table (3/5/7/10/11, 6 = dead) and wakes on a roll at a later End Phase (automatic when the GM
+  advances to End). A linked character takes the AToW crew damage instead and uses its own AToW
+  consciousness. An unconscious warrior makes the unit an immobile target and auto-fails PSRs;
+  an unconscious fighter pilot sets Out of Control.
+- **Piloting Skill Rolls & falls** (`tw-psr.mjs`, `tw-falls.mjs`, TW p. 60, pp. 68–69): damage
+  queues PSRs on the target (20+ damage in a phase, gyro hit, hip / leg / foot actuators; gyro or
+  leg destroyed = automatic fall; reactor shutdown +3 in the heat phase). Standing damage
+  modifiers come from the current state (leg destroyed +5, hip +2, actuators +1 each, gyro +3),
+  and +1 applies to every PSR in a phase with 20+ damage. The unit's sheet shows the pending
+  rolls with a Roll PSR button; the first failure falls: ⌈tons/10⌉ × (levels + 1) damage in
+  5-point groups on the Facing After Fall column, token rotated, prone, then the warrior roll
+  (+1 per level above 1, destroyed gyro +6; automatic if unconscious, immobile or over 12).
+  Stand (PSR, +1 heat per attempt) and a manual Fall… (levels) are on the sheet. The heat phase
+  now rolls the shutdown avoid roll from 14+.
+- **Physical attacks** (`tw-physical.mjs`, TW pp. 144–151): the mech sheet's Physical button
+  (vehicles: Charge) covers punch, kick, club, push, the Physical Weapon Attacks Table, charge and
+  death from above. To-hit = Piloting + the Physical Attack Modifiers value + movement / target /
+  terrain modifiers (no heat or sensors; no terrain for DFA) + actuator damage (arm +2 each and
+  half punch damage, hand +1, leg +2 and half kick damage, foot +1, shoulder +2 to push) +
+  relative Piloting for charge / DFA. Blocks: shoulder / hand / hip hits, destroyed limbs, arms
+  whose weapons fired, weapons fired before a charge / DFA, a jump before a charge (DFA needs
+  one), one physical attack per turn (two punches may combine), no punching / clubbing vehicles
+  or infantry, 'Mechs can't charge vehicles, only 'Mechs are pushed. Damage: punch ⌈t/10⌉, kick
+  and club ⌈t/5⌉, charge ⌈t/10 × hexes⌉ (attacker takes ⌈target t/10⌉), DFA ⌈t/10 × 3⌉ on the
+  Punch table (attacker ⌈t/5⌉ on the Kick table); charges force a motive roll on vehicles.
+  PSRs: kicked 0, missed kick 0, pushed 0, charged +2 / charging +2, DFA target +2 / attacker +4;
+  a missed DFA is a 2-level fall on the rear. Displacement (pushes, charges, DFAs) is noted on
+  the card for the players to move tokens. Not modelled: level differences, TSM, the wrecking
+  ball's self-hit on a 2, the spot welder's +2 heat.
+- **Initiative** (A Time of War): 2D6, highest acts first, ties to the higher RFL; Combat Sense
+  rolls 3D6 keeping the highest two. Combat units roll with their linked pilot / crew
+  character's traits and break ties on that character's RFL (`MechFoundryCombatant`).
+- **Cluster grouping:** a cluster weapon's damage lands in 5-point groups (LRM, MRM, ATM) or one
+  location per missile / pellet (SRM, Streak SRM, LB-X); set per weapon (auto guesses from the name).
+- **Ammunition explosions:** weapon and ammo crit slots link to a weapon on the Crits tab. A struck
+  bin explodes for shots in the bin (Shots/Ton, capped at what's left) × damage per shot (a full
+  salvo for cluster weapons), straight into that location's internal structure and transferring
+  to the next location's internal structure; a CASE slot in the location vents the rest. Explosion damage can cause further crits;
+  the warrior takes 2 per explosion. The heat phase rolls the 19+ avoid roll (4+/6+/8+) and blows
+  the most damaging bin on a failure.
+- **Restart:** a shut-down 'Mech restarts automatically below 14 heat, otherwise on a roll against
+  the shutdown avoid number (not at 30+, with a destroyed engine or an unconscious warrior).
+- **Partial cover:** besides +1 to hit, leg hits on a 'Mech in partial cover strike the cover.
+- **Weapon fire UI:** with a token targeted, each weapon row's attack button shows its target
+  number (hover for the chance and the modifiers; OOR buttons are disabled; terrain isn't known
+  there). The Fire… button opens one declaration for several weapons: shared modifiers and
+  terrain once, a checklist with each weapon's live target number and the heat of the checked
+  weapons, then every checked weapon rolls and resolves in turn into one chat message.
+- **Token status icons** (`tw-status.mjs`): Prone, Shut Down, Warrior Unconscious, Immobile, Out
+  of Control and PSR Pending are mirrored onto unit tokens from the unit's data (and a linked
+  character's unconsciousness) by whichever client made the change.
+- **Chat-card actions** (`tw-chat.mjs`; recorder in `gm-relay.mjs`): every combat flow records
+  the prior value of each field it writes. Cards then offer **Roll PSR** (to owners of units left
+  with a pending roll), **Apply damage** (GM; writes that couldn't be made because no GM was
+  online) and **Undo** (GM; restores every unit the card changed — AToW damage to linked
+  characters is not undone). The system's chat hook now uses v14's `renderChatMessageHTML`.
+- **'Mech critical hit effects** (TW pp. 126–128): second sensor hit stops weapons fire; weapons in
+  a destroyed location (or an arm whose side torso is gone) can't fire; a side torso's loss takes
+  its arm and counts its (XL) engine slots as engine hits; head blown off or center torso destroyed
+  by an ammo explosion kills the warrior (linked character: unconscious, as for the cockpit house
+  rule); ICE / fuel cell engine hits add no heat but roll 2D6 (+3 / +6) for a 10+ explosion; jump
+  jet slots; a multi-slot heat sink is lost once; punch / kick halving rounds down; life support
+  1 point at 15+ heat, 2 at 25+ (AToW crew-damage bands, chosen over TW's 26+). Destroyed units get Foundry's defeated (skull) status.
+- **Effective MP & movement PSRs:** the mech sheet shows current Walk / Run / Jump after damage
+  and heat (hip halves Walk, two hips 0; −1 per leg / foot actuator on a leg without a hip hit;
+  destroyed leg: 1 MP, no running; −1 per 5 heat; −1 Jump per jump jet hit) and the movement
+  mode is inferred from it. Leaving the Movement Phase queues a PSR for 'Mechs that ran with a
+  damaged hip or gyro, or jumped with a damaged gyro, hip, leg or foot actuators.
+- **Skidding, sideslipping, crashes** (`tw-skid.mjs`, TW pp. 62–63, 67): the map has no pavement /
+  facing data, so these are sheet actions. Skid… (running 'Mech / flanking non-hover vehicle that
+  turned on pavement): Piloting / Driving + skid modifier by hexes moved; a failure skids ⌈hexes/2⌉
+  and ends movement — a 'Mech falls, then takes half its falling damage per hex skidded on the fall
+  column; a vehicle rolls one Motive System Damage result. +1 to the skidder's attacks, +2 against
+  it, that turn. Sideslip… (flanking hover / VTOL / WiGE that turned): Driving roll; slips the margin
+  of failure (at most hexes entered − 1), added to its movement for the target modifier. Crash…
+  (VTOL / WiGE): hexes × tons / 10 in 5-point groups on the struck side; no attacks that turn.
+  Motive damage: −1 Cruise per moderate, half Cruise per heavy (cumulative); its +1 / +2 / +3
+  Driving modifiers apply once each (max +6).
+- **Ground Combat Vehicle critical hit effects** (TW pp. 194–195): results that can't apply (no
+  such item in the location, already taken) move down the column, wrapping 12 → 6. Driver Hit +2
+  Driving; Commander Hit stuns and gives +1 to-hit and Driving; repeats become Crew Stunned
+  (no firing the following turn, repeats extend; after both driver and commander hits it's Crew
+  Killed). Crew Killed: intact but immobile and out (VTOL / WiGE destroyed). Sensors +1 each, the
+  4th stops fire. Stabilizer doubles the attacker movement modifier for weapons in that location.
+  Turret Jam (clear with a Weapon Attack Phase; a 2nd jam locks), Turret Locks, Turret Blown Off
+  (destroyed). Engine Hit: immobile, turret locked, direct-fire energy weapons dead. Fuel Tank (ICE)
+  destroys. Ammunition: all ammo explodes into internal structure, or with CASE into the rear armor
+  plus Crew Stunned. Weapon Malfunction (random weapon in the location; clear with a Weapon Attack
+  Phase) and Weapon Destroyed (1D6: 1–3 target's player chooses, 4–6 attacker's). Weapons are
+  matched to locations by their Loc text (Front / Left / Right / Rear / Turret). VTOL Pilot /
+  Co-Pilot hits use Driver / Commander effects.
+- **VTOL critical hits** (TW p. 197): Co-Pilot Hit +1 to hit (2nd = Crew Killed); Pilot Hit +2
+  Driving and an immediate Driving roll or drop one elevation (2nd = Crew Killed); Engine Damage:
+  landed → immobile, flying → Driving +4 to land (else destroyed); Flight Stabilizer: Cruise only,
+  +3 Driving, +1 to hit; Rotor Damage −1 more Cruise; Rotors Destroyed destroys; fusion Fuel Tank →
+  Engine Damage. Crash damage reaching internal structure explodes a VTOL. Airborne VTOL targets
+  (elevation 1+) are +1. The vehicle sheet shows VTOL elevation and the co-pilot / flight
+  stabilizer flags.
+- **Aerospace attacks** (`tw-aero.mjs`; TW pp. 235, 237, 243, 77): fighter / small craft vs
+  aerospace targets use the Aerospace Weapon Range Table (standard 6/12/20/25, capital 12/24/40/50;
+  each weapon's longest bracket and Capital flag on the aero sheet) and the Aerospace Attack
+  Modifiers: pilot damage +1/box, FCS +2/box, sensors +1/box (+5 destroyed), exceeded Safe Thrust
+  +2, out of control +2, NOE vs air +2 (+1 OmniFighter), target at 0 velocity −2, target evading
+  (+3 fighter / +2 small craft; evading fighters can't attack), target made an air-to-ground
+  attack −3, angle of attack (nose +1, side +2), capital weapon vs <500 t +5, atmospheric hexes
+  +2 each, screen hex +2, secondary target. Above / Below attacks use their own hit-location
+  column (a "Wing" result rolls 1D6 for the side). Against ground targets the dialog offers
+  strafing (+4, +2 more at NOE), striking (+2) or bombing (+2 + altitude; no terrain or target
+  movement modifiers); air-to-ground has no range modifier and flags the attacker −3 to hit that
+  turn. Per-turn aero state (evading, air-to-ground, thrust) is the `aeroTurn` actor flag.
+- **Control Rolls & aero heat** (`tw-aero-flight.mjs`; TW pp. 93, 161, 249): Avionics / Control
+  criticals and any damage in atmosphere (+1 per 20 damage) queue Control Rolls (Piloting + pilot
+  damage, avionics, life support, atmosphere +2 / fighter −1, above Safe Thrust +1, +1 per point
+  above 2× Safe); a failure puts the unit out of control (random movement next turn via the sheet's
+  Random move button, +2 to its attacks) and the GM's End Phase rolls to regain control. The aero
+  heat phase (sheet Resolve) sums weapons fired, +2 per engine hit and heat-causing weapons, minus
+  sinks (no movement heat), then rolls random movement (5+), shutdown (14+, auto at 30; restarts at
+  13 or less or on the avoid roll), ammunition (19+: most damaging per-shot ammo × rounds / 10 to SI,
+  / 20 with CASE, min 1; pilot 1) and pilot damage (21+). Random-movement and pilot-damage avoid
+  numbers (5/6/7/8/10 and 6/9) are from the aerospace record-sheet heat scale — `AERO_HEAT`.
+- **Aero maneuvering & landing** (TW pp. 77, 84–87, 92–93): the aero sheet's Maneuver… declares
+  the turn's thrust (velocity changes + facing changes at the Changing Facing Cost Table rate +
+  special maneuver cost), new velocity, evasive action, and hazards; it shows the minimum straight
+  movement (aero map / ground map), records thrust and evasion for the attack modifiers, and rolls
+  the Control Rolls the move requires (special maneuver with its control modifier, more than one
+  roll, thrust above SI, velocity over 2× Safe in atmosphere, stalling, 3+ altitudes descended,
+  ceiling). Land… rolls a landing Control Roll with the Landing Modifiers (terrain halved for
+  vertical landings); a horizontal failure applies the Failed Braking Maneuver Table (6+: 20 damage
+  to the nose, gear damaged). Not automated: token movement on the aero map, re-entry, ramming
+  damage, capital missiles, large craft.
+- **Battle armor** (`tw-infantry.mjs`, sheet `battle-armor-sheet.mjs`; TW pp. 214–219, 228–229):
+  one actor is the whole unit (Squad / Point of 1–6; tech base default IS 4, Clan 5, ComStar /
+  WoB 6). Each trooper has its own damage track of Armor Value + 1 boxes (the last is the
+  soldier); the sheet's boxes are clickable. Details holds armor value, manipulators (left /
+  right), stealth (basic / prototype / standard / improved), mimetic, camo, fire-resistant,
+  magnetic clamps and body-mounted missiles (jettisoned flag). The squad leader links to a
+  character: Gunnery/Battlesuit for Gunnery, Piloting/Battlesuit for the Anti-'Mech Skill.
+  *Attacks against battle armor:* +1 for non-infantry attackers; stealth +S/M/L by bracket,
+  mimetic +3/+2/+1 and camo +2/+1 by hexes the unit moved; each damage group strikes a random
+  live trooper (1D6, re-rolled) and excess is wasted; area-effect damage (the Area Attack tool)
+  hits every trooper. The unit is destroyed (skull status) when every trooper is.
+  *Battle armor attacks:* infantry never add attacker movement; secondary targets are only +1;
+  attacks into their own hex are range 1 (anti-personnel weapons use the Rifle, Ballistic range
+  row from 0). All troopers fire each weapon together: non-missile weapons roll the Cluster Hits
+  Table for live troopers (one trooper always hits), missiles for troopers × launcher size over
+  the fewest columns (54 → 27 + 27), AP weapons turn troopers hitting into damage on the Rifle,
+  Ballistic column (2-point groups, one AP attack per turn). Every hit rolls its own location;
+  only missile launchers spend ammunition.
+- **Anti-'Mech attacks** (`tw-antimech.mjs`; TW pp. 220–223): the battle armor sheet's
+  Anti-'Mech… button (target a unit in the same hex) makes a leg or swarm attack instead of weapon
+  attacks. To-hit = Anti-'Mech Skill + Leg / Swarm Attacks Table (by active troopers) + target
+  movement, terrain, 'Mech prone −2, immobile −4, (swarm) vehicle −2, magnetic claws −1 and the
+  Swarm Attack Modifiers Table when the target carries friendly mechanized battle armor.
+  Eligibility: humanoid PA(L) / light / medium suits with two basic manipulators, a battle claw
+  (vibro- and magnetic claws count) or — light / PA(L) — two armored gloves; body-mounted missile
+  launchers jettisoned; mechanized platoons can't. Leg attack: 4 damage (+1 / +2 vibro-claws) on
+  the front Kick Location column plus an automatic Determining Critical Hits roll; one per 'Mech
+  per turn. Swarm: attaches the unit (`system.attached`, mode `swarm`; landed VTOL / WiGE /
+  aerospace only; one swarmer per unit, one attempt per turn). From the next turn its sheet's Swarm
+  Damage is an automatic hit: arm-mounted non-missile weapons × troopers (+ vibro-claws) in one
+  group on the Swarm Attacks Hit Location Table with an automatic crit roll ('Mech), or a random
+  side column (vehicle / grounded aerospace: 1D6 1–2 front, 3 left, 4 right, 5–6 rear); Release
+  ends it. Swarmers can't be targeted and may only shoot battle armor riding the unit they swarm.
+  Hits on a swarmed 'Mech's torso (any location of a vehicle) strike the swarmers on 1D6 5–6: a
+  random trooper absorbs up to its capacity and the rest carries on. The swarmed unit's sheet
+  lists the swarmers and offers: Pull off… ('Mech, Physical Attack Phase: Piloting +4 per arm plus
+  punch modifiers, +1 vs magnetic claws; success throws them off with the punch as infantry damage,
+  failure punches the 'Mech itself), Shake off (jump) (+4; 1 damage per Jump MP to every trooper),
+  Drop prone (Piloting; success throws them off and the 'Mech takes an accidental fall), Erratic
+  maneuvers (vehicle: Driving +4, +2 with VTOL MP; 1 damage each, or per elevation for VTOL /
+  WiGE) and Take off (aerospace: 4D6). Any 'Mech fall throws swarming and riding infantry off
+  (2D6 each, as from an infantry attack). Self-inflicted damage (falls, skids, charges) never
+  strikes the attached infantry.
+- **Mechanized battle armor** (TW p. 227): Mount… on the battle armor sheet (target a friendly
+  'Mech or vehicle in the same hex) attaches it (mode `ride`). Needs a humanoid suit up to heavy
+  with a basic manipulator or battle claw (light / PA(L): or two armored gloves), an Omni carrier
+  (the mech / vehicle Details "OmniMech / OmniVehicle" flag) or magnetic clamps, one battle armor
+  unit per carrier, and no VTOL / WiGE / UMU carriers. A swarmed carrier is mounted only with a
+  swarm-style roll using the negated Swarm Attack Modifiers Table value; those riders (and the
+  swarmers) may shoot each other ignoring target movement and terrain. Troopers ride per the
+  Battle Armor Transport Position Table (#1 RT / right, #2 LT / right, #3 RT rear / left, #4 LT
+  rear / left, #5 CT rear / rear, #6 CT / rear). Weapons in a 'Mech torso location or vehicle
+  side with a live rider can't fire (turrets can); a non-Omni carrier loses 1 Walking / Cruising
+  MP. Hits in a location with riders (front / rear for torsos) roll 1D6 per trooper there: 5–6
+  and that trooper absorbs damage up to its capacity first. A destroyed torso kills its riders; a
+  destroyed carrier's riders survive on 1D6 1–2 (swarmers drop off; from a VTOL / WiGE with 1
+  damage per elevation). Falls throw riders off (2D6); Building hex… on the carrier rolls the
+  building check (1–3: 1D6 and hold on; 4–6 or accidental: fall off with 2D6). Riders can't be
+  targeted or fire; Dismount returns them to the hex.
+- **Conventional infantry** (`infantry` actor, `infantry-sheet.mjs`; TW pp. 213–217): one actor
+  is a platoon — tech base, platoon type (foot / motorized / jump / mechanized + hover / wheeled /
+  tracked), weapon type (rifle ballistic / energy, machine gun, SRM, LRM, flamer), troopers
+  (current / max) and Ground / Jump MP; "Generic platoon" fills troopers and MP from the Generic
+  Conventional Infantry Units Table. Gunnery links to a character's Small Arms (7/SB); the
+  Anti-'Mech Skill is entered. Token bar: troopers. *Its attack* (the sheet's Attack button, one
+  attack per turn) uses the Conventional Infantry Range Modifier Table by weapon type (range 0–9),
+  no attacker movement, no stealth-armor modifiers; on a hit the Cluster Hits Table for its active
+  troopers (one trooper always hits) gives troopers hitting → Generic Conventional Infantry Damage
+  Table → 2-point groups (all at once against another platoon; machine gun platoons +1D6 against
+  infantry). A 0-MP platoon that moved can't attack. *Attacks against platoons*: non-infantry
+  weapons eliminate troopers per the Non-Infantry Weapon Damage Against Infantry Table (DV / 10
+  direct fire and physical, / 10 + 1 cluster ballistic, / 10 + 2 pulse, / 5 cluster missile — full
+  cluster damage, no Cluster Hits roll — area effect / 0.5), doubled against mechanized platoons;
+  burst-fire weapons roll the Burst-Fire table dice (battle armor per hit, on its own subtable);
+  infantry damage (platoons, battle armor AP weapons, punches pulling swarmers off) removes a
+  trooper per point, mechanized troopers taking two points (a one-point wound is carried). A
+  platoon standing in the open (no woods / partial cover in the dialog) takes double. Battle armor
+  non-missile hits count separately; its missile volleys use the full volley. Weapons carry an
+  optional "vs Inf" row override (auto guesses from the name: MG / flamer / small pulse = burst,
+  pulse, LB-X / Ultra / Rotary = cluster ballistic, launchers = cluster missile). Platoons make leg
+  and swarm attacks with their own table columns (mechanized platoons can't); their swarm damage
+  is their standard damage in 2-point groups with no automatic crit, and a hit that strikes a
+  swarming platoon is taken whole. Can't be punched, clubbed or charged; kicks / DFAs +3.
+- **Record-sheet importer** (`megamek-import.mjs`, UI `megamek-import-ui.mjs`): the Actors sidebar's
+  "Import MegaMek Units" button reads MegaMek `.mtf` ('Mechs) and `.blk` files (combat vehicles and
+  VTOLs, aerospace and conventional fighters, small craft, battle armor, conventional infantry) —
+  several files at once, or pasted text — creates one actor per unit (optionally into a folder)
+  and whispers the import notes to the user. Weapon statistics come from a catalog generated from
+  MegaMek's equipment definitions (`module/data/tw-equipment.mjs`, regenerated with
+  `tools/extract-megamek-equipment.py`; about 600 weapons and 400 ammunition types, matched by
+  MegaMek's display, internal and lookup names — a shared name picks the battle armor / Clan /
+  IS version that fits the unit). 'Mechs: armor from the file, internal structure from the
+  Internal Structure Table, crit slots mapped onto the slot model (engine, gyro, sensors, life
+  support, cockpit, actuators, heat sinks — each multi-slot double sink named separately — jump
+  jets, CASE, ammunition, weapons; Endo Steel / Ferro-Fibrous slots as named empties), weapons
+  built from their slot runs (rear mounts, weapons split across two locations), ammunition bins
+  pooled per weapon type and linked to the weapon they feed (for explosions). Vehicles: facing
+  armor (front / right / left / rear / turret or rotor), structure ⌈t/10⌉ for the single pool.
+  Fighters / small craft: thrust (max = ⌈safe × 1.5⌉), SI (file value, else the higher of ⌊t/10⌋
+  and Safe Thrust), thresholds ⌈armor/10⌉, heat sinks, fuel, each weapon's aerospace range
+  bracket. Battle armor: troopers, armor value, weight class, chassis, movement, manipulators,
+  stealth / mimetic / fire-resistant armor, magnetic clamps, weapons (arm / body / turret, AP
+  mount → one AP weapon, missile shots) and IS body-mounted launchers. Infantry: troopers (squads
+  × squad size), platoon type, the generic weapon type from the secondary (else primary) weapon,
+  MP from the generic table. Weapons also carry their burst-fire dice against infantry and a
+  Streak flag (Streak launchers now hit with every missile). Equipment without automated effects
+  (Artemis, ECM, MASC, C3, targeting computers, physical weapons, …) is listed in the notes.
+**Intentional house rules** (deliberate divergences — don't "correct" toward the book):
+- Combat vehicles roll a critical on any hit that penetrates to internal structure, in
+  addition to the tables' marked results (2/12, or 8 on side attacks).
+- A mech cockpit critical knocks a *linked* pilot character unconscious rather than killing
+  them (an unlinked sheet-only pilot is still marked killed); the mech is out of action.
+
+Sources verified from Total Warfare (hit-location pp.193–237, cluster p.117, crits p.124,
+heat p.159) and the AToW conversion.

@@ -1,19 +1,193 @@
-{{!-- ApplicationV2 supplies the <form> frame (tag: "form"); this part is inner content. --}}
-<header class="sheet-header">
-  <img class="profile-img" src="{{actor.img}}" data-action="editImage" data-edit="img" title="{{actor.name}}" height="70" width="70" />
-  <div class="header-fields">
-    <h1>
-      <input name="name" type="text" value="{{actor.name}}" placeholder="Battle Armor Name" />
-    </h1>
-  </div>
-</header>
+<div class="unit-sheet-content mech-sheet-content actor-sheet-content">
 
-<section class="sheet-body">
-  <div class="placeholder-content">
-    <h3>Battle Armor Sheet</h3>
-    <p>This battle armor sheet is a placeholder and will be expanded in a future update.</p>
-    {{#if editable}}
-    <prose-mirror name="system.biography" data-document-uuid="{{actor.uuid}}" value="{{system.biography}}" collaborate="false" toggled="true">{{{enrichedBiography}}}</prose-mirror>
-    {{else}}{{{enrichedBiography}}}{{/if}}
-  </div>
-</section>
+  {{!-- ===================== Header ===================== --}}
+  <header class="mech-header">
+    <img class="profile-img" src="{{actor.img}}" data-action="editImage" data-edit="img" title="{{actor.name}}" height="64" width="64" />
+    <div class="header-id">
+      <h1><input name="name" type="text" value="{{actor.name}}" placeholder="Battle Armor Name" {{#unless editable}}disabled{{/unless}} /></h1>
+      <div class="header-sub">
+        <select class="sub-field wide" name="system.techBase" title="Tech base (sets the default troopers per unit)" {{#unless editable}}disabled{{/unless}}>
+          {{#each techBases}}<option value="{{key}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+        </select>
+        <select class="sub-field wide" name="system.weightClass" title="Weight Class" {{#unless editable}}disabled{{/unless}}>
+          {{#each weightClassOpts}}<option value="{{key}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+        </select>
+        <select class="sub-field" name="system.chassis" title="Chassis" {{#unless editable}}disabled{{/unless}}>
+          {{#each chassisOpts}}<option value="{{key}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+        </select>
+        <input class="sub-field" name="system.squadSize" type="number" min="1" max="6" value="{{squad.size}}" title="Troopers in the unit (1–6)" {{#unless editable}}disabled{{/unless}} /><span class="unit">troopers</span>
+      </div>
+    </div>
+    <div class="header-totals">
+      <span class="tot-badge struct {{#if (lt squad.live squad.size)}}dmg{{/if}}">TROOPERS {{squad.live}} / {{squad.size}}</span>
+      <span class="tot-badge armor">ARMOR {{system.armorValue}} +1</span>
+    </div>
+  </header>
+
+  {{!-- ===================== Tabs ===================== --}}
+  <nav class="sheet-tabs">
+    <a class="item" data-tab="status"><i class="fas fa-heart-pulse"></i> Status</a>
+    <a class="item" data-tab="combat"><i class="fas fa-crosshairs"></i> Combat</a>
+    <a class="item" data-tab="details"><i class="fas fa-book"></i> Details</a>
+  </nav>
+
+  <section class="sheet-body">
+
+    {{!-- ===================== STATUS ===================== --}}
+    <div class="tab" data-tab="status">
+      {{#if attached}}
+      <div class="mf-panel mf-infantry-on">
+        {{#if attached.swarm}}
+        <h4>Swarming {{attached.carrierName}}</h4>
+        <div class="penalty-line">▸ Swarm damage {{attached.swarmDamage}} (arm-mounted non-missile weapons × troopers, + vibro-claws) — an automatic hit each Weapon Attack Phase after the swarm; it can't be targeted.</div>
+        {{#if editable}}<div class="mf-actions">
+          <button type="button" class="swarm-attack" {{#if attached.swarmBlock}}disabled title="{{attached.swarmBlock}}"{{else}}title="Automatic hit: Swarm Attacks Hit Location Table, plus a critical roll"{{/if}}><i class="fas fa-bolt"></i> Swarm Damage</button>
+          <button type="button" class="release-swarm" title="End the swarm (any later Weapon Attack Phase); the unit drops into the hex"><i class="fas fa-person-walking-arrow-right"></i> Release</button>
+        </div>{{/if}}
+        {{else}}
+        <h4>Riding {{attached.carrierName}} <span class="hint">mechanized battle armor — can't be targeted or fire (except at infantry swarming the carrier)</span></h4>
+        {{#each attached.positions}}<div class="penalty-line{{#unless alive}} dmg{{/unless}}">▸ #{{n}}: {{where}}{{#unless alive}} — destroyed{{/unless}}</div>{{/each}}
+        {{#if editable}}<div class="mf-actions"><button type="button" class="dismount-carrier" title="Movement Phase, at the end of the carrier's move: the unit can't move or attack this turn"><i class="fas fa-person-walking-arrow-right"></i> Dismount</button></div>{{/if}}
+        {{/if}}
+      </div>
+      {{/if}}
+      <div class="mf-panel">
+        <h4>Troopers <span class="hint">Armor Value {{system.armorValue}} + 1 soldier box each — click a box to mark damage</span></h4>
+        {{#each troopers}}
+        <div class="ba-trooper {{#unless alive}}dead{{/unless}}">
+          <span class="ba-tn">#{{n}}</span>
+          <span class="pips">{{#each boxes}}<i class="crit-pip trooper-box {{#if on}}on{{/if}} {{#if soldier}}soldier{{/if}}" data-trooper="{{../n}}" data-box="{{n}}" title="{{#if soldier}}Soldier{{else}}Armor {{n}}{{/if}}"></i>{{/each}}</span>
+          <span class="ba-state">{{#if alive}}{{armor}} armor left{{else}}DESTROYED{{/if}}</span>
+        </div>
+        {{/each}}
+        {{#unless squad.live}}<div class="penalty-line dmg">▸ ALL TROOPERS DESTROYED — the unit is eliminated</div>{{/unless}}
+      </div>
+
+      <div class="mf-grid2">
+        <div class="mf-panel">
+          <h4>Movement</h4>
+          <div class="mf-stats">
+            <label class="mf-stat"><span class="k">Ground</span><input type="number" min="0" name="system.movement.ground" value="{{move.ground}}" {{#unless editable}}disabled{{/unless}} /></label>
+            <label class="mf-stat"><span class="k">Jump</span><input type="number" min="0" name="system.movement.jump" value="{{move.jump}}" {{#unless editable}}disabled{{/unless}} /></label>
+            <label class="mf-stat"><span class="k">VTOL</span><input type="number" min="0" name="system.movement.vtol" value="{{move.vtol}}" {{#unless editable}}disabled{{/unless}} /></label>
+            <label class="mf-stat"><span class="k">UMU</span><input type="number" min="0" name="system.movement.umu" value="{{move.umu}}" {{#unless editable}}disabled{{/unless}} /></label>
+          </div>
+          {{#if turnMove}}
+          <div class="mf-turnmove" title="Infantry never add an attacker movement modifier; this sets the modifier for attacks against the unit. Hexes add up automatically as the token moves during combat.">
+            <span class="k">This turn</span>
+            <select class="turn-move-field" data-field="mode" {{#unless editable}}disabled{{/unless}}>{{#each turnMove.modes}}<option value="{{key}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select>
+            <input type="number" min="0" class="turn-move-field" data-field="hexes" value="{{turnMove.hexes}}" {{#unless editable}}disabled{{/unless}} /><span class="k">hexes</span>
+          </div>
+          {{/if}}
+          {{#if equipment.bodyMissiles}}{{#unless equipment.missilesJettisoned}}<div class="penalty-line">▸ Body-mounted missile launchers: no jumping or anti-'Mech attacks until jettisoned (Details tab)</div>{{/unless}}{{/if}}
+          {{#if editable}}{{#unless attached}}<div class="mf-actions"><button type="button" class="mount-carrier" {{#if mountBlock}}disabled title="{{mountBlock}}"{{else}}title="Ride the targeted friendly 'Mech or vehicle in the same hex (Omni, or any with magnetic clamps)"{{/if}}><i class="fas fa-person-walking-luggage"></i> Mount…</button></div>{{/unless}}{{/if}}
+        </div>
+
+        <div class="mf-panel">
+          <h4>Squad Leader</h4>
+          <div class="pilot">
+            <div class="pic">{{#if crewLinked}}<img src="{{crewLinked.img}}" alt="" />{{else}}<i class="fas fa-user"></i>{{/if}}</div>
+            <div class="info">
+              <div class="pname-line">
+                {{#if crewLinked}}
+                  <span class="pname crew-open" title="Open linked actor">{{crewLinked.name}}</span>
+                  <span class="link linked"><i class="fas fa-link"></i> linked</span>
+                  {{#if editable}}<a class="crew-unlink" title="Unlink"><i class="fas fa-unlink"></i></a>{{/if}}
+                {{else}}
+                  <input class="pname-in" type="text" name="system.crew.name" value="{{crew.name}}" placeholder="Leader name" {{#unless editable}}disabled{{/unless}} />
+                  {{#if editable}}<a class="link crew-link"><i class="fas fa-link"></i> link PC/NPC</a>{{/if}}
+                {{/if}}
+              </div>
+            </div>
+            <div class="skillpair">
+              <div class="sk {{#if crew.gunneryDerived}}derived{{/if}}"><span class="k">Gun</span>
+                {{#if crew.gunneryDerived}}<span class="skv" title="{{crew.gunnerySource}}">{{crew.gunnery}}</span>
+                {{else}}<input type="number" min="0" name="system.crew.gunnery" value="{{crew.gunnery}}" {{#unless editable}}disabled{{/unless}} />{{/if}}
+              </div>
+              <div class="sk {{#if crew.antiMechDerived}}derived{{/if}}"><span class="k" title="Anti-'Mech Skill">A-M</span>
+                {{#if crew.antiMechDerived}}<span class="skv" title="{{crew.antiMechSource}}">{{crew.antiMech}}</span>
+                {{else}}<input type="number" min="0" name="system.crew.antiMech" value="{{crew.antiMech}}" {{#unless editable}}disabled{{/unless}} />{{/if}}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {{!-- ===================== COMBAT ===================== --}}
+    <div class="tab" data-tab="combat">
+      <div class="mf-panel">
+        <h4>Weapons {{#if editable}}<button type="button" class="fire-weapons" title="Fire several weapons together (one declaration, one card)"><i class="fas fa-crosshairs"></i> Fire…</button> {{#unless attached}}<button type="button" class="anti-mech-attack" {{#if antiMechBlock}}disabled title="{{antiMechBlock}}"{{else}}title="Leg or swarm attack against the targeted unit in the same hex (instead of weapon attacks)"{{/if}}><i class="fas fa-person-rifle"></i> Anti-'Mech…</button> {{/unless}}<button type="button" class="add-weapon"><i class="fas fa-plus"></i> Add</button>{{/if}}</h4>
+        <table class="wt">
+          <thead><tr><th class="w-name">Weapon</th><th title="Arm-mounted weapons count for swarm attacks">Loc</th><th title="Damage per trooper (per missile for launchers)">Dmg</th><th title="Missiles per trooper's launcher (0 = not a missile weapon)">Msl</th><th title="Anti-personnel weapon (Rifle, Ballistic column)">AP</th><th title="Minimum range">Min</th><th>S</th><th>M</th><th>L</th><th title="Against conventional infantry: the weapon's row on the Non-Infantry Weapon Damage table (auto guesses from the name)">vs Inf</th><th>Ammo Type</th><th title="Missile shots left (other weapons don't track ammunition)">Rds</th><th></th></tr></thead>
+          <tbody>
+            {{#each weapons}}
+            <tr class="w-row{{#if destroyed}} w-destroyed{{/if}}{{#if fired}} w-fired{{/if}}">
+              <td class="w-name"><input type="text" class="weapon-field" data-weapon-id="{{id}}" data-field="name" value="{{name}}" placeholder="Weapon" {{#unless ../editable}}disabled{{/unless}} /></td>
+              <td><select class="weapon-field loc" data-weapon-id="{{id}}" data-field="location" {{#unless ../editable}}disabled{{/unless}}>{{#each locOpts}}<option value="{{key}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select></td>
+              <td><input type="number" min="0" class="weapon-field n" data-weapon-id="{{id}}" data-field="damage" value="{{damage}}" {{#unless ../editable}}disabled{{/unless}} /></td>
+              <td class="w-clus"><input type="number" min="0" class="weapon-field n" data-weapon-id="{{id}}" data-field="clusterSize" value="{{clusterSize}}" {{#unless ../editable}}disabled{{/unless}} />{{#if clusterSize}}<select class="weapon-field w-grp" data-weapon-id="{{id}}" data-field="clusterGroup" title="Damage grouping: each missile hit rolls its own location (default), or 5-point groups" {{#unless ../editable}}disabled{{/unless}}><option value="" {{#unless clusterGroup}}selected{{/unless}}>each</option><option value="five" {{#if (eq clusterGroup "five")}}selected{{/if}}>5-pt</option></select>{{/if}}</td>
+              <td><input type="checkbox" class="weapon-flag" data-weapon-id="{{id}}" data-field="ap" {{checked ap}} {{#unless ../editable}}disabled{{/unless}} /></td>
+              <td><input type="number" min="0" class="weapon-field n" data-weapon-id="{{id}}" data-field="rangeMin" value="{{rangeMin}}" {{#unless ../editable}}disabled{{/unless}} /></td>
+              <td><input type="number" min="0" class="weapon-field n" data-weapon-id="{{id}}" data-field="rangeS" value="{{rangeS}}" {{#unless ../editable}}disabled{{/unless}} /></td>
+              <td><input type="number" min="0" class="weapon-field n" data-weapon-id="{{id}}" data-field="rangeM" value="{{rangeM}}" {{#unless ../editable}}disabled{{/unless}} /></td>
+              <td><input type="number" min="0" class="weapon-field n" data-weapon-id="{{id}}" data-field="rangeL" value="{{rangeL}}" {{#unless ../editable}}disabled{{/unless}} /></td>
+              <td><select class="weapon-field w-inf" data-weapon-id="{{id}}" data-field="infClass" {{#unless ../editable}}disabled{{/unless}}><option value="" {{#unless infClass}}selected{{/unless}}>auto</option><option value="direct" {{#if (eq infClass "direct")}}selected{{/if}}>direct</option><option value="clusterBallistic" {{#if (eq infClass "clusterBallistic")}}selected{{/if}}>clus. ball.</option><option value="pulse" {{#if (eq infClass "pulse")}}selected{{/if}}>pulse</option><option value="clusterMissile" {{#if (eq infClass "clusterMissile")}}selected{{/if}}>clus. missile</option><option value="burst" {{#if (eq infClass "burst")}}selected{{/if}}>burst</option><option value="ae" {{#if (eq infClass "ae")}}selected{{/if}}>area</option></select></td>
+              <td><input type="text" class="weapon-field" data-weapon-id="{{id}}" data-field="ammoType" value="{{ammoType}}" placeholder="— none —" {{#unless ../editable}}disabled{{/unless}} /></td>
+              <td><input type="number" min="0" class="weapon-field n" data-weapon-id="{{id}}" data-field="ammo" value="{{ammo}}" {{#unless ../editable}}disabled{{/unless}} /></td>
+              <td class="w-actions">
+                {{#if destroyed}}<span class="w-badge dmg">DESTROYED</span>{{else if outOfAmmo}}<span class="w-badge warn">NO AMMO</span>{{else if fired}}<span class="w-badge">FIRED</span>{{/if}}
+                {{#if ../editable}}{{#unless destroyed}}<button type="button" class="weapon-attack{{#if toHit}} has-tohit{{/if}}" data-weapon-id="{{id}}" title="{{#if fired}}Already fired this turn{{else if outOfAmmo}}Out of ammunition{{else if toHit}}{{toHit.title}}{{else}}Attack (target a token to see the to-hit number){{/if}}" {{#if fired}}disabled{{else if outOfAmmo}}disabled{{else if toHit.oor}}disabled{{/if}}>{{#if toHit}}<span class="w-tohit">{{toHit.text}}</span>{{else}}<i class="fas fa-bolt"></i>{{/if}}</button>{{/unless}}{{/if}}
+                {{#if ../editable}}<a class="toggle-weapon-destroyed" data-weapon-id="{{id}}" title="{{#if destroyed}}Mark repaired{{else}}Mark destroyed{{/if}}"><i class="fas {{#if destroyed}}fa-screwdriver-wrench{{else}}fa-ban{{/if}}"></i></a>{{/if}}
+                {{#if ../editable}}<a class="duplicate-weapon" data-weapon-id="{{id}}" title="Duplicate"><i class="fas fa-clone"></i></a>{{/if}}
+                {{#if ../editable}}<a class="remove-weapon" data-weapon-id="{{id}}" title="Remove"><i class="fas fa-trash"></i></a>{{/if}}
+              </td>
+            </tr>
+            {{/each}}
+          </tbody>
+        </table>
+        {{#unless weapons.length}}<p class="empty-notice">No weapons. Click "Add".</p>{{/unless}}
+        <p class="logi-note">Enter per-trooper values from the record sheet: all troopers fire each weapon together. Missile launchers: Dmg per missile, Msl = launcher size; only missiles track ammunition. One anti-personnel attack per turn.</p>
+      </div>
+    </div>
+
+    {{!-- ===================== DETAILS ===================== --}}
+    <div class="tab" data-tab="details">
+      <div class="mf-panel">
+        <h4>Armor &amp; Manipulators <span class="hint">from the record sheet</span></h4>
+        <div class="mf-stats wide">
+          <label class="mf-stat"><span class="k">Armor Value (per trooper)</span><input type="number" min="0" name="system.armorValue" value="{{system.armorValue}}" {{#unless editable}}disabled{{/unless}} /></label>
+          <label class="mf-stat"><span class="k">Armor Type</span><input type="text" name="system.armorType" value="{{system.armorType}}" placeholder="e.g. Standard" {{#unless editable}}disabled{{/unless}} /></label>
+          <label class="mf-stat"><span class="k">Stealth</span><select name="system.equipment.stealth" {{#unless editable}}disabled{{/unless}}>{{#each stealthOpts}}<option value="{{key}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select></label>
+          <label class="mf-stat"><span class="k">Left Manipulator</span><select name="system.manipulators.left" {{#unless editable}}disabled{{/unless}}>{{#each manipLeft}}<option value="{{key}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select></label>
+          <label class="mf-stat"><span class="k">Right Manipulator</span><select name="system.manipulators.right" {{#unless editable}}disabled{{/unless}}>{{#each manipRight}}<option value="{{key}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select></label>
+        </div>
+        <div class="flags">
+          <label class="chk" title="Attacks against the unit: +3 / +2 / +1 when it moved 0 / 1 / 2 hexes"><input type="checkbox" name="system.equipment.mimetic" {{checked equipment.mimetic}} {{#unless editable}}disabled{{/unless}}> Mimetic armor</label>
+          <label class="chk" title="Attacks against the unit: +2 / +1 when it moved 0 / 1 hexes"><input type="checkbox" name="system.equipment.camo" {{checked equipment.camo}} {{#unless editable}}disabled{{/unless}}> Camo system</label>
+          <label class="chk" title="Ignores weapon heat; heat-causing weapons' damage is halved"><input type="checkbox" name="system.equipment.fireResistant" {{checked equipment.fireResistant}} {{#unless editable}}disabled{{/unless}}> Fire-resistant armor</label>
+          <label class="chk" title="May ride non-Omni 'Mechs and vehicles as mechanized battle armor"><input type="checkbox" name="system.equipment.magneticClamps" {{checked equipment.magneticClamps}} {{#unless editable}}disabled{{/unless}}> Magnetic clamps</label>
+          <label class="chk" title="Inner Sphere body-mounted missile launchers: no jumping or anti-'Mech attacks until jettisoned"><input type="checkbox" name="system.equipment.bodyMissiles" {{checked equipment.bodyMissiles}} {{#unless editable}}disabled{{/unless}}> Body-mounted missiles</label>
+          {{#if equipment.bodyMissiles}}<label class="chk"><input type="checkbox" name="system.equipment.missilesJettisoned" {{checked equipment.missilesJettisoned}} {{#unless editable}}disabled{{/unless}}> Launchers jettisoned</label>{{/if}}
+        </div>
+      </div>
+      <div class="mf-panel">
+        <h4>Construction <span class="hint">stored as entered</span></h4>
+        <div class="mf-stats wide">
+          <label class="mf-stat"><span class="k">Era</span><input type="text" name="system.era" value="{{system.era}}" {{#unless editable}}disabled{{/unless}} /></label>
+          <label class="mf-stat"><span class="k">Cost (C-bills)</span><input type="number" min="0" name="system.cost" value="{{system.cost}}" {{#unless editable}}disabled{{/unless}} /></label>
+          <label class="mf-stat"><span class="k">Battle Value</span><input type="number" min="0" name="system.bv" value="{{system.bv}}" {{#unless editable}}disabled{{/unless}} /></label>
+        </div>
+      </div>
+      <div class="mf-panel">
+        <h4>Notes / Biography</h4>
+        <div class="editor-container">
+          {{#if editable}}
+          <prose-mirror name="system.biography" data-document-uuid="{{actor.uuid}}" value="{{system.biography}}" collaborate="false" toggled="true">{{{enrichedBiography}}}</prose-mirror>
+          {{else}}{{{enrichedBiography}}}{{/if}}
+        </div>
+      </div>
+    </div>
+
+  </section>
+</div>

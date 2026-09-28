@@ -1,0 +1,58 @@
+<div class="mech-foundry tw-attack-card tw-psr-card">
+  <header class="tw-atk-head"><i class="fas fa-person-falling"></i> <span class="tw-atk-weapon">{{title}}</span></header>
+
+  {{#each results}}
+  <div class="tw-psr-roll">
+    <div class="tw-psr-reason">{{this.label}}{{#if this.tn}} <span class="tw-psr-tn">— needs {{this.tn}}+</span>{{/if}}</div>
+    {{#if this.mods.length}}<div class="tw-atk-mods">{{#each this.mods}}<span class="tw-mod">{{this.label}} {{#if (gte this.value 0)}}+{{/if}}{{this.value}}</span>{{/each}}</div>{{/if}}
+    <div class="tw-atk-roll {{#if this.success}}hit{{else}}miss{{/if}}">
+      {{#if this.auto}}<span class="tw-atk-result">{{this.auto}}</span>
+      {{else}}<span class="tw-atk-dice">{{#each this.dice}}<span class="tw-die">{{this}}</span>{{/each}}</span>
+      <span class="tw-atk-total">= {{this.total}}</span>
+      <span class="tw-atk-result">{{#if this.success}}PASS{{else}}FAIL{{/if}}</span>{{/if}}
+    </div>
+  </div>
+  {{/each}}
+
+  {{#each notes}}<div class="tw-hl-event tw-psr-line">▸ {{this}}</div>{{/each}}
+  {{#if stays}}<div class="tw-hl-event">▸ Stays standing.</div>{{/if}}
+  {{#if stood}}<div class="tw-hl-event">▸ Back on its feet.</div>{{/if}}
+  {{#if woke}}<div class="tw-hl-event">▸ Regains consciousness.</div>{{/if}}
+
+  {{#if fall}}
+  <div class="tw-psr-fall">
+    <div class="tw-hl-destroyed">FALLS{{#if fall.levels}} {{fall.levels}} LEVEL{{#unless (eq fall.levels 1)}}S{{/unless}}{{/if}} — {{fall.damage}} damage</div>
+    <div class="tw-hl-event">▸ Facing roll {{fall.facingRoll}}: {{fall.facing}} · hits on the {{fall.location}} column · now prone</div>
+    {{#each fall.frag.groups}}
+    <div class="tw-hit-loc">
+      <span class="tw-hl-dice">{{#each this.locDice}}<span class="tw-die">{{this}}</span>{{/each}}</span>
+      <span class="tw-hl-loc">{{this.locLabel}}</span>
+      <span class="tw-hl-dmg">{{this.damage}}</span>
+    </div>
+    {{#each this.events}}<div class="tw-hl-event">▸ {{this}}</div>{{/each}}
+    {{/each}}
+    {{#each fall.frag.critChecks}}
+    <div class="tw-hl-event tw-crit-line">▸ Crit check {{this.locLabel}} ({{this.total}}): <strong>{{this.text}}</strong></div>
+    {{#each this.slots}}<div class="tw-hl-event tw-crit-slot">· slot {{this.index}}: {{this.text}}</div>{{/each}}
+    {{/each}}
+    {{#each fall.frag.explosionLines}}<div class="tw-hl-event tw-crit-line"><strong>{{this}}</strong></div>{{/each}}
+    {{#each fall.frag.warriorLines}}<div class="tw-hl-event tw-crit-line">▸ {{this}}</div>{{/each}}
+    {{#if fall.frag.destroyedByCrit}}<div class="tw-hl-destroyed">UNIT DESTROYED</div>{{/if}}
+    <div class="tw-psr-reason">Avoid warrior damage — needs {{fall.warrior.tn}}+</div>
+    <div class="tw-atk-mods">{{#each fall.warrior.mods}}<span class="tw-mod">{{this.label}} {{#if (gte this.value 0)}}+{{/if}}{{this.value}}</span>{{/each}}</div>
+    <div class="tw-atk-roll {{#if fall.warrior.success}}hit{{else}}miss{{/if}}">
+      {{#if fall.warrior.auto}}<span class="tw-atk-result">{{fall.warrior.auto}}</span>
+      {{else}}<span class="tw-atk-dice">{{#each fall.warrior.dice}}<span class="tw-die">{{this}}</span>{{/each}}</span>
+      <span class="tw-atk-total">= {{fall.warrior.total}}</span>
+      <span class="tw-atk-result">{{#if fall.warrior.success}}NO INJURY{{else}}INJURED{{/if}}</span>{{/if}}
+    </div>
+    {{#each fall.warriorLines}}<div class="tw-hl-event tw-crit-line">▸ {{this}}</div>{{/each}}
+    {{#each fall.infantryLines}}<div class="tw-hl-event tw-psr-line">▸ {{this}}</div>{{/each}}
+  </div>
+  {{/if}}
+  {{#if skidFrag}}{{> "systems/mech-foundry/templates/chat/parts/tw-hit-result.hbs" hr=skidFrag}}{{/if}}
+  {{#each frags}}
+  {{#if this.title}}<div class="tw-self-head">{{this.title}}</div>{{/if}}
+  {{> "systems/mech-foundry/templates/chat/parts/tw-hit-result.hbs" hr=this}}
+  {{/each}}
+</div>

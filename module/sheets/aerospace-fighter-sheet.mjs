@@ -1,5 +1,9 @@
 import { MechFoundryUnitSheet } from "./unit-sheet.mjs";
 import { actorSkillRating, applyCrewDamage, CREW_DAMAGE, AERO_GUNNERY_SKILLS, AERO_PILOTING_SKILLS } from "../helpers/atow-conversion.mjs";
+import { weaponAttack } from "../helpers/tw-combat.mjs";
+import { wakeRoll } from "../helpers/tw-falls.mjs";
+import { aeroLanding, aeroManeuver, randomMovement, resolveAeroHeat, rollPendingControl } from "../helpers/tw-aero-flight.mjs";
+import { pendingPSR } from "../helpers/tw-psr.mjs";
 
 const { DialogV2 } = foundry.applications.api;
 
@@ -50,7 +54,7 @@ export class MechFoundryAerospaceFighterSheet extends MechFoundryUnitSheet {
   };
 
   /** @override */
-  static NUMERIC_WEAPON_FIELDS = ['heat', 'damage', 'rangeS', 'rangeM', 'rangeL', 'rangeE', 'ammo', 'shotsPerTon'];
+  static NUMERIC_WEAPON_FIELDS = ['heat', 'damage', 'rangeS', 'rangeM', 'rangeL', 'rangeE', 'ammo', 'shotsPerTon', 'clusterSize'];
 
   /* -------------------------------------------- */
 
@@ -113,9 +117,13 @@ export class MechFoundryAerospaceFighterSheet extends MechFoundryUnitSheet {
     context.pilot = {
       name: pilot.name ?? '', gunnery: pilot.gunnery ?? 4, piloting: pilot.piloting ?? 5,
       hits, pips: Array.from({ length: PILOT_HIT_MAX }, (_, i) => i < hits),
-      gunneryDerived: false, pilotingDerived: false
+      gunneryDerived: false, pilotingDerived: false,
+      unconscious: linked ? !!linked.system?.unconscious : !!pilot.unconscious,
+      dead: hits >= PILOT_HIT_MAX
     };
     context.pilotLinked = linked ? { id: linked.id, name: linked.name, img: linked.img } : null;
+    const pend = pendingPSR(this.actor);
+    context.controlPending = pend ? pend.reasons.map(r => r.label) : null;
     if (linked) {
       const g = actorSkillRating(linked, AERO_GUNNERY_SKILLS);
       const p = actorSkillRating(linked, AERO_PILOTING_SKILLS);
@@ -174,6 +182,12 @@ export class MechFoundryAerospaceFighterSheet extends MechFoundryUnitSheet {
     html.on('click', '.pilot-unlink', this._onPilotUnlink.bind(this));
     html.on('click', '.pilot-open', this._onPilotOpen.bind(this));
     html.on('click', '.weapon-attack', this._onWeaponAttack.bind(this));
+    html.on('click', '.wake-roll', (ev) => { ev.preventDefault(); wakeRoll(this.actor); });
+    html.on('click', '.resolve-heat', (ev) => { ev.preventDefault(); resolveAeroHeat(this.actor); });
+    html.on('click', '.control-roll', (ev) => { ev.preventDefault(); rollPendingControl(this.actor); });
+    html.on('click', '.random-move', (ev) => { ev.preventDefault(); randomMovement(this.actor); });
+    html.on('click', '.aero-maneuver', (ev) => { ev.preventDefault(); aeroManeuver(this.actor); });
+    html.on('click', '.aero-landing', (ev) => { ev.preventDefault(); aeroLanding(this.actor); });
   }
 
   _applyActiveTab() {
@@ -193,7 +207,7 @@ export class MechFoundryAerospaceFighterSheet extends MechFoundryUnitSheet {
   async _onAddWeapon(event) {
     event.preventDefault();
     await this._updateWeapons(w => {
-      w.push({ id: foundry.utils.randomID(), name: '', location: '', heat: 0, damage: 0, rangeS: 0, rangeM: 0, rangeL: 0, rangeE: 0, ammoType: '', ammo: 0 });
+      w.push({ id: foundry.utils.randomID(), name: '', location: '', heat: 0, damage: 0, clusterSize: 0, rangeS: 0, rangeM: 0, rangeL: 0, rangeE: 0, ammoType: '', ammo: 0 });
     });
   }
 
@@ -255,8 +269,10 @@ export class MechFoundryAerospaceFighterSheet extends MechFoundryUnitSheet {
     if (actor) actor.sheet.render(true); else ui.notifications.warn("Linked pilot actor was not found.");
   }
 
-  _onWeaponAttack(event) {
+  async _onWeaponAttack(event) {
     event.preventDefault();
-    ui.notifications.info("Weapon attacks are wired up in the combat-automation phase.");
+    const id = event.currentTarget.dataset.weaponId;
+    const weapon = (this.actor.system.weapons || []).find(w => w.id === id);
+    if (weapon) await weaponAttack(this.actor, weapon);
   }
 }

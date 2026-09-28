@@ -1,0 +1,26 @@
+<div class="mech-foundry tw-attack-card tw-heat-card">
+  <header class="tw-atk-head"><i class="fas fa-fire"></i> Heat Phase</header>
+  <div class="tw-heat-lines">
+    {{#each lines}}<div class="tw-heat-line"><span class="e">{{this.label}}</span><span class="v">{{#if (gte this.value 0)}}+{{/if}}{{this.value}}</span></div>{{/each}}
+  </div>
+  <div class="tw-atk-tn">
+    <span class="tw-atk-label">New Heat</span>
+    <span class="tw-atk-tnval">{{newHeat}}</span>
+  </div>
+  <div class="tw-atk-mods">
+    {{#unless aero}}<span class="tw-mod">Move −{{effects.mp}} MP</span>{{/unless}}
+    <span class="tw-mod">Fire +{{effects.toHit}}</span>
+    {{#unless aero}}<span class="tw-mod">Shutdown {{effects.shutdown}}</span>
+    <span class="tw-mod">Ammo {{effects.ammo}}</span>{{/unless}}
+  </div>
+  {{#each notes}}<div class="tw-hl-event">▸ {{this}}</div>{{/each}}
+  {{#each warriorLines}}<div class="tw-hl-event tw-crit-line">▸ {{this}}</div>{{/each}}
+  {{#if pilotDamage}}<div class="tw-hl-event">▸ Life support: {{pilotDamage}}</div>{{/if}}
+  {{#if shutdownCheck}}<div class="tw-hl-event">▸ Shutdown avoid roll {{shutdownCheck.total}} vs {{shutdownCheck.avoid}}+: <strong>{{#if shutdownCheck.shutsDown}}SHUTS DOWN{{else}}avoided{{/if}}</strong></div>{{/if}}
+  {{#if startupCheck}}<div class="tw-hl-event">▸ Shut down: {{startupCheck.text}}{{#if restarts}} — <strong>BACK ONLINE</strong>{{/if}}</div>{{/if}}
+  {{#if ammoCheck}}{{#if ammoCheck.none}}<div class="tw-hl-event">▸ Ammunition explosion check: no loaded bins linked to weapons</div>
+  {{else}}<div class="tw-hl-event">▸ Ammunition explosion avoid roll {{ammoCheck.total}} vs {{ammoCheck.avoid}}+: <strong>{{#if ammoCheck.explodes}}EXPLODES{{else}}avoided{{/if}}</strong></div>{{/if}}{{/if}}
+  {{#if ammoFrag}}{{> "systems/mech-foundry/templates/chat/parts/tw-hit-result.hbs" hr=ammoFrag}}{{/if}}
+  {{#if autoShutdown}}<div class="tw-hl-destroyed">AUTOMATIC SHUTDOWN (30+)</div>{{/if}}
+  {{#if psrNote}}<div class="tw-hl-event tw-psr-line"><i class="fas fa-person-falling"></i> {{psrNote}}</div>{{/if}}
+</div>

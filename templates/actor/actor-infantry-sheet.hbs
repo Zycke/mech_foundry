@@ -1,0 +1,118 @@
+<div class="unit-sheet-content mech-sheet-content actor-sheet-content">
+
+  {{!-- ===================== Header ===================== --}}
+  <header class="mech-header">
+    <img class="profile-img" src="{{actor.img}}" data-action="editImage" data-edit="img" title="{{actor.name}}" height="64" width="64" />
+    <div class="header-id">
+      <h1><input name="name" type="text" value="{{actor.name}}" placeholder="Platoon Name" {{#unless editable}}disabled{{/unless}} /></h1>
+      <div class="header-sub">
+        <select class="sub-field wide" name="system.techBase" title="Tech base" {{#unless editable}}disabled{{/unless}}>
+          {{#each techBases}}<option value="{{key}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+        </select>
+        <select class="sub-field wide" name="system.platoonType" title="Platoon type" {{#unless editable}}disabled{{/unless}}>
+          {{#each platoonTypes}}<option value="{{key}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+        </select>
+        {{#if platoon.mechanized}}
+        <select class="sub-field" name="system.mechanizedType" title="Mechanized vehicle type" {{#unless editable}}disabled{{/unless}}>
+          {{#each mechanizedTypes}}<option value="{{key}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+        </select>
+        {{/if}}
+        <select class="sub-field wide" name="system.weaponType" title="Platoon weapon" {{#unless editable}}disabled{{/unless}}>
+          {{#each weaponTypes}}<option value="{{key}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+        </select>
+      </div>
+    </div>
+    <div class="header-totals">
+      <span class="tot-badge struct {{#if platoon.damaged}}dmg{{/if}}">TROOPERS {{platoon.value}} / {{platoon.max}}</span>
+    </div>
+  </header>
+
+  <section class="sheet-body">
+    {{#if attached}}
+    <div class="mf-panel mf-infantry-on">
+      <h4>Swarming {{attached.carrierName}}</h4>
+      <div class="penalty-line">▸ Swarm damage each later Weapon Attack Phase: the platoon's standard damage in 2-point groups (no automatic critical); it can't be targeted.</div>
+      {{#if editable}}<div class="mf-actions">
+        <button type="button" class="swarm-attack" {{#if attached.swarmBlock}}disabled title="{{attached.swarmBlock}}"{{/if}}><i class="fas fa-bolt"></i> Swarm Damage</button>
+        <button type="button" class="release-swarm"><i class="fas fa-person-walking-arrow-right"></i> Release</button>
+      </div>{{/if}}
+    </div>
+    {{/if}}
+
+    <div class="mf-grid2">
+      <div class="mf-panel">
+        <h4>Platoon <span class="hint">each point of damage removes a trooper{{#if platoon.mechanized}} (mechanized: two points){{/if}}</span></h4>
+        <div class="facingrow {{#if platoon.damaged}}dmg{{/if}}">
+          <span class="fl">Troopers</span>
+          <span class="fv"><input type="number" min="0" name="system.troopers.value" value="{{platoon.value}}" {{#unless editable}}disabled{{/unless}} /><span class="mx">/<input type="number" min="0" name="system.troopers.max" value="{{platoon.max}}" {{#unless editable}}disabled{{/unless}} /></span></span>
+          <span class="fbar struct"><span style="width: {{platoon.pct}}%"></span></span>
+        </div>
+        {{#if platoon.mechanized}}{{#if platoon.wound}}<div class="penalty-line">▸ One mechanized trooper has taken 1 point (the next point eliminates them)</div>{{/if}}{{/if}}
+        <div class="mf-stats" style="margin-top:10px">
+          <label class="mf-stat"><span class="k">Ground MP</span><input type="number" min="0" name="system.movement.ground" value="{{system.movement.ground}}" {{#unless editable}}disabled{{/unless}} /></label>
+          <label class="mf-stat"><span class="k">Jump MP</span><input type="number" min="0" name="system.movement.jump" value="{{system.movement.jump}}" {{#unless editable}}disabled{{/unless}} /></label>
+        </div>
+        {{#if zeroMP}}<div class="penalty-line">▸ 0 MP: the platoon either moves or attacks in a turn</div>{{/if}}
+        {{#if turnMove}}
+        <div class="mf-turnmove" title="Infantry never add an attacker movement modifier; this sets the modifier for attacks against the platoon.">
+          <span class="k">This turn</span>
+          <select class="turn-move-field" data-field="mode" {{#unless editable}}disabled{{/unless}}>{{#each turnMove.modes}}<option value="{{key}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select>
+          <input type="number" min="0" class="turn-move-field" data-field="hexes" value="{{turnMove.hexes}}" {{#unless editable}}disabled{{/unless}} /><span class="k">hexes</span>
+        </div>
+        {{/if}}
+        {{#if editable}}{{#if platoon.generic}}<div class="mf-actions"><button type="button" class="generic-platoon" title="Set troopers and MP from the Generic Conventional Infantry Units Table"><i class="fas fa-users"></i> Generic platoon ({{platoon.generic.troopers}} troopers, {{platoon.generic.ground}}{{#if platoon.generic.jump}} / {{platoon.generic.jump}} jump{{/if}} MP)</button></div>{{/if}}{{/if}}
+      </div>
+
+      <div class="mf-panel">
+        <h4>Platoon Leader</h4>
+        <div class="pilot">
+          <div class="pic">{{#if crewLinked}}<img src="{{crewLinked.img}}" alt="" />{{else}}<i class="fas fa-user"></i>{{/if}}</div>
+          <div class="info">
+            <div class="pname-line">
+              {{#if crewLinked}}
+                <span class="pname crew-open" title="Open linked actor">{{crewLinked.name}}</span>
+                <span class="link linked"><i class="fas fa-link"></i> linked</span>
+                {{#if editable}}<a class="crew-unlink" title="Unlink"><i class="fas fa-unlink"></i></a>{{/if}}
+              {{else}}
+                <input class="pname-in" type="text" name="system.crew.name" value="{{crew.name}}" placeholder="Leader name" {{#unless editable}}disabled{{/unless}} />
+                {{#if editable}}<a class="link crew-link"><i class="fas fa-link"></i> link PC/NPC</a>{{/if}}
+              {{/if}}
+            </div>
+          </div>
+          <div class="skillpair">
+            <div class="sk {{#if crew.gunneryDerived}}derived{{/if}}"><span class="k">Gun</span>
+              {{#if crew.gunneryDerived}}<span class="skv" title="{{crew.gunnerySource}}">{{crew.gunnery}}</span>
+              {{else}}<input type="number" min="0" name="system.crew.gunnery" value="{{crew.gunnery}}" {{#unless editable}}disabled{{/unless}} />{{/if}}
+            </div>
+            <div class="sk"><span class="k" title="Anti-'Mech Skill">A-M</span>
+              <input type="number" min="0" name="system.crew.antiMech" value="{{crew.antiMech}}" {{#unless editable}}disabled{{/unless}} />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="mf-panel">
+      <h4>Attack {{#if editable}}{{#unless attached}}<button type="button" class="platoon-attack" title="{{#if attackToHit}}{{attackToHit.title}}{{else}}Attack the targeted unit{{/if}}"><i class="fas fa-crosshairs"></i> Attack{{#if attackToHit}} {{attackToHit.text}}{{/if}}</button> <button type="button" class="anti-mech-attack" {{#if antiMechBlock}}disabled title="{{antiMechBlock}}"{{else}}title="Leg or swarm attack against the targeted unit in the same hex (instead of weapon attacks)"{{/if}}><i class="fas fa-person-rifle"></i> Anti-'Mech…</button>{{/unless}}{{/if}}</h4>
+      <div class="penalty-line">▸ Damage at {{platoon.value}} troopers (all hitting): {{platoon.damage}} — the Cluster Hits Table decides how many hit; 2-point groups against units, all at once against infantry{{#if (eq system.weaponType "mg")}}; +1D6 against conventional infantry{{/if}}.</div>
+      <table class="wt ci-range">
+        <thead><tr><th>Range</th>{{#each platoon.ranges}}<th>{{d}}</th>{{/each}}</tr></thead>
+        <tbody><tr><td>To-hit</td>{{#each platoon.ranges}}<td>{{text}}</td>{{/each}}</tr></tbody>
+      </table>
+    </div>
+
+    <div class="mf-panel">
+      <h4>Notes / Biography</h4>
+      <div class="mf-stats wide">
+        <label class="mf-stat"><span class="k">Era</span><input type="text" name="system.era" value="{{system.era}}" {{#unless editable}}disabled{{/unless}} /></label>
+        <label class="mf-stat"><span class="k">Cost (C-bills)</span><input type="number" min="0" name="system.cost" value="{{system.cost}}" {{#unless editable}}disabled{{/unless}} /></label>
+        <label class="mf-stat"><span class="k">Battle Value</span><input type="number" min="0" name="system.bv" value="{{system.bv}}" {{#unless editable}}disabled{{/unless}} /></label>
+      </div>
+      <div class="editor-container">
+        {{#if editable}}
+        <prose-mirror name="system.biography" data-document-uuid="{{actor.uuid}}" value="{{system.biography}}" collaborate="false" toggled="true">{{{enrichedBiography}}}</prose-mirror>
+        {{else}}{{{enrichedBiography}}}{{/if}}
+      </div>
+    </div>
+  </section>
+</div>
