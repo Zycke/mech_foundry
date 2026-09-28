@@ -32,6 +32,13 @@
 
     {{!-- ===================== STATUS ===================== --}}
     <div class="tab" data-tab="status">
+      {{#if psrPending}}
+      <div class="mf-psr-banner">
+        <i class="fas fa-person-falling"></i>
+        <span class="t">Piloting Skill Roll required: {{#each psrPending}}{{this}}{{#unless @last}}, {{/unless}}{{/each}}</span>
+        {{#if editable}}<button type="button" class="psr-roll"><i class="fas fa-dice"></i> Roll PSR</button>{{/if}}
+      </div>
+      {{/if}}
       <div class="mf-panel">
         <h4>Armor / Structure <span class="hint">A = armor · S = internal · current / max</span></h4>
         <div class="mech-map">
@@ -90,6 +97,12 @@
             <label class="chk"><input type="checkbox" name="system.conditions.shutdown" {{checked conditions.shutdown}} {{#unless editable}}disabled{{/unless}}> Shutdown</label>
             <label class="chk"><input type="checkbox" name="system.conditions.prone" {{checked conditions.prone}} {{#unless editable}}disabled{{/unless}}> Prone</label>
           </div>
+          {{#if editable}}
+          <div class="mf-actions">
+            {{#if conditions.prone}}<button type="button" class="stand-up" title="Piloting Skill Roll to stand (+1 heat)"><i class="fas fa-person-arrow-up-from-line"></i> Stand</button>{{/if}}
+            <button type="button" class="mech-fall" title="Resolve a fall (damage, facing, warrior roll)"><i class="fas fa-person-falling"></i> Fall…</button>
+          </div>
+          {{/if}}
           {{#if turnMove}}
           <div class="mf-turnmove" title="Used for attack modifiers and heat. Hexes add up automatically as the token moves during combat.">
             <span class="k">This turn</span>
@@ -117,6 +130,13 @@
             </div>
             <div class="consc" title="Consciousness / pilot hits">
               {{#each pilot.pips}}<span class="consc-pip {{#if this}}taken{{/if}}" data-level="{{add @index 1}}">{{add @index 1}}</span>{{/each}}
+            </div>
+            <div class="consc-state">
+              {{#if pilot.dead}}<span class="w-badge dmg">KILLED</span>
+              {{else if pilot.unconscious}}<span class="w-badge dmg">UNCONSCIOUS</span>
+                {{#if editable}}{{#unless pilotLinked}}<button type="button" class="wake-roll" title="Consciousness roll to wake"><i class="fas fa-dice"></i> Wake roll</button>{{/unless}}{{/if}}
+              {{/if}}
+              {{#unless pilotLinked}}<label class="chk" title="Unconscious (Warrior Consciousness Table)"><input type="checkbox" name="system.pilot.unconscious" {{checked pilot.unconscious}} {{#unless editable}}disabled{{/unless}}> Out</label>{{/unless}}
             </div>
           </div>
           <div class="skillpair">

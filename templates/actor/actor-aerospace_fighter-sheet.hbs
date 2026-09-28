@@ -112,6 +112,13 @@
             <div class="consc" title="Consciousness / pilot hits">
               {{#each pilot.pips}}<span class="consc-pip {{#if this}}taken{{/if}}" data-level="{{add @index 1}}">{{add @index 1}}</span>{{/each}}
             </div>
+            <div class="consc-state">
+              {{#if pilot.dead}}<span class="w-badge dmg">KILLED</span>
+              {{else if pilot.unconscious}}<span class="w-badge dmg">UNCONSCIOUS</span>
+                {{#if editable}}{{#unless pilotLinked}}<button type="button" class="wake-roll" title="Consciousness roll to wake"><i class="fas fa-dice"></i> Wake roll</button>{{/unless}}{{/if}}
+              {{/if}}
+              {{#unless pilotLinked}}<label class="chk" title="Unconscious (Warrior Consciousness Table)"><input type="checkbox" name="system.crew.unconscious" {{checked pilot.unconscious}} {{#unless editable}}disabled{{/unless}}> Out</label>{{/unless}}
+            </div>
           </div>
           <div class="skillpair">
             <div class="sk {{#if pilot.gunneryDerived}}derived{{/if}}"><span class="k">Gun</span>

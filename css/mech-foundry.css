@@ -7522,3 +7522,18 @@
 /* Attack dialog: terrain group */
 .tw-attack-dialog fieldset.tw-terrain { margin: 6px 0; padding: 4px 8px; border: 1px solid rgba(128,128,128,.35); border-radius: 4px; }
 .tw-attack-dialog fieldset.tw-terrain legend { font-size: 0.78rem; padding: 0 4px; opacity: .8; }
+
+/* Piloting Skill Rolls, falls, consciousness */
+.mech-foundry .mf-psr-banner { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; padding: 6px 10px;
+  border: 1px solid var(--mf-amber); border-radius: var(--mf-border-radius); background: rgba(242, 165, 58, 0.12); font-size: 0.8rem; }
+.mech-foundry .mf-psr-banner .t { flex: 1; }
+.mech-foundry .mf-psr-banner button, .mech-foundry .mf-actions button, .mech-foundry .consc-state button { width: auto; height: 24px; line-height: 22px; padding: 0 8px; font-size: 0.74rem; }
+.mech-foundry .mf-actions { display: flex; gap: 6px; margin-top: 8px; }
+.mech-foundry .consc-state { display: flex; align-items: center; gap: 6px; margin-top: 4px; font-size: 0.72rem; }
+.mech-foundry .consc-state .chk { margin-left: auto; }
+.mech-foundry .tw-psr-line { color: var(--mf-amber); }
+.mech-foundry .tw-psr-roll { margin: 4px 0; }
+.mech-foundry .tw-psr-reason { font-weight: 600; font-size: 0.8rem; margin-top: 4px; }
+.mech-foundry .tw-psr-reason .tw-psr-tn { font-weight: 400; opacity: 0.8; }
+.mech-foundry .tw-psr-fall { margin-top: 6px; border-top: 1px dashed rgba(128,128,128,.4); padding-top: 4px; }
+.mech-foundry .tw-phase-psr { font-size: 0.78rem; margin-top: 4px; color: var(--mf-amber); }

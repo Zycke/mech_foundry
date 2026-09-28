@@ -132,6 +132,23 @@ criticals and cluster grouping:
   damage for arm-mounted weapons; minimum range and prone-target range effects apply from the
   entered range; woods, partial cover and secondary targets are dialog inputs. Every
   pre-filled value is editable.
+- **Warrior damage & consciousness** (`tw-psr.mjs`): every head hit is 1 warrior hit, an ammo
+  explosion 2, overheating with damaged life support 1 (15+) or 2 (25+), a failed fall roll 1.
+  Each hit advances the pilot's hit ladder; a sheet-only pilot rolls the Warrior Consciousness
+  Table (3/5/7/10/11, 6 = dead) and wakes on a roll at a later End Phase (automatic when the GM
+  advances to End). A linked character takes the AToW crew damage instead and uses its own AToW
+  consciousness. An unconscious warrior makes the unit an immobile target and auto-fails PSRs;
+  an unconscious fighter pilot sets Out of Control.
+- **Piloting Skill Rolls & falls** (`tw-psr.mjs`, `tw-falls.mjs`, TW p. 60, pp. 68–69): damage
+  queues PSRs on the target (20+ damage in a phase, gyro hit, hip / leg / foot actuators; gyro or
+  leg destroyed = automatic fall; reactor shutdown +3 in the heat phase). Standing damage
+  modifiers come from the current state (leg destroyed +5, hip +2, actuators +1 each, gyro +3),
+  and +1 applies to every PSR in a phase with 20+ damage. The unit's sheet shows the pending
+  rolls with a Roll PSR button; the first failure falls: ⌈tons/10⌉ × (levels + 1) damage in
+  5-point groups on the Facing After Fall column, token rotated, prone, then the warrior roll
+  (+1 per level above 1, destroyed gyro +6; automatic if unconscious, immobile or over 12).
+  Stand (PSR, +1 heat per attempt) and a manual Fall… (levels) are on the sheet. The heat phase
+  now rolls the shutdown avoid roll from 14+.
 **Intentional house rules** (deliberate divergences — don't "correct" toward the book):
 - Combat vehicles roll a critical on any hit that penetrates to internal structure, in
   addition to the tables' marked results (2/12, or 8 on side attacks).

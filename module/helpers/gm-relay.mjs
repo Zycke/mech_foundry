@@ -21,7 +21,8 @@ const TIMEOUT_MS = 10000;
 
 /** Fields a relayed `update` may write, per actor type. */
 const UPDATE_WHITELIST = {
-  mech: ['system.armor', 'system.structure', 'system.critSlots', 'system.systemHits', 'system.heatSinks', 'system.weapons', 'system.pilot'],
+  mech: ['system.armor', 'system.structure', 'system.critSlots', 'system.systemHits', 'system.heatSinks', 'system.weapons', 'system.pilot',
+    'system.conditions', 'flags.mech-foundry.psr', 'flags.mech-foundry.phaseDamage'],
   ground_vehicle: ['system.armor', 'system.structure', 'system.crits', 'system.conditions', 'system.crew'],
   aerospace_fighter: ['system.armor', 'system.structuralIntegrity', 'system.crits', 'system.conditions', 'system.crew'],
   small_craft: ['system.armor', 'system.structuralIntegrity', 'system.crits', 'system.conditions', 'system.crew'],

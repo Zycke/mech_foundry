@@ -137,9 +137,13 @@ export function weaponArm(weapon) {
 
 /** Destroyed actuators in a mech location, by kind. */
 export function destroyedActuators(actor, loc) {
-  const slots = actor?.system?.critSlots?.[loc] || [];
+  return actuatorsInSlots(actor?.system?.critSlots?.[loc]);
+}
+
+/** Count destroyed actuators, by kind, in a location's critical-slot list. */
+export function actuatorsInSlots(slots = []) {
   const out = { shoulder: 0, upperArm: 0, lowerArm: 0, hand: 0, hip: 0, upperLeg: 0, lowerLeg: 0, foot: 0 };
-  for (const s of slots) {
+  for (const s of slots || []) {
     if (!s?.hit || s.type !== 'actuator') continue;
     const n = String(s.name || '').toLowerCase();
     if (n.includes('shoulder')) out.shoulder++;

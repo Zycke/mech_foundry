@@ -15,6 +15,7 @@ import {
 import { writeDoc } from "./gm-relay.mjs";
 import { currentTurnKey } from "./tw-turn.mjs";
 import { autoAttackMods, movedThisTurn, rangeDependentMods, terrainMods } from "./tw-movement.mjs";
+import { damagePSRUpdate, queuePSR, standsThisTurn, warriorDamage } from "./tw-psr.mjs";
 
 const { DialogV2 } = foundry.applications.api;
 
@@ -552,7 +553,7 @@ function applyAeroCrit(system, crits, conditions, crew, crewEvents) {
     case 'Gear': crits.landingGear = true; break;
     case 'Life Support': crits.lifeSupport = true; break;
     case 'Control': conditions.outOfControl = true; break;
-    case 'Crew': crew.hits = Math.min(6, (Number(crew.hits) || 0) + 1); crewEvents.push(CREW_DAMAGE.pilotHit); break;
+    case 'Crew': crewEvents.push(CREW_DAMAGE.pilotHit); break; // hit ladder + consciousness after the loop
     default: break; // Weapon / Heat Sink / Fuel / Bomb / Thruster / Door / Cargo / Docking Collar / K-F Boom — reported only
   }
 }
@@ -595,11 +596,19 @@ export async function resolveAeroAttack(target, direction, groupSizes, rolls) {
     }
   }
 
-  const applied = await writeDoc(target, { 'system.armor': armor, 'system.structuralIntegrity': si, 'system.crits': crits, 'system.conditions': conditions, 'system.crew': crew });
+  // Crew hits: advance the hit ladder; a sheet-only pilot rolls consciousness,
+  // and an unconscious pilot's craft goes out of control.
   const linked = crew.actorId ? game.actors.get(crew.actorId) : null;
+  const warriorLines = [];
+  for (let i = 0; i < crewEvents.length; i++) {
+    warriorLines.push(...await warriorDamage(crew, 1, { linked: !!linked, rolls, source: 'crew hit' }));
+  }
+  if (!linked && crew.unconscious) conditions.outOfControl = true;
+
+  const applied = await writeDoc(target, { 'system.armor': armor, 'system.structuralIntegrity': si, 'system.crits': crits, 'system.conditions': conditions, 'system.crew': crew });
   if (applied && linked) for (const ev of crewEvents) await applyCrewDamage(linked, ev);
 
-  return { aero: true, applied, hasTarget: true, targetName: target.name, groups, critResults, destroyed };
+  return { aero: true, applied, hasTarget: true, targetName: target.name, groups, critResults, destroyed, warriorLines };
 }
 
 /* ------------------------------------------------------------------ */
@@ -638,6 +647,7 @@ export async function resolveMechHeat(actor) {
 
   // Movement defaults to this turn's record (token moves / the sheet's selector).
   const moved = movedThisTurn(actor);
+  const stands = standsThisTurn(actor);
   const moveOpts = [['stationary', 'Stationary'], ['walked', 'Walked (+1)'], ['ran', 'Ran (+2)'], ['jumped', 'Jumped (+1/hex, min 3)']]
     .map(([k, l]) => `<option value="${k}"${k === moved.mode ? ' selected' : ''}>${l}</option>`).join('');
 
@@ -645,7 +655,7 @@ export async function resolveMechHeat(actor) {
     <div class="tw-attack-dialog">
       <div class="form-group"><label>Movement</label><select name="move">${moveOpts}</select></div>
       <div class="form-group"><label>Jump hexes</label><input type="number" name="hexes" value="${moved.mode === 'jumped' ? moved.hexes : 0}" /></div>
-      <div class="form-group"><label>Stand attempts</label><input type="number" name="stand" value="0" /></div>
+      <div class="form-group"><label>Stand attempts</label><input type="number" name="stand" value="${stands}" /></div>
       <div class="form-group"><label>Weapons heat <span class="tw-hint">${firedCount} fired this turn</span></label><input type="number" name="weapons" value="${weaponsHeatTotal}" /></div>
       <div class="form-group"><label>Engine-hit heat</label><input type="number" name="engine" value="${engineHeat}" /></div>
       <div class="form-group"><label>Heat-sink dissipation</label><input type="number" name="sinks" value="${dissipation}" /></div>
@@ -678,19 +688,48 @@ export async function resolveMechHeat(actor) {
   const newHeat = Math.max(0, current + gain - r.sinks);
   const effects = mechHeatEffects(newHeat);
 
+  // Shutdown: automatic at 30+, otherwise an avoid roll from 14+ (Heat Scale).
+  // A reactor shutdown forces a Piloting Skill Roll at +3 that phase.
+  const heatRolls = [];
+  let shutdownCheck = null, shutsDown = false;
+  if (!sys.conditions?.shutdown) {
+    if (effects.auto) shutsDown = true;
+    else if (newHeat >= 14) {
+      const avoid = [[26, 10], [22, 8], [18, 6], [14, 4]].find(([h]) => newHeat >= h)[1];
+      const sr = await new Roll("2d6").evaluate();
+      heatRolls.push(sr);
+      shutsDown = sr.total < avoid;
+      shutdownCheck = { total: sr.total, avoid, shutsDown };
+    }
+  }
+
   // Heat is resolved: this turn's fired-weapon record is spent.
   const update = { 'system.heat.value': newHeat, 'flags.mech-foundry.fired': { key: currentTurnKey(), list: [] } };
-  if (effects.auto) update['system.conditions.shutdown'] = true;
+  let psrNote = '';
+  if (shutsDown) {
+    update['system.conditions.shutdown'] = true;
+    if (!sys.conditions?.prone) {
+      update['flags.mech-foundry.psr'] = queuePSR(actor, [{ key: 'shutdown', label: 'Reactor shut down', mod: 3 }]);
+      psrNote = 'Piloting Skill Roll required (reactor shut down, +3) — roll it from the sheet';
+    }
+  }
   if (actor.isOwner || game.user.isGM) await actor.update(update);
 
-  // MechWarrior/Pilot/Crew Damage Table: overheating with Life Support damaged
-  // injures the pilot (0E/2D* at 15+, 0E/4D* at 25+) — applied to a linked pilot.
+  // Overheating with Life Support damaged injures the warrior: 1 point at 15+,
+  // 2 at 25+ (hit ladder + consciousness); a linked pilot also takes the AToW
+  // damage from the MechWarrior/Pilot/Crew Damage Table (0E/2D*, 0E/4D*).
   let pilotDamage = '';
+  let warriorLines = [];
   if (num(sys.systemHits?.lifeSupport) > 0 && newHeat >= 15) {
     const ev = newHeat >= 25 ? CREW_DAMAGE.overheat25 : CREW_DAMAGE.overheat15;
     const linked = sys.pilot?.actorId ? game.actors.get(sys.pilot.actorId) : null;
-    if (linked && await applyCrewDamage(linked, ev)) pilotDamage = `${linked.name} takes ${ev.bd} damage (${ev.label})`;
-    else pilotDamage = `Pilot takes ${ev.bd} damage (${ev.label}) — apply manually`;
+    const crew = foundry.utils.deepClone(sys.pilot || {});
+    warriorLines = await warriorDamage(crew, newHeat >= 25 ? 2 : 1, { linked: !!linked, rolls: heatRolls, source: 'life support' });
+    await writeDoc(actor, { 'system.pilot': crew });
+    if (linked) {
+      pilotDamage = (await applyCrewDamage(linked, ev)) ? `${linked.name} takes ${ev.bd} damage (${ev.label})`
+        : `${linked.name} takes ${ev.bd} damage (${ev.label}) — apply manually`;
+    }
   }
 
   const lines = [
@@ -704,12 +743,13 @@ export async function resolveMechHeat(actor) {
 
   const cardContent = await foundry.applications.handlebars.renderTemplate(
     "systems/mech-foundry/templates/chat/tw-heat.hbs",
-    { lines, newHeat, effects, autoShutdown: effects.auto, pilotDamage }
+    { lines, newHeat, effects, autoShutdown: effects.auto && shutsDown, shutdownCheck, psrNote, pilotDamage, warriorLines }
   );
   await ChatMessage.create({
     speaker: ChatMessage.getSpeaker({ actor }),
     flavor: "Heat Phase",
-    content: cardContent
+    content: cardContent,
+    rolls: heatRolls
   });
 }
 
@@ -718,7 +758,7 @@ export async function resolveMechHeat(actor) {
  * the appropriate hit-location / motive / critical tables. Returns a chat-card
  * fragment (without the cluster/total wrapper the caller adds).
  */
-export async function resolveDamageAgainst(targetActor, direction, groupSizes, rolls, targetName = '') {
+export async function resolveDamageAgainst(targetActor, direction, groupSizes, rolls, targetName = '', { noPSR = false } = {}) {
   const tt = targetActor?.type;
   if (tt === 'mech') {
     const groups = [];
@@ -734,6 +774,8 @@ export async function resolveDamageAgainst(targetActor, direction, groupSizes, r
       structure: foundry.utils.deepClone(targetActor.system.structure || {})
     };
     const state = { destroyed: false, pilotUnconscious: false, ammo: false };
+    const newCrits = [];   // actuator crits this attack (leg ones trigger PSRs)
+    let headHits = 0;      // every hit on the head injures the warrior
     const ensureSlots = (loc) => {
       if (!Array.isArray(critSlots[loc]) || critSlots[loc].length === 0) critSlots[loc] = standardMechSlots()[loc];
       return critSlots[loc];
@@ -741,6 +783,7 @@ export async function resolveDamageAgainst(targetActor, direction, groupSizes, r
     for (const g of groupSizes) {
       const locRoll = await rollMechLocation(direction);
       rolls.push(locRoll.roll);
+      if (locRoll.loc === 'head') headHits++;
       const dmg = applyMechDamageToState(dmgState, locRoll.loc, g, { rear: locRoll.rear });
       groups.push({
         damage: g, locLabel: locRoll.label + (locRoll.rear ? ' (rear)' : ''),
@@ -766,17 +809,40 @@ export async function resolveDamageAgainst(targetActor, direction, groupSizes, r
             if (!slot || slot.type === 'empty') { slotResults.push({ index: idx, text: 'no critical (empty slot)' }); continue; }
             if (slot.hit) { slotResults.push({ index: idx, text: `${slot.name || slot.type} (already destroyed)` }); continue; }
             slot.hit = true;
+            if (slot.type === 'actuator') newCrits.push({ loc: cl, name: slot.name });
             slotResults.push({ index: idx, text: applyMechCritSlotEffect(slot, systemHits, heatSinks, weapons, crew, state) });
           }
           critChecks.push({ locLabel: MECH_LOC_LABEL[cl] || cl, total: cc.total, text: cc.text, slots: slotResults });
         }
       }
     }
+    // Warrior damage: 1 per head hit, 2 for an ammunition explosion. A linked
+    // pilot takes the matching A Time of War damage after the save.
+    const linkedPilot = crew.actorId ? game.actors.get(crew.actorId) : null;
+    const crewEvents = [];
+    const warriorLines = [];
+    for (let i = 0; i < headHits; i++) {
+      warriorLines.push(...await warriorDamage(crew, 1, { linked: !!linkedPilot, rolls, source: 'head hit' }));
+      if (linkedPilot) crewEvents.push(CREW_DAMAGE.pilotHit);
+    }
+    if (state.ammo) {
+      warriorLines.push(...await warriorDamage(crew, 2, { linked: !!linkedPilot, rolls, source: 'ammo explosion' }));
+      if (linkedPilot) crewEvents.push(CREW_DAMAGE.ammoExplosion);
+    }
+
+    // Piloting Skill Rolls this damage forces (queued on the target, rolled from its sheet).
+    let psr = { updates: {}, reasons: [] };
+    if (!noPSR && !state.destroyed) {
+      psr = damagePSRUpdate(targetActor, { structure: dmgState.structure, systemHits }, newCrits, groupSizes.reduce((a, b) => a + b, 0));
+    }
+
     const applied = await writeDoc(targetActor, {
       'system.armor': dmgState.armor, 'system.structure': dmgState.structure,
       'system.critSlots': critSlots, 'system.systemHits': systemHits,
-      'system.heatSinks': heatSinks, 'system.weapons': weapons, 'system.pilot': crew
+      'system.heatSinks': heatSinks, 'system.weapons': weapons, 'system.pilot': crew,
+      ...psr.updates
     });
+    if (applied && linkedPilot) for (const ev of crewEvents) await applyCrewDamage(linkedPilot, ev);
     // Cockpit crit: knock a linked pilot unconscious (same pattern the system
     // uses when fatigue drops a character).
     let pilotNote = '';
@@ -791,6 +857,7 @@ export async function resolveDamageAgainst(targetActor, direction, groupSizes, r
     }
     return {
       isMech: true, groups, critChecks, destroyedByCrit: state.destroyed, ammoExplosion: state.ammo, pilotNote,
+      warriorLines, psrReasons: psr.reasons.map(r => r.label),
       applied, hasTarget: true, targetName: targetActor.name
     };
   } else if (tt === 'ground_vehicle') {

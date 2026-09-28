@@ -1,6 +1,8 @@
 import { MechFoundryUnitSheet } from "./unit-sheet.mjs";
 import { actorSkillRating, applyCrewDamage, CREW_DAMAGE, MECH_GUNNERY_SKILLS, MECH_PILOTING_SKILLS } from "../helpers/atow-conversion.mjs";
 import { weaponAttack, resolveMechHeat, standardMechSlots, SLOT_TYPES } from "../helpers/tw-combat.mjs";
+import { pendingPSR } from "../helpers/tw-psr.mjs";
+import { manualFall, rollPendingPSR, standUp, wakeRoll } from "../helpers/tw-falls.mjs";
 
 const CRIT_LOCATIONS = [
   ['head', 'Head'], ['ct', 'Center Torso'], ['lt', 'Left Torso'], ['rt', 'Right Torso'],
@@ -144,7 +146,9 @@ export class MechFoundryMechSheet extends MechFoundryUnitSheet {
       hits,
       pips: Array.from({ length: PILOT_HIT_MAX }, (_, i) => i < hits),
       gunneryDerived: false,
-      pilotingDerived: false
+      pilotingDerived: false,
+      unconscious: !!pilot.unconscious,
+      dead: hits >= PILOT_HIT_MAX
     };
     context.pilotLinked = linked ? { id: linked.id, uuid: linked.uuid, name: linked.name, img: linked.img } : null;
 
@@ -166,6 +170,10 @@ export class MechFoundryMechSheet extends MechFoundryUnitSheet {
     }
 
     context.conditions = sys.conditions || {};
+    // Linked pilots' consciousness is the character's AToW condition.
+    if (linked) context.pilot.unconscious = !!linked.system?.unconscious;
+    const psr = pendingPSR(this.actor);
+    context.psrPending = psr ? psr.reasons.map(r => r.label) : null;
     context.heatSinks = sys.heatSinks || { count: 0, type: 'single' };
 
     // Critical slots (Crits & Loadout tab).
@@ -242,6 +250,10 @@ export class MechFoundryMechSheet extends MechFoundryUnitSheet {
     html.on('click', '.init-critslots', this._onInitCritSlots.bind(this));
     html.on('change', '.critslot-field', this._onCritSlotFieldChange.bind(this));
     html.on('change', '.critslot-hit', this._onCritSlotHitToggle.bind(this));
+    html.on('click', '.psr-roll', (ev) => { ev.preventDefault(); rollPendingPSR(this.actor); });
+    html.on('click', '.stand-up', (ev) => { ev.preventDefault(); standUp(this.actor); });
+    html.on('click', '.mech-fall', (ev) => { ev.preventDefault(); manualFall(this.actor); });
+    html.on('click', '.wake-roll', (ev) => { ev.preventDefault(); wakeRoll(this.actor); });
   }
 
   async _updateCritSlots(mutator) {

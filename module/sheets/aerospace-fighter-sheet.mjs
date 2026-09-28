@@ -1,6 +1,7 @@
 import { MechFoundryUnitSheet } from "./unit-sheet.mjs";
 import { actorSkillRating, applyCrewDamage, CREW_DAMAGE, AERO_GUNNERY_SKILLS, AERO_PILOTING_SKILLS } from "../helpers/atow-conversion.mjs";
 import { weaponAttack } from "../helpers/tw-combat.mjs";
+import { wakeRoll } from "../helpers/tw-falls.mjs";
 
 const { DialogV2 } = foundry.applications.api;
 
@@ -114,7 +115,9 @@ export class MechFoundryAerospaceFighterSheet extends MechFoundryUnitSheet {
     context.pilot = {
       name: pilot.name ?? '', gunnery: pilot.gunnery ?? 4, piloting: pilot.piloting ?? 5,
       hits, pips: Array.from({ length: PILOT_HIT_MAX }, (_, i) => i < hits),
-      gunneryDerived: false, pilotingDerived: false
+      gunneryDerived: false, pilotingDerived: false,
+      unconscious: linked ? !!linked.system?.unconscious : !!pilot.unconscious,
+      dead: hits >= PILOT_HIT_MAX
     };
     context.pilotLinked = linked ? { id: linked.id, name: linked.name, img: linked.img } : null;
     if (linked) {
@@ -175,6 +178,7 @@ export class MechFoundryAerospaceFighterSheet extends MechFoundryUnitSheet {
     html.on('click', '.pilot-unlink', this._onPilotUnlink.bind(this));
     html.on('click', '.pilot-open', this._onPilotOpen.bind(this));
     html.on('click', '.weapon-attack', this._onWeaponAttack.bind(this));
+    html.on('click', '.wake-roll', (ev) => { ev.preventDefault(); wakeRoll(this.actor); });
   }
 
   _applyActiveTab() {

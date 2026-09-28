@@ -13,6 +13,9 @@
     <span class="tw-mod">Shutdown {{effects.shutdown}}</span>
     <span class="tw-mod">Ammo {{effects.ammo}}</span>
   </div>
+  {{#each warriorLines}}<div class="tw-hl-event tw-crit-line">▸ {{this}}</div>{{/each}}
   {{#if pilotDamage}}<div class="tw-hl-event">▸ Life support: {{pilotDamage}}</div>{{/if}}
+  {{#if shutdownCheck}}<div class="tw-hl-event">▸ Shutdown avoid roll {{shutdownCheck.total}} vs {{shutdownCheck.avoid}}+: <strong>{{#if shutdownCheck.shutsDown}}SHUTS DOWN{{else}}avoided{{/if}}</strong></div>{{/if}}
   {{#if autoShutdown}}<div class="tw-hl-destroyed">AUTOMATIC SHUTDOWN (30+)</div>{{/if}}
+  {{#if psrNote}}<div class="tw-hl-event tw-psr-line"><i class="fas fa-person-falling"></i> {{psrNote}}</div>{{/if}}
 </div>

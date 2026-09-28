@@ -442,7 +442,9 @@
         "gunnery": 4,
         "piloting": 5,
         "hits": 0,
-        "actorId": ""
+        "actorId": "",
+        "unconscious": false,
+        "unconsciousKey": ""
       }
     },
     "ground_vehicle": {
@@ -589,7 +591,9 @@
         "gunnery": 4,
         "piloting": 5,
         "hits": 0,
-        "actorId": ""
+        "actorId": "",
+        "unconscious": false,
+        "unconsciousKey": ""
       },
       "weapons": []
     },
@@ -664,7 +668,9 @@
         "gunnery": 4,
         "piloting": 5,
         "hits": 0,
-        "actorId": ""
+        "actorId": "",
+        "unconscious": false,
+        "unconsciousKey": ""
       },
       "weapons": []
     },

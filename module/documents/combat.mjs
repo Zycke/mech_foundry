@@ -1,3 +1,6 @@
+import { pendingPSR } from "../helpers/tw-psr.mjs";
+import { endPhaseRecovery } from "../helpers/tw-falls.mjs";
+
 /**
  * Extend the base Combat document for the Mech Foundry system.
  *
@@ -26,11 +29,18 @@ export class MechFoundryCombat extends Combat {
       await this.setFlag('mech-foundry', 'phase', i);
     }
     await this._announcePhase();
+    // End Phase: unconscious (sheet-only) warriors roll to wake.
+    if (this.phaseName === 'End') await endPhaseRecovery(this);
   }
 
   async _announcePhase() {
+    // Remind the table of Piloting Skill Rolls still waiting to be rolled.
+    const pending = [...new Set(this.combatants.map(c => c.actor).filter(a => a && pendingPSR(a)))];
+    const note = pending.length
+      ? `<div class="tw-phase-psr"><i class="fas fa-person-falling"></i> Piloting Skill Roll pending: ${pending.map(a => foundry.utils.escapeHTML?.(a.name) ?? a.name).join(', ')}</div>`
+      : '';
     await ChatMessage.create({
-      content: `<div class="mech-foundry tw-phase-banner"><i class="fas fa-flag"></i> <strong>${this.phaseName}</strong> Phase — Round ${this.round}</div>`
+      content: `<div class="mech-foundry tw-phase-banner"><i class="fas fa-flag"></i> <strong>${this.phaseName}</strong> Phase — Round ${this.round}${note}</div>`
     });
   }
 

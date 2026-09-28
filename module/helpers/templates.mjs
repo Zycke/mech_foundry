@@ -51,6 +51,7 @@ export const preloadHandlebarsTemplates = async function() {
     "systems/mech-foundry/templates/chat/weapon-attack.hbs",
     "systems/mech-foundry/templates/chat/tw-attack.hbs",
     "systems/mech-foundry/templates/chat/tw-heat.hbs",
+    "systems/mech-foundry/templates/chat/tw-psr.hbs",
     "systems/mech-foundry/templates/chat/aoe-attack.hbs",
     "systems/mech-foundry/templates/chat/opposed-roll.hbs",
 
