@@ -172,7 +172,7 @@ criticals and cluster grouping:
 - **Ammunition explosions:** weapon and ammo crit slots link to a weapon on the Crits tab. A struck
   bin explodes for shots in the bin (Shots/Ton, capped at what's left) × damage per shot (a full
   salvo for cluster weapons), straight into that location's internal structure and transferring
-  onward; a CASE slot in the location vents the rest. Explosion damage can cause further crits;
+  to the next location's internal structure; a CASE slot in the location vents the rest. Explosion damage can cause further crits;
   the warrior takes 2 per explosion. The heat phase rolls the 19+ avoid roll (4+/6+/8+) and blows
   the most damaging bin on a failure.
 - **Restart:** a shut-down 'Mech restarts automatically below 14 heat, otherwise on a roll against
@@ -191,6 +191,13 @@ criticals and cluster grouping:
   with a pending roll), **Apply damage** (GM; writes that couldn't be made because no GM was
   online) and **Undo** (GM; restores every unit the card changed — AToW damage to linked
   characters is not undone). The system's chat hook now uses v14's `renderChatMessageHTML`.
+- **'Mech critical hit effects** (TW pp. 126–128): second sensor hit stops weapons fire; weapons in
+  a destroyed location (or an arm whose side torso is gone) can't fire; a side torso's loss takes
+  its arm and counts its (XL) engine slots as engine hits; head blown off or center torso destroyed
+  by an ammo explosion kills the warrior (linked character: unconscious, as for the cockpit house
+  rule); ICE / fuel cell engine hits add no heat but roll 2D6 (+3 / +6) for a 10+ explosion; jump
+  jet slots; a multi-slot heat sink is lost once; punch / kick halving rounds down; life support
+  1 point at 15–25 heat, 2 at 26+. Destroyed units get Foundry's defeated (skull) status.
 **Intentional house rules** (deliberate divergences — don't "correct" toward the book):
 - Combat vehicles roll a critical on any hit that penetrates to internal structure, in
   addition to the tables' marked results (2/12, or 8 on side attacks).

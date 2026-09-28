@@ -18,13 +18,14 @@ import {
 import { queuePSR } from "./tw-psr.mjs";
 import { fiveGroups, pilotingFor, postCard, resolveFall } from "./tw-falls.mjs";
 import {
-  ATTACK_DIRECTIONS, MECH_LOC_LABEL, REAR_ARMOR_KEY, firedThisTurn, measureHexes, resolveDamageAgainst
+  ATTACK_DIRECTIONS, MECH_LOC_LABEL, REAR_ARMOR_KEY, firedThisTurn, locationGone, measureHexes, resolveDamageAgainst
 } from "./tw-combat.mjs";
 
 const { DialogV2 } = foundry.applications.api;
 const num = (v) => Number(v) || 0;
 const sum = (mods) => mods.reduce((t, m) => t + num(m.value), 0);
-const halve = (n, times) => { let d = n; for (let i = 0; i < times; i++) d = Math.ceil(d / 2); return d; };
+// Actuator damage halves punch / kick damage, rounding down (TW p. 127).
+const halve = (n, times) => { let d = n; for (let i = 0; i < times; i++) d = Math.floor(d / 2); return d; };
 
 /** Physical Attack Modifiers Table. */
 export const PHYSICAL_TYPES = {
@@ -131,7 +132,7 @@ export function physicalBlock(actor, type, { arm = null, weaponKey = null, targe
     const a = type === 'punchL' ? 'la' : type === 'punchR' ? 'ra' : arm;
     if (!a) return 'Choose the arm.';
     const act = destroyedActuators(actor, a);
-    if (locationDestroyed(actor, a)) return `The ${a.toUpperCase()} is destroyed.`;
+    if (locationGone(actor, a)) return `The ${a.toUpperCase()} is destroyed.`;
     if (act.shoulder) return `Shoulder hit: no ${type === 'weapon' ? 'physical weapon attacks' : 'punching'} with the ${a.toUpperCase()}.`;
     if (type === 'weapon' && act.hand && !PHYSICAL_WEAPONS[weaponKey]?.ignoresHand) return `Hand actuator hit: no physical weapon attacks with the ${a.toUpperCase()}.`;
     if (armFired(actor, a)) return `A weapon in the ${a.toUpperCase()} fired this turn.`;
@@ -143,7 +144,7 @@ export function physicalBlock(actor, type, { arm = null, weaponKey = null, targe
   }
   if (type === 'club' || type === 'push') {
     for (const a of ['la', 'ra']) {
-      if (locationDestroyed(actor, a)) return `The ${a.toUpperCase()} is destroyed.`;
+      if (locationGone(actor, a)) return `The ${a.toUpperCase()} is destroyed.`;
       if (armFired(actor, a)) return `A weapon in the ${a.toUpperCase()} fired this turn.`;
       const act = destroyedActuators(actor, a);
       if (type === 'club' && (act.shoulder || act.hand)) return `Shoulder or hand actuator hit in the ${a.toUpperCase()}: no clubbing.`;

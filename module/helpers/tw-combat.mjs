@@ -154,7 +154,8 @@ export function applyMechDamageToState(state, startLoc, amount, { rear = false, 
   let remaining = amount;
   let destroyed = false;
   let useRear = rear;
-  let skipArmor = internal; // ammo explosions strike the first location's structure directly
+  // Ammunition explosions strike internal structure directly, and excess
+  // transfers to the next location's internal structure (TW p. 126).
   let vented = 0;
   let guard = 0;
 
@@ -162,11 +163,10 @@ export function applyMechDamageToState(state, startLoc, amount, { rear = false, 
     // Armor (rear on the initially-struck torso only).
     const rearKey = useRear ? REAR_ARMOR_KEY[loc] : null;
     const armorSlot = rearKey ? armor[rearKey] : armor[loc];
-    if (!skipArmor && armorSlot && armorSlot.value > 0) {
+    if (!internal && armorSlot && armorSlot.value > 0) {
       const a = Math.min(armorSlot.value, remaining);
       armorSlot.value -= a; remaining -= a;
     }
-    skipArmor = false;
     if (remaining <= 0) break;
 
     // Internal structure. A location with no structure record or zero max is
@@ -235,6 +235,7 @@ export const SLOT_TYPES = [
   { key: 'ammo', label: 'Ammunition' },
   { key: 'heatSink', label: 'Heat Sink' },
   { key: 'case', label: 'CASE' },
+  { key: 'jumpJet', label: 'Jump Jet' },
   { key: 'equipment', label: 'Equipment' }
 ];
 
@@ -266,19 +267,34 @@ async function rollCritSlotIndex(count, rolls) {
   return (g.total <= 3 ? 0 : 6) + s.total;
 }
 
+/**
+ * The warrior is killed (cockpit crit, head blown off, center torso destroyed by
+ * an ammunition explosion). House rule: a *linked* character is knocked
+ * unconscious instead; a sheet-only pilot is marked killed on the hit ladder.
+ */
+function killWarrior(crew, state, cause) {
+  state.destroyed = true;
+  if (crew.actorId) { state.pilotUnconscious = true; return `${cause} — pilot knocked unconscious`; }
+  crew.hits = 6;
+  crew.unconscious = true;
+  return `${cause} — PILOT KILLED`;
+}
+
 /** Apply a struck slot's effect to the mutable combat state. Returns effect text. */
 function applyMechCritSlotEffect(slot, systemHits, heatSinks, weapons, crew, state) {
   switch (slot.type) {
     case 'engine':
       systemHits.engine = Math.min(3, (Number(systemHits.engine) || 0) + 1);
       if (systemHits.engine >= 3) { state.destroyed = true; return 'Engine (3rd hit) — DESTROYED'; }
-      return 'Engine hit (+heat)';
+      if (state.ice) { state.iceCheck = true; return `Engine hit ${systemHits.engine} (ICE / fuel cell: explosion check)`; }
+      return `Engine hit ${systemHits.engine} (+${systemHits.engine === 1 ? 5 : 10} heat per turn)`;
+    case 'jumpJet': return `${slot.name || 'Jump jet'} destroyed (−1 Jump MP)`;
     case 'gyro':
       systemHits.gyro = Math.min(2, (Number(systemHits.gyro) || 0) + 1);
       return systemHits.gyro >= 2 ? 'Gyro destroyed (falls / immobile)' : 'Gyro hit (+piloting)';
     case 'sensors':
       systemHits.sensors = Math.min(2, (Number(systemHits.sensors) || 0) + 1);
-      return 'Sensors hit';
+      return systemHits.sensors >= 2 ? 'Sensors destroyed — cannot fire weapons' : 'Sensors hit (+2 to hit)';
     case 'lifeSupport':
       systemHits.lifeSupport = Math.min(2, (Number(systemHits.lifeSupport) || 0) + 1);
       return 'Life Support hit';
@@ -287,9 +303,7 @@ function applyMechCritSlotEffect(slot, systemHits, heatSinks, weapons, crew, sta
       // actor) is knocked unconscious rather than killed — house ruling for
       // now; an unlinked sheet-only pilot is marked killed on the hit ladder.
       state.destroyed = true;
-      if (crew.actorId) { state.pilotUnconscious = true; return 'Cockpit — pilot knocked unconscious'; }
-      crew.hits = 6;
-      return 'Cockpit — PILOT KILLED';
+      return killWarrior(crew, state, 'Cockpit');
     case 'actuator': return `${slot.name || 'Actuator'} destroyed`;
     case 'weapon': {
       // Linked slot → that weapon; otherwise the first intact weapon of the same name.
@@ -689,7 +703,10 @@ export async function resolveMechHeat(actor) {
   const sinks = sys.heatSinks || { count: 0, type: 'single' };
   const dissipation = num(sinks.count) * (sinks.type === 'double' ? 2 : 1);
   const engineHits = num(sys.systemHits?.engine);
-  const engineHeat = engineHits >= 2 ? 10 : engineHits === 1 ? 5 : 0;
+  // Fusion engine shielding: +5 heat after one hit, +10 after two. ICE and fuel
+  // cell engines add no heat (their hits roll for an explosion instead).
+  const iceEngine = /\bice\b|internal combustion|fuel[\s-]?cell/i.test(sys.engineType || '');
+  const engineHeat = iceEngine ? 0 : engineHits >= 2 ? 10 : engineHits === 1 ? 5 : 0;
   // Only weapons actually fired this turn (via their Attack buttons) generate heat.
   const fired = firedThisTurn(actor);
   const firedCount = Object.keys(fired).length;
@@ -808,16 +825,17 @@ export async function resolveMechHeat(actor) {
     } else ammoCheck = { none: true };
   }
 
-  // Overheating with Life Support damaged injures the warrior: 1 point at 15+,
-  // 2 at 25+ (hit ladder + consciousness); a linked pilot also takes the AToW
-  // damage from the MechWarrior/Pilot/Crew Damage Table (0E/2D*, 0E/4D*).
+  // Overheating with Life Support damaged injures the warrior: 1 point at 15–25,
+  // 2 at 26+ (TW p. 127; hit ladder + consciousness); a linked pilot also takes
+  // the AToW damage from the MechWarrior/Pilot/Crew Damage Table, whose rows are
+  // 15+ (0E/2D*) and 25+ (0E/4D*).
   let pilotDamage = '';
   let warriorLines = [];
   if (num(sys.systemHits?.lifeSupport) > 0 && newHeat >= 15) {
     const ev = newHeat >= 25 ? CREW_DAMAGE.overheat25 : CREW_DAMAGE.overheat15;
     const linked = sys.pilot?.actorId ? game.actors.get(sys.pilot.actorId) : null;
     const crew = foundry.utils.deepClone(actor.system.pilot || {}); // fresh: an ammo explosion may have hurt them
-    warriorLines = await warriorDamage(crew, newHeat >= 25 ? 2 : 1, { linked: !!linked, rolls: heatRolls, source: 'life support' });
+    warriorLines = await warriorDamage(crew, newHeat >= 26 ? 2 : 1, { linked: !!linked, rolls: heatRolls, source: 'life support' });
     await writeDoc(actor, { 'system.pilot': crew });
     if (linked) {
       pilotDamage = (await applyCrewDamage(linked, ev)) ? `${linked.name} takes ${ev.bd} damage (${ev.label})`
@@ -869,7 +887,12 @@ export async function resolveDamageAgainst(targetActor, direction, groupSizes, r
       armor: foundry.utils.deepClone(targetActor.system.armor || {}),
       structure: foundry.utils.deepClone(targetActor.system.structure || {})
     };
-    const state = { destroyed: false, pilotUnconscious: false };
+    const state = {
+      destroyed: false, pilotUnconscious: false,
+      ice: /\bice\b|internal combustion|fuel[\s-]?cell/i.test(targetActor.system.engineType || '')
+    };
+    const structureBefore = foundry.utils.deepClone(targetActor.system.structure || {});
+    const deathNotes = [];
     const newCrits = [];   // actuator crits this attack (leg ones trigger PSRs)
     let headHits = 0;      // every hit on the head injures the warrior
     const explosions = []; // struck ammunition bins, exploded after the crits: { loc, slot }
@@ -887,8 +910,8 @@ export async function resolveDamageAgainst(targetActor, direction, groupSizes, r
         const cc = await rollDeterminingCrit(cl);
         rolls.push(cc.roll);
         if (cc.blowOff) {
-          if (blowOffLocationState(dmgState, cl)) state.destroyed = true;
-          critChecks.push({ locLabel: MECH_LOC_LABEL[cl] || cl, total: cc.total, text: cc.text, slots: [] });
+          const head = blowOffLocationState(dmgState, cl);
+          critChecks.push({ locLabel: MECH_LOC_LABEL[cl] || cl, total: cc.total, text: head ? `Head Blown Off — ${killWarrior(crew, state, 'Head blown off')}` : cc.text, slots: [] });
           continue;
         }
         if (cc.count > 0) {
@@ -902,7 +925,23 @@ export async function resolveDamageAgainst(targetActor, direction, groupSizes, r
             slot.hit = true;
             if (slot.type === 'actuator') newCrits.push({ loc: cl, name: slot.name });
             if (slot.type === 'ammo') explosions.push({ loc: cl, slot });
-            slotResults.push({ index: idx, text: applyMechCritSlotEffect(slot, systemHits, heatSinks, weapons, crew, state) });
+            // A multi-slot heat sink is destroyed by its first hit; more hits do nothing.
+            if (slot.type === 'heatSink' && slot.name && slots.some(o => o !== slot && o.hit && o.type === 'heatSink' && o.name === slot.name)) {
+              slotResults.push({ index: idx, text: `${slot.name} (already destroyed)` });
+              continue;
+            }
+            let text = applyMechCritSlotEffect(slot, systemHits, heatSinks, weapons, crew, state);
+            // ICE / fuel cell engine hit: 2D6 (+3 second hit, +6 third) — 10+ explodes.
+            if (state.iceCheck) {
+              state.iceCheck = false;
+              const n = num(systemHits.engine);
+              const er = await new Roll("2d6").evaluate();
+              rolls.push(er);
+              const total = er.total + (n === 2 ? 3 : n >= 3 ? 6 : 0);
+              if (total >= 10) { state.destroyed = true; text += ` — rolled ${total}: ENGINE EXPLODES, unit destroyed`; }
+              else text += ` — rolled ${total}: no explosion`;
+            }
+            slotResults.push({ index: idx, text });
           }
           critChecks.push({ locLabel: MECH_LOC_LABEL[cl] || cl, total: cc.total, text: cc.text, slots: slotResults });
         }
@@ -954,8 +993,31 @@ export async function resolveDamageAgainst(targetActor, direction, groupSizes, r
       explosionLines.push(`AMMUNITION EXPLOSION — ${slot.name || ex.weapon.ammoType} (${where}): ${ex.shots} shot${ex.shots === 1 ? '' : 's'} × ${ex.perShot} = ${ex.damage} internal damage`);
       for (const ev of res.events) explosionLines.push(ev);
       if (res.vented) explosionLines.push(`CASE vents the remaining ${res.vented}`);
-      if (res.destroyed) state.destroyed = true;
+      if (res.destroyed) {
+        state.destroyed = true;
+        explosionLines.push(killWarrior(crew, state, 'Center torso destroyed by the explosion'));
+      }
       await critCheck(new Set(res.structureHits));
+    }
+
+    // A side torso destroyed this attack takes its arm with it, and any engine
+    // slots it holds (XL / light engines) count as engine hits.
+    for (const [torso, arm] of [['lt', 'la'], ['rt', 'ra']]) {
+      const st = dmgState.structure[torso];
+      if (!st || num(st.max) <= 0 || num(st.value) > 0 || num(structureBefore[torso]?.value) <= 0) continue;
+      const a = dmgState.structure[arm];
+      if (a && num(a.value) > 0) {
+        blowOffLocationState(dmgState, arm);
+        deathNotes.push(`${MECH_LOC_LABEL[arm]} lost with the ${MECH_LOC_LABEL[torso]}`);
+      }
+      const engineSlots = (critSlots[torso] || []).filter(x => x.type === 'engine' && !x.hit);
+      if (engineSlots.length) {
+        engineSlots.forEach(x => { x.hit = true; });
+        systemHits.engine = Math.min(3, num(systemHits.engine) + engineSlots.length);
+        const dead = systemHits.engine >= 3;
+        if (dead) state.destroyed = true;
+        deathNotes.push(`${MECH_LOC_LABEL[torso]} engine slots lost (${engineSlots.length}) — engine hits ${systemHits.engine}${dead ? ': DESTROYED' : ''}`);
+      }
     }
 
     // Warrior damage: 1 per head hit, 2 for an ammunition explosion. A linked
@@ -998,7 +1060,8 @@ export async function resolveDamageAgainst(targetActor, direction, groupSizes, r
       }
     }
     return {
-      isMech: true, groups, critChecks, destroyedByCrit: state.destroyed, ammoExplosion: explosionCount > 0, explosionLines, pilotNote,
+      isMech: true, groups, critChecks, destroyedByCrit: state.destroyed, ammoExplosion: explosionCount > 0,
+      explosionLines: [...explosionLines, ...deathNotes], pilotNote,
       warriorLines, psrReasons: psr.reasons.map(r => r.label),
       applied, hasTarget: true, targetName: targetActor.name
     };
@@ -1019,6 +1082,30 @@ export async function resolveDamageAgainst(targetActor, direction, groupSizes, r
 
 const TWO_D6_WAYS = { 2: 1, 3: 2, 4: 3, 5: 4, 6: 5, 7: 6, 8: 5, 9: 4, 10: 3, 11: 2, 12: 1 };
 
+const LOCATION_WORDS = {
+  la: ['la', 'left arm', 'l arm'], ra: ['ra', 'right arm', 'r arm'],
+  lt: ['lt', 'left torso', 'l torso'], rt: ['rt', 'right torso', 'r torso'],
+  ct: ['ct', 'center torso', 'centre torso', 'c torso'], head: ['hd', 'head', 'h'],
+  ll: ['ll', 'left leg', 'l leg'], rl: ['rl', 'right leg', 'r leg']
+};
+
+/** A mech weapon's location key from its free-text Loc (e.g. "RA", "Left Torso", "CT (R)"). */
+export function mechWeaponLocation(weapon) {
+  const raw = String(weapon?.location ?? '').trim().toLowerCase().replace(/\s*\((r|rear)\)\s*$/, '');
+  for (const [key, words] of Object.entries(LOCATION_WORDS)) if (words.includes(raw)) return key;
+  return null;
+}
+
+/** Is a mech location gone: destroyed, or an arm whose side torso is destroyed? */
+export function locationGone(actor, loc) {
+  const st = actor?.system?.structure || {};
+  const dead = (k) => !!st[k] && num(st[k].max) > 0 && num(st[k].value) <= 0;
+  if (dead(loc)) return true;
+  if (loc === 'la') return dead('lt');
+  if (loc === 'ra') return dead('rt');
+  return false;
+}
+
 /** Chance (whole percent) of rolling tn or better on 2D6. */
 export function hitChance(tn) {
   if (tn <= 2) return 100;
@@ -1032,7 +1119,12 @@ export function hitChance(tn) {
 export function weaponBlock(actor, weapon) {
   const wName = weapon?.name || 'Weapon';
   if (actor?.system?.conditions?.shutdown) return `${actor.name} is shut down and can't fire.`;
+  if (actor?.type === 'mech' && num(actor.system?.systemHits?.sensors) >= 2) return `${actor.name}'s sensors are destroyed: it can't fire weapons.`;
   if (weapon?.destroyed) return `${wName} is destroyed and can't fire.`;
+  if (actor?.type === 'mech') {
+    const loc = mechWeaponLocation(weapon);
+    if (loc && locationGone(actor, loc)) return `${wName}'s location (${MECH_LOC_LABEL[loc]}) is destroyed.`;
+  }
   if (usesAmmo(weapon) && num(weapon.ammo) <= 0) return `${wName} is out of ammunition (set its Rds on the Combat tab to reload).`;
   if (currentTurnKey() && firedThisTurn(actor)[weapon.id] !== undefined) return `${wName} has already fired this turn.`;
   return null;

@@ -19,6 +19,28 @@ export const UNIT_STATUSES = [
   { id: 'mfPSR', name: 'Piloting Skill Roll Pending', img: 'icons/svg/hazard.svg' }
 ];
 
+const n = (v) => Number(v) || 0;
+const gone = (loc) => !!loc && n(loc.max) > 0 && n(loc.value) <= 0;
+
+/**
+ * Is the unit destroyed (TW "Destroying a Unit")? 'Mech: head or center torso
+ * destroyed, three engine hits, cockpit destroyed, or its (sheet-only) warrior
+ * killed. Vehicle: internal structure gone. Aerospace: Structural Integrity 0.
+ */
+export function unitDestroyed(actor) {
+  const sys = actor?.system || {};
+  if (actor?.type === 'mech') {
+    const st = sys.structure || {};
+    if (gone(st.ct) || gone(st.head)) return true;
+    if (n(sys.systemHits?.engine) >= 3) return true;
+    if ((sys.critSlots?.head || []).some(x => x?.type === 'cockpit' && x.hit)) return true;
+    return !sys.pilot?.actorId && n(sys.pilot?.hits) >= 6;
+  }
+  if (actor?.type === 'ground_vehicle') return gone(sys.structure);
+  if (actor?.type === 'aerospace_fighter' || actor?.type === 'small_craft') return gone(sys.structuralIntegrity);
+  return false;
+}
+
 /** Which unit statuses should be on for an actor right now. */
 export function desiredStatuses(actor) {
   const c = actor?.system?.conditions || {};
@@ -28,7 +50,8 @@ export function desiredStatuses(actor) {
     mfPilotOut: ['mech', 'aerospace_fighter', 'small_craft'].includes(actor.type) && pilotUnconscious(actor),
     mfImmobile: actor.type === 'ground_vehicle' && !!c.immobile,
     mfOutOfControl: !!c.outOfControl,
-    mfPSR: !!pendingPSR(actor)
+    mfPSR: !!pendingPSR(actor),
+    dead: unitDestroyed(actor) // Foundry's core defeated status (skull overlay)
   };
 }
 
@@ -38,7 +61,9 @@ export async function syncUnitStatuses(actor) {
   if (typeof actor.toggleStatusEffect !== 'function') return;
   for (const [id, want] of Object.entries(desiredStatuses(actor))) {
     const has = !!actor.statuses?.has(id);
-    if (has !== want) await actor.toggleStatusEffect(id, { active: want });
+    if (has === want) continue;
+    if (id === 'dead' && !(CONFIG.statusEffects || []).some(e => e.id === 'dead')) continue;
+    await actor.toggleStatusEffect(id, id === 'dead' ? { active: want, overlay: true } : { active: want });
   }
 }
 
