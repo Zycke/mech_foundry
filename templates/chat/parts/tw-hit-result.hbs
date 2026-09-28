@@ -1,7 +1,7 @@
 {{!-- Damage resolution for one struck unit (hr = a resolveDamageAgainst result). Used by tw-attack.hbs. --}}
   {{#if hr.cluster}}
   <div class="tw-cluster">
-    <span class="tw-hl-label">Cluster</span>
+    <span class="tw-hl-label">{{#if hr.clusterInfo.streak}}Streak — all hit{{else}}Cluster{{/if}}</span>
     <span class="tw-hl-dice">{{#each hr.clusterInfo.dice}}<span class="tw-die">{{this}}</span>{{/each}}</span>
     <span class="tw-cluster-hits"><strong>{{hr.clusterInfo.missiles}}</strong> / {{hr.clusterInfo.size}} hit · {{hr.total}} dmg</span>
   </div>

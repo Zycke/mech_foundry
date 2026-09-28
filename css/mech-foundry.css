@@ -7595,3 +7595,9 @@
 .mech-foundry.mech-sheet .mf-infantry-on { border-color: #6b5417; }
 .mech-foundry .mf-actions { flex-wrap: wrap; }
 .mech-foundry.mech-sheet .wt select.w-inf { width: 58px; height: 20px; font-size: 0.64rem; padding: 0 2px; }
+
+/* ---- MegaMek import ---- */
+.mf-import-megamek { flex: 0 0 100%; margin-top: 4px; }
+.mech-foundry.mf-import-report .mf-import-unit { margin: 4px 0; font-size: 0.8rem; }
+.mech-foundry.mf-import-report .mf-import-unit ul { margin: 2px 0 0 1em; padding: 0; font-size: 0.74rem; }
+.mech-foundry.mf-import-report .mf-import-unit.failed { color: var(--mf-danger, #c33); }

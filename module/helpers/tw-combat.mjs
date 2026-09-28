@@ -1926,7 +1926,11 @@ async function resolveWeaponShot(actor, weapon, target, result, rolls) {
   } else if (hit && perHit > 0) {
     let clusterInfo = null;
     let total = perHit;
-    if (clusterSize > 0) {
+    if (clusterSize > 0 && weapon.streak) {
+      // Streak launchers only fire on a lock: every missile hits.
+      total = clusterSize * perHit;
+      clusterInfo = { size: clusterSize, missiles: clusterSize, perHit, total, streak: true, dice: [] };
+    } else if (clusterSize > 0) {
       const cRoll = await new Roll("2d6").evaluate();
       rolls.push(cRoll);
       const missiles = clusterHits(clusterSize, cRoll.total);

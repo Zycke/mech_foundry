@@ -254,7 +254,14 @@ Rules detail for what *is* automated lives in `docs/unit-sheet-design.md`.
 - [ ] Battle armor: bomb racks, pop-up mines, Narc, squad support weapons, inferno
       self-detonation, torpedoes / multi-purpose missiles, UMU / VTOL movement rules,
       jettisoning launchers as an action.
-- [ ] Record-sheet importer (MegaMek `.mtf` / `.blk`) or a compendium of designs.
+- [ ] Importer follow-ups: equipment effects the importer only lists (Artemis IV/V cluster
+      bonus, MASC / TSM / superchargers, targeting computers, ECM / probes, C3, A-Pods, PPC
+      capacitors), physical weapons (hatchets, swords) into the physical-attack dialog, quad /
+      tripod / LAM 'Mechs, superheavy and dual-turret vehicles, support vehicle BAR, DropShips and
+      larger craft, field guns and custom infantry weapons, variable-damage weapons (Heavy Gauss,
+      VSP, Snub-nose PPC import with 0 damage), one-shot launchers, per-bin ammunition (bins are
+      pooled per weapon), per-location vehicle structure, re-importing over an existing actor, a
+      compendium of common designs.
 - [ ] Damage log / struck-location highlight on the unit sheets.
 
 ---

@@ -732,6 +732,7 @@ const BURST_BA = [
 
 /** Burst-fire dice against conventional infantry for a weapon, or null. */
 export function burstDice(weapon, attacker) {
+  if (weapon?.burst) return weapon.burst;
   const name = weapon?.name || '';
   if (attacker?.type === 'battle_armor') {
     const ba = BURST_BA.find(([re]) => re.test(name));

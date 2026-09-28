@@ -53,6 +53,7 @@ import { registerMovementTracking } from "./helpers/tw-movement.mjs";
 import { registerUnitStatuses } from "./helpers/tw-status.mjs";
 import { registerCombatChat } from "./helpers/tw-chat.mjs";
 import { registerToHitRefresh } from "./sheets/unit-sheet.mjs";
+import { registerMegaMekImport } from "./helpers/megamek-import-ui.mjs";
 import { OpposedRollHelper } from "./helpers/opposed-rolls.mjs";
 import { DiceMechanics } from "./helpers/dice-mechanics.mjs";
 import { ItemEffectsHelper, EFFECT_CATEGORIES, getEffectTypeOptions } from "./helpers/effects-helper.mjs";
@@ -590,6 +591,8 @@ registerUnitStatuses();
 registerCombatChat();
 // Weapon rows show to-hit vs the current target; keep them fresh.
 Hooks.once("ready", () => registerToHitRefresh());
+// "Import MegaMek Units" button in the Actors sidebar.
+registerMegaMekImport();
 
 // Override initiative formula
 Hooks.once("init", function() {

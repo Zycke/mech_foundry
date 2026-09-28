@@ -348,6 +348,30 @@ criticals and cluster grouping:
   and swarm attacks with their own table columns (mechanized platoons can't); their swarm damage
   is their standard damage in 2-point groups with no automatic crit, and a hit that strikes a
   swarming platoon is taken whole. Can't be punched, clubbed or charged; kicks / DFAs +3.
+- **Record-sheet importer** (`megamek-import.mjs`, UI `megamek-import-ui.mjs`): the Actors sidebar's
+  "Import MegaMek Units" button reads MegaMek `.mtf` ('Mechs) and `.blk` files (combat vehicles and
+  VTOLs, aerospace and conventional fighters, small craft, battle armor, conventional infantry) —
+  several files at once, or pasted text — creates one actor per unit (optionally into a folder)
+  and whispers the import notes to the user. Weapon statistics come from a catalog generated from
+  MegaMek's equipment definitions (`module/data/tw-equipment.mjs`, regenerated with
+  `tools/extract-megamek-equipment.py`; about 600 weapons and 400 ammunition types, matched by
+  MegaMek's display, internal and lookup names — a shared name picks the battle armor / Clan /
+  IS version that fits the unit). 'Mechs: armor from the file, internal structure from the
+  Internal Structure Table, crit slots mapped onto the slot model (engine, gyro, sensors, life
+  support, cockpit, actuators, heat sinks — each multi-slot double sink named separately — jump
+  jets, CASE, ammunition, weapons; Endo Steel / Ferro-Fibrous slots as named empties), weapons
+  built from their slot runs (rear mounts, weapons split across two locations), ammunition bins
+  pooled per weapon type and linked to the weapon they feed (for explosions). Vehicles: facing
+  armor (front / right / left / rear / turret or rotor), structure ⌈t/10⌉ for the single pool.
+  Fighters / small craft: thrust (max = ⌈safe × 1.5⌉), SI (file value, else the higher of ⌊t/10⌋
+  and Safe Thrust), thresholds ⌈armor/10⌉, heat sinks, fuel, each weapon's aerospace range
+  bracket. Battle armor: troopers, armor value, weight class, chassis, movement, manipulators,
+  stealth / mimetic / fire-resistant armor, magnetic clamps, weapons (arm / body / turret, AP
+  mount → one AP weapon, missile shots) and IS body-mounted launchers. Infantry: troopers (squads
+  × squad size), platoon type, the generic weapon type from the secondary (else primary) weapon,
+  MP from the generic table. Weapons also carry their burst-fire dice against infantry and a
+  Streak flag (Streak launchers now hit with every missile). Equipment without automated effects
+  (Artemis, ECM, MASC, C3, targeting computers, physical weapons, …) is listed in the notes.
 **Intentional house rules** (deliberate divergences — don't "correct" toward the book):
 - Combat vehicles roll a critical on any hit that penetrates to internal structure, in
   addition to the tables' marked results (2/12, or 8 on side attacks).
