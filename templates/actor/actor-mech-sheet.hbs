@@ -191,8 +191,32 @@
         </div>
       </div>
       <div class="mf-panel">
-        <h4>Per-Location Criticals <span class="hint">detailed critical-slot lists arrive in a follow-up</span></h4>
-        <p class="logi-note">Head · Center Torso · L/R Torso · L/R Arm · L/R Leg — each will expand to its critical-slot list.</p>
+        <h4>Critical Slots <span class="hint">combat auto-resolves crits against these</span>
+          {{#if editable}}<button type="button" class="init-critslots"><i class="fas fa-wrench"></i> Init standard</button>{{/if}}
+        </h4>
+        {{#if hasCritSlots}}
+        <div class="critslot-grid">
+          {{#each critSlotLocations}}
+          <div class="critslot-loc">
+            <div class="csl-head">{{this.label}}</div>
+            {{#if this.slots.length}}
+            {{#each this.slots}}
+            <div class="csl-row {{#if this.hit}}hit{{/if}}">
+              <span class="csl-idx">{{this.index}}</span>
+              <input type="text" class="critslot-field csl-name" data-loc="{{../key}}" data-index="{{subtract this.index 1}}" data-field="name" value="{{this.name}}" placeholder="—" {{#unless ../../editable}}disabled{{/unless}} />
+              <select class="critslot-field csl-type" data-loc="{{../key}}" data-index="{{subtract this.index 1}}" data-field="type" {{#unless ../../editable}}disabled{{/unless}}>
+                {{#each ../../slotTypes}}<option value="{{this.key}}" {{#if (eq this.key ../type)}}selected{{/if}}>{{this.label}}</option>{{/each}}
+              </select>
+              <input type="checkbox" class="critslot-hit" data-loc="{{../key}}" data-index="{{subtract this.index 1}}" title="Destroyed" {{checked this.hit}} {{#unless ../../editable}}disabled{{/unless}} />
+            </div>
+            {{/each}}
+            {{else}}<div class="csl-empty">— no slots —</div>{{/if}}
+          </div>
+          {{/each}}
+        </div>
+        {{else}}
+        <p class="logi-note">No critical slots yet. Click <strong>Init standard</strong> to lay out the standard biped components (engine, gyro, sensors, cockpit, actuators) plus empty slots you can name; combat will then resolve criticals to specific components automatically.</p>
+        {{/if}}
       </div>
     </div>
 

@@ -165,6 +165,88 @@ export async function blowOffMechLocation(target, loc) {
 const MECH_TORSO = new Set(['ct', 'lt', 'rt']);
 const MECH_LIMB = new Set(['la', 'ra', 'll', 'rl']);
 
+/* ------------------------------------------------------------------ */
+/*  Mech critical slots                                                 */
+/* ------------------------------------------------------------------ */
+
+/** Critical slot counts per location (standard biped). */
+export const SLOT_COUNTS = { head: 6, ct: 12, lt: 12, rt: 12, la: 12, ra: 12, ll: 6, rl: 6 };
+
+/** Component types selectable for a critical slot, with effect semantics. */
+export const SLOT_TYPES = [
+  { key: 'empty', label: '— empty —' },
+  { key: 'engine', label: 'Engine' },
+  { key: 'gyro', label: 'Gyro' },
+  { key: 'sensors', label: 'Sensors' },
+  { key: 'lifeSupport', label: 'Life Support' },
+  { key: 'cockpit', label: 'Cockpit' },
+  { key: 'actuator', label: 'Actuator' },
+  { key: 'weapon', label: 'Weapon' },
+  { key: 'ammo', label: 'Ammunition' },
+  { key: 'heatSink', label: 'Heat Sink' },
+  { key: 'equipment', label: 'Equipment' }
+];
+
+/** Build the standard biped critical-slot layout (fixed components + empties). */
+export function standardMechSlots() {
+  const empty = (n) => Array.from({ length: n }, () => ({ name: '', type: 'empty', hit: false }));
+  const c = (name, type) => ({ name, type, hit: false });
+  const actu = (name) => c(name, 'actuator');
+  return {
+    head: [c('Life Support', 'lifeSupport'), c('Sensors', 'sensors'), c('Cockpit', 'cockpit'), ...empty(1), c('Sensors', 'sensors'), c('Life Support', 'lifeSupport')],
+    ct: [c('Engine', 'engine'), c('Engine', 'engine'), c('Engine', 'engine'), c('Gyro', 'gyro'), c('Gyro', 'gyro'), c('Gyro', 'gyro'), c('Gyro', 'gyro'), c('Engine', 'engine'), c('Engine', 'engine'), c('Engine', 'engine'), ...empty(2)],
+    lt: empty(12),
+    rt: empty(12),
+    la: [actu('Shoulder'), actu('Upper Arm Actuator'), actu('Lower Arm Actuator'), actu('Hand Actuator'), ...empty(8)],
+    ra: [actu('Shoulder'), actu('Upper Arm Actuator'), actu('Lower Arm Actuator'), actu('Hand Actuator'), ...empty(8)],
+    ll: [actu('Hip'), actu('Upper Leg Actuator'), actu('Lower Leg Actuator'), actu('Foot Actuator'), ...empty(2)],
+    rl: [actu('Hip'), actu('Upper Leg Actuator'), actu('Lower Leg Actuator'), actu('Foot Actuator'), ...empty(2)]
+  };
+}
+
+/** Roll which critical slot is struck in a location (1d6, or 1d6/1d6 for 12-slot). */
+async function rollCritSlotIndex(count, rolls) {
+  if (count <= 6) {
+    const r = await new Roll("1d6").evaluate(); rolls.push(r);
+    return r.total;
+  }
+  const g = await new Roll("1d6").evaluate(); rolls.push(g);
+  const s = await new Roll("1d6").evaluate(); rolls.push(s);
+  return (g.total <= 3 ? 0 : 6) + s.total;
+}
+
+/** Apply a struck slot's effect to the mutable combat state. Returns effect text. */
+function applyMechCritSlotEffect(slot, systemHits, heatSinks, weapons, crew, state) {
+  switch (slot.type) {
+    case 'engine':
+      systemHits.engine = Math.min(3, (Number(systemHits.engine) || 0) + 1);
+      if (systemHits.engine >= 3) { state.destroyed = true; return 'Engine (3rd hit) — DESTROYED'; }
+      return 'Engine hit (+heat)';
+    case 'gyro':
+      systemHits.gyro = Math.min(2, (Number(systemHits.gyro) || 0) + 1);
+      return systemHits.gyro >= 2 ? 'Gyro destroyed (falls / immobile)' : 'Gyro hit (+piloting)';
+    case 'sensors':
+      systemHits.sensors = Math.min(2, (Number(systemHits.sensors) || 0) + 1);
+      return 'Sensors hit';
+    case 'lifeSupport':
+      systemHits.lifeSupport = Math.min(2, (Number(systemHits.lifeSupport) || 0) + 1);
+      return 'Life Support hit';
+    case 'cockpit':
+      state.destroyed = true; state.pilotKilled = true;
+      crew.hits = 6;
+      return 'Cockpit — PILOT KILLED';
+    case 'actuator': return `${slot.name || 'Actuator'} destroyed`;
+    case 'weapon': {
+      const w = weapons.find(x => !x.destroyed && slot.name && x.name === slot.name);
+      if (w) w.destroyed = true;
+      return `${slot.name || 'Weapon'} destroyed`;
+    }
+    case 'ammo': state.ammo = true; return `${slot.name || 'Ammunition'} — EXPLOSION (resolve)`;
+    case 'heatSink': heatSinks.count = Math.max(0, (Number(heatSinks.count) || 0) - 1); return 'Heat Sink destroyed';
+    default: return `${slot.name || 'Equipment'} destroyed`;
+  }
+}
+
 /**
  * Roll the Determining Critical Hits Table for a struck location.
  * @param {string} loc  Location key (drives torso vs limb/head handling on a 12).
@@ -664,7 +746,17 @@ export async function weaponAttack(actor, weapon) {
     if (tt === 'mech') {
       const groups = [];
       const critChecks = [];
-      let destroyedByCrit = false;
+      // Mutable crit state, resolved against the mech's critical slots.
+      const critSlots = foundry.utils.deepClone(targetActor.system.critSlots || {});
+      const systemHits = foundry.utils.deepClone(targetActor.system.systemHits || {});
+      const heatSinks = foundry.utils.deepClone(targetActor.system.heatSinks || { count: 0, type: 'single' });
+      const weapons = foundry.utils.deepClone(targetActor.system.weapons || []);
+      const crew = foundry.utils.deepClone(targetActor.system.pilot || {});
+      const state = { destroyed: false, pilotKilled: false, ammo: false };
+      const ensureSlots = (loc) => {
+        if (!Array.isArray(critSlots[loc]) || critSlots[loc].length === 0) critSlots[loc] = standardMechSlots()[loc];
+        return critSlots[loc];
+      };
       for (const g of groupSizes) {
         const locRoll = await rollMechLocation(result.direction);
         rolls.push(locRoll.roll);
@@ -683,15 +775,35 @@ export async function weaponAttack(actor, weapon) {
           rolls.push(cc.roll);
           if (cc.blowOff) {
             const wasHead = await blowOffMechLocation(targetActor, cl);
-            if (wasHead) destroyedByCrit = true;
+            if (wasHead) state.destroyed = true;
+            critChecks.push({ locLabel: MECH_LOC_LABEL[cl] || cl, total: cc.total, text: cc.text, slots: [] });
+            continue;
           }
-          critChecks.push({ locLabel: MECH_LOC_LABEL[cl] || cl, dice: cc.dice, total: cc.total, text: cc.text, count: cc.count });
+          if (cc.count > 0) {
+            const slots = ensureSlots(cl);
+            const slotResults = [];
+            for (let i = 0; i < cc.count; i++) {
+              const idx = await rollCritSlotIndex(slots.length, rolls);
+              const slot = slots[idx - 1];
+              if (!slot || slot.type === 'empty') { slotResults.push({ index: idx, text: 'no critical (empty slot)' }); continue; }
+              if (slot.hit) { slotResults.push({ index: idx, text: `${slot.name || slot.type} (already destroyed)` }); continue; }
+              slot.hit = true;
+              slotResults.push({ index: idx, text: applyMechCritSlotEffect(slot, systemHits, heatSinks, weapons, crew, state) });
+            }
+            critChecks.push({ locLabel: MECH_LOC_LABEL[cl] || cl, total: cc.total, text: cc.text, slots: slotResults });
+          }
         }
+      }
+      // Persist crit-slot / system-hit / weapon / crew changes once.
+      if (targetActor.isOwner || game.user.isGM) {
+        await targetActor.update({
+          'system.critSlots': critSlots, 'system.systemHits': systemHits,
+          'system.heatSinks': heatSinks, 'system.weapons': weapons, 'system.pilot': crew
+        });
       }
       hitResult = {
         cluster: clusterSize > 0, clusterInfo, total, isMech: true, groups,
-        critChecks: critChecks.filter(c => c.count > 0 || /Blown Off/.test(c.text)),
-        destroyedByCrit,
+        critChecks, destroyedByCrit: state.destroyed, ammoExplosion: state.ammo,
         applied: targetActor.isOwner || game.user.isGM, hasTarget: true, targetName: targetActor.name
       };
     } else if (tt === 'ground_vehicle') {

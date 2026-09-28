@@ -422,6 +422,16 @@
         "sensors": 0,
         "lifeSupport": 0
       },
+      "critSlots": {
+        "head": [],
+        "ct": [],
+        "lt": [],
+        "rt": [],
+        "la": [],
+        "ra": [],
+        "ll": [],
+        "rl": []
+      },
       "conditions": {
         "shutdown": false,
         "prone": false

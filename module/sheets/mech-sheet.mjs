@@ -1,6 +1,11 @@
 import { MechFoundryUnitSheet } from "./unit-sheet.mjs";
 import { actorSkillRating, applyCrewDamage, CREW_DAMAGE, MECH_GUNNERY_SKILLS, MECH_PILOTING_SKILLS } from "../helpers/atow-conversion.mjs";
-import { weaponAttack, resolveMechHeat } from "../helpers/tw-combat.mjs";
+import { weaponAttack, resolveMechHeat, standardMechSlots, SLOT_TYPES } from "../helpers/tw-combat.mjs";
+
+const CRIT_LOCATIONS = [
+  ['head', 'Head'], ['ct', 'Center Torso'], ['lt', 'Left Torso'], ['rt', 'Right Torso'],
+  ['la', 'Left Arm'], ['ra', 'Right Arm'], ['ll', 'Left Leg'], ['rl', 'Right Leg']
+];
 
 const { DialogV2 } = foundry.applications.api;
 
@@ -163,6 +168,15 @@ export class MechFoundryMechSheet extends MechFoundryUnitSheet {
     context.conditions = sys.conditions || {};
     context.heatSinks = sys.heatSinks || { count: 0, type: 'single' };
 
+    // Critical slots (Crits & Loadout tab).
+    const cs = sys.critSlots || {};
+    context.critSlotLocations = CRIT_LOCATIONS.map(([key, label]) => ({
+      key, label,
+      slots: (cs[key] || []).map((s, i) => ({ index: i + 1, name: s.name, type: s.type, hit: !!s.hit }))
+    }));
+    context.hasCritSlots = CRIT_LOCATIONS.some(([k]) => (cs[k] || []).length > 0);
+    context.slotTypes = SLOT_TYPES;
+
     return context;
   }
 
@@ -225,6 +239,48 @@ export class MechFoundryMechSheet extends MechFoundryUnitSheet {
     html.on('click', '.pilot-open', this._onPilotOpen.bind(this));
     html.on('click', '.weapon-attack', this._onWeaponAttack.bind(this));
     html.on('click', '.resolve-heat', (ev) => { ev.preventDefault(); resolveMechHeat(this.actor); });
+    html.on('click', '.init-critslots', this._onInitCritSlots.bind(this));
+    html.on('change', '.critslot-field', this._onCritSlotFieldChange.bind(this));
+    html.on('change', '.critslot-hit', this._onCritSlotHitToggle.bind(this));
+  }
+
+  async _updateCritSlots(mutator) {
+    const cs = foundry.utils.deepClone(this.actor.system.critSlots || {});
+    if (mutator(cs) === false) return;
+    await this.actor.update({ 'system.critSlots': cs });
+  }
+
+  /** Fill the standard biped layout for any location that has no slots yet. */
+  async _onInitCritSlots(event) {
+    event.preventDefault();
+    const std = standardMechSlots();
+    await this._updateCritSlots(cs => {
+      let filled = 0;
+      for (const [key] of CRIT_LOCATIONS) {
+        if (!Array.isArray(cs[key]) || cs[key].length === 0) { cs[key] = std[key]; filled++; }
+      }
+      if (!filled) { ui.notifications.info("Critical slots are already initialized."); return false; }
+    });
+  }
+
+  async _onCritSlotFieldChange(event) {
+    const { loc, index, field } = event.currentTarget.dataset;
+    const value = event.currentTarget.value;
+    await this._updateCritSlots(cs => {
+      const slot = cs[loc]?.[parseInt(index)];
+      if (!slot) return false;
+      slot[field] = value;
+    });
+  }
+
+  async _onCritSlotHitToggle(event) {
+    const { loc, index } = event.currentTarget.dataset;
+    const checked = event.currentTarget.checked;
+    await this._updateCritSlots(cs => {
+      const slot = cs[loc]?.[parseInt(index)];
+      if (!slot) return false;
+      slot.hit = checked;
+    });
   }
 
   _applyActiveTab() {

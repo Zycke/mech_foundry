@@ -7475,3 +7475,20 @@
 .mech-foundry.tw-heat-card .tw-heat-line { display: flex; justify-content: space-between; font-size: 0.78rem; padding: 1px 0; border-bottom: 1px dotted var(--mf-line); }
 .mech-foundry.tw-heat-card .tw-heat-line .e { color: var(--mf-ink-dim); }
 .mech-foundry.tw-heat-card .tw-heat-line .v { font-family: var(--mf-font-mono); color: var(--mf-ink); }
+
+/* ---- Mech critical slots (Crits & Loadout) ---- */
+.mech-foundry.mech-sheet .mf-panel > h4 .init-critslots { margin-left: auto; padding: 2px 9px; background: var(--mf-bg); color: var(--mf-amber-2); border: 1px solid var(--mf-steel); border-radius: 2px; font-size: 0.68rem; cursor: pointer; width: auto; }
+.mech-foundry.mech-sheet .mf-panel > h4 .init-critslots:hover { border-color: var(--mf-amber); }
+.mech-foundry.mech-sheet .critslot-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+@media (max-width: 620px) { .mech-foundry.mech-sheet .critslot-grid { grid-template-columns: 1fr; } }
+.mech-foundry.mech-sheet .critslot-loc { background: #0e1216; border: 1px solid var(--mf-line); border-radius: 4px; padding: 5px 6px; }
+.mech-foundry.mech-sheet .csl-head { font-family: var(--mf-font-head); text-transform: uppercase; letter-spacing: 0.04em; font-size: 0.7rem; color: var(--mf-amber); border-bottom: 1px solid var(--mf-line); padding-bottom: 3px; margin-bottom: 4px; }
+.mech-foundry.mech-sheet .csl-row { display: flex; align-items: center; gap: 4px; margin-top: 2px; }
+.mech-foundry.mech-sheet .csl-row .csl-idx { width: 14px; text-align: right; font-family: var(--mf-font-mono); font-size: 0.62rem; color: var(--mf-ink-dim); }
+.mech-foundry.mech-sheet .csl-row .csl-name { flex: 1 1 auto; min-width: 40px; background: var(--mf-bg); border: 1px solid var(--mf-steel); border-radius: 2px; color: var(--mf-ink); font-size: 0.7rem; padding: 0 4px; height: 18px; }
+.mech-foundry.mech-sheet .csl-row .csl-type { flex: 0 0 84px; background: var(--mf-bg); border: 1px solid var(--mf-steel); border-radius: 2px; color: var(--mf-ink-dim); font-size: 0.64rem; height: 18px; }
+.mech-foundry.mech-sheet .csl-row .critslot-hit { accent-color: var(--mf-danger); }
+.mech-foundry.mech-sheet .csl-row.hit .csl-name { color: var(--mf-danger); text-decoration: line-through; }
+.mech-foundry.mech-sheet .csl-empty { color: var(--mf-ink-dim); font-size: 0.72rem; font-style: italic; }
+/* Attack card crit-slot detail */
+.mech-foundry.tw-attack-card .tw-crit-slot { color: var(--mf-ink-dim); margin-left: 12px; font-size: 0.72rem; }
