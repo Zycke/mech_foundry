@@ -642,6 +642,82 @@ export async function resolveMechHeat(actor) {
 }
 
 /**
+ * Apply an already-grouped damage total to a target of any unit type, rolling
+ * the appropriate hit-location / motive / critical tables. Returns a chat-card
+ * fragment (without the cluster/total wrapper the caller adds).
+ */
+export async function resolveDamageAgainst(targetActor, direction, groupSizes, rolls, targetName = '') {
+  const tt = targetActor?.type;
+  if (tt === 'mech') {
+    const groups = [];
+    const critChecks = [];
+    const critSlots = foundry.utils.deepClone(targetActor.system.critSlots || {});
+    const systemHits = foundry.utils.deepClone(targetActor.system.systemHits || {});
+    const heatSinks = foundry.utils.deepClone(targetActor.system.heatSinks || { count: 0, type: 'single' });
+    const weapons = foundry.utils.deepClone(targetActor.system.weapons || []);
+    const crew = foundry.utils.deepClone(targetActor.system.pilot || {});
+    const state = { destroyed: false, pilotKilled: false, ammo: false };
+    const ensureSlots = (loc) => {
+      if (!Array.isArray(critSlots[loc]) || critSlots[loc].length === 0) critSlots[loc] = standardMechSlots()[loc];
+      return critSlots[loc];
+    };
+    for (const g of groupSizes) {
+      const locRoll = await rollMechLocation(direction);
+      rolls.push(locRoll.roll);
+      const dmg = await applyMechDamage(targetActor, locRoll.loc, g, { rear: locRoll.rear });
+      groups.push({
+        damage: g, locLabel: locRoll.label + (locRoll.rear ? ' (rear)' : ''),
+        locDice: locRoll.dice, crit: locRoll.crit,
+        events: dmg.events, destroyed: dmg.destroyed, overflow: dmg.overflow
+      });
+      const checkLocs = new Set(dmg.structureHits);
+      if (locRoll.crit) checkLocs.add(locRoll.loc);
+      for (const cl of checkLocs) {
+        const cc = await rollDeterminingCrit(cl);
+        rolls.push(cc.roll);
+        if (cc.blowOff) {
+          const wasHead = await blowOffMechLocation(targetActor, cl);
+          if (wasHead) state.destroyed = true;
+          critChecks.push({ locLabel: MECH_LOC_LABEL[cl] || cl, total: cc.total, text: cc.text, slots: [] });
+          continue;
+        }
+        if (cc.count > 0) {
+          const slots = ensureSlots(cl);
+          const slotResults = [];
+          for (let i = 0; i < cc.count; i++) {
+            const idx = await rollCritSlotIndex(slots.length, rolls);
+            const slot = slots[idx - 1];
+            if (!slot || slot.type === 'empty') { slotResults.push({ index: idx, text: 'no critical (empty slot)' }); continue; }
+            if (slot.hit) { slotResults.push({ index: idx, text: `${slot.name || slot.type} (already destroyed)` }); continue; }
+            slot.hit = true;
+            slotResults.push({ index: idx, text: applyMechCritSlotEffect(slot, systemHits, heatSinks, weapons, crew, state) });
+          }
+          critChecks.push({ locLabel: MECH_LOC_LABEL[cl] || cl, total: cc.total, text: cc.text, slots: slotResults });
+        }
+      }
+    }
+    if (targetActor.isOwner || game.user.isGM) {
+      await targetActor.update({
+        'system.critSlots': critSlots, 'system.systemHits': systemHits,
+        'system.heatSinks': heatSinks, 'system.weapons': weapons, 'system.pilot': crew
+      });
+    }
+    return {
+      isMech: true, groups, critChecks, destroyedByCrit: state.destroyed, ammoExplosion: state.ammo,
+      applied: targetActor.isOwner || game.user.isGM, hasTarget: true, targetName: targetActor.name
+    };
+  } else if (tt === 'ground_vehicle') {
+    return await resolveVehicleAttack(targetActor, direction, groupSizes, rolls);
+  } else if (tt === 'aerospace_fighter' || tt === 'small_craft') {
+    return await resolveAeroAttack(targetActor, direction, groupSizes, rolls);
+  }
+  return {
+    isMech: false, groups: groupSizes.map(g => ({ damage: g })),
+    applied: false, hasTarget: !!targetActor, targetName: targetActor?.name || targetName
+  };
+}
+
+/**
  * Open the GATOR to-hit dialog for a weapon, roll 2d6, and post a chat card.
  * @param {Actor} actor   The attacking unit.
  * @param {object} weapon The weapon entry from the actor's system.weapons.
@@ -742,83 +818,8 @@ export async function weaponAttack(actor, weapon) {
     if (clusterSize > 0) { let t = total; while (t > 0) { groupSizes.push(Math.min(5, t)); t -= 5; } }
     else groupSizes.push(total);
 
-    const tt = targetActor?.type;
-    if (tt === 'mech') {
-      const groups = [];
-      const critChecks = [];
-      // Mutable crit state, resolved against the mech's critical slots.
-      const critSlots = foundry.utils.deepClone(targetActor.system.critSlots || {});
-      const systemHits = foundry.utils.deepClone(targetActor.system.systemHits || {});
-      const heatSinks = foundry.utils.deepClone(targetActor.system.heatSinks || { count: 0, type: 'single' });
-      const weapons = foundry.utils.deepClone(targetActor.system.weapons || []);
-      const crew = foundry.utils.deepClone(targetActor.system.pilot || {});
-      const state = { destroyed: false, pilotKilled: false, ammo: false };
-      const ensureSlots = (loc) => {
-        if (!Array.isArray(critSlots[loc]) || critSlots[loc].length === 0) critSlots[loc] = standardMechSlots()[loc];
-        return critSlots[loc];
-      };
-      for (const g of groupSizes) {
-        const locRoll = await rollMechLocation(result.direction);
-        rolls.push(locRoll.roll);
-        const dmg = await applyMechDamage(targetActor, locRoll.loc, g, { rear: locRoll.rear });
-        groups.push({
-          damage: g, locLabel: locRoll.label + (locRoll.rear ? ' (rear)' : ''),
-          locDice: locRoll.dice, crit: locRoll.crit,
-          events: dmg.events, destroyed: dmg.destroyed, overflow: dmg.overflow
-        });
-        // Determining Critical Hits: any location whose internal structure was
-        // damaged, plus a "2" through-armor critical on the struck location.
-        const checkLocs = new Set(dmg.structureHits);
-        if (locRoll.crit) checkLocs.add(locRoll.loc);
-        for (const cl of checkLocs) {
-          const cc = await rollDeterminingCrit(cl);
-          rolls.push(cc.roll);
-          if (cc.blowOff) {
-            const wasHead = await blowOffMechLocation(targetActor, cl);
-            if (wasHead) state.destroyed = true;
-            critChecks.push({ locLabel: MECH_LOC_LABEL[cl] || cl, total: cc.total, text: cc.text, slots: [] });
-            continue;
-          }
-          if (cc.count > 0) {
-            const slots = ensureSlots(cl);
-            const slotResults = [];
-            for (let i = 0; i < cc.count; i++) {
-              const idx = await rollCritSlotIndex(slots.length, rolls);
-              const slot = slots[idx - 1];
-              if (!slot || slot.type === 'empty') { slotResults.push({ index: idx, text: 'no critical (empty slot)' }); continue; }
-              if (slot.hit) { slotResults.push({ index: idx, text: `${slot.name || slot.type} (already destroyed)` }); continue; }
-              slot.hit = true;
-              slotResults.push({ index: idx, text: applyMechCritSlotEffect(slot, systemHits, heatSinks, weapons, crew, state) });
-            }
-            critChecks.push({ locLabel: MECH_LOC_LABEL[cl] || cl, total: cc.total, text: cc.text, slots: slotResults });
-          }
-        }
-      }
-      // Persist crit-slot / system-hit / weapon / crew changes once.
-      if (targetActor.isOwner || game.user.isGM) {
-        await targetActor.update({
-          'system.critSlots': critSlots, 'system.systemHits': systemHits,
-          'system.heatSinks': heatSinks, 'system.weapons': weapons, 'system.pilot': crew
-        });
-      }
-      hitResult = {
-        cluster: clusterSize > 0, clusterInfo, total, isMech: true, groups,
-        critChecks, destroyedByCrit: state.destroyed, ammoExplosion: state.ammo,
-        applied: targetActor.isOwner || game.user.isGM, hasTarget: true, targetName: targetActor.name
-      };
-    } else if (tt === 'ground_vehicle') {
-      const vres = await resolveVehicleAttack(targetActor, result.direction, groupSizes, rolls);
-      hitResult = { cluster: clusterSize > 0, clusterInfo, total, ...vres };
-    } else if (tt === 'aerospace_fighter' || tt === 'small_craft') {
-      const ares = await resolveAeroAttack(targetActor, result.direction, groupSizes, rolls);
-      hitResult = { cluster: clusterSize > 0, clusterInfo, total, ...ares };
-    } else {
-      hitResult = {
-        cluster: clusterSize > 0, clusterInfo, total, isMech: false,
-        groups: groupSizes.map(g => ({ damage: g })),
-        applied: false, hasTarget: !!targetActor, targetName: targetActor?.name || targetName
-      };
-    }
+    const frag = await resolveDamageAgainst(targetActor, result.direction, groupSizes, rolls, targetName);
+    hitResult = { cluster: clusterSize > 0, clusterInfo, total, ...frag };
   }
 
   const content2 = await foundry.applications.handlebars.renderTemplate(
@@ -842,4 +843,78 @@ export async function weaponAttack(actor, weapon) {
     content: content2,
     rolls
   });
+}
+
+/* ------------------------------------------------------------------ */
+/*  Area-effect attacks via Scene Regions (v14; MeasuredTemplate gone)  */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Fire an area attack centred on the targeted (or selected) token: prompt for
+ * damage / radius, drop a circular Scene Region for the blast, and apply damage
+ * to every unit whose token centre falls inside it. GM tool.
+ */
+export async function areaAttack() {
+  const anchor = [...(game.user?.targets ?? [])][0] || canvas.tokens?.controlled?.[0];
+  if (!anchor) { ui.notifications.warn("Target or select a token to mark the blast centre."); return; }
+
+  const r = await DialogV2.wait({
+    window: { title: "Area Attack", icon: "fa-solid fa-burst" },
+    content: `
+      <div class="tw-attack-dialog">
+        <p class="tw-atk-target">Blast centred on <strong>${foundry.utils.escapeHTML?.(anchor.name) ?? anchor.name}</strong></p>
+        <div class="form-group"><label>Damage (per unit)</label><input type="number" name="damage" value="5" /></div>
+        <div class="form-group"><label>Radius (hexes)</label><input type="number" name="radius" value="1" /></div>
+        <div class="form-group"><label>Cluster size (0 = direct)</label><input type="number" name="cluster" value="0" /></div>
+      </div>`,
+    buttons: [
+      { action: "fire", label: "Fire", icon: "fa-solid fa-burst", default: true, callback: (e, b) => ({ damage: num(b.form.elements.damage.value), radius: num(b.form.elements.radius.value), cluster: num(b.form.elements.cluster.value) }) },
+      { action: "cancel", label: "Cancel", icon: "fa-solid fa-times" }
+    ],
+    rejectClose: false
+  });
+  if (!r || r === "cancel" || r.damage <= 0) return;
+
+  const gridSize = canvas.grid?.size || 100;
+  const cx = anchor.center.x, cy = anchor.center.y;
+  const radiusPx = (r.radius + 0.5) * gridSize; // include the centre hex
+
+  // Drop a Scene Region to visualise the blast (best-effort; v14 API).
+  let region = null;
+  try {
+    const created = await canvas.scene.createEmbeddedDocuments("Region", [{
+      name: `Blast (${r.damage})`,
+      color: "#f2a53a",
+      shapes: [{ type: "circle", x: cx, y: cy, radius: radiusPx, hole: false }]
+    }]);
+    region = created?.[0] ?? null;
+  } catch (e) { /* region is cosmetic; continue without it */ }
+
+  // Units whose token centre lies within the blast.
+  const affected = (canvas.tokens?.placeables ?? []).filter(t => t.actor && Math.hypot(t.center.x - cx, t.center.y - cy) <= radiusPx);
+
+  const rolls = [];
+  const lines = [];
+  for (const t of affected) {
+    const groupSizes = [];
+    if (r.cluster > 0) {
+      const cRoll = await new Roll("2d6").evaluate(); rolls.push(cRoll);
+      let tot = clusterHits(r.cluster, cRoll.total) * r.damage;
+      while (tot > 0) { groupSizes.push(Math.min(5, tot)); tot -= 5; }
+    } else groupSizes.push(r.damage);
+    const frag = await resolveDamageAgainst(t.actor, 'front', groupSizes, rolls, t.name);
+    lines.push({ name: t.name, destroyed: !!(frag.destroyed || frag.destroyedByCrit), applied: frag.applied });
+  }
+
+  const body = lines.length
+    ? lines.map(l => `<div class="tw-hl-event">▸ ${foundry.utils.escapeHTML?.(l.name) ?? l.name}: hit${l.destroyed ? ' — DESTROYED' : ''}${l.applied ? '' : ' (apply manually)'}</div>`).join('')
+    : '<div class="tw-atk-dmg">No units in the blast.</div>';
+  await ChatMessage.create({
+    speaker: ChatMessage.getSpeaker(),
+    flavor: "Area Attack",
+    content: `<div class="mech-foundry tw-attack-card"><header class="tw-atk-head"><i class="fas fa-burst"></i> Area Attack — ${r.damage} dmg, radius ${r.radius}</header>${body}</div>`,
+    rolls
+  });
+
+  return region;
 }

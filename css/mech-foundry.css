@@ -7492,3 +7492,12 @@
 .mech-foundry.mech-sheet .csl-empty { color: var(--mf-ink-dim); font-size: 0.72rem; font-style: italic; }
 /* Attack card crit-slot detail */
 .mech-foundry.tw-attack-card .tw-crit-slot { color: var(--mf-ink-dim); margin-left: 12px; font-size: 0.72rem; }
+
+/* ---- Combat tracker phase bar + phase banner ---- */
+.tw-phase-bar { display: flex; align-items: center; gap: 8px; padding: 4px 8px; margin-bottom: 4px; background: var(--mf-panel, #1c232a); border: 1px solid var(--mf-line, #313b44); border-radius: 3px; }
+.tw-phase-bar .tw-phase-label { color: var(--mf-ink-dim, #8b98a3); font-size: 0.82em; }
+.tw-phase-bar .tw-phase-label strong { color: var(--mf-amber-2, #ffcf7a); }
+.tw-phase-bar .tw-next-phase { margin-left: auto; padding: 2px 8px; background: var(--mf-bg, #14181c); color: var(--mf-amber-2, #ffcf7a); border: 1px solid var(--mf-steel, #4d5b68); border-radius: 2px; font-size: 0.72em; cursor: pointer; width: auto; }
+.tw-phase-bar .tw-next-phase:hover { border-color: var(--mf-amber, #f2a53a); }
+.mech-foundry.tw-phase-banner { border: 1px solid var(--mf-steel); border-left: 3px solid var(--mf-amber); border-radius: 3px; background: var(--mf-panel); color: var(--mf-ink); padding: 5px 8px; font-family: var(--mf-font-head); text-transform: uppercase; letter-spacing: 0.04em; }
+.mech-foundry.tw-phase-banner i { color: var(--mf-amber); }

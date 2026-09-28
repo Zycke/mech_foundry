@@ -63,6 +63,8 @@ Hooks.once('init', function() {
     MechFoundryActor,
     MechFoundryItem,
     DiceMechanics,
+    /** Fire a Total Warfare area attack (Scene Region blast) — GM tool. */
+    areaAttack: () => import("./helpers/tw-combat.mjs").then(m => m.areaAttack()),
     ItemEffectsHelper,
     EFFECT_CATEGORIES,
     getEffectTypeOptions,
@@ -587,6 +589,37 @@ Hooks.on("preCreateCombatant", (combatant, data, options, userId) => {
 // Initiative ties are broken by RFL in MechFoundryCombat#_sortCombatants
 // (see documents/combat.mjs) — sorting the derived combat.turns array here
 // would have no persistent effect.
+
+// Total Warfare turn-phase bar in the combat tracker.
+Hooks.on("renderCombatTracker", (app, html) => {
+  const combat = game.combat;
+  if (!combat || typeof combat.nextPhase !== "function") return;
+  const el = html instanceof HTMLElement ? html : html?.[0];
+  if (!el || el.querySelector(".tw-phase-bar")) return;
+  const bar = document.createElement("div");
+  bar.className = "tw-phase-bar";
+  bar.innerHTML = `<span class="tw-phase-label">Phase: <strong>${combat.phaseName}</strong></span>` +
+    (game.user.isGM ? `<button type="button" class="tw-next-phase"><i class="fas fa-forward-step"></i> Next Phase</button>` : "");
+  el.prepend(bar);
+  bar.querySelector(".tw-next-phase")?.addEventListener("click", () => combat.nextPhase());
+});
+
+// Total Warfare area-attack tool in the token scene controls (GM only).
+Hooks.on("getSceneControlButtons", (controls) => {
+  if (!game.user.isGM) return;
+  const tokenCtl = Array.isArray(controls) ? controls.find(c => c.name === "token") : controls?.token;
+  const tool = {
+    name: "twAreaAttack",
+    title: "Area Attack (Total Warfare)",
+    icon: "fa-solid fa-burst",
+    button: true,
+    onClick: () => game.mechfoundry?.areaAttack?.(),
+    onChange: () => game.mechfoundry?.areaAttack?.()
+  };
+  if (!tokenCtl) return;
+  if (Array.isArray(tokenCtl.tools)) tokenCtl.tools.push(tool);
+  else if (tokenCtl.tools && typeof tokenCtl.tools === "object") tokenCtl.tools[tool.name] = tool;
+});
 
 // Reset firstAidUsedThisCombat when combat ends
 Hooks.on("deleteCombat", async (combat) => {

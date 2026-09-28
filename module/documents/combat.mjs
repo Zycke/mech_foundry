@@ -10,6 +10,30 @@
  */
 export class MechFoundryCombat extends Combat {
 
+  /** Total Warfare turn phase order. */
+  static TW_PHASES = ['Initiative', 'Movement', 'Weapon Attack', 'Physical Attack', 'Heat', 'End'];
+
+  get phaseIndex() { return this.getFlag('mech-foundry', 'phase') ?? 0; }
+  get phaseName() { return MechFoundryCombat.TW_PHASES[this.phaseIndex] || 'Initiative'; }
+
+  /** Advance to the next Total Warfare phase, rolling into the next round after End. */
+  async nextPhase() {
+    let i = this.phaseIndex + 1;
+    if (i >= MechFoundryCombat.TW_PHASES.length) {
+      await this.setFlag('mech-foundry', 'phase', 0);
+      await this.nextRound();
+    } else {
+      await this.setFlag('mech-foundry', 'phase', i);
+    }
+    await this._announcePhase();
+  }
+
+  async _announcePhase() {
+    await ChatMessage.create({
+      content: `<div class="mech-foundry tw-phase-banner"><i class="fas fa-flag"></i> <strong>${this.phaseName}</strong> Phase — Round ${this.round}</div>`
+    });
+  }
+
   /** @override */
   _sortCombatants(a, b) {
     const ia = Number.isFinite(a.initiative) ? a.initiative : null;

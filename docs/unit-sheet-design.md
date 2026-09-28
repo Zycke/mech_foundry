@@ -96,7 +96,23 @@ Lives in `module/helpers/atow-conversion.mjs`.
 
 ## Rollout (reviewable commits)
 1. ✅ Mech data model + sheet.  2. ✅ Token-bar derived totals + prototype config.
-3. ✅ Ground-vehicle sheet.  4. ✅ Aerospace sheet.  5. Company integration polish (status
-derivation, ammo alignment).  6. Combat automation (its own multi-commit effort).
+3. ✅ Ground-vehicle sheet.  4. ✅ Aerospace sheet.  5. ✅ Company integration polish (status
+derivation, ammo alignment).  6. ✅ Combat automation.
 Pilot skill-derivation and pilot/crew → character damage write-back are wired for all three
 unit types (see the conversion section above).
+
+## Combat automation (implemented) — `module/helpers/tw-combat.mjs`
+GATOR to-hit dialog → 2d6 → chat card; on a hit the correct hit-location table for the
+target type resolves damage through armor→structure(/SI) with transfer, plus motive damage,
+criticals and cluster grouping:
+- **Mech:** 'Mech Hit Location + transfer; Determining Critical Hits rolled against a full
+  per-location **critical-slot model** (`system.critSlots`; standard biped layout via the
+  Crits tab "Init standard") — engine/gyro/sensors/life-support/cockpit, weapons, heat sinks,
+  ammo, actuators resolved to specific slots.
+- **Combat Vehicle / VTOL:** hit location + Motive System Damage + Ground/VTOL crit tables.
+- **Aerospace / Small Craft:** facing armor + threshold crits + Structural Integrity.
+- **Heat phase:** mech "Resolve" nets Heat Point Table gains vs. sink dissipation.
+- **Turn phases:** combat-tracker phase bar (Initiative→Movement→Weapon→Physical→Heat→End).
+- **Area effects:** Scene-Region blast tool (v14) applying damage to enclosed units.
+Sources verified from Total Warfare (hit-location pp.193–237, cluster p.117, crits p.124,
+heat p.159) and the AToW conversion.
