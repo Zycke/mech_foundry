@@ -23,7 +23,7 @@ const TIMEOUT_MS = 10000;
 const UPDATE_WHITELIST = {
   mech: ['system.armor', 'system.structure', 'system.critSlots', 'system.systemHits', 'system.heatSinks', 'system.weapons', 'system.pilot',
     'system.conditions', 'flags.mech-foundry.psr', 'flags.mech-foundry.phaseDamage'],
-  ground_vehicle: ['system.armor', 'system.structure', 'system.crits', 'system.conditions', 'system.crew'],
+  ground_vehicle: ['system.armor', 'system.structure', 'system.crits', 'system.conditions', 'system.crew', 'system.weapons'],
   aerospace_fighter: ['system.armor', 'system.structuralIntegrity', 'system.crits', 'system.conditions', 'system.crew'],
   small_craft: ['system.armor', 'system.structuralIntegrity', 'system.crits', 'system.conditions', 'system.crew'],
   character: ['system.unconscious'],

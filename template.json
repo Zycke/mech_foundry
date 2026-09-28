@@ -503,11 +503,21 @@
         "stabLeft": false,
         "stabRight": false,
         "stabRear": false,
-        "stabTurret": false
+        "stabTurret": false,
+        "motiveHalvings": 0,
+        "motiveMinor": false,
+        "motiveModerate": false,
+        "motiveHeavy": false,
+        "motiveDriving": 0,
+        "turretJams": 0
       },
       "conditions": {
         "immobile": false,
-        "turretJammed": false
+        "turretJammed": false,
+        "stunned": false,
+        "stunFrom": 0,
+        "stunnedThrough": 0,
+        "crewKilled": false
       },
       "elevation": 0,
       "crew": {
@@ -518,7 +528,9 @@
         "commanderHit": false,
         "actorId": ""
       },
-      "weapons": []
+      "weapons": [],
+      "hasCASE": false,
+      "hasCargo": false
     },
     "aerospace_fighter": {
       "biography": "",

@@ -57,9 +57,21 @@ export function mechEffectiveMP(actor) {
 }
 
 /** Walking/cruising MP for inferring the movement mode from hexes moved. */
+/**
+ * A vehicle's Cruising MP after motive damage: −1 per moderate result (and rotor
+ * hit), then halved (round up) per heavy result; 0 once engine-hit or immobile.
+ */
+export function vehicleEffectiveCruise(actor) {
+  const sys = actor?.system || {};
+  if (sys.crits?.engineHit || sys.conditions?.immobile) return 0;
+  let cruise = Math.max(0, num(sys.movement?.cruise) - num(sys.crits?.motiveHits));
+  for (let i = 0; i < num(sys.crits?.motiveHalvings); i++) cruise = Math.ceil(cruise / 2);
+  return cruise;
+}
+
 function walkMP(actor) {
   const mv = actor?.system?.movement || {};
-  if (actor?.type === 'ground_vehicle') return Math.max(0, num(mv.cruise) - num(actor.system.crits?.motiveHits));
+  if (actor?.type === 'ground_vehicle') return vehicleEffectiveCruise(actor);
   if (actor?.type === 'mech') return mechEffectiveMP(actor).walk;
   return num(mv.walk);
 }
@@ -191,6 +203,19 @@ export function weaponArm(weapon) {
   return null;
 }
 
+const VEHICLE_LOC_WORDS = {
+  front: ['front', 'f', 'fr', 'nose'], rear: ['rear', 'rr', 'back', 'aft'],
+  left: ['left', 'l', 'ls', 'left side', 'lside'], right: ['right', 'r', 'rs', 'right side', 'rside'],
+  turret: ['turret', 't', 'tur'], rotor: ['rotor'], body: ['body', 'hull']
+};
+
+/** A vehicle weapon's location key from its free-text Loc. */
+export function vehicleWeaponLocation(weapon) {
+  const raw = String(weapon?.location ?? '').trim().toLowerCase();
+  for (const [key, words] of Object.entries(VEHICLE_LOC_WORDS)) if (words.includes(raw)) return key;
+  return null;
+}
+
 /** Destroyed actuators in a mech location, by kind. */
 export function destroyedActuators(actor, loc) {
   return actuatorsInSlots(actor?.system?.critSlots?.[loc]);
@@ -275,8 +300,13 @@ export function autoAttackMods(attacker, weapon, targetActor) {
       else if (a.upperArm + a.lowerArm) add('actuators', 'Arm actuators', a.upperArm + a.lowerArm, `weapon in ${arm.toUpperCase()}`);
     }
   }
-  if (attacker?.type === 'ground_vehicle' && num(attacker.system?.crits?.sensorHits) > 0) {
-    add('sensors', 'Sensor hits', num(attacker.system.crits.sensorHits), 'vehicle crits');
+  if (attacker?.type === 'ground_vehicle') {
+    const crits = attacker.system?.crits || {};
+    if (num(crits.sensorHits) > 0) add('sensors', 'Sensor hits', num(crits.sensorHits), 'vehicle crits');
+    if (attacker.system?.crew?.commanderHit) add('commander', 'Commander hit', 1, '');
+    // Stabilizer hit: double the attacker movement modifier for weapons in that location.
+    const stab = { front: 'stabFront', rear: 'stabRear', left: 'stabLeft', right: 'stabRight', turret: 'stabTurret' }[vehicleWeaponLocation(weapon)];
+    if (weapon && stab && crits[stab]) add('stabilizer', 'Stabilizer hit', MODE_MOD[movedThisTurn(attacker).mode] ?? 0, `weapon in the ${vehicleWeaponLocation(weapon)}`);
   }
 
   // Target.

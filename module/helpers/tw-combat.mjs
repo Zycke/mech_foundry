@@ -14,7 +14,7 @@ import {
 } from "./atow-conversion.mjs";
 import { beginRecording, endRecording, writeDoc } from "./gm-relay.mjs";
 import { currentTurnKey } from "./tw-turn.mjs";
-import { autoAttackMods, movedThisTurn, pilotUnconscious, rangeDependentMods, terrainMods } from "./tw-movement.mjs";
+import { autoAttackMods, movedThisTurn, pilotUnconscious, rangeDependentMods, terrainMods, vehicleWeaponLocation } from "./tw-movement.mjs";
 import { damagePSRUpdate, queuePSR, standsThisTurn, warriorDamage } from "./tw-psr.mjs";
 
 const { DialogV2 } = foundry.applications.api;
@@ -427,7 +427,7 @@ function motiveEffect(total) {
   if (total <= 5) return { level: 0, mp: 0, text: 'No effect' };
   if (total <= 7) return { level: 1, mp: 0, text: 'Minor: +1 to Driving Skill Rolls' };
   if (total <= 9) return { level: 2, mp: 1, text: 'Moderate: −1 Cruise MP, +2 Driving' };
-  if (total <= 11) return { level: 3, mp: 2, text: 'Heavy: half Cruise MP, +3 Driving' };
+  if (total <= 11) return { level: 3, mp: 0, text: 'Heavy: half Cruise MP, +3 Driving' };
   return { level: 4, mp: 0, text: 'Major: immobile for the rest of the game' };
 }
 
@@ -477,7 +477,7 @@ export async function resolveVehicleAttack(target, direction, groupSizes, rolls,
   const isVTOL = target.system.movementType === 'vtol';
   const hasTurret = !!target.system.hasTurret;
   const isICE = /\bice\b|internal combustion/i.test(target.system.engineType || '');
-  const carriesAmmo = (target.system.weapons || []).some(w => String(w.ammoType || '').trim() && (Number(w.ammo) || 0) > 0);
+  const weapons = foundry.utils.deepClone(target.system.weapons || []);
   const col = direction === 'left' || direction === 'right' ? 'side' : direction === 'rear' ? 'rear' : 'front';
 
   const groups = [], motives = [], critResults = [], crewEvents = [];
@@ -492,10 +492,14 @@ export async function resolveVehicleAttack(target, direction, groupSizes, rolls,
     const typeMod = MOTIVE_TYPE_MOD[target.system.movementType] ?? 0;
     const eff = motiveEffect(mRoll.total + dirMod + typeMod);
     motives.push({ roll: mRoll.total + dirMod + typeMod, text: eff.text });
-    // Minor / moderate / heavy damage add +1 / +2 / +3 to Driving Skill Rolls (cumulative).
-    if (eff.level >= 1 && eff.level <= 3) crits.motiveDriving = num(crits.motiveDriving) + eff.level;
+    // Movement penalties are cumulative; each Driving modifier (+1 minor, +2
+    // moderate, +3 heavy) applies only once, so at most +6 (TW p. 193).
+    const lvlKey = { 1: 'motiveMinor', 2: 'motiveModerate', 3: 'motiveHeavy' }[eff.level];
+    if (lvlKey) crits[lvlKey] = true;
+    crits.motiveDriving = (crits.motiveMinor ? 1 : 0) + (crits.motiveModerate ? 2 : 0) + (crits.motiveHeavy ? 3 : 0);
+    if (eff.level === 2) crits.motiveHits = num(crits.motiveHits) + 1;         // −1 Cruising MP
+    if (eff.level === 3) crits.motiveHalvings = num(crits.motiveHalvings) + 1; // half Cruising MP
     if (eff.level === 4) conditions.immobile = true;
-    else if (eff.mp > 0) crits.motiveHits = Math.min(3, (Number(crits.motiveHits) || 0) + eff.mp);
   };
 
   for (const g of groupSizes) {
@@ -531,17 +535,13 @@ export async function resolveVehicleAttack(target, direction, groupSizes, rolls,
       const cRoll = await new Roll("2d6").evaluate();
       rolls.push(cRoll);
       const table = isVTOL ? VTOL_VEHICLE_CRITS : GROUND_VEHICLE_CRITS;
-      let effect = table[vehicleCritColumn(facing)]?.[cRoll.total] || 'No Critical Hit';
-      // Table footnotes: Fuel Tank applies to ICE engines only (otherwise Engine
-      // Hit); Ammunition with no ammo aboard becomes Weapon Destroyed.
-      let note = '';
-      if (effect === 'Fuel Tank' && !isICE) { effect = 'Engine Hit'; note = 'non-ICE engine: Fuel Tank → Engine Hit'; }
-      else if (effect === 'Ammunition' && !carriesAmmo) { effect = 'Weapon Destroyed'; note = 'no ammunition: → Weapon Destroyed'; }
-      critResults.push({ facingLabel: VEHICLE_FACING_LABEL[facing] || facing, roll: cRoll.total, effect, note });
-      if (applyVehicleCrit(effect, facing, direction, crits, conditions, structure, crew)) destroyed = true;
-      if (['Driver Hit', 'Commander Hit', 'Co-Pilot Hit', 'Pilot Hit'].includes(effect)) crewEvents.push(CREW_DAMAGE.vehicleCrewHit);
-      else if (effect === 'Crew Stunned') crewEvents.push(CREW_DAMAGE.vehicleStunned);
-      else if (effect === 'Crew Killed') crewEvents.push(CREW_DAMAGE.vehicleKilled);
+      const column = table[vehicleCritColumn(facing)] || {};
+      const ctx = { target, facing, crits, conditions, crew, structure, armor, weapons, isICE, carriesAmmo: () => carriesAmmo(weapons) };
+      const pick = pickVehicleCrit(column, cRoll.total, ctx);
+      const res = await applyVehicleCrit(pick.effect, ctx, rolls);
+      if (res.destroyed) destroyed = true;
+      critResults.push({ facingLabel: VEHICLE_FACING_LABEL[facing] || facing, roll: cRoll.total, effect: res.effect || pick.effect, note: [pick.note, res.note].filter(Boolean).join('; ') });
+      for (const ev of res.crewEvents || []) crewEvents.push(ev);
     }
   }
 
@@ -553,7 +553,7 @@ export async function resolveVehicleAttack(target, direction, groupSizes, rolls,
   const cruise = Number(target.system.movement?.cruise) || 0;
   crits.motiveHits = Math.min(Math.max(3, cruise), Number(crits.motiveHits) || 0);
 
-  const applied = await writeDoc(target, { 'system.armor': armor, 'system.structure': structure, 'system.crits': crits, 'system.conditions': conditions, 'system.crew': crew });
+  const applied = await writeDoc(target, { 'system.armor': armor, 'system.structure': structure, 'system.crits': crits, 'system.conditions': conditions, 'system.crew': crew, 'system.weapons': weapons });
 
   // Apply crew damage to a linked crew actor.
   const linked = target.system.crew?.actorId ? game.actors.get(target.system.crew.actorId) : null;
@@ -565,25 +565,217 @@ export async function resolveVehicleAttack(target, direction, groupSizes, rolls,
   };
 }
 
-/** Apply a vehicle critical effect to the mutable crit/condition state. Returns true if destroyed. */
-function applyVehicleCrit(effect, facing, direction, crits, conditions, structure, crew) {
-  const stabKey = { front: 'stabFront', rear: 'stabRear', left: 'stabLeft', right: 'stabRight', turret: 'stabTurret' }[facing];
+/** Does the vehicle carry any (non-empty) ammunition? */
+function carriesAmmo(weapons) {
+  return weapons.some(w => usesAmmo(w) && num(w.ammo) > 0);
+}
+
+/**
+ * Working weapons in the struck location. If none of the vehicle's weapons has
+ * a recognisable location, every working weapon counts (so crits still land).
+ */
+function weaponsInLocation(weapons, facing, filter = (w) => !w.destroyed) {
+  const known = weapons.some(w => vehicleWeaponLocation(w));
+  const loc = facing === 'rotor' ? 'rotor' : facing;
+  return weapons.filter(w => filter(w) && (!known || vehicleWeaponLocation(w) === loc));
+}
+
+const STAB_KEY = { front: 'stabFront', rear: 'stabRear', left: 'stabLeft', right: 'stabRight', turret: 'stabTurret', rotor: 'stabRotor' };
+
+/**
+ * Is a critical result possible for this vehicle and location right now?
+ * (TW p. 194: if not — the item doesn't exist, or only one such hit can occur —
+ * move down the column.)
+ */
+function vehicleCritApplies(effect, c) {
+  const { crits, conditions, facing, target } = c;
   switch (effect) {
-    case 'Driver Hit': case 'Pilot Hit': crew.driverHit = true; break;
-    case 'Commander Hit': case 'Co-Pilot Hit': crew.commanderHit = true; break;
-    case 'Sensors': crits.sensorHits = Math.min(4, (Number(crits.sensorHits) || 0) + 1); break;
-    case 'Stabilizer': case 'Flight Stabilizer Hit': if (stabKey) crits[stabKey] = true; break;
-    case 'Turret Jam': conditions.turretJammed = true; break;
-    case 'Turret Locks': crits.turretLocked = true; break;
-    case 'Turret Blown Off': crits.turretLocked = true; break;
-    case 'Engine Hit': case 'Engine Damage': crits.engineHit = true; break;
-    case 'Rotor Damage': crits.motiveHits = (Number(crits.motiveHits) || 0) + 1; break; // clamped after the loop
-    case 'Rotors Destroyed': conditions.immobile = true; break;
-    case 'Ammunition': case 'Fuel Tank': case 'Crew Killed':
-      structure.value = 0; conditions.immobile = true; return true;
-    default: break; // Weapon Malfunction / Weapon Destroyed / Cargo-Infantry / Crew Stunned handled elsewhere
+    case 'No Critical Hit': return true;
+    case 'Weapon Malfunction': return weaponsInLocation(c.weapons, facing, w => !w.destroyed && !w.malfunction).length > 0;
+    case 'Weapon Destroyed': return weaponsInLocation(c.weapons, facing).length > 0;
+    case 'Stabilizer': case 'Flight Stabilizer Hit': return !crits[STAB_KEY[facing]];
+    case 'Sensors': return num(crits.sensorHits) < 4;
+    case 'Cargo/Infantry Hit': return !!target.system.hasCargo;
+    case 'Engine Hit': case 'Engine Damage': return !crits.engineHit;
+    case 'Crew Killed': return !conditions.crewKilled;
+    case 'Turret Locks': case 'Turret Jam': return !crits.turretLocked;
+    case 'Ammunition': return c.carriesAmmo();
+    default: return true; // crew hits, Crew Stunned, Fuel Tank, Turret Blown Off, rotor results
   }
-  return false;
+}
+
+/**
+ * The crit result for a roll: apply the table footnotes (Fuel Tank → Engine Hit
+ * without an ICE engine; Ammunition → Weapon Destroyed with no ammo), then walk
+ * down the column (wrapping from 12 back to 6) to the first applicable result.
+ */
+function pickVehicleCrit(column, roll, c) {
+  const footnote = (e) => {
+    if (e === 'Fuel Tank' && !c.isICE) return 'Engine Hit';
+    if (e === 'Ammunition' && !c.carriesAmmo()) return 'Weapon Destroyed';
+    return e;
+  };
+  const first = column[roll] || 'No Critical Hit';
+  if (first === 'No Critical Hit') return { effect: first, note: '' };
+  const order = [];
+  for (let r = roll; r <= 12; r++) order.push(r);
+  for (let r = 6; r < roll; r++) order.push(r);
+  for (const r of order) {
+    const e = footnote(column[r]);
+    if (e && vehicleCritApplies(e, c)) {
+      const notes = [];
+      if (e !== first && footnote(first) === e) notes.push(`${first} → ${e} (table footnote)`);
+      else if (r !== roll) notes.push(`${first} doesn't apply — moved down to ${e}`);
+      return { effect: e, note: notes.join('') };
+    }
+  }
+  return { effect: 'No Critical Hit', note: 'every result in this column already taken' };
+}
+
+/** Stun the crew: no actions during the following turn(s); repeats extend it. */
+function stunCrew(conditions) {
+  const round = game.combat?.started ? num(game.combat.round) : 0;
+  conditions.stunned = true;
+  if (round) {
+    conditions.stunFrom = conditions.stunFrom && num(conditions.stunnedThrough) >= round ? conditions.stunFrom : round;
+    conditions.stunnedThrough = Math.max(num(conditions.stunnedThrough), round) + 1;
+  }
+}
+
+/**
+ * The crew spends this turn's Weapon Attack Phase clearing a weapon malfunction
+ * or a turret jam: the vehicle makes no weapon attacks this turn, and only one
+ * fix per phase.
+ */
+export async function clearVehicleProblem(actor, { weaponId = null, jam = false } = {}) {
+  const key = currentTurnKey();
+  if (key && actor.flags?.['mech-foundry']?.clearing?.key === key) { ui.notifications.warn(`${actor.name}'s crew already fixed something this turn.`); return false; }
+  if (key && Object.keys(firedThisTurn(actor)).length) { ui.notifications.warn(`${actor.name} already fired this turn; clearing takes the whole Weapon Attack Phase.`); return false; }
+  const update = {};
+  if (weaponId) {
+    const weapons = foundry.utils.deepClone(actor.system.weapons || []);
+    const w = weapons.find(x => x.id === weaponId);
+    if (!w?.malfunction) return false;
+    w.malfunction = false;
+    update['system.weapons'] = weapons;
+  }
+  if (jam) {
+    if (!actor.system.conditions?.turretJammed) return false;
+    update['system.conditions.turretJammed'] = false;
+  }
+  if (key) update['flags.mech-foundry.clearing'] = { key };
+  await actor.update(update);
+  await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), content: `<div class="mech-foundry tw-attack-card"><header class="tw-atk-head"><i class="fas fa-screwdriver-wrench"></i> ${jam ? 'Turret jam cleared' : 'Weapon malfunction cleared'}</header><div class="tw-hl-event">▸ The crew spends the Weapon Attack Phase on repairs: no weapon attacks this turn.</div></div>` });
+  return true;
+}
+
+/** Is a vehicle's crew stunned right now (a turn after the one it was stunned in)? */
+export function crewStunnedNow(actor) {
+  const c = actor?.system?.conditions || {};
+  const round = game.combat?.started ? num(game.combat.round) : 0;
+  if (!c.stunned) return false;
+  if (!round || !c.stunnedThrough) return true;
+  return round > num(c.stunFrom) && round <= num(c.stunnedThrough);
+}
+
+/**
+ * Apply a Ground Combat Vehicle critical hit effect (TW pp. 194–195) to the
+ * mutable state. VTOL crew results use the ground equivalents (Pilot Hit as
+ * Driver Hit, Co-Pilot Hit as Commander Hit).
+ * @returns {Promise<{destroyed?:boolean, note?:string, effect?:string, crewEvents?:object[]}>}
+ */
+async function applyVehicleCrit(effect, c, rolls) {
+  const { crits, conditions, crew, structure, armor, weapons, facing } = c;
+  const out = { crewEvents: [] };
+  const crewKilled = () => {
+    conditions.crewKilled = true; conditions.immobile = true;
+    out.crewEvents.push(CREW_DAMAGE.vehicleKilled);
+    out.note = ['vtol', 'wige'].includes(c.target.system.movementType) ? 'crew killed — it crashes and is destroyed' : 'crew killed — immobile, out of the fight';
+    out.destroyed = true;
+  };
+  const stunned = () => {
+    if (crew.driverHit && crew.commanderHit) { out.effect = 'Crew Killed'; crewKilled(); out.note = `Crew Stunned after Driver and Commander hits → ${out.note}`; return; }
+    stunCrew(conditions);
+    out.crewEvents.push(CREW_DAMAGE.vehicleStunned);
+  };
+  switch (effect) {
+    case 'Driver Hit': case 'Pilot Hit':
+      if (crew.driverHit) { out.effect = 'Crew Stunned'; out.note = 'second driver hit → Crew Stunned'; stunned(); break; }
+      crew.driverHit = true; out.note = '+2 to all Driving Skill Rolls';
+      out.crewEvents.push(CREW_DAMAGE.vehicleCrewHit);
+      break;
+    case 'Commander Hit': case 'Co-Pilot Hit':
+      if (crew.commanderHit) { out.effect = 'Crew Stunned'; out.note = 'second commander hit → Crew Stunned'; stunned(); break; }
+      crew.commanderHit = true; stunCrew(conditions);
+      out.note = 'crew stunned next turn; +1 to all to-hit and Driving rolls for the rest of the game';
+      out.crewEvents.push(CREW_DAMAGE.vehicleCrewHit);
+      break;
+    case 'Crew Stunned': stunned(); if (!out.note) out.note = 'no movement faster than Cruising and no other actions next turn'; break;
+    case 'Crew Killed': crewKilled(); break;
+    case 'Sensors':
+      crits.sensorHits = Math.min(4, num(crits.sensorHits) + 1);
+      out.note = crits.sensorHits >= 4 ? 'fourth sensor hit — cannot fire weapons' : `+${crits.sensorHits} to hit`;
+      break;
+    case 'Stabilizer': case 'Flight Stabilizer Hit':
+      crits[STAB_KEY[facing]] = true;
+      out.note = `attacker movement modifier doubled for weapons in the ${VEHICLE_FACING_LABEL[facing] || facing}`;
+      break;
+    case 'Turret Jam':
+      if (num(crits.turretJams) >= 1) { crits.turretLocked = true; out.effect = 'Turret Locks'; out.note = 'second turret jam → Turret Locks'; break; }
+      crits.turretJams = 1; conditions.turretJammed = true;
+      out.note = 'turret stuck until the crew spends a Weapon Attack Phase clearing it (no firing that phase)';
+      break;
+    case 'Turret Locks': crits.turretLocked = true; out.note = 'turret locked in its current facing for the game'; break;
+    case 'Turret Blown Off': structure.value = 0; out.destroyed = true; out.note = 'the vehicle is effectively destroyed'; break;
+    case 'Engine Hit': case 'Engine Damage':
+      crits.engineHit = true; crits.turretLocked = true; conditions.immobile = true;
+      out.note = 'immobile, turret locked; direct-fire energy and pulse weapons stop working';
+      break;
+    case 'Fuel Tank': structure.value = 0; out.destroyed = true; out.note = 'fuel tank breached — the vehicle explodes'; break;
+    case 'Ammunition': {
+      // All ammunition explodes (TW p. 194): total damage into internal
+      // structure, or with CASE into the rear armor (excess ignored) + Crew Stunned.
+      let total = 0;
+      for (const w of weapons) {
+        if (!usesAmmo(w) || num(w.ammo) <= 0) continue;
+        total += num(w.ammo) * num(w.damage) * Math.max(1, num(w.clusterSize));
+        w.ammo = 0;
+      }
+      if (c.target.system.hasCASE) {
+        if (armor.rear) armor.rear.value = Math.max(0, num(armor.rear.value) - total);
+        stunCrew(conditions);
+        out.crewEvents.push(CREW_DAMAGE.vehicleStunned);
+        out.note = `all ammunition explodes (${total}); CASE: into the rear armor, excess ignored; crew stunned`;
+      } else {
+        structure.value = Math.max(0, num(structure.value) - total);
+        if (structure.value <= 0) out.destroyed = true;
+        out.note = `all ammunition explodes: ${total} to internal structure${out.destroyed ? ' — DESTROYED' : ''}`;
+      }
+      break;
+    }
+    case 'Cargo/Infantry Hit': out.note = 'cargo destroyed / carried infantry take the attacking weapon\'s full damage — resolve manually'; break;
+    case 'Weapon Malfunction': {
+      const cands = weaponsInLocation(weapons, facing, w => !w.destroyed && !w.malfunction);
+      const r = await new Roll(`1d${cands.length}`).evaluate();
+      rolls.push(r);
+      const w = cands[r.total - 1] || cands[0];
+      w.malfunction = true;
+      out.note = `${w.name || 'weapon'} malfunctions — the crew must spend a Weapon Attack Phase clearing it`;
+      break;
+    }
+    case 'Weapon Destroyed': {
+      const cands = weaponsInLocation(weapons, facing);
+      if (cands.length === 1) { cands[0].destroyed = true; out.note = `${cands[0].name || 'weapon'} destroyed`; break; }
+      const r = await new Roll("1d6").evaluate();
+      rolls.push(r);
+      out.note = `rolled ${r.total}: the ${r.total <= 3 ? "target's" : "attacker's"} player chooses which is destroyed — ${cands.map(w => w.name || 'weapon').join(' / ')} (mark it on the sheet)`;
+      break;
+    }
+    case 'Rotor Damage': crits.motiveHits = num(crits.motiveHits) + 1; out.note = '−1 Cruising MP'; break;
+    case 'Rotors Destroyed': conditions.immobile = true; out.note = 'rotors destroyed'; break;
+    default: break;
+  }
+  return out;
 }
 
 /* ------------------------------------------------------------------ */
@@ -1117,6 +1309,9 @@ export function hitChance(tn) {
   return Math.round((ways / 36) * 100);
 }
 
+/** Modifiers that belong to one weapon rather than the whole attack. */
+const WEAPON_SPECIFIC = ['actuators', 'stabilizer'];
+
 /** Why a weapon can't fire right now, or null. */
 export function weaponBlock(actor, weapon) {
   const wName = weapon?.name || 'Weapon';
@@ -1124,6 +1319,15 @@ export function weaponBlock(actor, weapon) {
   if (actor?.type === 'mech' && num(actor.system?.systemHits?.sensors) >= 2) return `${actor.name}'s sensors are destroyed: it can't fire weapons.`;
   if (weapon?.destroyed) return `${wName} is destroyed and can't fire.`;
   if (currentTurnKey() && actor?.flags?.['mech-foundry']?.crashed?.key === currentTurnKey()) return `${actor.name} crashed this turn and can't attack.`;
+  if (currentTurnKey() && actor?.flags?.['mech-foundry']?.clearing?.key === currentTurnKey()) return `${actor.name}'s crew is clearing a jam / malfunction this turn: no weapon attacks.`;
+  if (actor?.type === 'ground_vehicle') {
+    const c = actor.system?.conditions || {}, crits = actor.system?.crits || {};
+    if (c.crewKilled) return `${actor.name}'s crew is dead.`;
+    if (crewStunnedNow(actor)) return `${actor.name}'s crew is stunned this turn.`;
+    if (num(crits.sensorHits) >= 4) return `${actor.name}'s sensors are destroyed: it can't fire weapons.`;
+    if (weapon?.malfunction) return `${wName} has malfunctioned — clear it first (a Weapon Attack Phase).`;
+    if (crits.engineHit && !usesAmmo(weapon)) return `Engine hit: ${wName} (direct-fire energy) no longer works.`;
+  }
   if (actor?.type === 'mech') {
     const loc = mechWeaponLocation(weapon);
     if (loc && locationGone(actor, loc)) return `${wName}'s location (${MECH_LOC_LABEL[loc]}) is destroyed.`;
@@ -1135,7 +1339,7 @@ export function weaponBlock(actor, weapon) {
 
 /** Per-weapon data the target-number preview needs (browser and server share previewTN). */
 function weaponPreviewRow(actor, weapon, targetActor) {
-  const fixed = autoAttackMods(actor, weapon, null).filter(m => m.key === 'actuators').reduce((t, m) => t + m.value, 0);
+  const fixed = autoAttackMods(actor, weapon, null).filter(m => WEAPON_SPECIFIC.includes(m.key)).reduce((t, m) => t + m.value, 0);
   return {
     id: weapon.id, fixed,
     s: num(weapon.rangeS ?? weapon.short), m: num(weapon.rangeM ?? weapon.medium),
@@ -1171,7 +1375,7 @@ export function weaponToHitPreview(actor) {
   if (!targetActor || targetActor === actor) return {};
   const attackerToken = actor.getActiveTokens?.()[0] || null;
   const range = attackerToken ? measureHexes(attackerToken, target) : null;
-  const shared = autoAttackMods(actor, null, targetActor);
+  const shared = autoAttackMods(actor, null, targetActor).filter(m => !WEAPON_SPECIFIC.includes(m.key));
   const v = { gunnery: gunneryFor(actor), autoSum: shared.reduce((t, m) => t + m.value, 0), heat: heatToHitMod(actor), range, other: 0, terrain: 0 };
   const out = {};
   for (const w of actor.system.weapons || []) {
@@ -1224,7 +1428,7 @@ export async function fireWeapons(actor, preselect = []) {
   const targetName = target?.name || '';
   const targetActor = target?.actor || null;
   const autoDist = attackerToken && target ? measureHexes(attackerToken, target) : null;
-  const shared = autoAttackMods(actor, null, targetActor);
+  const shared = autoAttackMods(actor, null, targetActor).filter(m => !WEAPON_SPECIFIC.includes(m.key));
   const rows = ready.map(w => weaponPreviewRow(actor, w, targetActor));
 
   const esc = (t) => foundry.utils.escapeHTML?.(String(t)) ?? String(t);
@@ -1349,7 +1553,7 @@ async function resolveWeaponShot(actor, weapon, target, result, rolls) {
   const targetName = target?.name || '';
   const targetActor = target?.actor || null;
   const rb = rangeBracket(result.range, weapon);
-  const actuators = autoAttackMods(actor, weapon, null).filter(m => m.key === 'actuators').map(m => ({ label: m.label, value: m.value }));
+  const actuators = autoAttackMods(actor, weapon, null).filter(m => WEAPON_SPECIFIC.includes(m.key)).map(m => ({ label: m.label, value: m.value }));
   const mods = [
     { label: "Gunnery", value: result.gunnery },
     ...(result.auto || []),

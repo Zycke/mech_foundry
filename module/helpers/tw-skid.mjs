@@ -49,10 +49,14 @@ export function crashedThisTurn(actor) {
   return !!key && actor?.flags?.['mech-foundry']?.crashed?.key === key;
 }
 
-/** Driving modifiers from motive system damage (cumulative +1 / +2 / +3). */
+/** Driving modifiers: motive damage (+1 / +2 / +3, each once), driver hit +2, commander hit +1. */
 function drivingMods(actor) {
+  const mods = [];
   const m = num(actor.system?.crits?.motiveDriving);
-  return m ? [{ label: 'Motive damage', value: m }] : [];
+  if (m) mods.push({ label: 'Motive damage', value: m });
+  if (actor.system?.crew?.driverHit) mods.push({ label: 'Driver hit', value: 2 });
+  if (actor.system?.crew?.commanderHit) mods.push({ label: 'Commander hit', value: 1 });
+  return mods;
 }
 
 async function askHexes(title, hint, extra = '') {

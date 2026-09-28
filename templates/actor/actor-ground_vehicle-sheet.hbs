@@ -92,8 +92,11 @@
           <label class="chk"><input type="checkbox" name="system.crits.stabRear" {{checked crits.stabRear}} {{#unless editable}}disabled{{/unless}}> Stab: Rear</label>
           {{#if showTurret}}<label class="chk"><input type="checkbox" name="system.crits.stabTurret" {{checked crits.stabTurret}} {{#unless editable}}disabled{{/unless}}> Stab: Turret</label>{{/if}}
         </div>
-        {{#if movement.motivePenalty}}<div class="penalty-line">▸ Motive/rotor damage: −{{movement.motivePenalty}} Cruise MP → Cruise {{movement.effCruise}} / Flank {{movement.effFlank}}</div>{{/if}}
-        {{#if movement.drivingMod}}<div class="penalty-line">▸ Motive damage: +{{movement.drivingMod}} to Driving Skill Rolls</div>{{/if}}
+        {{#if movement.motivePenalty}}<div class="penalty-line">▸ Motive / engine damage → Cruise {{movement.effCruise}} / Flank {{movement.effFlank}}</div>{{/if}}
+        {{#if crewState.drivingTotal}}<div class="penalty-line">▸ Driving Skill Rolls +{{crewState.drivingTotal}} (motive, driver, commander)</div>{{/if}}
+        {{#if crewState.killed}}<div class="penalty-line dmg">▸ CREW KILLED — immobile, out of the fight</div>
+        {{else if crewState.stunned}}<div class="penalty-line dmg">▸ CREW STUNNED this turn — no firing, no faster than Cruising</div>{{/if}}
+        {{#if conditions.turretJammed}}<div class="penalty-line">▸ Turret jammed {{#if editable}}<button type="button" class="clear-jam" title="Spend this turn's Weapon Attack Phase clearing the jam (no weapon attacks)"><i class="fas fa-screwdriver-wrench"></i> Clear jam</button>{{/if}}</div>{{/if}}
       </div>
 
       <div class="mf-panel">
@@ -150,7 +153,7 @@
               <td><input type="text" class="weapon-field" data-weapon-id="{{id}}" data-field="ammoType" value="{{ammoType}}" placeholder="— none —" {{#unless ../editable}}disabled{{/unless}} /></td>
               <td><input type="number" min="0" class="weapon-field n" data-weapon-id="{{id}}" data-field="ammo" value="{{ammo}}" {{#unless ../editable}}disabled{{/unless}} /></td>
               <td class="w-actions">
-                {{#if destroyed}}<span class="w-badge dmg">DESTROYED</span>{{else if outOfAmmo}}<span class="w-badge warn">NO AMMO</span>{{else if fired}}<span class="w-badge">FIRED</span>{{/if}}
+                {{#if destroyed}}<span class="w-badge dmg">DESTROYED</span>{{else if malfunction}}<span class="w-badge warn">JAMMED</span>{{#if ../editable}}<a class="clear-malfunction" data-weapon-id="{{id}}" title="Spend this turn's Weapon Attack Phase clearing the malfunction (no weapon attacks)"><i class="fas fa-screwdriver-wrench"></i></a>{{/if}}{{else if outOfAmmo}}<span class="w-badge warn">NO AMMO</span>{{else if fired}}<span class="w-badge">FIRED</span>{{/if}}
                 {{#if ../editable}}{{#unless destroyed}}<button type="button" class="weapon-attack{{#if toHit}} has-tohit{{/if}}" data-weapon-id="{{id}}" title="{{#if fired}}Already fired this turn{{else if outOfAmmo}}Out of ammunition{{else if toHit}}{{toHit.title}}{{else}}Attack (target a token to see the to-hit number){{/if}}" {{#if fired}}disabled{{else if outOfAmmo}}disabled{{else if toHit.oor}}disabled{{/if}}>{{#if toHit}}<span class="w-tohit">{{toHit.text}}</span>{{else}}<i class="fas fa-bolt"></i>{{/if}}</button>{{/unless}}{{/if}}
                 {{#if ../editable}}<a class="toggle-weapon-destroyed" data-weapon-id="{{id}}" title="{{#if destroyed}}Mark repaired{{else}}Mark destroyed{{/if}}"><i class="fas {{#if destroyed}}fa-screwdriver-wrench{{else}}fa-ban{{/if}}"></i></a>{{/if}}
                 {{#if ../editable}}<a class="duplicate-weapon" data-weapon-id="{{id}}" title="Duplicate"><i class="fas fa-clone"></i></a>{{/if}}
@@ -180,6 +183,8 @@
         </table>
         <div class="flags" style="margin-top:8px">
           <label class="chk"><input type="checkbox" name="system.hasTurret" {{checked system.hasTurret}} {{#unless editable}}disabled{{/unless}}> Has Turret</label>
+          <label class="chk" title="An ammunition explosion goes into the rear armor instead (excess ignored) and stuns the crew"><input type="checkbox" name="system.hasCASE" {{checked system.hasCASE}} {{#unless editable}}disabled{{/unless}}> CASE</label>
+          <label class="chk" title="Dedicated cargo / infantry bay (makes Cargo/Infantry Hit crits possible)"><input type="checkbox" name="system.hasCargo" {{checked system.hasCargo}} {{#unless editable}}disabled{{/unless}}> Cargo / infantry bay</label>
         </div>
       </div>
       <div class="mf-panel">

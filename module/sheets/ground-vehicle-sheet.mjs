@@ -1,6 +1,7 @@
 import { MechFoundryUnitSheet } from "./unit-sheet.mjs";
 import { actorSkillRating, applyCrewDamage, CREW_DAMAGE, VEHICLE_GUNNERY_SKILLS, VEHICLE_DRIVING_SKILLS } from "../helpers/atow-conversion.mjs";
-import { weaponAttack } from "../helpers/tw-combat.mjs";
+import { weaponAttack, crewStunnedNow, clearVehicleProblem } from "../helpers/tw-combat.mjs";
+import { vehicleEffectiveCruise } from "../helpers/tw-movement.mjs";
 
 const { DialogV2 } = foundry.applications.api;
 
@@ -79,13 +80,13 @@ export class MechFoundryGroundVehicleSheet extends MechFoundryUnitSheet {
 
     const cruise = Number(sys.movement?.cruise) || 0;
     const motiveHits = Math.max(0, Number(sys.crits?.motiveHits) || 0);
-    // Motive / rotor damage reduces Cruising MP; Flank is re-derived from the
-    // reduced Cruise (Cruise × 1.5, round up).
-    const effCruise = Math.max(0, cruise - motiveHits);
+    // Motive / rotor damage reduces Cruising MP (−1 per moderate, half per heavy;
+    // 0 after an engine hit); Flank is re-derived (Cruise × 1.5, round up).
+    const effCruise = vehicleEffectiveCruise(this.actor);
     context.movement = {
       cruise, flank: Math.ceil(cruise * 1.5),
       type: sys.movementType || 'tracked',
-      motivePenalty: motiveHits,
+      motivePenalty: motiveHits + (Number(sys.crits?.motiveHalvings) || 0) + (sys.crits?.engineHit ? 1 : 0),
       drivingMod: Number(sys.crits?.motiveDriving) || 0,
       sideslips: ['hover', 'vtol', 'wige'].includes(sys.movementType),
       canCrash: ['vtol', 'wige'].includes(sys.movementType),
@@ -94,6 +95,11 @@ export class MechFoundryGroundVehicleSheet extends MechFoundryUnitSheet {
     context.movementTypes = MOVEMENT_TYPES;
     context.crits = sys.crits || {};
     context.conditions = sys.conditions || {};
+    context.crewState = {
+      stunned: crewStunnedNow(this.actor),
+      killed: !!sys.conditions?.crewKilled,
+      drivingTotal: (Number(sys.crits?.motiveDriving) || 0) + (sys.crew?.driverHit ? 2 : 0) + (sys.crew?.commanderHit ? 1 : 0)
+    };
 
     // Motive / sensor pip arrays (motive 0-3, sensors 0-4).
     context.motivePips = Array.from({ length: 3 }, (_, i) => i < motiveHits);
@@ -144,6 +150,8 @@ export class MechFoundryGroundVehicleSheet extends MechFoundryUnitSheet {
     html.on('click', '.crew-unlink', this._onCrewUnlink.bind(this));
     html.on('click', '.crew-open', this._onCrewOpen.bind(this));
     html.on('click', '.weapon-attack', this._onWeaponAttack.bind(this));
+    html.on('click', '.clear-jam', (ev) => { ev.preventDefault(); clearVehicleProblem(this.actor, { jam: true }); });
+    html.on('click', '.clear-malfunction', (ev) => { ev.preventDefault(); clearVehicleProblem(this.actor, { weaponId: ev.currentTarget.dataset.weaponId }); });
   }
 
   _applyActiveTab() {

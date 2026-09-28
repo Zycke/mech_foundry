@@ -6,6 +6,7 @@
  */
 import { pilotUnconscious } from "./tw-movement.mjs";
 import { pendingPSR } from "./tw-psr.mjs";
+import { crewStunnedNow } from "./tw-combat.mjs";
 
 const UNIT_TYPES = new Set(['mech', 'ground_vehicle', 'aerospace_fighter', 'small_craft', 'battle_armor']);
 
@@ -16,7 +17,8 @@ export const UNIT_STATUSES = [
   { id: 'mfPilotOut', name: 'Warrior Unconscious', img: 'icons/svg/unconscious.svg' },
   { id: 'mfImmobile', name: 'Immobile', img: 'icons/svg/net.svg' },
   { id: 'mfOutOfControl', name: 'Out of Control', img: 'icons/svg/daze.svg' },
-  { id: 'mfPSR', name: 'Piloting Skill Roll Pending', img: 'icons/svg/hazard.svg' }
+  { id: 'mfPSR', name: 'Piloting Skill Roll Pending', img: 'icons/svg/hazard.svg' },
+  { id: 'mfStunned', name: 'Crew Stunned', img: 'icons/svg/paralysis.svg' }
 ];
 
 const n = (v) => Number(v) || 0;
@@ -36,7 +38,7 @@ export function unitDestroyed(actor) {
     if ((sys.critSlots?.head || []).some(x => x?.type === 'cockpit' && x.hit)) return true;
     return !sys.pilot?.actorId && n(sys.pilot?.hits) >= 6;
   }
-  if (actor?.type === 'ground_vehicle') return gone(sys.structure);
+  if (actor?.type === 'ground_vehicle') return gone(sys.structure) || !!sys.conditions?.crewKilled;
   if (actor?.type === 'aerospace_fighter' || actor?.type === 'small_craft') return gone(sys.structuralIntegrity);
   return false;
 }
@@ -51,6 +53,7 @@ export function desiredStatuses(actor) {
     mfImmobile: actor.type === 'ground_vehicle' && !!c.immobile,
     mfOutOfControl: !!c.outOfControl,
     mfPSR: !!pendingPSR(actor),
+    mfStunned: actor.type === 'ground_vehicle' && !!c.stunned && crewStunnedNow(actor),
     dead: unitDestroyed(actor) // Foundry's core defeated status (skull overlay)
   };
 }

@@ -211,7 +211,21 @@ criticals and cluster grouping:
   it, that turn. Sideslip… (flanking hover / VTOL / WiGE that turned): Driving roll; slips the margin
   of failure (at most hexes entered − 1), added to its movement for the target modifier. Crash…
   (VTOL / WiGE): hexes × tons / 10 in 5-point groups on the struck side; no attacks that turn.
-  Motive damage now also accumulates its +1 / +2 / +3 Driving modifier, shown on the vehicle sheet.
+  Motive damage: −1 Cruise per moderate, half Cruise per heavy (cumulative); its +1 / +2 / +3
+  Driving modifiers apply once each (max +6).
+- **Ground Combat Vehicle critical hit effects** (TW pp. 194–195): results that can't apply (no
+  such item in the location, already taken) move down the column, wrapping 12 → 6. Driver Hit +2
+  Driving; Commander Hit stuns and gives +1 to-hit and Driving; repeats become Crew Stunned
+  (no firing the following turn, repeats extend; after both driver and commander hits it's Crew
+  Killed). Crew Killed: intact but immobile and out (VTOL / WiGE destroyed). Sensors +1 each, the
+  4th stops fire. Stabilizer doubles the attacker movement modifier for weapons in that location.
+  Turret Jam (clear with a Weapon Attack Phase; a 2nd jam locks), Turret Locks, Turret Blown Off
+  (destroyed). Engine Hit: immobile, turret locked, direct-fire energy weapons dead. Fuel Tank (ICE)
+  destroys. Ammunition: all ammo explodes into internal structure, or with CASE into the rear armor
+  plus Crew Stunned. Weapon Malfunction (random weapon in the location; clear with a Weapon Attack
+  Phase) and Weapon Destroyed (1D6: 1–3 target's player chooses, 4–6 attacker's). Weapons are
+  matched to locations by their Loc text (Front / Left / Right / Rear / Turret). VTOL Pilot /
+  Co-Pilot hits use Driver / Commander effects.
 **Intentional house rules** (deliberate divergences — don't "correct" toward the book):
 - Combat vehicles roll a critical on any hit that penetrates to internal structure, in
   addition to the tables' marked results (2/12, or 8 on side attacks).
