@@ -79,10 +79,14 @@ export class MechFoundryGroundVehicleSheet extends MechFoundryUnitSheet {
 
     const cruise = Number(sys.movement?.cruise) || 0;
     const motiveHits = Math.max(0, Number(sys.crits?.motiveHits) || 0);
+    // Motive / rotor damage reduces Cruising MP; Flank is re-derived from the
+    // reduced Cruise (Cruise × 1.5, round up).
+    const effCruise = Math.max(0, cruise - motiveHits);
     context.movement = {
       cruise, flank: Math.ceil(cruise * 1.5),
       type: sys.movementType || 'tracked',
-      motivePenalty: motiveHits  // -1 cruise MP per motive hit (Total Warfare)
+      motivePenalty: motiveHits,
+      effCruise, effFlank: Math.ceil(effCruise * 1.5)
     };
     context.movementTypes = MOVEMENT_TYPES;
     context.crits = sys.crits || {};
@@ -92,7 +96,6 @@ export class MechFoundryGroundVehicleSheet extends MechFoundryUnitSheet {
     context.motivePips = Array.from({ length: 3 }, (_, i) => i < motiveHits);
     const sensorHits = Math.max(0, Number(sys.crits?.sensorHits) || 0);
     context.sensorPips = Array.from({ length: 4 }, (_, i) => i < sensorHits);
-    context.toHitFromMotive = motiveHits;  // +1 to-hit against this unit per motive hit
 
     // Crew block + optional link (Gunnery / Driving).
     const crew = sys.crew || {};

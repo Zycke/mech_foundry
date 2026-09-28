@@ -52,7 +52,7 @@
       <div class="tw-hit-loc">
         <span class="tw-hl-dice">{{#each this.dice}}<span class="tw-die">{{this}}</span>{{/each}}</span>
         <span class="tw-hl-loc">{{this.facingLabel}}</span>
-        <span class="tw-hl-dmg">{{this.damage}}</span>
+        <span class="tw-hl-dmg">{{#if this.rotorDamage}}{{this.rotorDamage}} <em>(÷10 of {{this.damage}}, −1 Cruise)</em>{{else}}{{this.damage}}{{/if}}</span>
         {{#if this.structureHit}}<span class="tw-hl-crit">STRUCTURE</span>{{/if}}
       </div>
       {{/each}}
@@ -77,6 +77,7 @@
       {{#each this.slots}}<div class="tw-hl-event tw-crit-slot">· slot {{this.index}}: {{this.text}}</div>{{/each}}
       {{/each}}
       {{#if hitResult.ammoExplosion}}<div class="tw-hl-event tw-crit-line"><strong>Ammunition explosion — resolve internal damage</strong></div>{{/if}}
+      {{#if hitResult.pilotNote}}<div class="tw-hl-event tw-crit-line"><strong>{{hitResult.pilotNote}}</strong></div>{{/if}}
       {{#if hitResult.destroyedByCrit}}<div class="tw-hl-destroyed">UNIT DESTROYED</div>{{/if}}
       {{#unless hitResult.applied}}<div class="tw-atk-dmg"><em>No permission — apply the above to {{hitResult.targetName}} manually.</em></div>{{/unless}}
     {{else}}

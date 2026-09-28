@@ -232,7 +232,11 @@ function applyMechCritSlotEffect(slot, systemHits, heatSinks, weapons, crew, sta
       systemHits.lifeSupport = Math.min(2, (Number(systemHits.lifeSupport) || 0) + 1);
       return 'Life Support hit';
     case 'cockpit':
-      state.destroyed = true; state.pilotKilled = true;
+      // The mech is out of action either way. A linked pilot (a character
+      // actor) is knocked unconscious rather than killed — house ruling for
+      // now; an unlinked sheet-only pilot is marked killed on the hit ladder.
+      state.destroyed = true;
+      if (crew.actorId) { state.pilotUnconscious = true; return 'Cockpit — pilot knocked unconscious'; }
       crew.hits = 6;
       return 'Cockpit — PILOT KILLED';
     case 'actuator': return `${slot.name || 'Actuator'} destroyed`;
@@ -324,6 +328,14 @@ const VEHICLE_HIT_LOCATION = {
   side:  { 2: ['side', 'C'], 3: ['side', 'M'], 4: ['side', 'M'], 5: ['front', 'M'], 6: ['side'], 7: ['side'], 8: ['side', 'C'], 9: ['rear', 'M'], 10: ['turret'], 11: ['turret'], 12: ['turret', 'C'] }
 };
 
+// VTOL Combat Vehicle Hit Location Table (TW p.196). Flags: C = critical,
+// M = motive-system roll, R = rotor hit (damage ÷ 10 rounded up, −1 Cruise MP).
+const VTOL_HIT_LOCATION = {
+  front: { 2: ['front', 'C'], 3: ['rotor', 'R'], 4: ['rotor', 'R'], 5: ['right'], 6: ['front'], 7: ['front'], 8: ['front'], 9: ['left'], 10: ['rotor', 'R'], 11: ['rotor', 'R'], 12: ['rotor', 'RC'] },
+  rear:  { 2: ['rear', 'C'], 3: ['rotor', 'R'], 4: ['rotor', 'R'], 5: ['left'], 6: ['rear'], 7: ['rear'], 8: ['rear'], 9: ['right'], 10: ['rotor', 'R'], 11: ['rotor', 'R'], 12: ['rotor', 'RC'] },
+  side:  { 2: ['side', 'C'], 3: ['rotor', 'R'], 4: ['rotor', 'R'], 5: ['front'], 6: ['side'], 7: ['side'], 8: ['side', 'C'], 9: ['rear'], 10: ['rotor', 'R'], 11: ['rotor', 'R'], 12: ['rotor', 'RC'] }
+};
+
 const VEHICLE_FACING_LABEL = { front: 'Front', rear: 'Rear', left: 'Left Side', right: 'Right Side', turret: 'Turret', rotor: 'Rotor' };
 
 // Motive System Damage Table (2d6 + direction + vehicle-type modifiers).
@@ -351,15 +363,12 @@ const VTOL_VEHICLE_CRITS = {
 };
 
 /** Resolve a hit-location token to a concrete armor facing. */
-function resolveVehicleFacing(token, direction, hasTurret, isVTOL) {
+function resolveVehicleFacing(token, direction, hasTurret) {
   const attacked = direction === 'left' ? 'left' : direction === 'right' ? 'right' : direction === 'rear' ? 'rear' : 'front';
-  if (token === 'side') return direction === 'left' ? 'left' : direction === 'right' ? 'right' : attacked;
-  if (token === 'turret') {
-    if (isVTOL) return 'rotor';
-    if (hasTurret) return 'turret';
-    return direction === 'left' ? 'left' : direction === 'right' ? 'right' : direction === 'rear' ? 'rear' : 'front';
-  }
-  return token; // front/rear/left/right literal
+  if (token === 'side') return attacked;
+  // No turret: a turret hit strikes the armor on the side attacked (TW p.193).
+  if (token === 'turret') return hasTurret ? 'turret' : attacked;
+  return token; // front / rear / left / right / rotor literal
 }
 
 /** The crit-table column for a facing. */
@@ -391,21 +400,31 @@ export async function resolveVehicleAttack(target, direction, groupSizes, rolls)
   const groups = [], motives = [], critResults = [], crewEvents = [];
   let destroyed = false;
 
+  const hitTable = isVTOL ? VTOL_HIT_LOCATION : VEHICLE_HIT_LOCATION;
   for (const g of groupSizes) {
     const locRoll = await new Roll("2d6").evaluate();
     rolls.push(locRoll);
-    const [token, flag] = VEHICLE_HIT_LOCATION[col][locRoll.total];
-    const facing = resolveVehicleFacing(token, direction, hasTurret, isVTOL);
+    const [token, flags = ''] = hitTable[col][locRoll.total];
+    const facing = resolveVehicleFacing(token, direction, hasTurret);
+
+    // VTOL rotor hit (†): the rotors take Damage Value ÷ 10 (round up), and each
+    // hit costs 1 Cruising MP (tracked via motiveHits; Flank is re-derived).
+    const rotorHit = flags.includes('R');
+    const dealt = rotorHit ? Math.ceil(g / 10) : g;
+    if (rotorHit) crits.motiveHits = (Number(crits.motiveHits) || 0) + 1;
 
     // Damage: armor then single internal structure pool.
-    let remaining = g, structureHit = false;
+    let remaining = dealt, structureHit = false;
     const slot = armor[facing];
     if (slot && slot.value > 0) { const a = Math.min(slot.value, remaining); slot.value -= a; remaining -= a; }
     if (remaining > 0) { structure.value = Math.max(0, (structure.value || 0) - remaining); structureHit = true; if (structure.value <= 0) destroyed = true; }
-    groups.push({ damage: g, facingLabel: VEHICLE_FACING_LABEL[facing] || facing, dice: locRoll.dice[0]?.results?.map(r => r.result) ?? [], structureHit });
+    groups.push({
+      damage: g, rotorDamage: rotorHit ? dealt : null,
+      facingLabel: VEHICLE_FACING_LABEL[facing] || facing, dice: locRoll.dice[0]?.results?.map(r => r.result) ?? [], structureHit
+    });
 
-    // Motive system damage (†).
-    if (flag === 'M') {
+    // Motive system damage (†, ground vehicles).
+    if (flags.includes('M')) {
       const mRoll = await new Roll("2d6").evaluate();
       rolls.push(mRoll);
       const dirMod = direction === 'rear' ? 1 : (direction === 'left' || direction === 'right') ? 2 : 0;
@@ -417,7 +436,7 @@ export async function resolveVehicleAttack(target, direction, groupSizes, rolls)
     }
 
     // Critical hit (2/12, side-8, or structure penetrated).
-    if (flag === 'C' || structureHit) {
+    if (flags.includes('C') || structureHit) {
       const cRoll = await new Roll("2d6").evaluate();
       rolls.push(cRoll);
       const table = isVTOL ? VTOL_VEHICLE_CRITS : GROUND_VEHICLE_CRITS;
@@ -434,6 +453,11 @@ export async function resolveVehicleAttack(target, direction, groupSizes, rolls)
       else if (effect === 'Crew Killed') crewEvents.push(CREW_DAMAGE.vehicleKilled);
     }
   }
+
+  // Cruising MP can't drop below 0: cap the MP loss at the vehicle's cruise
+  // (never below the 3-hit motive track the sheet already shows).
+  const cruise = Number(target.system.movement?.cruise) || 0;
+  crits.motiveHits = Math.min(Math.max(3, cruise), Number(crits.motiveHits) || 0);
 
   const applied = target.isOwner || game.user.isGM;
   if (applied) await target.update({ 'system.armor': armor, 'system.structure': structure, 'system.crits': crits, 'system.conditions': conditions, 'system.crew': crew });
@@ -460,7 +484,7 @@ function applyVehicleCrit(effect, facing, direction, crits, conditions, structur
     case 'Turret Locks': crits.turretLocked = true; break;
     case 'Turret Blown Off': crits.turretLocked = true; break;
     case 'Engine Hit': case 'Engine Damage': crits.engineHit = true; break;
-    case 'Rotor Damage': crits.motiveHits = Math.min(3, (Number(crits.motiveHits) || 0) + 1); break;
+    case 'Rotor Damage': crits.motiveHits = (Number(crits.motiveHits) || 0) + 1; break; // clamped after the loop
     case 'Rotors Destroyed': conditions.immobile = true; break;
     case 'Ammunition': case 'Fuel Tank': case 'Crew Killed':
       structure.value = 0; conditions.immobile = true; return true;
@@ -719,8 +743,21 @@ export async function resolveDamageAgainst(targetActor, direction, groupSizes, r
         'system.heatSinks': heatSinks, 'system.weapons': weapons, 'system.pilot': crew
       });
     }
+    // Cockpit crit: knock a linked pilot unconscious (same pattern the system
+    // uses when fatigue drops a character).
+    let pilotNote = '';
+    if (state.pilotUnconscious) {
+      const linked = game.actors.get(crew.actorId);
+      if (linked && (linked.isOwner || game.user.isGM)) {
+        await linked.update({ 'system.unconscious': true });
+        ui.notifications.warn(`${linked.name} has fallen unconscious!`);
+        pilotNote = `${linked.name} is unconscious`;
+      } else if (linked) {
+        pilotNote = `${linked.name} is unconscious — no permission, mark manually`;
+      }
+    }
     return {
-      isMech: true, groups, critChecks, destroyedByCrit: state.destroyed, ammoExplosion: state.ammo,
+      isMech: true, groups, critChecks, destroyedByCrit: state.destroyed, ammoExplosion: state.ammo, pilotNote,
       applied: targetActor.isOwner || game.user.isGM, hasTarget: true, targetName: targetActor.name
     };
   } else if (tt === 'ground_vehicle') {

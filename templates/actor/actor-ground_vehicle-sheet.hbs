@@ -78,7 +78,7 @@
           <label class="chk"><input type="checkbox" name="system.crits.stabRear" {{checked crits.stabRear}} {{#unless editable}}disabled{{/unless}}> Stab: Rear</label>
           {{#if showTurret}}<label class="chk"><input type="checkbox" name="system.crits.stabTurret" {{checked crits.stabTurret}} {{#unless editable}}disabled{{/unless}}> Stab: Turret</label>{{/if}}
         </div>
-        {{#if movement.motivePenalty}}<div class="penalty-line">▸ Motive damage: −{{movement.motivePenalty}} Cruise MP · +{{toHitFromMotive}} to hit this unit</div>{{/if}}
+        {{#if movement.motivePenalty}}<div class="penalty-line">▸ Motive/rotor damage: −{{movement.motivePenalty}} Cruise MP → Cruise {{movement.effCruise}} / Flank {{movement.effFlank}}</div>{{/if}}
       </div>
 
       <div class="mf-panel">
