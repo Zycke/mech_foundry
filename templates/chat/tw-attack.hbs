@@ -35,7 +35,19 @@
     </div>
     {{/if}}
 
-    {{#if hitResult.vehicle}}
+    {{#if hitResult.aero}}
+      {{#each hitResult.groups}}
+      <div class="tw-hit-loc">
+        <span class="tw-hl-dice">{{#each this.dice}}<span class="tw-die">{{this}}</span>{{/each}}</span>
+        <span class="tw-hl-loc">{{this.facingLabel}}</span>
+        <span class="tw-hl-dmg">{{this.damage}}</span>
+        {{#if this.siHit}}<span class="tw-hl-crit">SI</span>{{/if}}
+      </div>
+      {{/each}}
+      {{#each hitResult.critResults}}<div class="tw-hl-event tw-crit-line">▸ Crit {{this.facingLabel}}: <strong>{{this.system}}</strong></div>{{/each}}
+      {{#if hitResult.destroyed}}<div class="tw-hl-destroyed">UNIT DESTROYED</div>{{/if}}
+      {{#unless hitResult.applied}}<div class="tw-atk-dmg"><em>No permission — apply the above to {{hitResult.targetName}} manually.</em></div>{{/unless}}
+    {{else if hitResult.vehicle}}
       {{#each hitResult.groups}}
       <div class="tw-hit-loc">
         <span class="tw-hl-dice">{{#each this.dice}}<span class="tw-die">{{this}}</span>{{/each}}</span>

@@ -380,6 +380,90 @@ function applyVehicleCrit(effect, facing, direction, crits, conditions, structur
   return false;
 }
 
+/* ------------------------------------------------------------------ */
+/*  Aerospace / Small Craft combat (Total Warfare)                      */
+/* ------------------------------------------------------------------ */
+
+// Aerospace Units Hit Location Table. Each cell = [facingToken, system].
+// Facing tokens: nose/aft/leftWing/rightWing/wing(=attacked side)/side(=attacked side).
+const AERO_HIT_FIGHTER = {
+  nose: { 2: ['nose', 'Weapon'], 3: ['nose', 'Sensors'], 4: ['rightWing', 'Heat Sink'], 5: ['rightWing', 'Weapon'], 6: ['nose', 'Avionics'], 7: ['nose', 'Control'], 8: ['nose', 'FCS'], 9: ['leftWing', 'Weapon'], 10: ['leftWing', 'Heat Sink'], 11: ['nose', 'Gear'], 12: ['nose', 'Weapon'] },
+  aft:  { 2: ['aft', 'Weapon'], 3: ['aft', 'Heat Sink'], 4: ['rightWing', 'Fuel'], 5: ['rightWing', 'Weapon'], 6: ['aft', 'Engine'], 7: ['aft', 'Control'], 8: ['aft', 'Engine'], 9: ['leftWing', 'Weapon'], 10: ['leftWing', 'Fuel'], 11: ['aft', 'Heat Sink'], 12: ['aft', 'Weapon'] },
+  side: { 2: ['nose', 'Weapon'], 3: ['wing', 'Gear'], 4: ['nose', 'Sensors'], 5: ['nose', 'Crew'], 6: ['wing', 'Weapon'], 7: ['wing', 'Avionics'], 8: ['wing', 'Bomb'], 9: ['aft', 'Control'], 10: ['aft', 'Engine'], 11: ['wing', 'Gear'], 12: ['aft', 'Weapon'] }
+};
+const AERO_HIT_DROPSHIP = {
+  nose: { 2: ['nose', 'Crew'], 3: ['nose', 'Avionics'], 4: ['rightWing', 'Weapon'], 5: ['rightWing', 'Thruster'], 6: ['nose', 'FCS'], 7: ['nose', 'Weapon'], 8: ['nose', 'Control'], 9: ['leftWing', 'Thruster'], 10: ['leftWing', 'Weapon'], 11: ['nose', 'Sensors'], 12: ['nose', 'K-F Boom'] },
+  aft:  { 2: ['aft', 'Life Support'], 3: ['aft', 'Control'], 4: ['rightWing', 'Weapon'], 5: ['rightWing', 'Door'], 6: ['aft', 'Engine'], 7: ['aft', 'Weapon'], 8: ['aft', 'Docking Collar'], 9: ['leftWing', 'Door'], 10: ['leftWing', 'Weapon'], 11: ['aft', 'Gear'], 12: ['aft', 'Fuel'] },
+  side: { 2: ['nose', 'Weapon'], 3: ['nose', 'FCS'], 4: ['nose', 'Sensors'], 5: ['side', 'Thruster'], 6: ['side', 'Cargo'], 7: ['side', 'Weapon'], 8: ['side', 'Door'], 9: ['side', 'Thruster'], 10: ['aft', 'Avionics'], 11: ['aft', 'Engine'], 12: ['aft', 'Weapon'] }
+};
+const AERO_FACING_LABEL = { nose: 'Nose', aft: 'Aft', leftWing: 'Left Wing', rightWing: 'Right Wing' };
+
+function resolveAeroFacing(token, direction) {
+  if (token === 'wing' || token === 'side') return direction === 'right' ? 'rightWing' : 'leftWing';
+  return token; // nose / aft / leftWing / rightWing
+}
+
+/** Apply an aero critical system effect to the mutable crit/crew state. */
+function applyAeroCrit(system, crits, conditions, crew, crewEvents) {
+  switch (system) {
+    case 'Sensors': crits.sensors = Math.min(3, (Number(crits.sensors) || 0) + 1); break;
+    case 'Engine': crits.engine = Math.min(3, (Number(crits.engine) || 0) + 1); break;
+    case 'Avionics': crits.avionics = Math.min(3, (Number(crits.avionics) || 0) + 1); break;
+    case 'FCS': crits.fcs = Math.min(3, (Number(crits.fcs) || 0) + 1); break;
+    case 'Gear': crits.landingGear = true; break;
+    case 'Life Support': crits.lifeSupport = true; break;
+    case 'Control': conditions.outOfControl = true; break;
+    case 'Crew': crew.hits = Math.min(6, (Number(crew.hits) || 0) + 1); crewEvents.push(CREW_DAMAGE.pilotHit); break;
+    default: break; // Weapon / Heat Sink / Fuel / Bomb / Thruster / Door / Cargo / Docking Collar / K-F Boom — reported only
+  }
+}
+
+/**
+ * Resolve a full attack against an Aerospace Fighter or Small Craft: per damage
+ * group roll hit location, apply damage to the struck facing's armor then to
+ * Structural Integrity, and roll a system critical when the group's damage meets
+ * the facing threshold or penetrates to SI. Mutates and saves the target once.
+ */
+export async function resolveAeroAttack(target, direction, groupSizes, rolls) {
+  const armor = foundry.utils.deepClone(target.system.armor || {});
+  const si = foundry.utils.deepClone(target.system.structuralIntegrity || { value: 0, max: 0 });
+  const crits = foundry.utils.deepClone(target.system.crits || {});
+  const conditions = foundry.utils.deepClone(target.system.conditions || {});
+  const crew = foundry.utils.deepClone(target.system.crew || {});
+  const table = target.type === 'small_craft' ? AERO_HIT_DROPSHIP : AERO_HIT_FIGHTER;
+  const col = direction === 'left' || direction === 'right' ? 'side' : direction === 'rear' ? 'aft' : 'nose';
+
+  const groups = [], critResults = [], crewEvents = [];
+  let destroyed = false;
+
+  for (const g of groupSizes) {
+    const locRoll = await new Roll("2d6").evaluate();
+    rolls.push(locRoll);
+    const [token, system] = table[col][locRoll.total];
+    const facing = resolveAeroFacing(token, direction);
+    const slot = armor[facing];
+
+    let remaining = g, siHit = false;
+    const threshold = Number(slot?.threshold) || 0;
+    if (slot && slot.value > 0) { const a = Math.min(slot.value, remaining); slot.value -= a; remaining -= a; }
+    if (remaining > 0) { si.value = Math.max(0, (si.value || 0) - remaining); siHit = true; if (si.value <= 0) destroyed = true; }
+    groups.push({ damage: g, facingLabel: AERO_FACING_LABEL[facing] || facing, dice: locRoll.dice[0]?.results?.map(r => r.result) ?? [], siHit });
+
+    // Threshold or SI-penetration critical on the indicated system.
+    if ((threshold > 0 && g >= threshold) || siHit) {
+      applyAeroCrit(system, crits, conditions, crew, crewEvents);
+      critResults.push({ facingLabel: AERO_FACING_LABEL[facing] || facing, system });
+    }
+  }
+
+  const applied = target.isOwner || game.user.isGM;
+  if (applied) await target.update({ 'system.armor': armor, 'system.structuralIntegrity': si, 'system.crits': crits, 'system.conditions': conditions, 'system.crew': crew });
+  const linked = crew.actorId ? game.actors.get(crew.actorId) : null;
+  if (applied && linked) for (const ev of crewEvents) await applyCrewDamage(linked, ev);
+
+  return { aero: true, applied, hasTarget: true, targetName: target.name, groups, critResults, destroyed };
+}
+
 /**
  * Open the GATOR to-hit dialog for a weapon, roll 2d6, and post a chat card.
  * @param {Actor} actor   The attacking unit.
@@ -518,6 +602,9 @@ export async function weaponAttack(actor, weapon) {
     } else if (tt === 'ground_vehicle') {
       const vres = await resolveVehicleAttack(targetActor, result.direction, groupSizes, rolls);
       hitResult = { cluster: clusterSize > 0, clusterInfo, total, ...vres };
+    } else if (tt === 'aerospace_fighter' || tt === 'small_craft') {
+      const ares = await resolveAeroAttack(targetActor, result.direction, groupSizes, rolls);
+      hitResult = { cluster: clusterSize > 0, clusterInfo, total, ...ares };
     } else {
       hitResult = {
         cluster: clusterSize > 0, clusterInfo, total, isMech: false,
