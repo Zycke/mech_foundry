@@ -12,6 +12,7 @@ import { currentTurnKey } from "./tw-turn.mjs";
 import { isImmobile, linkedCrew, pilotUnconscious } from "./tw-movement.mjs";
 import { consciousnessNumber, pendingPSR, phaseDamageSoFar, psrDamageMods, standsThisTurn, warriorDamage } from "./tw-psr.mjs";
 import { resolveDamageAgainst } from "./tw-combat.mjs";
+import { knockOff, ridersOf, swarmersOf } from "./tw-infantry.mjs";
 
 const { DialogV2 } = foundry.applications.api;
 const num = (v) => Number(v) || 0;
@@ -73,7 +74,7 @@ export async function resolveFall(actor, { levels = 0, rearOnly = false, rolls =
   const dir = rearOnly ? 'rear' : f.dir;
 
   const groups = fiveGroups(damage);
-  const frag = groups.length ? await resolveDamageAgainst(actor, dir, groups, rolls, '', { noPSR: true }) : null;
+  const frag = groups.length ? await resolveDamageAgainst(actor, dir, groups, rolls, '', { noPSR: true, noIntercept: true }) : null;
   await writeDoc(actor, { 'system.conditions': { ...(actor.system.conditions || {}), prone: true } });
 
   // Turn the token to its new facing (hex maps; clockwise = right).
@@ -108,9 +109,14 @@ export async function resolveFall(actor, { levels = 0, rearOnly = false, rolls =
     if (linked) await applyCrewDamage(linked, CREW_DAMAGE.falling);
   }
 
+  // Infantry swarming or riding the 'Mech fall off: one 2D6 hit each, as from
+  // an infantry attack; they can't move or fire for the rest of the turn.
+  const attached = [...swarmersOf(actor), ...ridersOf(actor)];
+  const infantryLines = attached.length ? await knockOff(attached, { dice: '2d6', why: 'falls off' }, rolls) : [];
+
   return {
     damage, levels, facingRoll: fr.total, facing: f.label, dir,
-    location: rearOnly ? 'Rear' : f.loc, frag, warrior, warriorLines
+    location: rearOnly ? 'Rear' : f.loc, frag, warrior, warriorLines, infantryLines
   };
 }
 

@@ -31,6 +31,7 @@
 
     {{!-- ===================== STATUS ===================== --}}
     <div class="tab" data-tab="status">
+      {{> "systems/mech-foundry/templates/actor/parts/attached-infantry.hbs" ai=attachedInfantry kind="aero" editable=editable}}
       {{#if controlPending}}
       <div class="mf-psr-banner">
         <i class="fas fa-plane"></i>

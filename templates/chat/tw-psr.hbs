@@ -47,7 +47,12 @@
       <span class="tw-atk-result">{{#if fall.warrior.success}}NO INJURY{{else}}INJURED{{/if}}</span>{{/if}}
     </div>
     {{#each fall.warriorLines}}<div class="tw-hl-event tw-crit-line">▸ {{this}}</div>{{/each}}
+    {{#each fall.infantryLines}}<div class="tw-hl-event tw-psr-line">▸ {{this}}</div>{{/each}}
   </div>
   {{/if}}
   {{#if skidFrag}}{{> "systems/mech-foundry/templates/chat/parts/tw-hit-result.hbs" hr=skidFrag}}{{/if}}
+  {{#each frags}}
+  {{#if this.title}}<div class="tw-self-head">{{this.title}}</div>{{/if}}
+  {{> "systems/mech-foundry/templates/chat/parts/tw-hit-result.hbs" hr=this}}
+  {{/each}}
 </div>

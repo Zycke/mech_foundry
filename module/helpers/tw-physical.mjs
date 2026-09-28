@@ -16,6 +16,7 @@ import {
   pilotUnconscious, terrainMods, weaponArm
 } from "./tw-movement.mjs";
 import { queuePSR } from "./tw-psr.mjs";
+import { untargetableReason } from "./tw-infantry.mjs";
 import { fiveGroups, pilotingFor, postCard, resolveFall } from "./tw-falls.mjs";
 import {
   ATTACK_DIRECTIONS, MECH_LOC_LABEL, REAR_ARMOR_KEY, firedThisTurn, locationGone, measureHexes, resolveDamageAgainst
@@ -126,6 +127,7 @@ export function physicalBlock(actor, type, { arm = null, weaponKey = null, targe
 
   const tt = target?.type;
   if (tt && ['aerospace_fighter', 'small_craft', 'naval_ship'].includes(tt)) return 'Aerospace units cannot be targeted by physical attacks.';
+  if (target && untargetableReason(target)) return untargetableReason(target);
   const lowTarget = tt === 'ground_vehicle' || tt === 'battle_armor';
 
   if (type === 'punchL' || type === 'punchR' || type === 'weapon') {
@@ -367,6 +369,7 @@ export async function resolvePhysicalAttack(actor, target, r) {
     if (type === 'charge') {
       const back = Math.ceil(num(targetActor?.system?.tonnage) / 10);
       if (back > 0) selfResult = await resolveDamageAgainst(actor, 'front', fiveGroups(back), rolls, actor.name, {
+        noIntercept: true,
         extraPSR: actor.type === 'mech' ? [{ key: 'charging', label: 'Made a successful charge', mod: 2 }] : [],
         forceMotive: actor.type === 'ground_vehicle'
       });
@@ -374,6 +377,7 @@ export async function resolvePhysicalAttack(actor, target, r) {
     }
     if (type === 'dfa') {
       selfResult = await resolveDamageAgainst(actor, 'front', fiveGroups(Math.ceil(num(actor.system.tonnage) / 5)), rolls, actor.name, {
+        noIntercept: true,
         locationRoller: rollKickLocation,
         extraPSR: [{ key: 'dfaMade', label: 'Made death from above', mod: 4 }]
       });

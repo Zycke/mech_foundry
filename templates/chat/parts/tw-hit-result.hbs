@@ -56,6 +56,7 @@
     {{/each}}
     {{#each hr.motives}}<div class="tw-hl-event">▸ Motive ({{this.roll}}): {{this.text}}</div>{{/each}}
     {{#each hr.critResults}}<div class="tw-hl-event tw-crit-line">▸ Crit {{this.facingLabel}} ({{this.roll}}): <strong>{{this.effect}}</strong>{{#if this.note}} <em>({{this.note}})</em>{{/if}}</div>{{/each}}
+    {{#each hr.infantryLines}}<div class="tw-hl-event">▸ {{this}}</div>{{/each}}
     {{#if hr.destroyed}}<div class="tw-hl-destroyed">VEHICLE DESTROYED</div>{{/if}}
     {{#unless hr.applied}}<div class="tw-atk-dmg"><em>Couldn't apply automatically (no permission and no GM available) — apply the above to {{hr.targetName}} manually.</em></div>{{/unless}}
   {{else if hr.isMech}}
@@ -70,6 +71,7 @@
     {{#if this.destroyed}}<div class="tw-hl-destroyed">UNIT DESTROYED</div>{{/if}}
     {{#if this.overflow}}<div class="tw-hl-event">▸ {{this.overflow}} excess damage lost</div>{{/if}}
     {{/each}}
+    {{#each hr.infantryLines}}<div class="tw-hl-event">▸ {{this}}</div>{{/each}}
     {{#each hr.critChecks}}
     <div class="tw-hl-event tw-crit-line">▸ Crit check {{this.locLabel}} ({{this.total}}): <strong>{{this.text}}</strong></div>
     {{#each this.slots}}<div class="tw-hl-event tw-crit-slot">· slot {{this.index}}: {{this.text}}</div>{{/each}}

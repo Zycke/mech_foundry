@@ -35,6 +35,21 @@
 
     {{!-- ===================== STATUS ===================== --}}
     <div class="tab" data-tab="status">
+      {{#if attached}}
+      <div class="mf-panel mf-infantry-on">
+        {{#if attached.swarm}}
+        <h4>Swarming {{attached.carrierName}}</h4>
+        <div class="penalty-line">▸ Swarm damage {{attached.swarmDamage}} (arm-mounted non-missile weapons × troopers, + vibro-claws) — an automatic hit each Weapon Attack Phase after the swarm; it can't be targeted.</div>
+        {{#if editable}}<div class="mf-actions">
+          <button type="button" class="swarm-attack" {{#if attached.swarmBlock}}disabled title="{{attached.swarmBlock}}"{{else}}title="Automatic hit: Swarm Attacks Hit Location Table, plus a critical roll"{{/if}}><i class="fas fa-bolt"></i> Swarm Damage</button>
+          <button type="button" class="release-swarm" title="End the swarm (any later Weapon Attack Phase); the unit drops into the hex"><i class="fas fa-person-walking-arrow-right"></i> Release</button>
+        </div>{{/if}}
+        {{else}}
+        <h4>Riding {{attached.carrierName}} <span class="hint">mechanized battle armor</span></h4>
+        {{#each attached.positions}}<div class="penalty-line{{#unless alive}} dmg{{/unless}}">▸ #{{n}}: {{where}}{{#unless alive}} — destroyed{{/unless}}</div>{{/each}}
+        {{/if}}
+      </div>
+      {{/if}}
       <div class="mf-panel">
         <h4>Troopers <span class="hint">Armor Value {{system.armorValue}} + 1 soldier box each — click a box to mark damage</span></h4>
         {{#each troopers}}
@@ -100,7 +115,7 @@
     {{!-- ===================== COMBAT ===================== --}}
     <div class="tab" data-tab="combat">
       <div class="mf-panel">
-        <h4>Weapons {{#if editable}}<button type="button" class="fire-weapons" title="Fire several weapons together (one declaration, one card)"><i class="fas fa-crosshairs"></i> Fire…</button> <button type="button" class="add-weapon"><i class="fas fa-plus"></i> Add</button>{{/if}}</h4>
+        <h4>Weapons {{#if editable}}<button type="button" class="fire-weapons" title="Fire several weapons together (one declaration, one card)"><i class="fas fa-crosshairs"></i> Fire…</button> {{#unless attached}}<button type="button" class="anti-mech-attack" {{#if antiMechBlock}}disabled title="{{antiMechBlock}}"{{else}}title="Leg or swarm attack against the targeted unit in the same hex (instead of weapon attacks)"{{/if}}><i class="fas fa-person-rifle"></i> Anti-'Mech…</button> {{/unless}}<button type="button" class="add-weapon"><i class="fas fa-plus"></i> Add</button>{{/if}}</h4>
         <table class="wt">
           <thead><tr><th class="w-name">Weapon</th><th title="Arm-mounted weapons count for swarm attacks">Loc</th><th title="Damage per trooper (per missile for launchers)">Dmg</th><th title="Missiles per trooper's launcher (0 = not a missile weapon)">Msl</th><th title="Anti-personnel weapon (Rifle, Ballistic column)">AP</th><th title="Minimum range">Min</th><th>S</th><th>M</th><th>L</th><th>Ammo Type</th><th title="Missile shots left (other weapons don't track ammunition)">Rds</th><th></th></tr></thead>
           <tbody>

@@ -19,13 +19,19 @@ const REQUEST = "gmRelayRequest";
 const RESULT = "gmRelayResult";
 const TIMEOUT_MS = 10000;
 
+/** Per-turn "already the target of a leg / swarm attack" markers written by infantry attackers. */
+const ANTI_MECH_FLAGS = ['flags.mech-foundry.legAttacked', 'flags.mech-foundry.swarmAttacked'];
+
 /** Fields a relayed `update` may write, per actor type. */
 const UPDATE_WHITELIST = {
   mech: ['system.armor', 'system.structure', 'system.critSlots', 'system.systemHits', 'system.heatSinks', 'system.weapons', 'system.pilot',
-    'system.conditions', 'flags.mech-foundry.psr', 'flags.mech-foundry.phaseDamage'],
-  ground_vehicle: ['system.armor', 'system.structure', 'system.crits', 'system.conditions', 'system.crew', 'system.weapons', 'system.elevation'],
-  aerospace_fighter: ['system.armor', 'system.structuralIntegrity', 'system.crits', 'system.conditions', 'system.crew', 'flags.mech-foundry.psr'],
-  small_craft: ['system.armor', 'system.structuralIntegrity', 'system.crits', 'system.conditions', 'system.crew', 'flags.mech-foundry.psr'],
+    'system.conditions', 'flags.mech-foundry.psr', 'flags.mech-foundry.phaseDamage', ...ANTI_MECH_FLAGS],
+  ground_vehicle: ['system.armor', 'system.structure', 'system.crits', 'system.conditions', 'system.crew', 'system.weapons', 'system.elevation',
+    ...ANTI_MECH_FLAGS],
+  aerospace_fighter: ['system.armor', 'system.structuralIntegrity', 'system.crits', 'system.conditions', 'system.crew', 'flags.mech-foundry.psr',
+    ...ANTI_MECH_FLAGS],
+  small_craft: ['system.armor', 'system.structuralIntegrity', 'system.crits', 'system.conditions', 'system.crew', 'flags.mech-foundry.psr',
+    ...ANTI_MECH_FLAGS],
   battle_armor: ['system.troopers', 'system.attached'],
   character: ['system.unconscious'],
   npc: ['system.unconscious']

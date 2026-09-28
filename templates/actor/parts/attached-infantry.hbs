@@ -1,0 +1,26 @@
+{{!-- Infantry swarming / riding this unit, with the ways to fight swarmers off. ai = attachedSummary(); kind = mech | vehicle | aero. --}}
+{{#if ai.swarmers.length}}
+<div class="mf-panel mf-infantry-on">
+  <h4>Swarmed <span class="hint">hits on {{#if (eq kind "mech")}}the torso{{else}}any location{{/if}} strike the swarmers on 5–6</span></h4>
+  {{#each ai.swarmers}}<div class="penalty-line dmg">▸ {{name}} — {{troopers}} trooper{{#unless (eq troopers 1)}}s{{/unless}}{{#if magnetic}} (magnetic claws: +1 to remove){{/if}}</div>{{/each}}
+  {{#if editable}}
+  <div class="mf-actions">
+    {{#if (eq kind "mech")}}
+    <button type="button" class="remove-swarmers" title="Physical Attack Phase, instead of a physical attack: Piloting +4 per arm"><i class="fas fa-hand"></i> Pull off…</button>
+    <button type="button" class="jump-shakeoff" title="After jumping: Piloting +4 on landing; 1 damage per Jump MP to each trooper"><i class="fas fa-person-falling"></i> Shake off (jump)…</button>
+    <button type="button" class="drop-prone-shakeoff" title="Piloting roll; success throws them off (2D6 each) but the 'Mech takes an accidental fall"><i class="fas fa-arrow-down"></i> Drop prone</button>
+    {{else if (eq kind "vehicle")}}
+    <button type="button" class="vehicle-shakeoff" title="End of movement: Driving +4 (+2 with VTOL MP); counts as flanking, spends only Cruising MP"><i class="fas fa-shuffle"></i> Erratic maneuvers</button>
+    {{else}}
+    <button type="button" class="takeoff-shakeoff" title="Taking off throws swarmers off: one 4D6 hit each"><i class="fas fa-plane-departure"></i> Take off</button>
+    {{/if}}
+  </div>
+  {{/if}}
+</div>
+{{/if}}
+{{#if ai.riders.length}}
+<div class="mf-panel mf-infantry-on">
+  <h4>Carrying Mechanized Battle Armor <span class="hint">hits where a trooper rides strike it first on 5–6</span></h4>
+  {{#each ai.riders}}<div class="penalty-line">▸ {{name}} — {{troopers}} trooper{{#unless (eq troopers 1)}}s{{/unless}}</div>{{/each}}
+</div>
+{{/if}}

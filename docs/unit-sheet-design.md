@@ -283,6 +283,31 @@ criticals and cluster grouping:
   the fewest columns (54 → 27 + 27), AP weapons turn troopers hitting into damage on the Rifle,
   Ballistic column (2-point groups, one AP attack per turn). Every hit rolls its own location;
   only missile launchers spend ammunition.
+- **Anti-'Mech attacks** (`tw-antimech.mjs`; TW pp. 220–223): the battle armor sheet's
+  Anti-'Mech… button (target a unit in the same hex) makes a leg or swarm attack instead of weapon
+  attacks. To-hit = Anti-'Mech Skill + Leg / Swarm Attacks Table (by active troopers) + target
+  movement, terrain, 'Mech prone −2, immobile −4, (swarm) vehicle −2, magnetic claws −1 and the
+  Swarm Attack Modifiers Table when the target carries friendly mechanized battle armor.
+  Eligibility: humanoid PA(L) / light / medium suits with two basic manipulators, a battle claw
+  (vibro- and magnetic claws count) or — light / PA(L) — two armored gloves; body-mounted missile
+  launchers jettisoned; mechanized platoons can't. Leg attack: 4 damage (+1 / +2 vibro-claws) on
+  the front Kick Location column plus an automatic Determining Critical Hits roll; one per 'Mech
+  per turn. Swarm: attaches the unit (`system.attached`, mode `swarm`; landed VTOL / WiGE /
+  aerospace only; one swarmer per unit, one attempt per turn). From the next turn its sheet's Swarm
+  Damage is an automatic hit: arm-mounted non-missile weapons × troopers (+ vibro-claws) in one
+  group on the Swarm Attacks Hit Location Table with an automatic crit roll ('Mech), or a random
+  side column (vehicle / grounded aerospace: 1D6 1–2 front, 3 left, 4 right, 5–6 rear); Release
+  ends it. Swarmers can't be targeted and may only shoot battle armor riding the unit they swarm.
+  Hits on a swarmed 'Mech's torso (any location of a vehicle) strike the swarmers on 1D6 5–6: a
+  random trooper absorbs up to its capacity and the rest carries on. The swarmed unit's sheet
+  lists the swarmers and offers: Pull off… ('Mech, Physical Attack Phase: Piloting +4 per arm plus
+  punch modifiers, +1 vs magnetic claws; success throws them off with the punch as infantry damage,
+  failure punches the 'Mech itself), Shake off (jump) (+4; 1 damage per Jump MP to every trooper),
+  Drop prone (Piloting; success throws them off and the 'Mech takes an accidental fall), Erratic
+  maneuvers (vehicle: Driving +4, +2 with VTOL MP; 1 damage each, or per elevation for VTOL /
+  WiGE) and Take off (aerospace: 4D6). Any 'Mech fall throws swarming and riding infantry off
+  (2D6 each, as from an infantry attack). Self-inflicted damage (falls, skids, charges) never
+  strikes the attached infantry.
 **Intentional house rules** (deliberate divergences — don't "correct" toward the book):
 - Combat vehicles roll a critical on any hit that penetrates to internal structure, in
   addition to the tables' marked results (2/12, or 8 on side attacks).

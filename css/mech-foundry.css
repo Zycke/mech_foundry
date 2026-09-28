@@ -7585,3 +7585,8 @@
 .mech-foundry.battle-armor-sheet .ba-trooper.dead .ba-state { color: var(--mf-danger); font-weight: 600; }
 .mech-foundry.battle-armor-sheet .ba-trooper.dead .ba-tn { color: var(--mf-danger); text-decoration: line-through; }
 .mech-foundry.battle-armor-sheet .wt select.loc { width: 64px; }
+.mech-foundry.mech-sheet .mf-panel > h4 .anti-mech-attack { padding: 2px 9px; background: var(--mf-bg); color: var(--mf-amber-2); border: 1px solid var(--mf-steel); border-radius: 2px; font-size: 0.68rem; cursor: pointer; width: auto; }
+.mech-foundry.mech-sheet .mf-panel > h4 .anti-mech-attack:hover { border-color: var(--mf-amber); }
+.mech-foundry.mech-sheet .mf-panel > h4 .anti-mech-attack:disabled { opacity: 0.45; cursor: not-allowed; }
+.mech-foundry.mech-sheet .mf-infantry-on { border-color: #6b5417; }
+.mech-foundry .mf-actions { flex-wrap: wrap; }

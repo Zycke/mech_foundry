@@ -116,11 +116,11 @@ export async function skidCheck(actor, { hexes = null, other = 0 } = {}) {
       const perHex = Math.ceil(fall.damage / 2);
       const total = perHex * skid;
       if (total > 0) {
-        ctx.skidFrag = await resolveDamageAgainst(actor, fall.dir, fiveGroups(total), rolls, actor.name, { noPSR: true });
+        ctx.skidFrag = await resolveDamageAgainst(actor, fall.dir, fiveGroups(total), rolls, actor.name, { noPSR: true, noIntercept: true });
         ctx.notes.push(`Skid damage: ${skid} hex${skid === 1 ? '' : 'es'} × ${perHex} = ${total}, on the ${fall.location} column`);
       }
     } else {
-      ctx.skidFrag = await resolveDamageAgainst(actor, 'front', [], rolls, actor.name, { forceMotive: true });
+      ctx.skidFrag = await resolveDamageAgainst(actor, 'front', [], rolls, actor.name, { forceMotive: true, noIntercept: true });
       ctx.notes.push('Loses control: one roll on the Motive System Damage Table. No other damage unless it hits something or drops more than one level.');
     }
   }
@@ -200,7 +200,7 @@ export async function vehicleCrash(actor, { hexes = null, side = null } = {}) {
   const rolls = [];
   const damage = Math.ceil((hexes * num(actor.system.tonnage)) / 10);
   if (currentTurnKey()) await writeDoc(actor, { 'flags.mech-foundry.crashed': { key: currentTurnKey() } });
-  const frag = damage > 0 ? await resolveDamageAgainst(actor, side, fiveGroups(damage), rolls, actor.name) : null;
+  const frag = damage > 0 ? await resolveDamageAgainst(actor, side, fiveGroups(damage), rolls, actor.name, { noIntercept: true }) : null;
   // VTOL Explosions (TW p. 198): any crash damage to internal structure blows it up.
   let exploded = false;
   if (actor.system.movementType === 'vtol' && frag?.groups?.some(g => g.structureHit) && num(actor.system.structure?.value) > 0) {

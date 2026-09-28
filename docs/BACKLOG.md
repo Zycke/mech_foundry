@@ -168,6 +168,14 @@ Rules detail for what *is* automated lives in `docs/unit-sheet-design.md`.
         groups instead).
       - Anti-'Mech Skill for a linked character (*Piloting/Battlesuit*); battle armor Gunnery
         uses Gunnery/Battlesuit.
+      - Vibro-claws and magnetic claws count as battle claws for anti-'Mech eligibility (TW
+        lists their anti-'Mech effects but only names basic manipulators, battle claws and
+        armored gloves as enabling the attacks).
+      - Swarm damage to a vehicle: no automatic critical roll (the "roll once on the
+        Determining Critical Hits Table" text is for 'Mechs); the vehicle's own crit rules
+        apply. Random side column: 1D6 1–2 front, 3 left, 4 right, 5–6 rear.
+      - A conventional platoon hit while swarming takes the whole damage group (battle armor:
+        one trooper absorbs up to its capacity, the rest goes to the unit).
 - [?] **Cluster weapons against aerospace units** — damage is grouped as on the ground
       (5-point groups for LRM / MRM / ATM, per missile / pellet for SRM / LB-X). Confirm
       whether fighters and small craft should take cluster damage differently.
@@ -221,8 +229,11 @@ Rules detail for what *is* automated lives in `docs/unit-sheet-design.md`.
       fighters; VSTOL gating for VIFF / vertical landings.
 
 **Other units & setup**
-- [ ] Conventional infantry combat (next); battle armor anti-'Mech attacks and mechanized
-      battle armor (in progress).
+- [ ] Conventional infantry combat (next); mechanized battle armor (in progress).
+- [ ] Anti-'Mech details: four-legged 'Mech swarm location column, IndustrialMech −1 (use Other),
+      aimed shots on immobile targets, arms mounting physical weapons (the Pull off… dialog
+      leaves that to the player), water (swarmers without UMU drowned), stacking / domino
+      effects, moving the swarmer's token with the 'Mech, TAG + anti-'Mech in one turn.
 - [ ] Battle armor: burst-fire damage against conventional infantry, bomb racks, pop-up mines,
       Narc, squad support weapons, inferno self-detonation, torpedoes / multi-purpose
       missiles, UMU / VTOL movement rules, infantry carriers (cargo bays, mounting, the

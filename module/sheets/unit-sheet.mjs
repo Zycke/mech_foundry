@@ -4,6 +4,10 @@ import { MOVE_MODES, movedThisTurn, setMovement } from "../helpers/tw-movement.m
 import { aeroMaxBracket, aeroTurnState, isAero, setAeroTurn } from "../helpers/tw-aero.mjs";
 import { physicalAttack } from "../helpers/tw-physical.mjs";
 import { sideslipCheck, skidCheck, vehicleCrash } from "../helpers/tw-skid.mjs";
+import {
+  antiMechAttack, attachedSummary, dropProneShakeOff, jumpShakeOff, releaseSwarm, removeSwarmers, swarmAttack,
+  takeOffShakeOff, vehicleShakeOff
+} from "../helpers/tw-antimech.mjs";
 
 /** Weight classes offered on unit sheets (free-form fallback allowed). */
 const WEIGHT_CLASSES = ['Light', 'Medium', 'Heavy', 'Assault'];
@@ -75,6 +79,8 @@ export class MechFoundryUnitSheet extends MechFoundryActorSheetV2 {
       };
     }
     if (isAero(this.actor)) context.aeroTurn = { ...aeroTurnState(this.actor), inCombat: !!currentTurnKey() };
+    // Infantry swarming or riding this unit.
+    if (['mech', 'ground_vehicle', 'aerospace_fighter', 'small_craft'].includes(this.actor.type)) context.attachedInfantry = attachedSummary(this.actor);
     return context;
   }
 
@@ -102,6 +108,15 @@ export class MechFoundryUnitSheet extends MechFoundryActorSheetV2 {
     html.on('click', '.skid-check', (ev) => { ev.preventDefault(); skidCheck(this.actor); });
     html.on('click', '.sideslip-check', (ev) => { ev.preventDefault(); sideslipCheck(this.actor); });
     html.on('click', '.vehicle-crash', (ev) => { ev.preventDefault(); vehicleCrash(this.actor); });
+    // Anti-'Mech attacks (infantry) and fighting off swarmers (the swarmed unit).
+    html.on('click', '.anti-mech-attack', (ev) => { ev.preventDefault(); antiMechAttack(this.actor); });
+    html.on('click', '.swarm-attack', (ev) => { ev.preventDefault(); swarmAttack(this.actor, this.swarmOptions?.() ?? {}); });
+    html.on('click', '.release-swarm', (ev) => { ev.preventDefault(); releaseSwarm(this.actor); });
+    html.on('click', '.remove-swarmers', (ev) => { ev.preventDefault(); removeSwarmers(this.actor); });
+    html.on('click', '.jump-shakeoff', (ev) => { ev.preventDefault(); jumpShakeOff(this.actor); });
+    html.on('click', '.drop-prone-shakeoff', (ev) => { ev.preventDefault(); dropProneShakeOff(this.actor); });
+    html.on('click', '.vehicle-shakeoff', (ev) => { ev.preventDefault(); vehicleShakeOff(this.actor); });
+    html.on('click', '.takeoff-shakeoff', (ev) => { ev.preventDefault(); takeOffShakeOff(this.actor); });
   }
 
   /** A boolean weapon field (e.g. Capital) from a checkbox. */

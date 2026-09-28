@@ -7,6 +7,9 @@
 
   {{#if targetName}}<div class="tw-atk-target">vs <strong>{{targetName}}</strong></div>{{/if}}
 
+  {{#if automatic}}
+  <div class="tw-atk-roll hit"><span class="tw-atk-result">AUTOMATIC HIT</span></div>
+  {{else}}
   <div class="tw-atk-tn">
     <span class="tw-atk-label">Target Number</span>
     <span class="tw-atk-tnval">{{tn}}+</span>
@@ -25,6 +28,7 @@
     <span class="tw-atk-margin">by {{margin}}</span>
     {{/if}}
   </div>
+  {{/if}}
 
   {{#if ammoLine}}<div class="tw-atk-ammo"><i class="fas fa-box"></i> {{ammoLine}}</div>{{/if}}
 

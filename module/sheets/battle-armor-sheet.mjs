@@ -2,8 +2,9 @@ import { MechFoundryUnitSheet } from "./unit-sheet.mjs";
 import { actorSkillRating, BATTLESUIT_GUNNERY_SKILLS, BATTLESUIT_ANTIMECH_SKILLS } from "../helpers/atow-conversion.mjs";
 import { weaponAttack } from "../helpers/tw-combat.mjs";
 import {
-  BA_TECH, BA_WEIGHTS, MANIPULATORS, STEALTH_TYPES, baTroopers, baWeaponKind, squadSize, troopersForWrite
+  BA_TECH, BA_WEIGHTS, MANIPULATORS, STEALTH_TYPES, attachedCarrier, attachment, baTroopers, baWeaponKind, squadSize, troopersForWrite
 } from "../helpers/tw-infantry.mjs";
+import { antiMechCapability, baSwarmDamage, riderPositions, swarmDamageBlock } from "../helpers/tw-antimech.mjs";
 
 const { DialogV2 } = foundry.applications.api;
 
@@ -66,6 +67,19 @@ export class MechFoundryBattleArmorSheet extends MechFoundryUnitSheet {
       kind: baWeaponKind(w),
       locOpts: opts({ arm: 'Arm', body: 'Body', turret: 'Turret' }, w.location || 'arm')
     }));
+
+    // Swarming / riding, and anti-'Mech capability.
+    const att = attachment(this.actor);
+    if (att) {
+      const carrier = attachedCarrier(this.actor);
+      context.attached = {
+        swarm: att.mode === 'swarm', ride: att.mode === 'ride', carrierName: carrier?.name ?? '(unit not found)',
+        swarmBlock: att.mode === 'swarm' ? swarmDamageBlock(this.actor) : null,
+        swarmDamage: att.mode === 'swarm' ? baSwarmDamage(this.actor).damage : 0,
+        positions: att.mode === 'ride' ? riderPositions(this.actor, carrier) : null
+      };
+    }
+    context.antiMechBlock = antiMechCapability(this.actor);
 
     // Crew block + optional link (Gunnery / Anti-'Mech).
     const crew = sys.crew || {};

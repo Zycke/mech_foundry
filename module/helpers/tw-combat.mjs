@@ -21,8 +21,8 @@ import {
   airToGroundMods, isAero, isAirToGround
 } from "./tw-aero.mjs";
 import {
-  apFiredThisTurn, baAttackHits, baWeaponKind, ciRangeBracket, isBattleArmor, isInfantry, liveTroopers,
-  resolveBattleArmorDamage, stealthMod, stealthRow
+  apFiredThisTurn, attachment, baAttackHits, baWeaponKind, ciRangeBracket, flushIntercepts, interceptAt, interceptCache,
+  isBattleArmor, isInfantry, liveTroopers, resolveBattleArmorDamage, stealthMod, stealthRow, untargetableReason
 } from "./tw-infantry.mjs";
 
 const { DialogV2 } = foundry.applications.api;
@@ -477,7 +477,7 @@ function vehicleCritColumn(facing) {
  * location, apply armor→structure damage, and roll motive/critical effects as
  * the location table dictates. Mutates and saves the target once.
  */
-export async function resolveVehicleAttack(target, direction, groupSizes, rolls, { forceMotive = false } = {}) {
+export async function resolveVehicleAttack(target, direction, groupSizes, rolls, { forceMotive = false, noIntercept = false } = {}) {
   const armor = foundry.utils.deepClone(target.system.armor || {});
   const structure = foundry.utils.deepClone(target.system.structure || { value: 0, max: 0 });
   const crits = foundry.utils.deepClone(target.system.crits || {});
@@ -512,11 +512,25 @@ export async function resolveVehicleAttack(target, direction, groupSizes, rolls,
     if (eff.level === 4) conditions.immobile = true;
   };
 
-  for (const g of groupSizes) {
+  const icache = interceptCache(noIntercept ? null : target);
+  const infantryLines = [];
+  for (const g0 of groupSizes) {
     const locRoll = await new Roll("2d6").evaluate();
     rolls.push(locRoll);
     const [token, flags = ''] = hitTable[col][locRoll.total];
     const facing = resolveVehicleFacing(token, direction, hasTurret);
+
+    // Swarming infantry (any location) and riding battle armor may be hit first.
+    let g = g0;
+    if (icache.riders.length || icache.swarmers.length) {
+      const ic = await interceptAt(target, { facing }, g0, rolls, icache);
+      infantryLines.push(...ic.lines);
+      g = ic.remaining;
+      if (g <= 0) {
+        groups.push({ damage: g0, facingLabel: `${VEHICLE_FACING_LABEL[facing] || facing} — absorbed by the infantry on it`, dice: locRoll.dice[0]?.results?.map(r => r.result) ?? [], structureHit: false });
+        continue;
+      }
+    }
 
     // VTOL rotor hit (†): the rotors take Damage Value ÷ 10 (round up), and each
     // hit costs 1 Cruising MP (tracked via motiveHits; Flank is re-derived).
@@ -563,6 +577,7 @@ export async function resolveVehicleAttack(target, direction, groupSizes, rolls,
   const cruise = Number(target.system.movement?.cruise) || 0;
   crits.motiveHits = Math.min(Math.max(3, cruise), Number(crits.motiveHits) || 0);
 
+  await flushIntercepts(icache);
   const applied = await writeDoc(target, { 'system.armor': armor, 'system.structure': structure, 'system.crits': crits, 'system.conditions': conditions, 'system.crew': crew, 'system.weapons': weapons, 'system.elevation': ctx.elevation });
 
   // Apply crew damage to a linked crew actor.
@@ -571,7 +586,7 @@ export async function resolveVehicleAttack(target, direction, groupSizes, rolls,
 
   return {
     vehicle: true, applied, hasTarget: true, targetName: target.name,
-    groups, motives, critResults, destroyed
+    groups, motives, critResults, destroyed, infantryLines
   };
 }
 
@@ -1150,10 +1165,10 @@ export async function resolveMechHeat(actor) {
  */
 export async function resolveDamageAgainst(targetActor, direction, groupSizes, rolls, targetName = '', {
   noPSR = false, locationRoller = null, extraPSR = [], forceMotive = false, partialCover = false, explode = null,
-  areaEffect = false
+  areaEffect = false, autoCrit = false, noIntercept = false
 } = {}) {
   const tt = targetActor?.type;
-  if (tt === 'battle_armor') return await resolveBattleArmorDamage(targetActor, groupSizes, rolls, { areaEffect, writeDoc });
+  if (tt === 'battle_armor') return await resolveBattleArmorDamage(targetActor, groupSizes, rolls, { areaEffect });
   if (tt === 'mech') {
     const groups = [];
     const critChecks = [];
@@ -1185,7 +1200,7 @@ export async function resolveDamageAgainst(targetActor, direction, groupSizes, r
     };
 
     // Determining Critical Hits for each location whose structure was struck.
-    const critCheck = async (checkLocs) => {
+    const critCheck = async (checkLocs, always = false) => {
       for (const cl of checkLocs) {
         const cc = await rollDeterminingCrit(cl);
         rolls.push(cc.roll);
@@ -1224,23 +1239,39 @@ export async function resolveDamageAgainst(targetActor, direction, groupSizes, r
             slotResults.push({ index: idx, text });
           }
           critChecks.push({ locLabel: MECH_LOC_LABEL[cl] || cl, total: cc.total, text: cc.text, slots: slotResults });
-        }
+        } else if (always) critChecks.push({ locLabel: MECH_LOC_LABEL[cl] || cl, total: cc.total, text: cc.text, slots: [] });
       }
     };
 
+    // Swarming infantry and riding mechanized battle armor may take hits first.
+    const icache = noIntercept ? interceptCache(null) : interceptCache(targetActor);
+    const infantryLines = [];
+    let firstLoc = null;
     for (const g of groupSizes) {
       const locRoll = locationRoller ? await locationRoller(direction) : await rollMechLocation(direction);
       rolls.push(locRoll.roll);
+      firstLoc ??= locRoll.loc;
       // Partial cover: leg hits strike the cover instead.
       if (partialCover && (locRoll.loc === 'll' || locRoll.loc === 'rl')) {
         groups.push({ damage: g, locLabel: `${locRoll.label} — hits the cover`, locDice: locRoll.dice, crit: false, events: [], covered: true });
         totalDamage -= g;
         continue;
       }
+      let amount = g;
+      if (icache.riders.length || icache.swarmers.length) {
+        const ic = await interceptAt(targetActor, { loc: locRoll.loc, rear: locRoll.rear }, g, rolls, icache);
+        infantryLines.push(...ic.lines);
+        totalDamage -= g - ic.remaining;
+        amount = ic.remaining;
+      }
+      if (amount <= 0) {
+        groups.push({ damage: g, locLabel: locRoll.label + (locRoll.rear ? ' (rear)' : ''), locDice: locRoll.dice, crit: false, events: ['absorbed by the infantry on it'] });
+        continue;
+      }
       if (locRoll.loc === 'head') headHits++;
-      const dmg = applyMechDamageToState(dmgState, locRoll.loc, g, { rear: locRoll.rear });
+      const dmg = applyMechDamageToState(dmgState, locRoll.loc, amount, { rear: locRoll.rear });
       groups.push({
-        damage: g, locLabel: locRoll.label + (locRoll.rear ? ' (rear)' : ''),
+        damage: amount, locLabel: locRoll.label + (locRoll.rear ? ' (rear)' : ''),
         locDice: locRoll.dice, crit: locRoll.crit,
         events: dmg.events, destroyed: dmg.destroyed, overflow: dmg.overflow
       });
@@ -1248,6 +1279,9 @@ export async function resolveDamageAgainst(targetActor, direction, groupSizes, r
       if (locRoll.crit) checkLocs.add(locRoll.loc);
       await critCheck(checkLocs);
     }
+    // Leg / swarm attacks: one automatic Determining Critical Hits roll on the
+    // struck location, on top of any the damage itself caused.
+    if (autoCrit && firstLoc) await critCheck(new Set([firstLoc]), true);
 
     // A heat-induced explosion names its bin up front.
     if (explode) {
@@ -1320,6 +1354,7 @@ export async function resolveDamageAgainst(targetActor, direction, groupSizes, r
       psr = damagePSRUpdate(targetActor, { structure: dmgState.structure, systemHits }, newCrits, totalDamage, extraPSR);
     }
 
+    await flushIntercepts(icache);
     const applied = await writeDoc(targetActor, {
       'system.armor': dmgState.armor, 'system.structure': dmgState.structure,
       'system.critSlots': critSlots, 'system.systemHits': systemHits,
@@ -1342,11 +1377,11 @@ export async function resolveDamageAgainst(targetActor, direction, groupSizes, r
     return {
       isMech: true, groups, critChecks, destroyedByCrit: state.destroyed, ammoExplosion: explosionCount > 0,
       explosionLines: [...explosionLines, ...deathNotes], pilotNote,
-      warriorLines, psrReasons: psr.reasons.map(r => r.label),
+      warriorLines, psrReasons: psr.reasons.map(r => r.label), infantryLines,
       applied, hasTarget: true, targetName: targetActor.name
     };
   } else if (tt === 'ground_vehicle') {
-    return await resolveVehicleAttack(targetActor, direction, groupSizes, rolls, { forceMotive });
+    return await resolveVehicleAttack(targetActor, direction, groupSizes, rolls, { forceMotive, noIntercept });
   } else if (tt === 'aerospace_fighter' || tt === 'small_craft') {
     return await resolveAeroAttack(targetActor, direction, groupSizes, rolls);
   }
@@ -1420,6 +1455,9 @@ export function weaponBlock(actor, weapon) {
     const loc = mechWeaponLocation(weapon);
     if (loc && locationGone(actor, loc)) return `${wName}'s location (${MECH_LOC_LABEL[loc]}) is destroyed.`;
   }
+  if (isInfantry(actor) && currentTurnKey() && actor.flags?.['mech-foundry']?.antiMech?.key === currentTurnKey()) {
+    return `${actor.name} made an anti-'Mech attack this turn instead of weapon attacks.`;
+  }
   if (isBattleArmor(actor)) {
     if (liveTroopers(actor) <= 0) return `${actor.name} has no troopers left.`;
     if (weapon?.ap && apFiredThisTurn(actor, firedThisTurn(actor))) return `${actor.name} has already made its anti-personnel attack this turn.`;
@@ -1428,6 +1466,29 @@ export function weaponBlock(actor, weapon) {
   if (currentTurnKey() && firedThisTurn(actor)[weapon.id] !== undefined) return `${wName} has already fired this turn.`;
   return null;
 }
+
+/**
+ * Attached-infantry targeting rules: swarming and riding units can't be
+ * targeted; a swarming unit may only shoot the mechanized battle armor riding
+ * the unit it swarms, and riding battle armor only the infantry swarming its
+ * carrier (both ignoring target movement and terrain). Returns a reason or null.
+ */
+export function targetBlock(actor, targetActor) {
+  const mine = attachment(actor), theirs = attachment(targetActor);
+  if (mine?.mode === 'swarm') {
+    return theirs?.mode === 'ride' && theirs.uuid === mine.uuid ? null
+      : `${actor.name} is swarming: it attacks its target with Swarm Damage, or may shoot the battle armor riding it.`;
+  }
+  if (mine?.mode === 'ride') {
+    return theirs?.mode === 'swarm' && theirs.uuid === mine.uuid ? null
+      : `${actor.name} is riding a unit: mounted infantry can't fire, except at infantry swarming their carrier.`;
+  }
+  return theirs ? untargetableReason(targetActor) : null;
+}
+
+/** Shots between a swarming unit and the battle armor riding its target ignore target movement and terrain. */
+const closeQuarters = (actor, targetActor) => !!attachment(actor) && !!attachment(targetActor);
+const CLOSE_QUARTERS_DROP = ['targetMove', 'targetSkid'];
 
 /** Does firing this weapon spend ammunition? (Battle armor: missile launchers only.) */
 export function weaponTracksAmmo(actor, weapon) {
@@ -1529,11 +1590,12 @@ function autoSumFor(r, mode) {
 export function weaponToHitPreview(actor) {
   const target = [...(game.user?.targets ?? [])][0] || null;
   const targetActor = target?.actor || null;
-  if (!targetActor || targetActor === actor) return {};
+  if (!targetActor || targetActor === actor || targetBlock(actor, targetActor)) return {};
   const attackerToken = actor.getActiveTokens?.()[0] || null;
   const range = attackerToken ? measureHexes(attackerToken, target) : null;
   const mode = attackMode(actor, targetActor);
-  const shared = [...autoAttackMods(actor, null, targetActor).filter(m => !WEAPON_SPECIFIC.includes(m.key)), ...aeroAttackMods(actor, targetActor)];
+  const shared = [...autoAttackMods(actor, null, targetActor).filter(m => !WEAPON_SPECIFIC.includes(m.key)), ...aeroAttackMods(actor, targetActor)]
+    .filter(m => !(closeQuarters(actor, targetActor) && CLOSE_QUARTERS_DROP.includes(m.key)));
   const v = { gunnery: gunneryFor(actor), autoSum: shared.reduce((t, m) => t + m.value, 0), heat: heatToHitMod(actor), range, other: 0, terrain: 0 };
   const out = {};
   for (const w of actor.system.weapons || []) {
@@ -1587,9 +1649,12 @@ export async function fireWeapons(actor, preselect = []) {
   const target = [...(game.user?.targets ?? [])][0] || null;
   const targetName = target?.name || '';
   const targetActor = target?.actor || null;
+  const tb = targetBlock(actor, targetActor);
+  if (tb) { ui.notifications.warn(tb); return; }
   const autoDist = attackerToken && target ? measureHexes(attackerToken, target) : null;
   const mode = attackMode(actor, targetActor);
-  const shared = [...autoAttackMods(actor, null, targetActor).filter(m => !WEAPON_SPECIFIC.includes(m.key)), ...aeroAttackMods(actor, targetActor)];
+  const shared = [...autoAttackMods(actor, null, targetActor).filter(m => !WEAPON_SPECIFIC.includes(m.key)), ...aeroAttackMods(actor, targetActor)]
+    .filter(m => !(closeQuarters(actor, targetActor) && CLOSE_QUARTERS_DROP.includes(m.key)));
   const rows = ready.map(w => weaponPreviewRow(actor, w, targetActor, mode));
 
   const esc = (t) => foundry.utils.escapeHTML?.(String(t)) ?? String(t);
@@ -1868,7 +1933,8 @@ export async function areaAttack() {
   } catch (e) { /* region is cosmetic; continue without it */ }
 
   // Units whose token centre lies within the blast.
-  const affected = (canvas.tokens?.placeables ?? []).filter(t => t.actor && Math.hypot(t.center.x - cx, t.center.y - cy) <= radiusPx);
+  // Swarming / riding infantry aren't hit directly: they take damage through their carrier's hits.
+  const affected = (canvas.tokens?.placeables ?? []).filter(t => t.actor && !attachment(t.actor) && Math.hypot(t.center.x - cx, t.center.y - cy) <= radiusPx);
 
   const rolls = [];
   const lines = [];

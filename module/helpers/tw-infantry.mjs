@@ -18,6 +18,7 @@
  */
 import { currentTurnKey } from "./tw-turn.mjs";
 import { actorSkillRating, BATTLESUIT_ANTIMECH_SKILLS } from "./atow-conversion.mjs";
+import { writeDoc } from "./gm-relay.mjs";
 
 const num = (v) => Number(v) || 0;
 
@@ -155,7 +156,7 @@ export function damageTrooper(trooper, amount) {
  * live trooper for its full value.
  * @returns a chat fragment { ba: true, groups, killed, remaining, destroyed, applied }
  */
-export async function resolveBattleArmorDamage(target, groupSizes, rolls, { areaEffect = false, writeDoc } = {}) {
+export async function resolveBattleArmorDamage(target, groupSizes, rolls, { areaEffect = false } = {}) {
   const troopers = baTroopers(target);
   const groups = [];
   if (areaEffect) {
@@ -172,7 +173,7 @@ export async function resolveBattleArmorDamage(target, groupSizes, rolls, { area
       groups.push({ damage: g, trooper: t.n, dice: pick.dice, ...damageTrooper(t, g) });
     }
   }
-  const applied = writeDoc ? await writeDoc(target, { 'system.troopers': troopersForWrite(troopers) }) : false;
+  const applied = await writeDoc(target, { 'system.troopers': troopersForWrite(troopers) });
   const remaining = troopers.filter(t => t.alive).length;
   return {
     ba: true, groups, applied, hasTarget: true, targetName: target.name,
@@ -340,4 +341,238 @@ export function concealmentMods(targetActor, hexesMoved) {
   if (eq.mimetic && h <= 2) mods.push({ key: 'mimetic', label: 'Mimetic armor', value: 3 - h, hint: `target moved ${h}` });
   if (eq.camo && h <= 1) mods.push({ key: 'camo', label: 'Camo system', value: 2 - h, hint: `target moved ${h}` });
   return mods;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Swarming and riding (attached infantry)                             */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Infantry attached to another unit keep `system.attached` = { uuid, mode, key }:
+ * the carrier's actor uuid, 'swarm' (an enemy swarm attack) or 'ride'
+ * (mechanized battle armor on a friendly unit), and the turn it attached.
+ */
+export function attachment(actor) {
+  const a = actor?.system?.attached;
+  return a?.uuid && (a.mode === 'swarm' || a.mode === 'ride') ? a : null;
+}
+
+/** The unit an infantry unit is attached to (swarming or riding), or null. */
+export function attachedCarrier(actor) {
+  const a = attachment(actor);
+  if (!a) return null;
+  try { return fromUuidSync(a.uuid) ?? null; } catch { return null; }
+}
+
+/** Every actor in the world and on the viewed scene (unlinked tokens), once each. */
+export function allUnitActors() {
+  const out = new Map();
+  for (const a of game.actors ?? []) if (a?.uuid) out.set(a.uuid, a);
+  for (const t of canvas?.tokens?.placeables ?? []) if (t.actor?.uuid) out.set(t.actor.uuid, t.actor);
+  return [...out.values()];
+}
+
+/** Live infantry units attached to a carrier in a mode ('swarm' / 'ride'). */
+export function attachedInfantry(carrier, mode) {
+  if (!carrier?.uuid) return [];
+  return allUnitActors().filter(a => isInfantry(a) && attachment(a)?.uuid === carrier.uuid && attachment(a).mode === mode && liveTroopers(a) > 0);
+}
+export const swarmersOf = (carrier) => attachedInfantry(carrier, 'swarm');
+export const ridersOf = (carrier) => attachedInfantry(carrier, 'ride');
+
+/** Can't be targeted: swarming units, and mechanized battle armor riding a unit. */
+export function untargetableReason(actor) {
+  const a = attachment(actor);
+  if (!a) return null;
+  return a.mode === 'swarm'
+    ? `${actor.name} is swarming a unit and can't be targeted (hits on the swarmed unit may strike it).`
+    : `${actor.name} is riding a unit and can't be targeted (hits on the carrier may strike it).`;
+}
+
+export const DETACHED = { uuid: '', mode: '', key: '' };
+
+/**
+ * Damage an infantry unit takes "as if from an infantry attack": battle armor
+ * in 2-point groups on random troopers; conventional infantry take it all
+ * (each point is a trooper, two for mechanized platoons).
+ */
+export async function infantryAttackDamage(actor, total, rolls) {
+  if (actor?.type === 'infantry') return applyPlatoonDamage(actor, total);
+  return resolveBattleArmorDamage(actor, twoGroups(total), rolls);
+}
+
+/**
+ * Damage to every trooper (e.g. shaken off a jumping 'Mech: 1 per Jump MP each).
+ * A platoon loses that many points per trooper.
+ */
+export async function perTrooperDamage(actor, each, rolls) {
+  if (each <= 0) return null;
+  if (actor?.type === 'infantry') return applyPlatoonDamage(actor, each * liveTroopers(actor));
+  return resolveBattleArmorDamage(actor, [each], rolls, { areaEffect: true });
+}
+
+/**
+ * Conventional platoon damage: each point kills a trooper (mechanized troopers
+ * take two points each, round the kills down while one point is carried).
+ */
+export async function applyPlatoonDamage(actor, points) {
+  const sys = actor.system || {};
+  const before = Math.max(0, num(sys.troopers?.value));
+  const mech = sys.platoonType === 'mechanized';
+  const carried = mech ? num(sys.troopers?.wound) : 0;
+  const pts = Math.max(0, num(points)) + carried;
+  const killed = Math.min(before, mech ? Math.floor(pts / 2) : pts);
+  const after = before - killed;
+  const upd = { 'system.troopers': { ...(sys.troopers || {}), value: after, wound: mech && after > 0 ? pts % 2 : 0 } };
+  const applied = await writeDoc(actor, upd);
+  return { platoon: true, damage: num(points), killed, before, remaining: after, destroyed: after <= 0, applied, hasTarget: true, targetName: actor.name };
+}
+
+/** Detach an infantry unit from its carrier. */
+export async function detach(actor) {
+  return writeDoc(actor, { 'system.attached': { ...DETACHED } });
+}
+
+/**
+ * Knock attached infantry off a carrier (fall, shaken off, …): detaches each
+ * and applies the damage — `{ dice: '2d6' }` or `{ damage: n }` as one
+ * infantry-attack hit, or `{ perTrooper: n }` to every trooper. Returns chat lines.
+ */
+export async function knockOff(units, { dice = null, damage = 0, perTrooper = 0, why = 'knocked off' } = {}, rolls) {
+  const lines = [];
+  for (const u of units) {
+    await detach(u);
+    let dmgText = 'no damage';
+    let res = null;
+    if (dice) {
+      const r = await new Roll(dice).evaluate();
+      rolls.push(r);
+      res = await infantryAttackDamage(u, r.total, rolls);
+      dmgText = `${dice.toUpperCase()} = ${r.total} damage`;
+    } else if (damage > 0) {
+      res = await infantryAttackDamage(u, damage, rolls);
+      dmgText = `${damage} damage`;
+    } else if (perTrooper > 0) {
+      res = await perTrooperDamage(u, perTrooper, rolls);
+      dmgText = `${perTrooper} damage to each trooper`;
+    }
+    const left = res ? ` — ${res.remaining} trooper${res.remaining === 1 ? '' : 's'} left${res.destroyed ? ' (DESTROYED)' : ''}` : '';
+    lines.push(`${u.name} ${why}: ${dmgText}${left}. It can't move or fire for the rest of the turn.`);
+  }
+  return lines;
+}
+
+/**
+ * Attacks against a swarmed unit may strike the swarmers: on a hit to a
+ * 'Mech's torso (front or rear) or any location of a vehicle, roll 1D6 per
+ * swarming unit; on 5–6 a random battle armor trooper absorbs damage up to its
+ * capacity and the rest carries on to the location (a platoon takes it all).
+ * `cache` collects the infantry changes for one write at the end.
+ * @returns {{ remaining: number, lines: string[] }}
+ */
+export async function swarmerIntercept(carrier, loc, amount, rolls, cache) {
+  const lines = [];
+  let remaining = num(amount);
+  const hitsSwarmers = carrier.type === 'mech' ? ['ct', 'lt', 'rt'].includes(loc) : true;
+  if (!hitsSwarmers || remaining <= 0) return { remaining, lines };
+  for (const u of cache.swarmers) {
+    if (remaining <= 0) break;
+    const r = await new Roll("1d6").evaluate();
+    rolls.push(r);
+    if (r.total <= 4) { lines.push(`Swarmers ${u.name}: 1D6 ${r.total} — not hit`); continue; }
+    remaining = await absorbInto(u, remaining, rolls, cache, lines, `Swarmers ${u.name}: 1D6 ${r.total} — hit`, true);
+  }
+  return { remaining, lines };
+}
+
+/**
+ * Let an attached infantry unit absorb damage: a random live battle armor
+ * trooper (or, for `trooperIndex`, that trooper) takes up to its capacity; a
+ * platoon (swarming) takes the whole group. Returns what passes through.
+ */
+export async function absorbInto(u, amount, rolls, cache, lines, prefix, platoonTakesAll, trooperIndex = null) {
+  const entry = cacheEntry(cache, u);
+  if (u.type === 'infantry') {
+    entry.platoonPoints += platoonTakesAll ? amount : 0;
+    lines.push(`${prefix}: the platoon takes ${amount}`);
+    return platoonTakesAll ? 0 : amount;
+  }
+  let idx = trooperIndex;
+  if (idx === null) {
+    const pick = await rollRandomTrooper(entry.troopers, rolls);
+    if (!pick) return amount;
+    idx = pick.index;
+  }
+  const t = entry.troopers[idx];
+  if (!t?.alive) return amount;
+  const res = damageTrooper(t, amount);
+  lines.push(`${prefix}: trooper #${t.n} takes ${res.dealt}${res.killed ? ' — KILLED' : ''}${amount - res.dealt > 0 ? `, ${amount - res.dealt} carries on to the carrier` : ''}`);
+  return amount - res.dealt;
+}
+
+function cacheEntry(cache, u) {
+  if (!cache.units.has(u.uuid)) cache.units.set(u.uuid, { actor: u, troopers: u.type === 'battle_armor' ? baTroopers(u) : null, platoonPoints: 0 });
+  return cache.units.get(u.uuid);
+}
+
+/** A fresh interception cache for one attack against a carrier. */
+export function interceptCache(carrier) {
+  if (!carrier) return { swarmers: [], riders: [], units: new Map() };
+  return { swarmers: swarmersOf(carrier), riders: ridersOf(carrier), units: new Map() };
+}
+
+/** Save the infantry changes an attack caused. */
+export async function flushIntercepts(cache) {
+  for (const { actor, troopers, platoonPoints } of cache.units.values()) {
+    if (troopers) await writeDoc(actor, { 'system.troopers': troopersForWrite(troopers) });
+    if (platoonPoints > 0) await applyPlatoonDamage(actor, platoonPoints);
+  }
+}
+
+/**
+ * Battle Armor Transport Position Table: where each numbered trooper rides on
+ * a 'Mech (location, rear?) or a vehicle (side).
+ */
+export const TRANSPORT_POSITIONS = [
+  { mech: 'rt', rear: false, vehicle: 'right' },
+  { mech: 'lt', rear: false, vehicle: 'right' },
+  { mech: 'rt', rear: true, vehicle: 'left' },
+  { mech: 'lt', rear: true, vehicle: 'left' },
+  { mech: 'ct', rear: true, vehicle: 'rear' },
+  { mech: 'ct', rear: false, vehicle: 'rear' }
+];
+
+/** Does trooper `index` (0-based) of a riding unit sit where this hit landed? */
+export function riderAt(carrier, index, { loc = null, rear = false, facing = null } = {}) {
+  const p = TRANSPORT_POSITIONS[index];
+  if (!p) return false;
+  if (carrier?.type === 'mech') return p.mech === loc && p.rear === !!rear;
+  return p.vehicle === facing;
+}
+
+/**
+ * Attached infantry that may take a hit on a carrier before it does: each
+ * surviving mechanized trooper riding in the struck location (1D6 each, 5–6),
+ * then the swarming unit (see swarmerIntercept). Returns what passes through.
+ * @param {object} where  { loc, rear } for a 'Mech, { facing } for a vehicle
+ */
+export async function interceptAt(carrier, where, amount, rolls, cache) {
+  const lines = [];
+  let remaining = num(amount);
+  for (const u of cache.riders) {
+    const entry = cacheEntry(cache, u);
+    for (let i = 0; i < (entry.troopers || []).length && remaining > 0; i++) {
+      if (!entry.troopers[i].alive || !riderAt(carrier, i, where)) continue;
+      const r = await new Roll("1d6").evaluate();
+      rolls.push(r);
+      if (r.total <= 4) { lines.push(`${u.name} trooper #${i + 1} riding here: 1D6 ${r.total} — not hit`); continue; }
+      remaining = await absorbInto(u, remaining, rolls, cache, lines, `${u.name} trooper #${i + 1} riding here: 1D6 ${r.total} — hit`, false, i);
+    }
+  }
+  if (remaining > 0 && cache.swarmers.length) {
+    const s = await swarmerIntercept(carrier, where.loc, remaining, rolls, cache);
+    remaining = s.remaining;
+    lines.push(...s.lines);
+  }
+  return { remaining, lines };
 }

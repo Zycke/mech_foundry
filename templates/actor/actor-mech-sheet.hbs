@@ -32,6 +32,7 @@
 
     {{!-- ===================== STATUS ===================== --}}
     <div class="tab" data-tab="status">
+      {{> "systems/mech-foundry/templates/actor/parts/attached-infantry.hbs" ai=attachedInfantry kind="mech" editable=editable}}
       {{#if psrPending}}
       <div class="mf-psr-banner">
         <i class="fas fa-person-falling"></i>
