@@ -1,7 +1,10 @@
 import { pendingPSR, queuePSR } from "../helpers/tw-psr.mjs";
 import { endPhaseRecovery } from "../helpers/tw-falls.mjs";
-import { endPhaseAero } from "../helpers/tw-aero-flight.mjs";
 import { movementPSRReasons } from "../helpers/tw-movement.mjs";
+import { heatResolvedThisTurn, resolveMechHeat } from "../helpers/tw-combat.mjs";
+import { endPhaseAero, resolveAeroHeat } from "../helpers/tw-aero-flight.mjs";
+import { isAero } from "../helpers/tw-aero.mjs";
+import { unitDestroyed } from "../helpers/tw-status.mjs";
 
 /** Unit actor types whose initiative is their linked pilot / crew character's. */
 const UNIT_TYPES = new Set(['mech', 'ground_vehicle', 'aerospace_fighter', 'small_craft', 'battle_armor', 'infantry']);
@@ -46,16 +49,54 @@ export class MechFoundryCombat extends Combat {
     // Leaving the Movement Phase: queue the end-of-movement Piloting Skill Rolls
     // for 'Mechs that ran or jumped on damaged legs / gyros.
     if (this.phaseName === 'Movement') await this._queueMovementPSRs();
-    let i = this.phaseIndex + 1;
-    if (i >= MechFoundryCombat.TW_PHASES.length) {
-      await this.setFlag('mech-foundry', 'phase', 0);
-      await this.nextRound();
-    } else {
-      await this.setFlag('mech-foundry', 'phase', i);
-    }
+    const i = this.phaseIndex + 1;
+    if (i >= MechFoundryCombat.TW_PHASES.length) return this.nextRound();
+    await this.setFlag('mech-foundry', 'phase', i);
     await this._announcePhase();
+    // Heat Phase: every 'Mech and aerospace unit resolves its heat.
+    if (this.phaseName === 'Heat') await this._resolveHeat();
     // End Phase: unconscious (sheet-only) warriors roll to wake.
     if (this.phaseName === 'End') { await endPhaseRecovery(this); await endPhaseAero(this); }
+  }
+
+  /** Step back one phase (after End of the previous round from Initiative). No effects are undone. */
+  async previousPhase() {
+    const i = this.phaseIndex - 1;
+    if (i >= 0) {
+      await this.setFlag('mech-foundry', 'phase', i);
+    } else {
+      if (this.round <= 1) return;
+      await super.previousRound();
+      await this.setFlag('mech-foundry', 'phase', MechFoundryCombat.TW_PHASES.length - 1);
+    }
+    await this._announcePhase(' (back)');
+  }
+
+  /**
+   * A new round starts in the Initiative Phase with initiative cleared, so every
+   * combatant rolls again (Total Warfare rolls initiative every turn). Also used
+   * by the tracker's own Next Round button.
+   * @override
+   */
+  async nextRound() {
+    const out = await super.nextRound();
+    if (this.phaseIndex !== 0) await this.setFlag('mech-foundry', 'phase', 0);
+    if (typeof this.resetAll === 'function') await this.resetAll();
+    await this._announcePhase();
+    return out;
+  }
+
+  /** Heat Phase: resolve heat for each 'Mech / aerospace unit that hasn't yet (GM client). */
+  async _resolveHeat() {
+    if (!game.user.isGM) return;
+    const seen = new Set();
+    for (const c of this.combatants) {
+      const a = c.actor;
+      if (!a || seen.has(a.uuid) || unitDestroyed(a) || heatResolvedThisTurn(a)) continue;
+      seen.add(a.uuid);
+      if (a.type === 'mech') await resolveMechHeat(a, true);
+      else if (isAero(a)) await resolveAeroHeat(a, true);
+    }
   }
 
   async _queueMovementPSRs() {
@@ -69,14 +110,14 @@ export class MechFoundryCombat extends Combat {
     }
   }
 
-  async _announcePhase() {
+  async _announcePhase(suffix = '') {
     // Remind the table of Piloting Skill Rolls still waiting to be rolled.
     const pending = [...new Set(this.combatants.map(c => c.actor).filter(a => a && pendingPSR(a)))];
     const note = pending.length
       ? `<div class="tw-phase-psr"><i class="fas fa-person-falling"></i> Piloting / Control Roll pending: ${pending.map(a => foundry.utils.escapeHTML?.(a.name) ?? a.name).join(', ')}</div>`
       : '';
     await ChatMessage.create({
-      content: `<div class="mech-foundry tw-phase-banner"><i class="fas fa-flag"></i> <strong>${this.phaseName}</strong> Phase — Round ${this.round}${note}</div>`
+      content: `<div class="mech-foundry tw-phase-banner"><i class="fas fa-flag"></i> <strong>${this.phaseName}</strong> Phase${suffix} — Round ${this.round}${note}</div>`
     });
   }
 

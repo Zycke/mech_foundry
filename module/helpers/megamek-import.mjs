@@ -28,8 +28,8 @@ function catalog() {
   if (CATALOG) return CATALOG;
   const weapons = new Map(), ammo = new Map();
   const add = (map, key, obj) => { const k = norm(key); if (!map.has(k)) map.set(k, []); map.get(k).push(obj); };
-  for (const [name, keys, heat, damage, cluster, min, s, m, l, e, family, inf, flags, slots, aeroRange] of WEAPON_ROWS) {
-    const w = { name, heat, damage, cluster, min, s, m, l, e, family, inf, slots: slots || 1, aeroRange,
+  for (const [name, keys, heat, damage, cluster, min, s, m, l, e, family, inf, flags, slots, aeroRange, toHit] of WEAPON_ROWS) {
+    const w = { name, heat, damage, cluster, min, s, m, l, e, family, inf, slots: slots || 1, aeroRange, toHit: toHit || 0,
       streak: flags.includes('st'), ba: flags.includes('ba'), oneShot: flags.includes('os'), clan: flags.includes('cl') };
     for (const k of keys.split('|')) add(weapons, k, w);
   }
@@ -51,6 +51,17 @@ function pick(list, { clan = false, ba = false } = {}) {
 /** Look up a weapon by any MegaMek name (display, internal or lookup). */
 export function findWeapon(name, opts = {}) {
   return pick(catalog().weapons.get(norm(name)), opts);
+}
+
+/**
+ * A weapon's own to-hit modifier (pulse lasers −2, Clan ER pulse −1, heavy
+ * lasers +1 …) from the catalog, by the weapon's name; 0 when unknown.
+ */
+export function catalogToHit(name, opts = {}) {
+  const raw = String(name ?? '').trim();
+  const hit = findWeapon(raw, opts) ?? findWeapon(cleanEquipmentName(raw).name, opts)
+    ?? findWeapon(raw.replace(/^(IS|Clan|CL)\s+/i, ''), opts);
+  return hit?.toHit || 0;
 }
 
 /** Look up ammunition; munition variants ("… Artemis-capable", "… (Clan) Swarm") fall back to the base bin. */
@@ -94,6 +105,7 @@ function weaponEntry(w, location, extra = {}) {
   if (w.streak) entry.streak = true;
   if (w.oneShot) entry.oneShot = true;
   if (w.aeroRange) entry.aeroRange = w.aeroRange;
+  if (w.toHit) entry.toHit = w.toHit;
   if (w.inf?.startsWith('burst:')) { entry.infClass = 'burst'; entry.burst = w.inf.slice(6); }
   else if (w.inf && w.inf !== 'direct') entry.infClass = w.inf;
   return entry;

@@ -73,10 +73,10 @@
             <label class="mf-stat"><span class="k">UMU</span><input type="number" min="0" name="system.movement.umu" value="{{move.umu}}" {{#unless editable}}disabled{{/unless}} /></label>
           </div>
           {{#if turnMove}}
-          <div class="mf-turnmove" title="Infantry never add an attacker movement modifier; this sets the modifier for attacks against the unit. Hexes add up automatically as the token moves during combat.">
+          <div class="mf-turnmove" title="Infantry never add an attacker movement modifier; this sets the modifier for attacks against the unit. Distance moved adds up automatically as the token moves during combat (30 m per hex; any part of a hex counts).">
             <span class="k">This turn</span>
             <select class="turn-move-field" data-field="mode" {{#unless editable}}disabled{{/unless}}>{{#each turnMove.modes}}<option value="{{key}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select>
-            <input type="number" min="0" class="turn-move-field" data-field="hexes" value="{{turnMove.hexes}}" {{#unless editable}}disabled{{/unless}} /><span class="k">hexes</span>
+            <input type="number" min="0" class="turn-move-field" data-field="hexes" value="{{turnMove.hexes}}" {{#unless editable}}disabled{{/unless}} /><span class="k" title="30 m per hex; token moves add up in metres">hexes · {{turnMove.meters}} m</span>
           </div>
           {{/if}}
           {{#if equipment.bodyMissiles}}{{#unless equipment.missilesJettisoned}}<div class="penalty-line">▸ Body-mounted missile launchers: no jumping or anti-'Mech attacks until jettisoned (Details tab)</div>{{/unless}}{{/if}}
@@ -102,11 +102,11 @@
             <div class="skillpair">
               <div class="sk {{#if crew.gunneryDerived}}derived{{/if}}"><span class="k">Gun</span>
                 {{#if crew.gunneryDerived}}<span class="skv" title="{{crew.gunnerySource}}">{{crew.gunnery}}</span>
-                {{else}}<input type="number" min="0" name="system.crew.gunnery" value="{{crew.gunnery}}" {{#unless editable}}disabled{{/unless}} />{{/if}}
+                {{else}}<input type="number" min="0" name="system.crew.gunnery" title="Total Warfare rating: added to the target number, so lower is better. From an A Time of War skill level: Base TN − level (8 − level for Gunnery / Piloting / Driving; 7 − level for Small Arms)." value="{{crew.gunnery}}" {{#unless editable}}disabled{{/unless}} />{{/if}}
               </div>
               <div class="sk {{#if crew.antiMechDerived}}derived{{/if}}"><span class="k" title="Anti-'Mech Skill">A-M</span>
                 {{#if crew.antiMechDerived}}<span class="skv" title="{{crew.antiMechSource}}">{{crew.antiMech}}</span>
-                {{else}}<input type="number" min="0" name="system.crew.antiMech" value="{{crew.antiMech}}" {{#unless editable}}disabled{{/unless}} />{{/if}}
+                {{else}}<input type="number" min="0" name="system.crew.antiMech" title="Total Warfare rating: added to the target number, so lower is better. From an A Time of War skill level: Base TN − level (8 − level for Gunnery / Piloting / Driving; 7 − level for Small Arms)." value="{{crew.antiMech}}" {{#unless editable}}disabled{{/unless}} />{{/if}}
               </div>
             </div>
           </div>

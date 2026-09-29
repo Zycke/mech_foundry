@@ -88,6 +88,18 @@ Lives in `module/helpers/atow-conversion.mjs`.
   Gunnery/'Mech, Piloting/'Mech, Gunnery/Ground Vehicle, Driving/Ground Vehicles,
   Gunnery/Aerospace and Piloting/Aerospace are all **8/SA** → Base TN 8. When a crew slot is
   linked to a character, the sheet derives the rating live from that actor's skill Item.
+  Unit-scale rolls keep the Total Warfare convention (the rating is added to the target
+  number; lower is better), which gives the same odds as AToW's 2D6 + level vs Base TN.
+  `module/helpers/tw-skills.mjs` labels the rating by source — "Gunnery (Lvl 5 → 8 − 5)" for
+  a linked character, "Gunnery rating" for a sheet value, "(entered)" when edited in a
+  dialog — and dialogs / sheet inputs explain the sign ("+ harder, − easier").
+- **Linked warrior condition (house rule):** a linked character's A Time of War injury and
+  fatigue modifiers carry into every unit-scale roll the warrior makes (weapon and physical
+  attacks, Piloting / Driving / Control Rolls, anti-'Mech attacks, skids, falls): an AToW −1
+  becomes +1 to the target number ("Kai injured +1", "Kai fatigued +2"). Wound attribute
+  penalties are not carried (link attributes aren't part of the conversion), though wounds
+  that reduce damage capacity raise the injury modifier. Sheet-only warriors use the unit's
+  pilot-hit rules only.
 - **Pilot/crew damage (`CREW_DAMAGE`, `AP/BD`):** pilot hit = **1B/3**; falling 1M/3; ammo
   explosion 0E/4D\*; CT-by-artillery 10X/20; overheat w/life support 0E/2D\* (15+) & 0E/4D\* (25+);
   vehicle commander/driver hit 5B/4; crew stunned 0M/5D\* (subduing); crew killed 5B/10.
@@ -111,7 +123,16 @@ criticals and cluster grouping:
   ammo, actuators resolved to specific slots.
 - **Combat Vehicle / VTOL:** hit location + Motive System Damage + Ground/VTOL crit tables.
 - **Aerospace / Small Craft:** facing armor + threshold crits + Structural Integrity.
-- **Heat phase:** mech "Resolve" nets Heat Point Table gains vs. sink dissipation.
+- **Heat phase:** mech "Resolve" nets Heat Point Table gains vs. sink dissipation. Advancing
+  the tracker into the Heat Phase resolves heat for every 'Mech and aerospace unit in the
+  combat with the defaults (this turn's movement, weapons fired, engine hits, sinks); a unit
+  resolved by hand first is skipped, and a second resolution in one turn is blocked.
+- **Phases:** the tracker bar steps forward and back (stepping back undoes nothing). After
+  the End Phase — or the tracker's own Next Round — the round advances to Initiative and
+  every combatant's initiative is cleared for re-rolling.
+- **Weapon to-hit modifiers:** each weapon's own modifier (pulse lasers −2, Clan ER pulse −1,
+  heavy lasers +1, X-pulse −2, …) comes from the MegaMek-derived catalog — imported weapons
+  store it as `toHit`; hand-entered weapons are looked up by name.
 - **Condensed chat cards** (`module/helpers/tw-cards.mjs`): every combat result is one
   outcome-first card. A weapons volley (`tw-volley.hbs`) posts a single message: header with
   round and phase, attacker → target, range / arc and the shared base to-hit (click for its
@@ -139,8 +160,15 @@ criticals and cluster grouping:
   shot that round), spends one shot of ammo if the weapon has an ammo type, and the heat
   phase defaults to the heat of weapons actually fired. Destroyed (crit slot or the row's
   toggle) and out-of-ammo weapons can't fire; sheets badge FIRED / NO AMMO / DESTROYED.
-- **Movement & Attack Modifiers** (`module/helpers/tw-movement.mjs`, TW pp. 117–118): hexes
-  moved accumulate per turn from token moves during combat; the mode (stationary / walked /
+- **Map scale** (`module/helpers/tw-scale.mjs`): scenes are gridless / metric (system
+  default 1 unit = 1 m, shared with character-scale play). Unit-scale distances convert to
+  hexes of **30 m** (ground) or **500 m** (aerospace vs aerospace on the low-altitude map);
+  any part of a hex counts (91 m = 4 hexes, with ~1.5 m slack), and under 15 m is the same
+  hex. Scenes in km / ft convert through metres; a scene whose units are "hex" is read as
+  hexes. Area-attack radii are in 30 m hexes.
+- **Movement & Attack Modifiers** (`module/helpers/tw-movement.mjs`, TW pp. 117–118): metres
+  moved accumulate per turn from token moves during combat and convert to hexes (typing
+  hexes on the sheet replaces them); the mode (stationary / walked /
   ran / jumped) is inferred from Walk/Cruise MP unless set on the sheet's "This turn" row
   (jumping must be set). The attack dialog pre-fills attacker and target movement, prone,
   immobile (shutdown / unconscious pilot), battle-armor target, sensor hits and arm-actuator

@@ -4,8 +4,7 @@
  * Facing After Fall Table, Consciousness Rolls).
  */
 import {
-  actorSkillRating, applyCrewDamage, CREW_DAMAGE,
-  MECH_PILOTING_SKILLS, VEHICLE_DRIVING_SKILLS, AERO_PILOTING_SKILLS
+  applyCrewDamage, CREW_DAMAGE
 } from "./atow-conversion.mjs";
 import { beginRecording, endRecording, writeDoc } from "./gm-relay.mjs";
 import { currentTurnKey } from "./tw-turn.mjs";
@@ -14,6 +13,7 @@ import { consciousnessNumber, pendingPSR, phaseDamageSoFar, psrDamageMods, stand
 import { resolveDamageAgainst } from "./tw-combat.mjs";
 import { knockOff, ridersOf, swarmersOf } from "./tw-infantry.mjs";
 import { rollCard, roundLabel } from "./tw-cards.mjs";
+import { pilotingMods, skillSource } from "./tw-skills.mjs";
 
 const { DialogV2 } = foundry.applications.api;
 const num = (v) => Number(v) || 0;
@@ -32,15 +32,7 @@ export const FACING_AFTER_FALL = {
 
 /** The unit warrior's Piloting (or Driving) rating, from a linked character when present. */
 export function pilotingFor(actor) {
-  const crew = actor?.system?.pilot || actor?.system?.crew || {};
-  const linked = linkedCrew(actor);
-  if (linked) {
-    const cands = actor.type === 'mech' ? MECH_PILOTING_SKILLS
-      : actor.type === 'ground_vehicle' ? VEHICLE_DRIVING_SKILLS : AERO_PILOTING_SKILLS;
-    const r = actorSkillRating(linked, cands);
-    if (r) return r.rating;
-  }
-  return num(crew.piloting ?? crew.driving ?? 5);
+  return skillSource(actor, 'piloting').rating;
 }
 
 /** Split damage into 5-point groups plus one smaller remainder group. */
@@ -87,7 +79,7 @@ export async function resolveFall(actor, { levels = 0, rearOnly = false, rolls =
   }
 
   // Warrior damage roll (a destroyed gyro counts +6 here instead of forcing the fall).
-  const mods = [{ label: 'Piloting', value: pilotingFor(actor) }, ...psrDamageMods(actor.system)];
+  const mods = [...pilotingMods(actor), ...psrDamageMods(actor.system)];
   if (levels > 1) mods.push({ label: `Fell ${levels} levels`, value: levels - 1 });
   if (plus20) mods.push({ label: '20+ damage this phase', value: 1 });
   const tn = sum(mods);
@@ -129,7 +121,7 @@ export async function rollPendingPSR(actor) {
   beginRecording();
   const rolls = [], results = [];
   const base = psrDamageMods(actor.system).filter(m => !m.gyroDestroyed);
-  const piloting = pilotingFor(actor);
+  const skill = pilotingMods(actor);
   const unconscious = pilotUnconscious(actor);
   const shutdown = !!actor.system.conditions?.shutdown;
   const prone = !!actor.system.conditions?.prone;
@@ -137,7 +129,7 @@ export async function rollPendingPSR(actor) {
 
   for (const r of p.reasons) {
     if (prone) { results.push({ label: r.label, auto: 'already prone — no roll needed', success: true }); continue; }
-    const mods = [{ label: 'Piloting', value: piloting }, ...base];
+    const mods = [...skill, ...base];
     if (r.mod) mods.push({ label: r.label, value: r.mod });
     if (p.plus20 && r.key !== 'dmg20') mods.push({ label: '20+ damage this phase', value: 1 });
     const res = { label: r.label, mods, tn: sum(mods) };
@@ -173,7 +165,7 @@ export async function standUp(actor) {
   const key = currentTurnKey();
   const update = key ? { 'flags.mech-foundry.stands': { key, count: standsThisTurn(actor) + 1 } } : {};
   const plus20 = phaseDamageSoFar(actor) >= 20;
-  const mods = [{ label: 'Piloting', value: pilotingFor(actor) }, ...psrDamageMods(sys).filter(m => !m.gyroDestroyed)];
+  const mods = [...pilotingMods(actor), ...psrDamageMods(sys).filter(m => !m.gyroDestroyed)];
   if (plus20) mods.push({ label: '20+ damage this phase', value: 1 });
   const res = { label: 'Attempt to stand', mods, tn: sum(mods) };
   const roll = await new Roll("2d6").evaluate();

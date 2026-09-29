@@ -1,3 +1,4 @@
+import { ScrollKeeperMixin } from "./scroll-keeper.mjs";
 const { HandlebarsApplicationMixin } = foundry.applications.api;
 const { ItemSheetV2 } = foundry.applications.sheets;
 
@@ -15,7 +16,7 @@ const ITEM_TYPES_WITH_EFFECTS = ['weapon', 'armor', 'electronics', 'healthcare',
  *
  * @extends {ItemSheetV2}
  */
-export class MechFoundryItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
+export class MechFoundryItemSheet extends ScrollKeeperMixin(HandlebarsApplicationMixin(ItemSheetV2)) {
 
   /** @override */
   static DEFAULT_OPTIONS = {
@@ -161,6 +162,7 @@ export class MechFoundryItemSheet extends HandlebarsApplicationMixin(ItemSheetV2
 
   /** @override */
   _onRender(context, options) {
+    super._onRender?.(context, options);
     // Apply the per-type class the CSS targets (e.g. .ammo-sheet, .activeeffect-sheet)
     this.element.classList.add(`${this.item.type.toLowerCase()}-sheet`);
     this._activateTabs();

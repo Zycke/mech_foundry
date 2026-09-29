@@ -17,8 +17,8 @@
  *    Generic Conventional Infantry Damage Table. Each hit rolls its own location.
  */
 import { currentTurnKey } from "./tw-turn.mjs";
-import { actorSkillRating, BATTLESUIT_ANTIMECH_SKILLS } from "./atow-conversion.mjs";
 import { writeDoc } from "./gm-relay.mjs";
+import { skillSource } from "./tw-skills.mjs";
 
 const num = (v) => Number(v) || 0;
 
@@ -102,13 +102,7 @@ export const troopersForWrite = (troopers) => troopers.map(t => ({ damage: num(t
 
 /** The unit's Anti-'Mech Skill Rating (from a linked character's Piloting/Battlesuit when present). */
 export function antiMechFor(actor) {
-  const crew = actor?.system?.crew || {};
-  const linked = crew.actorId ? game.actors?.get(crew.actorId) : null;
-  if (linked && actor.type === 'battle_armor') {
-    const r = actorSkillRating(linked, BATTLESUIT_ANTIMECH_SKILLS);
-    if (r) return r.rating;
-  }
-  return num(crew.antiMech ?? 5);
+  return skillSource(actor, 'antiMech').rating;
 }
 
 /** Count the manipulators of a kind on the suit (0–2). */

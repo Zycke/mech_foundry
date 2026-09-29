@@ -1,3 +1,4 @@
+import { ScrollKeeperMixin } from "./scroll-keeper.mjs";
 import { DiceMechanics } from '../helpers/dice-mechanics.mjs';
 import {
   SHIP_SUPPLY_FIELDS, GROUND_SUPPLY_GROUPS, GROUND_SUPPLY_FIELDS,
@@ -121,7 +122,7 @@ const { ActorSheetV2 } = foundry.applications.sheets;
  * veterancy and can roll. Foundry v14 ApplicationV2 sheet.
  * @extends {ActorSheetV2}
  */
-export class MechFoundryCompanySheet extends HandlebarsApplicationMixin(ActorSheetV2) {
+export class MechFoundryCompanySheet extends ScrollKeeperMixin(HandlebarsApplicationMixin(ActorSheetV2)) {
 
   #activeTab = null;
   #dragDrop;

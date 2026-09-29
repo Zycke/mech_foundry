@@ -1,6 +1,6 @@
 import { MechFoundryUnitSheet } from "./unit-sheet.mjs";
 import { actorSkillRating, applyCrewDamage, CREW_DAMAGE, MECH_GUNNERY_SKILLS, MECH_PILOTING_SKILLS } from "../helpers/atow-conversion.mjs";
-import { weaponAttack, resolveMechHeat, standardMechSlots, SLOT_TYPES } from "../helpers/tw-combat.mjs";
+import { weaponAttack, heatResolvedThisTurn, resolveMechHeat, standardMechSlots, SLOT_TYPES } from "../helpers/tw-combat.mjs";
 import { pendingPSR } from "../helpers/tw-psr.mjs";
 import { mechEffectiveMP } from "../helpers/tw-movement.mjs";
 import { manualFall, rollPendingPSR, standUp, wakeRoll } from "../helpers/tw-falls.mjs";
@@ -257,7 +257,11 @@ export class MechFoundryMechSheet extends MechFoundryUnitSheet {
     html.on('click', '.pilot-unlink', this._onPilotUnlink.bind(this));
     html.on('click', '.pilot-open', this._onPilotOpen.bind(this));
     html.on('click', '.weapon-attack', this._onWeaponAttack.bind(this));
-    html.on('click', '.resolve-heat', (ev) => { ev.preventDefault(); resolveMechHeat(this.actor); });
+    html.on('click', '.resolve-heat', (ev) => {
+      ev.preventDefault();
+      if (heatResolvedThisTurn(this.actor)) return ui.notifications.warn(`${this.actor.name}'s heat has already been resolved this turn.`);
+      resolveMechHeat(this.actor);
+    });
     html.on('click', '.init-critslots', this._onInitCritSlots.bind(this));
     html.on('change', '.critslot-field', this._onCritSlotFieldChange.bind(this));
     html.on('change', '.critslot-hit', this._onCritSlotHitToggle.bind(this));

@@ -1,3 +1,4 @@
+import { ScrollKeeperMixin } from "./scroll-keeper.mjs";
 import { MechFoundryActor } from '../documents/actor.mjs';
 import { OpposedRollHelper } from '../helpers/opposed-rolls.mjs';
 import { ItemEffectsHelper } from '../helpers/effects-helper.mjs';
@@ -17,7 +18,7 @@ const { ActorSheetV2 } = foundry.applications.sheets;
  *
  * @extends {ActorSheetV2}
  */
-export class MechFoundryActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
+export class MechFoundryActorSheet extends ScrollKeeperMixin(HandlebarsApplicationMixin(ActorSheetV2)) {
 
   /** Active tab id, preserved across submitOnChange re-renders. */
   #activeTab = null;

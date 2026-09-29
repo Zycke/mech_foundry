@@ -9,11 +9,10 @@
  * and the A Time of War conversion (see atow-conversion.mjs).
  */
 import {
-  actorSkillRating, applyCrewDamage, CREW_DAMAGE, VEHICLE_DRIVING_SKILLS,
-  MECH_GUNNERY_SKILLS, VEHICLE_GUNNERY_SKILLS, AERO_GUNNERY_SKILLS, BATTLESUIT_GUNNERY_SKILLS,
-  INFANTRY_GUNNERY_SKILLS, INFANTRY_SKILL_BASE_TN
+  actorSkillRating, applyCrewDamage, CREW_DAMAGE, VEHICLE_DRIVING_SKILLS
 } from "./atow-conversion.mjs";
 import { beginRecording, endRecording, writeDoc } from "./gm-relay.mjs";
+import { AERO_HEX_M, GROUND_HEX_M, measureHexes, pixelsPerMeter } from "./tw-scale.mjs";
 import { facingChanges, mechLocChanges, poolChange, volleyCard, roundLabel, ammoFooter, heatCard } from "./tw-cards.mjs";
 import { currentTurnKey } from "./tw-turn.mjs";
 import { autoAttackMods, movedThisTurn, pilotUnconscious, rangeDependentMods, terrainMods, vehicleWeaponLocation } from "./tw-movement.mjs";
@@ -27,10 +26,17 @@ import {
   infantryDamageClass, interceptAt, interceptCache, isBattleArmor, isInfantry, killRidersOn, liveTroopers, platoonAttackDamage,
   platoonWeapon, resolveBattleArmorDamage, resolvePlatoonHit, riderLocations, stealthMod, stealthRow, untargetableReason
 } from "./tw-infantry.mjs";
+import { skillHint, skillMod, skillSource } from "./tw-skills.mjs";
 
 const { DialogV2 } = foundry.applications.api;
 
 const num = (v) => Number(v) || 0;
+
+/** Has this unit's heat already been resolved this turn? */
+export function heatResolvedThisTurn(actor) {
+  const key = currentTurnKey();
+  return !!key && actor?.flags?.['mech-foundry']?.heatDone?.key === key;
+}
 
 /** Heat-based to-hit penalty (mech/aero): +1@8, +2@13, +3@17, +4@24. */
 export function heatToHitMod(actor) {
@@ -83,32 +89,11 @@ export function groupDamage(total, size = 5) {
 
 /** Resolve the crew Gunnery rating, deriving from a linked character when present. */
 export function gunneryFor(actor) {
-  const crew = actor.system.pilot || actor.system.crew || {};
-  const linked = crew.actorId ? game.actors.get(crew.actorId) : null;
-  if (linked && actor.type === 'infantry') {
-    const r = actorSkillRating(linked, INFANTRY_GUNNERY_SKILLS, INFANTRY_SKILL_BASE_TN);
-    if (r) return r.rating;
-  } else if (linked) {
-    const cands = actor.type === 'mech' ? MECH_GUNNERY_SKILLS
-      : actor.type === 'ground_vehicle' ? VEHICLE_GUNNERY_SKILLS
-        : actor.type === 'battle_armor' ? BATTLESUIT_GUNNERY_SKILLS
-          : AERO_GUNNERY_SKILLS;
-    const r = actorSkillRating(linked, cands);
-    if (r) return r.rating;
-  }
-  return num(crew.gunnery ?? 4);
+  return skillSource(actor, 'gunnery').rating;
 }
 
-/** Distance in hexes (grid spaces) between two tokens, or null. */
-export function measureHexes(a, b) {
-  if (!a || !b || !canvas?.grid) return null;
-  try {
-    const r = canvas.grid.measurePath([a.center, b.center]);
-    return Math.round(r.spaces ?? r.distance ?? 0);
-  } catch {
-    return null;
-  }
-}
+/** Distance in Total Warfare hexes between two tokens (see tw-scale.mjs). */
+export { measureHexes };
 
 /** Range bracket + modifier from a weapon's short/medium/long (in hexes). */
 export function rangeBracket(distance, weapon) {
@@ -1003,7 +988,7 @@ function mechHeatEffects(h) {
  * net them against heat-sink dissipation, update system.heat, auto-shutdown at
  * 30+, and post a breakdown card. Heat Point Table (Total Warfare p. 159).
  */
-export async function resolveMechHeat(actor) {
+export async function resolveMechHeat(actor, preset = null) {
   if (!actor) return;
   const sys = actor.system;
   const current = num(sys.heat?.value);
@@ -1035,8 +1020,10 @@ export async function resolveMechHeat(actor) {
       <div class="form-group"><label>Heat-sink dissipation</label><input type="number" name="sinks" value="${dissipation}" /></div>
     </div>`;
 
-  const r = await DialogV2.wait({
-    window: { title: "Resolve Heat", icon: "fa-solid fa-fire" },
+  // preset === true: resolve with the defaults (the Heat Phase does this for every unit).
+  const defaults = { move: moved.mode, hexes: moved.mode === 'jumped' ? moved.hexes : 0, stand: stands, weapons: weaponsHeatTotal, engine: engineHeat, sinks: dissipation };
+  const r = preset === true ? defaults : preset ?? await DialogV2.wait({
+    window: { title: `Resolve Heat — ${actor.name}`, icon: "fa-solid fa-fire" },
     content,
     buttons: [
       {
@@ -1095,7 +1082,7 @@ export async function resolveMechHeat(actor) {
   }
 
   // Heat is resolved: this turn's fired-weapon record is spent.
-  const update = { 'system.heat.value': newHeat, 'flags.mech-foundry.fired': { key: currentTurnKey(), list: [] } };
+  const update = { 'system.heat.value': newHeat, 'flags.mech-foundry.fired': { key: currentTurnKey(), list: [] }, 'flags.mech-foundry.heatDone': { key: currentTurnKey() } };
   let psrNote = '';
   if (shutsDown) {
     update['system.conditions.shutdown'] = true;
@@ -1460,7 +1447,7 @@ export function hitChance(tn) {
 }
 
 /** Modifiers that belong to one weapon rather than the whole attack. */
-const WEAPON_SPECIFIC = ['actuators', 'stabilizer'];
+const WEAPON_SPECIFIC = ['actuators', 'stabilizer', 'weaponMod'];
 
 /** Why a weapon can't fire right now, or null. */
 export function weaponBlock(actor, weapon) {
@@ -1637,8 +1624,8 @@ export function weaponToHitPreview(actor) {
   const targetActor = target?.actor || null;
   if (!targetActor || targetActor === actor || targetBlock(actor, targetActor)) return {};
   const attackerToken = actor.getActiveTokens?.()[0] || null;
-  const range = attackerToken ? measureHexes(attackerToken, target) : null;
   const mode = attackMode(actor, targetActor);
+  const range = attackerToken ? measureHexes(attackerToken, target, mode === 'aero' ? AERO_HEX_M : GROUND_HEX_M) : null;
   const shared = [...autoAttackMods(actor, null, targetActor).filter(m => !WEAPON_SPECIFIC.includes(m.key)), ...aeroAttackMods(actor, targetActor)]
     .filter(m => !(closeQuarters(actor, targetActor) && CLOSE_QUARTERS_DROP.includes(m.key)));
   const v = { gunnery: gunneryFor(actor), autoSum: shared.reduce((t, m) => t + m.value, 0), heat: heatToHitMod(actor), range, other: 0, terrain: 0 };
@@ -1696,8 +1683,8 @@ export async function fireWeapons(actor, preselect = []) {
   const targetActor = target?.actor || null;
   const tb = targetBlock(actor, targetActor);
   if (tb) { ui.notifications.warn(tb); return; }
-  const autoDist = attackerToken && target ? measureHexes(attackerToken, target) : null;
   const mode = attackMode(actor, targetActor);
+  const autoDist = attackerToken && target ? measureHexes(attackerToken, target, mode === 'aero' ? AERO_HEX_M : GROUND_HEX_M) : null;
   const shared = [...autoAttackMods(actor, null, targetActor).filter(m => !WEAPON_SPECIFIC.includes(m.key)), ...aeroAttackMods(actor, targetActor)]
     .filter(m => !(closeQuarters(actor, targetActor) && CLOSE_QUARTERS_DROP.includes(m.key)));
   const rows = ready.map(w => weaponPreviewRow(actor, w, targetActor, mode));
@@ -1728,7 +1715,7 @@ export async function fireWeapons(actor, preselect = []) {
       <p class="tw-atk-target">${targetName ? `Target: <strong>${esc(targetName)}</strong>` : 'No target selected — enter range manually.'}</p>
       <table class="tw-fire-weapons"><thead><tr><th></th><th>Weapon</th><th>Heat</th><th>To-hit</th></tr></thead><tbody>${weaponRows}</tbody></table>
       <p class="tw-fire-heat">Heat from checked weapons: <strong class="tw-fire-heatsum">${ready.filter(w => preselect.includes(w.id)).reduce((t, w) => t + num(w.heat), 0)}</strong></p>
-      <div class="form-group"><label>Gunnery Skill</label><input type="number" name="gunnery" value="${gunnery}" /></div>
+      <div class="form-group"><label>Gunnery rating <span class="tw-hint">${esc(skillHint(actor, 'gunnery'))}</span></label><input type="number" name="gunnery" value="${gunnery}" /></div>
       <div class="form-group"><label>Range (hexes)</label><input type="number" name="range" value="${autoDist ?? ''}" /></div>
       ${modRows}
       <div class="form-group"><label>Heat</label><input type="number" name="heat" value="${heatMod}" /></div>
@@ -1748,7 +1735,7 @@ export async function fireWeapons(actor, preselect = []) {
           ? '<option value="front">Yes (+1; infantry have no arcs)</option>'
           : '<option value="front">Yes, front arc (+1)</option><option value="side">Yes, side/rear arc (+2)</option>'}</select></div>
       </fieldset>`}
-      <div class="form-group"><label>Other Mod</label><input type="number" name="other" value="0" /></div>
+      <div class="form-group"><label>Other modifier <span class="tw-hint">+ makes the roll harder, − easier</span></label><input type="number" name="other" value="0" /></div>
       <div class="form-group"><label>Attack Direction</label><select name="direction">${dirOpts}</select></div>
     </div>`;
 
@@ -1828,7 +1815,7 @@ export async function fireWeapons(actor, preselect = []) {
     title: shots.length === 1 ? `${shots[0].weaponName} Attack` : 'Weapons Fire',
     icon: 'fa-crosshairs',
     attackerName: actor.name, targetName,
-    ctxLine: [result.range != null ? `Range ${result.range}` : '', targetName ? dir : ''].filter(Boolean).join(' · '),
+    ctxLine: [result.range != null ? `Range ${result.range}` : '', targetName ? dir : '', result.heat ? `heat +${result.heat}` : ''].filter(Boolean).join(' · '),
     round: roundLabel(),
     baseMods: shots[0].baseMods,
     shots,
@@ -1863,12 +1850,12 @@ async function resolveWeaponShot(actor, weapon, target, result, rolls) {
     .map(m => ({ label: m.label, value: m.value }));
   // Modifiers shared by every weapon in the volley (the card's base to-hit) …
   const baseMods = [
-    { label: "Gunnery", value: result.gunnery },
+    skillMod(actor, 'gunnery', result.gunnery),
     ...autos,
     { label: "Heat", value: result.heat },
     ...situationalMods(result, mode, actor, targetActor),
     { label: "Other", value: result.other }
-  ].filter(m => m.value !== 0 || m.label === "Gunnery");
+  ].filter(m => m.value !== 0 || m.key === 'gunnery');
   // … and this weapon's own (the range bracket is always shown).
   const rangeLabel = `Range (${rb.bracket})`;
   const ownMods = [
@@ -1877,7 +1864,7 @@ async function resolveWeaponShot(actor, weapon, target, result, rolls) {
     { label: 'Stealth armor', value: stealth },
     ...(mode === 'ground' ? rangeDependentMods(weapon, targetActor, result.range) : [])
   ].filter(m => m.value !== 0 || m.label === rangeLabel);
-  const mods = [...baseMods, ...ownMods].filter(m => m.value !== 0 || m.label === "Gunnery");
+  const mods = [...baseMods, ...ownMods].filter(m => m.value !== 0 || m.key === 'gunnery');
   const baseTN = baseMods.reduce((t, x) => t + x.value, 0);
   const tn = mods.reduce((t, x) => t + x.value, 0);
 
@@ -2031,7 +2018,7 @@ export async function areaAttack() {
       <div class="tw-attack-dialog">
         <p class="tw-atk-target">Blast centred on <strong>${foundry.utils.escapeHTML?.(anchor.name) ?? anchor.name}</strong></p>
         <div class="form-group"><label>Damage (per unit)</label><input type="number" name="damage" value="5" /></div>
-        <div class="form-group"><label>Radius (hexes)</label><input type="number" name="radius" value="1" /></div>
+        <div class="form-group"><label>Radius (hexes of 30 m)</label><input type="number" name="radius" value="1" /></div>
         <div class="form-group"><label>Cluster size (0 = direct)</label><input type="number" name="cluster" value="0" /></div>
       </div>`,
     buttons: [
@@ -2042,9 +2029,8 @@ export async function areaAttack() {
   });
   if (!r || r === "cancel" || r.damage <= 0) return;
 
-  const gridSize = canvas.grid?.size || 100;
   const cx = anchor.center.x, cy = anchor.center.y;
-  const radiusPx = (r.radius + 0.5) * gridSize; // include the centre hex
+  const radiusPx = (r.radius + 0.5) * GROUND_HEX_M * pixelsPerMeter(); // hexes of 30 m, including the centre hex
 
   // Drop a Scene Region to visualise the blast (best-effort; v14 API).
   let region = null;

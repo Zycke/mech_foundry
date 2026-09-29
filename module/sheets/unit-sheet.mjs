@@ -73,6 +73,7 @@ export class MechFoundryUnitSheet extends MechFoundryActorSheetV2 {
       const label = (m) => vehicle ? m.vlabel : m.label;
       context.turnMove = {
         hexes: mv.hexes,
+        meters: Math.round(mv.meters),
         modes: [
           { key: 'auto', label: `Auto (${label(MOVE_MODES.find(m => m.key === mv.mode))})`, selected: !mv.modeSet },
           ...MOVE_MODES.map(m => ({ key: m.key, label: `${label(m)} (+${m.mod})`, selected: mv.modeSet && mv.mode === m.key }))

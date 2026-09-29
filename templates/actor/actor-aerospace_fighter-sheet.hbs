@@ -135,11 +135,11 @@
           <div class="skillpair">
             <div class="sk {{#if pilot.gunneryDerived}}derived{{/if}}"><span class="k">Gun</span>
               {{#if pilot.gunneryDerived}}<span class="skv" title="{{pilot.gunnerySource}}">{{pilot.gunnery}}</span>
-              {{else}}<input type="number" min="0" name="system.crew.gunnery" value="{{pilot.gunnery}}" {{#unless editable}}disabled{{/unless}} />{{/if}}
+              {{else}}<input type="number" min="0" name="system.crew.gunnery" title="Total Warfare rating: added to the target number, so lower is better. From an A Time of War skill level: Base TN − level (8 − level for Gunnery / Piloting / Driving; 7 − level for Small Arms)." value="{{pilot.gunnery}}" {{#unless editable}}disabled{{/unless}} />{{/if}}
             </div>
             <div class="sk {{#if pilot.pilotingDerived}}derived{{/if}}"><span class="k">Pilot</span>
               {{#if pilot.pilotingDerived}}<span class="skv" title="{{pilot.pilotingSource}}">{{pilot.piloting}}</span>
-              {{else}}<input type="number" min="0" name="system.crew.piloting" value="{{pilot.piloting}}" {{#unless editable}}disabled{{/unless}} />{{/if}}
+              {{else}}<input type="number" min="0" name="system.crew.piloting" title="Total Warfare rating: added to the target number, so lower is better. From an A Time of War skill level: Base TN − level (8 − level for Gunnery / Piloting / Driving; 7 − level for Small Arms)." value="{{pilot.piloting}}" {{#unless editable}}disabled{{/unless}} />{{/if}}
             </div>
           </div>
         </div>

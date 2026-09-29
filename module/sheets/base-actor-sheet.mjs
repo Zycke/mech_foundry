@@ -1,3 +1,4 @@
+import { ScrollKeeperMixin } from "./scroll-keeper.mjs";
 const { HandlebarsApplicationMixin } = foundry.applications.api;
 const { ActorSheetV2 } = foundry.applications.sheets;
 
@@ -10,7 +11,7 @@ const { ActorSheetV2 } = foundry.applications.sheets;
  *
  * @extends {ActorSheetV2}
  */
-export class MechFoundryActorSheetV2 extends HandlebarsApplicationMixin(ActorSheetV2) {
+export class MechFoundryActorSheetV2 extends ScrollKeeperMixin(HandlebarsApplicationMixin(ActorSheetV2)) {
 
   /** @override */
   static DEFAULT_OPTIONS = {

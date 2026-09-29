@@ -13,10 +13,10 @@ import { beginRecording, endRecording, writeDoc } from "./gm-relay.mjs";
 import { currentTurnKey } from "./tw-turn.mjs";
 import { linkedCrew, pilotUnconscious } from "./tw-movement.mjs";
 import { pendingPSR, queuePSR, warriorDamage } from "./tw-psr.mjs";
-import { pilotingFor } from "./tw-falls.mjs";
 import { aeroTurnState, isAero } from "./tw-aero.mjs";
 import { firedThisTurn } from "./tw-combat.mjs";
 import { heatCard, rollCard, roundLabel } from "./tw-cards.mjs";
+import { pilotingMods } from "./tw-skills.mjs";
 
 const { DialogV2 } = foundry.applications.api;
 const num = (v) => Number(v) || 0;
@@ -74,7 +74,7 @@ async function postCard(actor, flavor, ctx, rolls) {
  * An unconscious pilot fails automatically.
  */
 async function controlRoll(actor, label, extra = [], rolls = []) {
-  const mods = [{ label: 'Piloting', value: pilotingFor(actor) }, ...controlRollMods(actor), ...extra.filter(m => m.value)];
+  const mods = [...pilotingMods(actor), ...controlRollMods(actor), ...extra.filter(m => m.value)];
   const res = { label, mods, tn: sum(mods) };
   if (pilotUnconscious(actor)) { res.auto = 'pilot unconscious — automatic failure'; res.success = false; return res; }
   const roll = await new Roll("2d6").evaluate();
@@ -173,7 +173,8 @@ export async function resolveAeroHeat(actor, preset = null) {
   const weaponsHeat = Object.values(fired).reduce((t, h) => t + num(h), 0);
   const engineHeat = 2 * num(sys.crits?.engine);
 
-  let r = preset;
+  // preset === true: resolve with the defaults (the Heat Phase does this for every unit).
+  let r = preset === true ? { weapons: weaponsHeat, engine: engineHeat, external: 0, sinks: dissipation } : preset;
   if (!r) {
     r = await DialogV2.wait({
       window: { title: `Resolve Heat — ${actor.name}`, icon: "fa-solid fa-fire" },
@@ -266,6 +267,7 @@ export async function resolveAeroHeat(actor, preset = null) {
 
   await writeDoc(actor, {
     'system.heat.value': newHeat, 'system.conditions': conditions, 'system.structuralIntegrity': si,
+    'flags.mech-foundry.heatDone': { key: currentTurnKey() },
     'system.weapons': weapons, 'system.crew': crew, 'flags.mech-foundry.fired': { key: currentTurnKey(), list: [] }
   });
   if (linked) for (const ev of crewEvents) await applyCrewDamage(linked, ev);
@@ -485,7 +487,7 @@ export async function aeroLanding(actor, preset = null) {
   const extra = landingMods(actor, r);
   let res;
   if (actor.system.conditions?.outOfControl) {
-    const mods = [{ label: 'Piloting', value: pilotingFor(actor) }, ...controlRollMods(actor), ...extra];
+    const mods = [...pilotingMods(actor), ...controlRollMods(actor), ...extra];
     res = { label: 'Landing', mods, tn: sum(mods), auto: 'out of control — automatic failure (margin 10)', success: false, mof: 10 };
   } else res = await controlRoll(actor, r.vertical ? 'Vertical landing' : 'Horizontal landing', extra, rolls);
   const notes = [];

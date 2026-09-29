@@ -70,10 +70,10 @@
           </div>
           {{/if}}
           {{#if turnMove}}
-          <div class="mf-turnmove" title="Used for attack modifiers and heat. Hexes add up automatically as the token moves during combat.">
+          <div class="mf-turnmove" title="Used for attack modifiers and heat. Distance moved adds up automatically as the token moves during combat (30 m per hex; any part of a hex counts).">
             <span class="k">This turn</span>
             <select class="turn-move-field" data-field="mode" {{#unless editable}}disabled{{/unless}}>{{#each turnMove.modes}}<option value="{{key}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select>
-            <input type="number" min="0" class="turn-move-field" data-field="hexes" value="{{turnMove.hexes}}" {{#unless editable}}disabled{{/unless}} /><span class="k">hexes</span>
+            <input type="number" min="0" class="turn-move-field" data-field="hexes" value="{{turnMove.hexes}}" {{#unless editable}}disabled{{/unless}} /><span class="k" title="30 m per hex; token moves add up in metres">hexes · {{turnMove.meters}} m</span>
           </div>
           {{/if}}
         </div>
@@ -129,11 +129,11 @@
           <div class="skillpair">
             <div class="sk {{#if crew.gunneryDerived}}derived{{/if}}"><span class="k">Gun</span>
               {{#if crew.gunneryDerived}}<span class="skv" title="{{crew.gunnerySource}}">{{crew.gunnery}}</span>
-              {{else}}<input type="number" min="0" name="system.crew.gunnery" value="{{crew.gunnery}}" {{#unless editable}}disabled{{/unless}} />{{/if}}
+              {{else}}<input type="number" min="0" name="system.crew.gunnery" title="Total Warfare rating: added to the target number, so lower is better. From an A Time of War skill level: Base TN − level (8 − level for Gunnery / Piloting / Driving; 7 − level for Small Arms)." value="{{crew.gunnery}}" {{#unless editable}}disabled{{/unless}} />{{/if}}
             </div>
             <div class="sk {{#if crew.drivingDerived}}derived{{/if}}"><span class="k">Drive</span>
               {{#if crew.drivingDerived}}<span class="skv" title="{{crew.drivingSource}}">{{crew.driving}}</span>
-              {{else}}<input type="number" min="0" name="system.crew.driving" value="{{crew.driving}}" {{#unless editable}}disabled{{/unless}} />{{/if}}
+              {{else}}<input type="number" min="0" name="system.crew.driving" title="Total Warfare rating: added to the target number, so lower is better. From an A Time of War skill level: Base TN − level (8 − level for Gunnery / Piloting / Driving; 7 − level for Small Arms)." value="{{crew.driving}}" {{#unless editable}}disabled{{/unless}} />{{/if}}
             </div>
           </div>
         </div>

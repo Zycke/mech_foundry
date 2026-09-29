@@ -5,6 +5,7 @@
   {{#if baseMods.length}}
   <details class="tw-v-base"><summary><span class="tw-v-ctx">{{#if ctxLine}}{{ctxLine}} · {{/if}}{{#if single}}to-hit{{else}}base to-hit{{/if}} {{baseTN}}</span><span class="tw-v-chev">›</span></summary>
     <div class="tw-atk-mods">{{#each baseMods}}<span class="tw-mod">{{this.label}} {{#if (gte this.value 0)}}+{{/if}}{{this.value}}</span>{{/each}}</div>
+    <div class="tw-v-legend">Target number: roll 2d6 at or above it. + makes the shot harder, − easier.</div>
   </details>
   {{else if ctxLine}}<div class="tw-v-ctx">{{ctxLine}}</div>{{/if}}
 

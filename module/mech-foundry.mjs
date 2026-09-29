@@ -632,18 +632,28 @@ function refreshCombatantSheets(combat) {
 Hooks.on("updateCombat", (combat, changes) => { if ("round" in changes) refreshCombatantSheets(combat); });
 Hooks.on("deleteCombat", (combat) => refreshCombatantSheets(combat));
 
-// Total Warfare turn-phase bar in the combat tracker.
+// Total Warfare turn-phase bar in the combat tracker. The tracker re-renders
+// in parts, so an existing bar is refreshed rather than skipped.
 Hooks.on("renderCombatTracker", (app, html) => {
   const combat = game.combat;
-  if (!combat || typeof combat.nextPhase !== "function") return;
   const el = html instanceof HTMLElement ? html : html?.[0];
-  if (!el || el.querySelector(".tw-phase-bar")) return;
-  const bar = document.createElement("div");
-  bar.className = "tw-phase-bar";
-  bar.innerHTML = `<span class="tw-phase-label">Phase: <strong>${combat.phaseName}</strong></span>` +
-    (game.user.isGM ? `<button type="button" class="tw-next-phase"><i class="fas fa-forward-step"></i> Next Phase</button>` : "");
-  el.prepend(bar);
-  bar.querySelector(".tw-next-phase")?.addEventListener("click", () => combat.nextPhase());
+  if (!el) return;
+  let bar = el.querySelector(".tw-phase-bar");
+  if (!combat || typeof combat.nextPhase !== "function") { bar?.remove(); return; }
+  if (!bar) {
+    bar = document.createElement("div");
+    bar.className = "tw-phase-bar";
+    el.prepend(bar);
+  }
+  bar.innerHTML = `<span class="tw-phase-label">Round ${combat.round || 0} · Phase: <strong>${combat.phaseName}</strong></span>` +
+    (game.user.isGM ? `<button type="button" class="tw-prev-phase" title="Previous phase (nothing already resolved is undone)"><i class="fas fa-backward-step"></i></button>` +
+      `<button type="button" class="tw-next-phase"><i class="fas fa-forward-step"></i> Next Phase</button>` : "");
+  bar.querySelector(".tw-next-phase")?.addEventListener("click", () => game.combat?.nextPhase());
+  bar.querySelector(".tw-prev-phase")?.addEventListener("click", () => game.combat?.previousPhase());
+});
+// A phase change is only a flag update: make sure the tracker shows it.
+Hooks.on("updateCombat", (combat, changes) => {
+  if (foundry.utils.hasProperty(changes, "flags.mech-foundry.phase")) ui.combat?.render?.();
 });
 
 // Total Warfare area-attack tool in the token scene controls (GM only).

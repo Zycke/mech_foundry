@@ -11,6 +11,9 @@
  */
 import { currentTurnKey } from "./tw-turn.mjs";
 import { concealmentMods, isInfantry, ridersOf } from "./tw-infantry.mjs";
+import { catalogToHit } from "./megamek-import.mjs";
+import { crewConditionMods } from "./tw-skills.mjs";
+import { GROUND_HEX_M, formatMeters, measureMeters, metersToHexes } from "./tw-scale.mjs";
 
 const num = (v) => Number(v) || 0;
 
@@ -116,27 +119,43 @@ export function inferMode(actor, hexes) {
   return hexes <= walkMP(actor) ? 'walked' : 'ran';
 }
 
-/** This turn's movement: { hexes, mode, modeSet }. Stationary outside combat or before moving. */
+/**
+ * This turn's movement: { hexes, meters, mode, modeSet }. Stationary outside
+ * combat or before moving. On metric scenes the record holds the metres moved
+ * and hexes are derived from them (30 m hexes, any part of a hex counts).
+ */
 export function movedThisTurn(actor) {
   const rec = actor?.flags?.['mech-foundry']?.moved;
   const key = currentTurnKey();
-  if (!key || !rec || rec.key !== key) return { hexes: 0, mode: 'stationary', modeSet: false };
-  const hexes = Math.max(0, num(rec.hexes));
+  if (!key || !rec || rec.key !== key) return { hexes: 0, meters: 0, mode: 'stationary', modeSet: false };
+  const meters = rec.meters == null ? null : Math.max(0, num(rec.meters));
+  const hexes = meters == null ? Math.max(0, num(rec.hexes)) : metersToHexes(meters, GROUND_HEX_M, { sameHex: false });
   const mode = rec.modeSet && MODE_MOD[rec.mode] !== undefined ? rec.mode : inferMode(actor, hexes);
-  return { hexes, mode, modeSet: !!rec.modeSet };
+  return { hexes, meters: meters ?? hexes * GROUND_HEX_M, mode, modeSet: !!rec.modeSet };
 }
 
-/** Record this turn's movement (from the sheet or token moves). Partial updates merge. */
-export async function setMovement(actor, { hexes, mode } = {}) {
+/**
+ * Record this turn's movement (from the sheet or token moves). Partial updates
+ * merge. `meters` (token moves on a metric scene) sets the hexes; hexes typed
+ * on the sheet replace the metres.
+ */
+export async function setMovement(actor, { hexes, meters, mode } = {}) {
   const key = currentTurnKey();
   if (!actor || !key) return;
   const cur = movedThisTurn(actor);
-  const rec = { key, hexes: hexes ?? cur.hexes, mode: cur.mode, modeSet: cur.modeSet };
+  const rec = { key, hexes: cur.hexes, meters: cur.meters, mode: cur.mode, modeSet: cur.modeSet };
+  if (meters != null) { rec.meters = Math.max(0, num(meters)); rec.hexes = metersToHexes(rec.meters, GROUND_HEX_M, { sameHex: false }); }
+  else if (hexes != null) { rec.hexes = Math.max(0, num(hexes)); rec.meters = rec.hexes * GROUND_HEX_M; }
   if (mode !== undefined) {
     rec.modeSet = mode !== 'auto';
     rec.mode = mode === 'auto' ? inferMode(actor, rec.hexes) : mode;
-  }
+  } else if (!rec.modeSet) rec.mode = inferMode(actor, rec.hexes);
   await actor.update({ 'flags.mech-foundry.moved': rec });
+}
+
+/** "4 hexes (95 m)" */
+function hexText(mv) {
+  return `${mv.hexes} hex${mv.hexes === 1 ? '' : 'es'}${mv.meters && mv.meters !== mv.hexes * GROUND_HEX_M ? ` (${formatMeters(mv.meters)})` : ''}`;
 }
 
 /** Target movement modifier from hexes moved (Attack Modifiers Table). */
@@ -160,19 +179,14 @@ function centerOf(doc, pos) {
   return { x: num(pos.x) + (num(doc.width) || 1) * size / 2, y: num(pos.y) + (num(doc.height) || 1) * size / 2 };
 }
 
-/** Hexes (grid spaces) along a path of top-left token positions. */
-function pathSpaces(doc, positions) {
-  if (!canvas?.grid || positions.length < 2) return 0;
-  try {
-    const r = canvas.grid.measurePath(positions.map(p => centerOf(doc, p)));
-    return Math.round(r.spaces ?? (r.distance / (canvas.scene?.grid?.distance || 1)) ?? 0);
-  } catch {
-    return 0;
-  }
+/** Distance along a path of top-left token positions: { meters } or { hexes } (hex-unit scenes). */
+function pathDistance(doc, positions) {
+  if (positions.length < 2) return null;
+  return measureMeters(positions.map(p => centerOf(doc, p)));
 }
 
 /**
- * Accumulate hexes moved while a combat is running. Measured on the moving
+ * Accumulate distance moved while a combat is running (metres → 30 m hexes). Measured on the moving
  * user's client in preUpdateToken (old → waypoints → new position) and saved
  * to the actor's movement record after the update lands.
  */
@@ -189,16 +203,18 @@ export function registerMovementTracking() {
       : [from, to];
     const last = path[path.length - 1];
     if (last.x !== to.x || last.y !== to.y) path.push(to);
-    const spaces = pathSpaces(doc, path);
-    if (spaces > 0) options.mfMovedHexes = spaces;
+    const d = pathDistance(doc, path);
+    if (d?.meters > 0) options.mfMovedMeters = d.meters;
+    else if (d?.hexes > 0) options.mfMovedHexes = d.hexes;
   });
 
   Hooks.on("updateToken", async (doc, changes, options, userId) => {
-    if (userId !== game.user.id || !options.mfMovedHexes) return;
+    if (userId !== game.user.id || !(options.mfMovedMeters || options.mfMovedHexes)) return;
     const actor = doc.actor;
     if (!actor || !(actor.isOwner || game.user.isGM)) return;
     const cur = movedThisTurn(actor);
-    await setMovement(actor, { hexes: cur.hexes + options.mfMovedHexes });
+    if (options.mfMovedMeters) await setMovement(actor, { meters: cur.meters + options.mfMovedMeters });
+    else await setMovement(actor, { hexes: cur.hexes + options.mfMovedHexes });
   });
 }
 
@@ -310,12 +326,20 @@ export function autoAttackMods(attacker, weapon, targetActor) {
     const mv = movedThisTurn(attacker);
     const m = MOVE_MODES.find(x => x.key === mv.mode);
     const lbl = attacker.type === 'ground_vehicle' ? m.vlabel : m.label;
-    add('attackerMove', 'Attacker movement', MODE_MOD[mv.mode], `${lbl}${mv.hexes ? `, ${mv.hexes} hex` : ''}${mv.modeSet ? '' : currentTurnKey() ? ' (auto)' : ''}`);
+    add('attackerMove', `Attacker ${lbl.toLowerCase()}`, MODE_MOD[mv.mode], `${mv.hexes ? `${hexText(mv)}, ` : ''}${lbl}${mv.modeSet ? '' : currentTurnKey() ? ' (auto)' : ''}`);
   }
+  // The linked warrior's A Time of War injury / fatigue (see tw-skills.mjs).
+  for (const m of crewConditionMods(attacker)) add(m.key, m.label, m.value, m.hint);
   if (attacker?.type === 'mech' && attacker.system?.conditions?.prone) add('attackerProne', 'Attacker prone', 2, '');
   // Skidding (TW p. 63): +1 to a skidding unit's attacks, +2 to attacks against it, that turn.
   const skidded = (a) => !!currentTurnKey() && a?.flags?.['mech-foundry']?.skid?.key === currentTurnKey();
   if (skidded(attacker)) add('attackerSkid', 'Attacker skidded', 1, '');
+
+  // The weapon's own to-hit modifier (pulse lasers −2 …).
+  if (weapon) {
+    const th = weaponOwnToHit(weapon, attacker);
+    if (th) add('weaponMod', /pulse/i.test(weapon.name || '') ? 'Pulse laser' : 'Weapon modifier', th, weapon.name || '');
+  }
 
   // Attacker 'Mech damage (weapon attacks only).
   if (attacker?.type === 'mech') {
@@ -344,7 +368,7 @@ export function autoAttackMods(attacker, weapon, targetActor) {
     else if (TRACKED_TYPES.has(targetActor.type)) {
       const mv = movedThisTurn(targetActor);
       const v = targetMoveMod(mv.hexes) + (mv.mode === 'jumped' ? 1 : 0);
-      add('targetMove', 'Target movement', v, `${mv.hexes} hex${mv.mode === 'jumped' ? ', jumped' : ''}`);
+      add('targetMove', `Target moved ${mv.hexes} hex${mv.hexes === 1 ? '' : 'es'}${mv.mode === 'jumped' ? ', jumped' : ''}`, v, hexText(mv));
     }
     // Battle armor's spread-out formation: +1 for non-infantry attackers.
     if (targetActor.type === 'battle_armor' && !isInfantry(attacker)) add('battleArmor', 'Battle armor target', 1, '');
@@ -354,6 +378,16 @@ export function autoAttackMods(attacker, weapon, targetActor) {
     if (skidded(targetActor)) add('targetSkid', 'Target skidded', 2, '');
   }
   return mods;
+}
+
+/**
+ * A weapon's own to-hit modifier: the sheet's "To-Hit" value when set (imported
+ * weapons carry it), otherwise looked up in the equipment catalog by name.
+ */
+export function weaponOwnToHit(weapon, attacker = null) {
+  if (weapon?.toHit !== undefined && weapon.toHit !== null && weapon.toHit !== '') return num(weapon.toHit);
+  const clan = /clan/i.test(attacker?.system?.techBase || '') || /\bclan\b|\(c\)|^cl/i.test(weapon?.name || '');
+  return catalogToHit(weapon?.name, { clan, ba: attacker?.type === 'battle_armor' });
 }
 
 /** Range-dependent modifiers: minimum range and a prone target (−2 adjacent / +1 otherwise). */

@@ -208,8 +208,13 @@ Rules detail for what *is* automated lives in `docs/unit-sheet-design.md`.
       not enforced).
 
 **Weapons & equipment**
-- [ ] Per-weapon special rules: pulse (−2), Streak, Ultra / Rotary AC rate of fire and
-      jams, LB-X ammo switching, Artemis, AMS, flamer heat, one-shot, Narc / TAG.
+- [x] Weapon to-hit modifiers (pulse −2, Clan ER pulse −1, heavy lasers +1 …) from the
+      catalog; Streak (all missiles hit).
+- [ ] Per-weapon special rules still open: Ultra / Rotary AC rate of fire and jams, LB-X
+      cluster ammo (−1, cluster table), Artemis (+2 cluster), AMS, flamer heat, one-shot
+      enforcement, Narc / TAG, ammo-based to-hit modifiers.
+- [ ] Weapon-table "To-Hit" column so a hand-entered weapon's modifier can be overridden
+      (today: catalog lookup by name).
 - [ ] Explosive components (Gauss rifles) and vehicle "Weapon Destroyed" explosions.
 - [ ] Indirect fire / artillery / spotting; C3, ECM.
 - [ ] Aimed shots against immobile targets.

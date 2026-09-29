@@ -24,7 +24,7 @@ INF_CLASS = {
     'WEAPON_BURST_HALF_D6': 'burst:1d6/2', 'WEAPON_BURST_1D6': 'burst:1d6', 'WEAPON_BURST_2D6': 'burst:2d6',
     'WEAPON_BURST_3D6': 'burst:3d6', 'WEAPON_BURST_4D6': 'burst:4d6', 'WEAPON_BURST_5D6': 'burst:5d6',
     'WEAPON_BURST_6D6': 'burst:6d6', 'WEAPON_BURST_7D6': 'burst:7d6'}
-NUM_FIELDS = ['criticalSlots', 'heat', 'damage', 'rackSize', 'minimumRange', 'shortRange', 'mediumRange', 'longRange', 'extremeRange']
+NUM_FIELDS = ['criticalSlots', 'toHitModifier', 'heat', 'damage', 'rackSize', 'minimumRange', 'shortRange', 'mediumRange', 'longRange', 'extremeRange']
 
 
 def body_of(src, cls):
@@ -130,7 +130,8 @@ for cls, d in classes.items():
     rng = lambda k: r.get(k) if isinstance(r.get(k), int) and r.get(k) >= 0 else 0
     w = {'n': name, 'k': sorted(set(keys), key=keys.index), 'h': r.get('heat') if isinstance(r.get('heat'), int) else 0,
          'd': dmg, 'c': cluster, 'mn': rng('minimumRange'), 's': rng('shortRange'), 'm': rng('mediumRange'),
-         'l': rng('longRange'), 'e': rng('extremeRange'), 'sl': r.get('criticalSlots') if isinstance(r.get('criticalSlots'), int) else 1}
+         'l': rng('longRange'), 'e': rng('extremeRange'), 'sl': r.get('criticalSlots') if isinstance(r.get('criticalSlots'), int) else 1,
+         'th': r.get('toHitModifier') if isinstance(r.get('toHitModifier'), int) else 0}
     if ammo and ammo not in ('NA',):
         w['a'] = ammo
     if r.get('inf'):
@@ -178,7 +179,7 @@ esc = lambda s: json.dumps(s, ensure_ascii=False)
 lines = []
 for w in sorted(d['weapons'], key=lambda w: (w['n'], w['k'][0])):
     flags = ''.join(f for f in ('st', 'ba', 'os', 'cl') if w.get(f))
-    row = [w['n'], '|'.join(w['k']), w['h'], w['d'] if w['d'] is not None else None, w['c'], w['mn'], w['s'], w['m'], w['l'], w['e'], w.get('a') or '', w.get('i') or '', flags, w['sl'], w['ar']]
+    row = [w['n'], '|'.join(w['k']), w['h'], w['d'] if w['d'] is not None else None, w['c'], w['mn'], w['s'], w['m'], w['l'], w['e'], w.get('a') or '', w.get('i') or '', flags, w['sl'], w['ar'], w['th']]
     lines.append('  ' + json.dumps(row, ensure_ascii=False, separators=(',', ':')))
 alines = []
 for a in sorted(d['ammo'], key=lambda a: (a['n'], a['k'][0])):
@@ -196,7 +197,7 @@ out = f'''/**
  * Weapon rows: [name, names ("|"), heat, damage (per missile for launchers; null =
  *   variable / special), cluster (launcher size, 0 = single), min, short, medium,
  *   long, extreme, ammo family, infantry damage class, flags, critical slots,
- *   aerospace range bracket]
+ *   aerospace range bracket, to-hit modifier (e.g. −2 pulse lasers)]
  *   flags: st = Streak (all missiles hit), ba = battle armor weapon, os = one-shot,
  *   cl = Clan.
  * Ammo rows: [name, short name, names ("|"), shots per ton, rack size, family, clan (1/0)]
