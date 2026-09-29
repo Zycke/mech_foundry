@@ -16,6 +16,7 @@ import { pendingPSR } from "./tw-psr.mjs";
 import { isAero } from "./tw-aero.mjs";
 import { unitDestroyed } from "./tw-status.mjs";
 import { GROUND_HEX_M } from "./tw-scale.mjs";
+import { turnsCostMP } from "./tw-facing.mjs";
 
 const num = (v) => Number(v) || 0;
 const esc = (t) => String(t ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -52,19 +53,34 @@ export function movementLimit(actor, mode = movedThisTurn(actor).mode) {
  * @param {Actor} actor
  * @param {number} hexes  total hexes moved this turn after the move
  */
-export function movementWarning(actor, hexes) {
+export function movementWarning(actor, hexes, turns = null, backward = null) {
   const mv = movedThisTurn(actor);
   const lim = movementLimit(actor, mv.mode);
   if (!lim) return null;
-  // A declared walk (cruise) is held to Walking MP.
-  if (mv.modeSet && mv.mode === 'walked' && hexes > lim.walk && hexes <= lim.limit) {
-    return `${actor.name} is set to ${lim.walkLabel.toLowerCase()} but has moved ${hexes} hexes — more than its ${lim.walkLabel} MP of ${lim.walk}. Set its movement to Auto or ${lim.runLabel === 'Flanking' ? 'Flanked' : 'Ran'} on the sheet.`;
+  const t = turns ?? mv.turns;
+  const back = backward ?? mv.backward;
+  // MP spent: hexes plus hexside turns ('Mechs / ground vehicles, not when jumping).
+  const mp = hexes + (turnsCostMP(actor, mv.mode) ? t : 0);
+  const spent = mp === hexes ? `${hexes} hex${hexes === 1 ? '' : 'es'} (${hexes * GROUND_HEX_M} m)` : `${mp} MP (${hexes} hex${hexes === 1 ? '' : 'es'} + ${t} facing change${t === 1 ? '' : 's'})`;
+  // Units can't run (flank) while backing up.
+  if (back > 0 && mv.mode === 'ran' && mp > lim.walk && ['mech', 'ground_vehicle'].includes(actor.type)) {
+    return `${actor.name} moved backward this turn, so it can't use ${lim.runLabel} MP: ${spent} is more than its ${lim.walkLabel} MP of ${lim.walk}.`;
   }
-  if (hexes <= lim.limit) return null;
-  const over = `${actor.name} has moved ${hexes} hex${hexes === 1 ? '' : 'es'} (${hexes * GROUND_HEX_M} m) this turn — more than its ${lim.limitLabel} MP of ${lim.limit}`;
+  // A declared walk (cruise) is held to Walking MP.
+  if (mv.modeSet && mv.mode === 'walked' && mp > lim.walk && mp <= lim.limit) {
+    return `${actor.name} is set to ${lim.walkLabel.toLowerCase()} but has spent ${spent} — more than its ${lim.walkLabel} MP of ${lim.walk}. Set its movement to Auto or ${lim.runLabel === 'Flanking' ? 'Flanked' : 'Ran'} on the sheet.`;
+  }
+  if (mp <= lim.limit) return null;
+  const over = `${actor.name} has spent ${spent} this turn — more than its ${lim.limitLabel} MP of ${lim.limit}`;
   // Moving past Running MP but within Jumping MP: probably a jump that wasn't declared.
   if (mv.mode !== 'jumped' && lim.jump >= hexes) return `${over}. If it jumped, set "Jumped" on its sheet.`;
   return `${over}.`;
+}
+
+/** "5 hexes + 2 turns" / "5 hexes" for this turn's movement. */
+export function mpText(mv) {
+  const h = `${mv.hexes} hex${mv.hexes === 1 ? '' : 'es'}`;
+  return mv.mp > mv.hexes ? `${h} + ${mv.mp - mv.hexes} turn${mv.mp - mv.hexes === 1 ? '' : 's'}` : h;
 }
 
 /** Is the phase rule on? (world setting; on by default) */
@@ -96,7 +112,7 @@ export function moveBlockReason(doc, user = game.user) {
   if (!PHASED_TYPES.has(actor?.type) || !inCombat(doc)) return null;
   const phase = game.combat.phaseName;
   if (phase === 'Movement' || mayMoveOutOfPhase(actor)) return null;
-  return `${actor.name} can only move in the Movement Phase (now: ${phase} Phase). Ask the GM to move it.`;
+  return `${actor.name} can only move or turn in the Movement Phase (now: ${phase} Phase). Ask the GM to move it${actor.type === 'mech' ? ', or twist its torso with Shift+Q / Shift+E' : ''}.`;
 }
 
 /* ------------------------------------------------------------------ */
@@ -141,9 +157,9 @@ export function checklistRows(combat) {
       const lim = movementLimit(a, mv.mode);
       const mode = MOVE_MODES.find(m => m.key === mv.mode);
       const label = a.type === 'ground_vehicle' ? mode?.vlabel : mode?.label;
-      row.done = mv.hexes > 0 || mv.modeSet;
-      row.status = row.done ? `${label}, ${mv.hexes} hex${mv.hexes === 1 ? '' : 'es'}${lim ? ` of ${lim.limit}` : ''}` : isAero(a) ? 'moves by velocity' : 'not moved';
-      if (lim && mv.hexes > lim.limit) row.warn = `over ${lim.limitLabel} MP ${lim.limit}`;
+      row.done = mv.mp > 0 || mv.modeSet;
+      row.status = row.done ? `${label}, ${mpText(mv)}${lim ? ` of ${lim.limit} MP` : ''}` : isAero(a) ? 'moves by velocity' : 'not moved';
+      if (lim && mv.mp > lim.limit) row.warn = `over ${lim.limitLabel} MP ${lim.limit}`;
     } else if (phase === 'Weapon Attack') {
       const fired = Object.keys(firedThisTurn(a)).length;
       const unjam = a.flags?.['mech-foundry']?.unjam?.key === currentTurnKey();
@@ -200,17 +216,17 @@ export function checklistHTML(combat) {
  */
 export function registerPhaseEnforcement() {
   Hooks.on("preUpdateToken", (doc, changes, options, userId) => {
-    if (userId !== game.user.id) return;
-    if (!('x' in changes) && !('y' in changes)) return;
+    if (userId !== game.user.id || options.mfSystem) return;
+    if (!('x' in changes) && !('y' in changes) && !('rotation' in changes)) return;
     const why = moveBlockReason(doc);
     if (why) { ui.notifications.warn(why); return false; }
     const actor = doc.actor;
-    if (!actor || !currentTurnKey() || !(options.mfMovedMeters || options.mfMovedHexes)) return;
+    if (!actor || !currentTurnKey() || !(options.mfMovedMeters || options.mfMovedHexes || options.mfTurns || options.mfBackward)) return;
     const cur = movedThisTurn(actor);
     const hexes = options.mfMovedMeters
       ? Math.max(1, Math.ceil((cur.meters + options.mfMovedMeters) / GROUND_HEX_M - 0.05))
-      : cur.hexes + options.mfMovedHexes;
-    const warn = movementWarning(actor, hexes);
+      : cur.hexes + num(options.mfMovedHexes);
+    const warn = movementWarning(actor, hexes, cur.turns + num(options.mfTurns), cur.backward + num(options.mfBackward));
     if (!warn) return;
     ui.notifications.warn(warn);
     const gms = game.users?.filter(u => u.isGM).map(u => u.id) ?? [];

@@ -52,6 +52,7 @@ import { initGMRelay } from "./helpers/gm-relay.mjs";
 import { registerMovementTracking } from "./helpers/tw-movement.mjs";
 import { checklistHTML, registerPhaseEnforcement, toggleChecklist } from "./helpers/tw-phase.mjs";
 import { acknowledge, roundSummaryHTML } from "./helpers/tw-round.mjs";
+import { registerFacingDisplay, registerFacingKeys } from "./helpers/tw-facing-ui.mjs";
 import { rollPendingPSR } from "./helpers/tw-falls.mjs";
 import { resolveAeroHeat, rollPendingControl } from "./helpers/tw-aero-flight.mjs";
 import { resolveMechHeat } from "./helpers/tw-combat.mjs";
@@ -531,6 +532,29 @@ function _registerSystemSettings() {
   });
 
   // Whether to show roll details in chat
+  game.settings.register("mech-foundry", "autoFaceUnits", {
+    name: "MECHFOUNDRY.SettingAutoFaceUnits",
+    hint: "MECHFOUNDRY.SettingAutoFaceUnitsHint",
+    scope: "world", config: true, type: Boolean, default: true
+  });
+  game.settings.register("mech-foundry", "tokenFacingOffset", {
+    name: "MECHFOUNDRY.SettingTokenFacingOffset",
+    hint: "MECHFOUNDRY.SettingTokenFacingOffsetHint",
+    scope: "world", config: true, type: Number, default: 0,
+    choices: { 0: "Up", 90: "Right", 180: "Down", 270: "Left" }
+  });
+  game.settings.register("mech-foundry", "showFacing", {
+    name: "MECHFOUNDRY.SettingShowFacing",
+    hint: "MECHFOUNDRY.SettingShowFacingHint",
+    scope: "client", config: true, type: Boolean, default: true
+  });
+  game.settings.register("mech-foundry", "showFiringArcs", {
+    name: "MECHFOUNDRY.SettingShowFiringArcs",
+    hint: "MECHFOUNDRY.SettingShowFiringArcsHint",
+    scope: "client", config: true, type: Boolean, default: true
+  });
+  registerFacingKeys();
+
   game.settings.register("mech-foundry", "enforceMovementPhase", {
     name: "MECHFOUNDRY.SettingEnforceMovementPhase",
     hint: "MECHFOUNDRY.SettingEnforceMovementPhaseHint",
@@ -601,6 +625,7 @@ function _registerSystemSettings() {
 // Total Warfare: per-turn hexes moved, from token moves during combat.
 registerMovementTracking();
 registerPhaseEnforcement(); // after movement tracking: reads its measured distance
+registerFacingDisplay();
 // Token status icons mirror unit conditions (prone, shut down, PSR pending…).
 registerUnitStatuses();
 // Roll PSR / Apply / Undo buttons on combat chat cards.

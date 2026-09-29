@@ -74,7 +74,7 @@ export async function resolveFall(actor, { levels = 0, rearOnly = false, rolls =
   // Turn the token to its new facing (hex maps; clockwise = right).
   if (f.turn && canvas?.grid?.isHexagonal) {
     for (const t of actor.getActiveTokens?.() ?? []) {
-      if (t.document?.isOwner) await t.document.update({ rotation: (num(t.document.rotation) + 60 * f.turn + 360) % 360 });
+      if (t.document?.isOwner) await t.document.update({ rotation: (num(t.document.rotation) + 60 * f.turn + 360) % 360 }, { mfSystem: true });
     }
   }
 

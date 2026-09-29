@@ -13,6 +13,7 @@ import {
 } from "./atow-conversion.mjs";
 import { beginRecording, endRecording, writeDoc } from "./gm-relay.mjs";
 import { AERO_HEX_M, GROUND_HEX_M, measureHexes, pixelsPerMeter } from "./tw-scale.mjs";
+import { arcCheck, attackSide, tokenFacing, torsoTwist } from "./tw-facing.mjs";
 import { facingChanges, mechLocChanges, poolChange, volleyCard, roundLabel, ammoFooter, heatCard, rollCard, rollSummary, summaryContext, volleySummary, withSummary } from "./tw-cards.mjs";
 import { currentTurnKey } from "./tw-turn.mjs";
 import { autoAttackMods, movedThisTurn, pilotUnconscious, rangeDependentMods, terrainMods, vehicleWeaponLocation } from "./tw-movement.mjs";
@@ -1642,9 +1643,12 @@ export function weaponToHitPreview(actor) {
     .filter(m => !(closeQuarters(actor, targetActor) && CLOSE_QUARTERS_DROP.includes(m.key)));
   const v = { gunnery: gunneryFor(actor), autoSum: shared.reduce((t, m) => t + m.value, 0), heat: heatToHitMod(actor), range, other: 0, terrain: 0 };
   const out = {};
+  const facing = facingContext(actor, attackerToken, target, targetActor);
   for (const w of unitWeapons(actor)) {
     const row = weaponPreviewRow(actor, w, targetActor, mode);
     const p = previewTN(v, row);
+    const arc = facing ? arcCheck({ actor, weapon: w, from: facing.from, facing: facing.attackerFacing, to: facing.to, twist: facing.twist }) : null;
+    if (arc && !arc.ok) { out[w.id] = { text: 'ARC', oor: true, title: `Out of arc vs ${target.name}: ${arc.why}` }; continue; }
     const parts = [`Gunnery ${v.gunnery}`, ...shared.map(m => `${m.label} ${m.value >= 0 ? '+' : ''}${m.value}`)];
     if (row.fixed) parts.push(`Weapon mods +${row.fixed}`);
     if (mode === 'a2g') parts.push('air-to-ground: pick strafe / strike / bomb in the fire dialog');
@@ -1656,6 +1660,22 @@ export function weaponToHitPreview(actor) {
       : { text: `${p.tn}+`, oor: false, title: `vs ${target.name}: needs ${p.tn}+ (${p.chance}%) · ${parts.join(' · ')} · terrain not included` };
   }
   return out;
+}
+
+/**
+ * Facing data for an attack, or null without both tokens:
+ * { from, to, attackerFacing, twist, side } — side = attack direction from the
+ * target's facing ('Mech or vehicle / aerospace table).
+ */
+function facingContext(actor, attackerToken, target, targetActor) {
+  if (!attackerToken?.center || !target?.center) return null;
+  const from = attackerToken.center, to = target.center;
+  const targetFacing = tokenFacing(target.document ?? target);
+  return {
+    from, to, attackerFacing: tokenFacing(attackerToken.document ?? attackerToken),
+    twist: actor?.type === 'mech' ? torsoTwist(actor, currentTurnKey()) : 0,
+    side: attackSide(targetActor, targetFacing, to, from)
+  };
 }
 
 /**
@@ -1739,7 +1759,10 @@ export async function fireWeapons(actor, preselect = []) {
   const dirList = isAero(targetActor)
     ? [...ATTACK_DIRECTIONS.map(d => d.key === 'front' ? { ...d, label: 'Nose' } : d.key === 'rear' ? { ...d, label: 'Aft' } : d), { key: 'above', label: 'Above / Below' }]
     : ATTACK_DIRECTIONS;
-  const dirOpts = dirList.map(d => `<option value="${d.key}">${d.label}</option>`).join('');
+  // Facing: the attack direction from where the attacker stands against the
+  // target's facing, and whether each weapon's firing arc bears on the target.
+  const facing = facingContext(actor, attackerToken, target, targetActor);
+  const dirOpts = dirList.map(d => `<option value="${d.key}"${d.key === facing?.side ? ' selected' : ''}>${d.label}${d.key === facing?.side ? ' (from facing)' : ''}</option>`).join('');
   const modRows = shared.map(x => `
       <div class="form-group"><label>${esc(x.label)}${x.hint ? ` <span class="tw-hint">${esc(x.hint)}</span>` : ''}</label><input type="number" name="auto_${x.key}" value="${x.value}" /></div>`).join('');
   const v0 = { gunnery, autoSum: shared.reduce((t, m) => t + m.value, 0), heat: heatMod, range: autoDist, other: 0,
@@ -1751,9 +1774,11 @@ export async function fireWeapons(actor, preselect = []) {
     const modes = fireModes(w, targetActor);
     const modeCell = modes.length ? `<select name="m_${w.id}">${modes.map(m => `<option value="${m.value}">${esc(m.label)}</option>`).join('')}</select>` : '';
     const ammoText = usesAmmo(w) ? ` · ${num(w.ammo)} rds${w.clusterAmmo !== undefined && w.clusterAmmo !== '' ? ` + ${num(w.clusterAmmo)} cluster` : ''}` : '';
-    return `<tr>
-        <td><input type="checkbox" name="w_${w.id}" ${preselect.includes(w.id) ? 'checked' : ''} /></td>
-        <td class="tw-fw-name">${esc(w.name || 'Weapon')}<span class="tw-hint">${esc(w.location || w.arc || '')} · ${ranges}${ammoText}</span></td>
+    const arc = facing ? arcCheck({ actor, weapon: w, from: facing.from, facing: facing.attackerFacing, to: facing.to, twist: facing.twist }) : null;
+    const outOfArc = arc && !arc.ok;
+    return `<tr${outOfArc ? ' class="tw-fw-oa"' : ''}>
+        <td><input type="checkbox" name="w_${w.id}" ${preselect.includes(w.id) && !outOfArc ? 'checked' : ''} /></td>
+        <td class="tw-fw-name">${esc(w.name || 'Weapon')}<span class="tw-hint">${esc(w.location || w.arc || '')} · ${ranges}${ammoText}</span>${outOfArc ? `<span class="tw-hint tw-fw-arc">Out of arc: ${esc(arc.why)} — check to fire anyway</span>` : ''}</td>
         <td class="tw-fw-mode">${modeCell}</td>
         <td class="tw-fw-heat">${num(w.heat) ? `${num(w.heat)}H` : ''}</td>
         <td class="tw-fw-tn" data-wid="${w.id}">${p.oor ? 'OOR' : `${p.tn}+ <span class="tw-hint">${p.chance}%</span>`}</td>
@@ -1855,7 +1880,10 @@ export async function fireWeapons(actor, preselect = []) {
   for (const id of ids) {
     const weapon = all.find(w => w.id === id);
     if (!weapon || weaponBlock(actor, weapon)) continue;
-    shots.push(await resolveWeaponShot(actor, weapon, target, result, rolls));
+    const shot = await resolveWeaponShot(actor, weapon, target, result, rolls);
+    const arc = facing ? arcCheck({ actor, weapon, from: facing.from, facing: facing.attackerFacing, to: facing.to, twist: facing.twist }) : null;
+    if (arc && !arc.ok) (shot.notes ??= []).push(`Fired outside its ${arc.label} (${arc.why}) — allowed by the firing player / GM.`);
+    shots.push(shot);
   }
   const recorded = endRecording();
   if (!shots.length) return;

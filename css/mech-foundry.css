@@ -7725,3 +7725,7 @@
 .tw-round-summary .tw-rs-unit.destroyed .nm { text-decoration: line-through; }
 .tw-round-summary .tw-rs-unit.destroyed .dead { margin-left: auto; font-family: var(--mf-font-head, sans-serif); font-weight: 700; letter-spacing: 0.08em; font-size: 0.85em; color: #e5695d; }
 .tw-round-summary .tw-rs-note { margin: 0; color: var(--mf-ink-dim, #8b98a3); padding: 0 2px; }
+/* Facing controls on the token HUD */
+.mf-facing-hud { display: flex; flex-direction: column; gap: 2px; }
+.tw-fire-dialog tr.tw-fw-oa .tw-fw-name { opacity: 0.75; }
+.tw-fire-dialog .tw-fw-arc { display: block; color: var(--mf-hazard, #e8b13a); }

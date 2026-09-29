@@ -14,6 +14,7 @@ import { concealmentMods, isInfantry, ridersOf } from "./tw-infantry.mjs";
 import { catalogToHit } from "./megamek-import.mjs";
 import { crewConditionMods } from "./tw-skills.mjs";
 import { GROUND_HEX_M, formatMeters, measureMeters, metersToHexes } from "./tw-scale.mjs";
+import { facingRotation, hexsideTurns, pathFacing, tokenFacing, turnsCostMP } from "./tw-facing.mjs";
 
 const num = (v) => Number(v) || 0;
 
@@ -112,11 +113,13 @@ export function movementPSRReasons(actor) {
 }
 
 /** Infer a movement mode from hexes moved. */
-export function inferMode(actor, hexes) {
-  if (hexes <= 0) return 'stationary';
+export function inferMode(actor, hexes, turns = 0) {
+  // Facing changes spend MP too ('Mechs and ground vehicles): turning in place is walking.
+  const mp = hexes + (turnsCostMP(actor) ? num(turns) : 0);
+  if (mp <= 0) return 'stationary';
   // Infantry don't run: moving past their ground MP means they jumped.
   if (isInfantry(actor)) return hexes > walkMP(actor) && num(actor.system?.movement?.jump) > 0 ? 'jumped' : 'walked';
-  return hexes <= walkMP(actor) ? 'walked' : 'ran';
+  return mp <= walkMP(actor) ? 'walked' : 'ran';
 }
 
 /**
@@ -127,11 +130,14 @@ export function inferMode(actor, hexes) {
 export function movedThisTurn(actor) {
   const rec = actor?.flags?.['mech-foundry']?.moved;
   const key = currentTurnKey();
-  if (!key || !rec || rec.key !== key) return { hexes: 0, meters: 0, mode: 'stationary', modeSet: false };
+  if (!key || !rec || rec.key !== key) return { hexes: 0, meters: 0, turns: 0, backward: 0, mp: 0, mode: 'stationary', modeSet: false };
   const meters = rec.meters == null ? null : Math.max(0, num(rec.meters));
   const hexes = meters == null ? Math.max(0, num(rec.hexes)) : metersToHexes(meters, GROUND_HEX_M, { sameHex: false });
-  const mode = rec.modeSet && MODE_MOD[rec.mode] !== undefined ? rec.mode : inferMode(actor, hexes);
-  return { hexes, meters: meters ?? hexes * GROUND_HEX_M, mode, modeSet: !!rec.modeSet };
+  const turns = Math.max(0, num(rec.turns)), backward = Math.max(0, num(rec.backward));
+  const mode = rec.modeSet && MODE_MOD[rec.mode] !== undefined ? rec.mode : inferMode(actor, hexes, turns);
+  // MP spent: hexes plus hexside turns ('Mechs / ground vehicles, not when jumping).
+  const mp = hexes + (turnsCostMP(actor, mode) ? turns : 0);
+  return { hexes, meters: meters ?? hexes * GROUND_HEX_M, turns, backward, mp, mode, modeSet: !!rec.modeSet };
 }
 
 /**
@@ -139,17 +145,19 @@ export function movedThisTurn(actor) {
  * merge. `meters` (token moves on a metric scene) sets the hexes; hexes typed
  * on the sheet replace the metres.
  */
-export async function setMovement(actor, { hexes, meters, mode } = {}) {
+export async function setMovement(actor, { hexes, meters, mode, turns, backward } = {}) {
   const key = currentTurnKey();
   if (!actor || !key) return;
   const cur = movedThisTurn(actor);
-  const rec = { key, hexes: cur.hexes, meters: cur.meters, mode: cur.mode, modeSet: cur.modeSet };
+  const rec = { key, hexes: cur.hexes, meters: cur.meters, turns: cur.turns, backward: cur.backward, mode: cur.mode, modeSet: cur.modeSet };
   if (meters != null) { rec.meters = Math.max(0, num(meters)); rec.hexes = metersToHexes(rec.meters, GROUND_HEX_M, { sameHex: false }); }
   else if (hexes != null) { rec.hexes = Math.max(0, num(hexes)); rec.meters = rec.hexes * GROUND_HEX_M; }
+  if (turns != null) rec.turns = Math.max(0, num(turns));
+  if (backward != null) rec.backward = Math.max(0, num(backward));
   if (mode !== undefined) {
     rec.modeSet = mode !== 'auto';
-    rec.mode = mode === 'auto' ? inferMode(actor, rec.hexes) : mode;
-  } else if (!rec.modeSet) rec.mode = inferMode(actor, rec.hexes);
+    rec.mode = mode === 'auto' ? inferMode(actor, rec.hexes, rec.turns) : mode;
+  } else if (!rec.modeSet) rec.mode = inferMode(actor, rec.hexes, rec.turns);
   await actor.update({ 'flags.mech-foundry.moved': rec });
 }
 
@@ -192,9 +200,18 @@ function pathDistance(doc, positions) {
  */
 export function registerMovementTracking() {
   Hooks.on("preUpdateToken", (doc, changes, options, userId) => {
-    if (userId !== game.user.id || !currentTurnKey()) return;
-    if (!('x' in changes) && !('y' in changes)) return;
-    if (!TRACKED_TYPES.has(doc.actor?.type)) return;
+    if (userId !== game.user.id || options.mfSystem) return;
+    const actor = doc.actor;
+    const moved = 'x' in changes || 'y' in changes;
+    const rotated = 'rotation' in changes;
+    if (!FACING_TYPES.has(actor?.type) || (!moved && !rotated)) return;
+    const tracking = !!currentTurnKey() && TRACKED_TYPES.has(actor.type);
+    const startFacing = tokenFacing(doc._source);
+    if (!moved) {
+      // Turning in place (Q / E, the HUD or the rotation handle).
+      if (tracking) options.mfTurns = hexsideTurns(startFacing, tokenFacing({ rotation: changes.rotation }));
+      return;
+    }
     const from = { x: doc._source.x, y: doc._source.y };
     const to = { x: changes.x ?? from.x, y: changes.y ?? from.y };
     const waypoints = options.movement?.[doc.id]?.waypoints;
@@ -203,19 +220,40 @@ export function registerMovementTracking() {
       : [from, to];
     const last = path[path.length - 1];
     if (last.x !== to.x || last.y !== to.y) path.push(to);
+    // Auto-facing: the unit turns to its direction of travel along the path
+    // (a leg straight back is backing up). Alt keeps its facing.
+    const keep = !autoFacing() || game.keyboard?.isModifierActive?.('Alt');
+    const pf = keep ? pathFacing(startFacing, path, { hold: true }) : pathFacing(startFacing, path);
+    if (rotated) options.mfTurns = hexsideTurns(startFacing, tokenFacing({ rotation: changes.rotation }));
+    else {
+      if (!keep && pf.facing !== startFacing) changes.rotation = facingRotation(pf.facing);
+      options.mfTurns = keep ? 0 : pf.turns;
+    }
+    options.mfBackward = pf.backward;
+    if (!tracking) { delete options.mfTurns; delete options.mfBackward; return; }
     const d = pathDistance(doc, path);
     if (d?.meters > 0) options.mfMovedMeters = d.meters;
     else if (d?.hexes > 0) options.mfMovedHexes = d.hexes;
   });
 
   Hooks.on("updateToken", async (doc, changes, options, userId) => {
-    if (userId !== game.user.id || !(options.mfMovedMeters || options.mfMovedHexes)) return;
+    if (userId !== game.user.id || !(options.mfMovedMeters || options.mfMovedHexes || options.mfTurns || options.mfBackward)) return;
     const actor = doc.actor;
-    if (!actor || !(actor.isOwner || game.user.isGM)) return;
+    if (!actor || !(actor.isOwner || game.user.isGM) || !currentTurnKey()) return;
     const cur = movedThisTurn(actor);
-    if (options.mfMovedMeters) await setMovement(actor, { meters: cur.meters + options.mfMovedMeters });
-    else await setMovement(actor, { hexes: cur.hexes + options.mfMovedHexes });
+    const upd = { turns: cur.turns + num(options.mfTurns), backward: cur.backward + num(options.mfBackward) };
+    if (options.mfMovedMeters) upd.meters = cur.meters + options.mfMovedMeters;
+    else if (options.mfMovedHexes) upd.hexes = cur.hexes + options.mfMovedHexes;
+    await setMovement(actor, upd);
   });
+}
+
+/** Unit types whose tokens face (and auto-face) on the map. */
+const FACING_TYPES = new Set(['mech', 'ground_vehicle', 'battle_armor', 'infantry', 'aerospace_fighter', 'small_craft']);
+
+/** World setting: turn unit tokens to face their direction of travel. */
+function autoFacing() {
+  try { return game.settings.get("mech-foundry", "autoFaceUnits") !== false; } catch { return true; }
 }
 
 /* ------------------------------------------------------------------ */

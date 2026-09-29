@@ -193,8 +193,10 @@ Rules detail for what *is* automated lives in `docs/unit-sheet-design.md`.
 **Map / movement**
 - [ ] Elevation and level differences (physical attacks by level, LOS, falls into lower
       hexes — the Fall… button takes levels by hand).
-- [ ] Firing arcs and automatic attack direction from token facing; torso twists,
-      rear-mounted weapons, turret arcs.
+- [x] Facing (auto-facing, Q/E, torso twist), facing MP costs, firing arcs, attack direction
+      from facing. Open: physical-attack arcs (punch / kick / club by arc), quad 'Mechs,
+      lateral shifts, rear-facing arm flips, turret facing for locked turrets (assumed forward),
+      facing costs for aerospace (thrust, via the Maneuver helper today).
 - [ ] Token displacement: pushes, charges, death from above, skids, sideslips (chat card
       tells players what to move).
 - [x] Movement warnings (over MP), Movement-Phase-only token moves for players, GM phase

@@ -127,6 +127,25 @@ criticals and cluster grouping:
   the tracker into the Heat Phase resolves heat for every 'Mech and aerospace unit in the
   combat with the defaults (this turn's movement, weapons fired, engine hits, sinks); a unit
   resolved by hand first is skipped, and a second resolution in one turn is blocked.
+- **Facing, arcs and attack direction** (`module/helpers/tw-facing.mjs`, `tw-facing-ui.mjs`;
+  geometry from MegaMek's ComputeArc / sideTable). Six hexside facings read from the token
+  rotation (world setting for which way the art faces). Moving a unit token turns it to its
+  direction of travel along the path (auto-facing, world setting); a leg straight back is
+  backing up (facing kept); Alt while dropping keeps the facing. Q / E (rebindable) and token
+  HUD buttons turn one hexside; Shift+Q / Shift+E twist a 'Mech's torso one hexside for the
+  turn (not while prone). Facing changes cost 1 MP per hexside for 'Mechs and ground vehicles
+  (free when jumping; infantry and battle armor turn freely): MP spent = hexes + turns drives
+  the walked / ran inference, the over-MP warnings, the checklist and the round summary;
+  running while backing up is flagged. Turning is held to the Movement Phase like moving.
+  Tokens show a facing wedge (and a torso-twist wedge); the selected unit shows its forward,
+  side and rear arcs (client settings). Arcs: forward 300–60°, left arm 240–60°, right arm
+  300–120°, rear 120–240°, vehicle sides 60–120° / 240–300°, aerospace nose / wings / aft;
+  turrets, battle armor and infantry all round (a locked turret fires forward); torso and arm
+  weapons turn with a torso twist, leg weapons don't. The fire dialog pre-selects the attack
+  direction from the target's facing ('Mech table: front 270–90°, sides 60°, rear 60°;
+  vehicles / aerospace: front 330–30°, sides 120°, rear 60°) and unchecks weapons that can't
+  bear, with the reason — they can still be checked (the card notes the override); the
+  sheet's to-hit buttons show ARC.
 - **Movement discipline** (`module/helpers/tw-phase.mjs`): a token move that takes a unit past
   its current MP this turn (Running / Flanking, or Walking when "Walked" is declared, Jumping
   when "Jumped" is) warns the mover and whispers the GM — it isn't blocked. During a running

@@ -97,9 +97,10 @@ export function roundSummary(combat, records = turnRecords()) {
       const lim = movementLimit(a, mv.mode);
       const m = MOVE_MODES.find(x => x.key === mv.mode);
       const label = a.type === 'ground_vehicle' ? m?.vlabel : m?.label;
-      const over = lim && mv.hexes > lim.limit;
-      unit.lines.push({ k: 'Moved', v: mv.hexes || mv.modeSet ? `${label} · ${mv.hexes} of ${lim ? lim.limit : '?'} hexes` : 'Stationary', warn: over });
-      if (over && !acked.includes(a.id)) todo.push({ id: `move-${a.id}`, tag: 'MOVE', text: `${a.name} moved ${mv.hexes} hexes — ${lim.limitLabel} MP is ${lim.limit}`, action: 'ack', actorId: a.id });
+      const over = lim && mv.mp > lim.limit;
+      const spent = mv.mp > mv.hexes ? `${mv.hexes} hexes + ${mv.mp - mv.hexes} turns = ${mv.mp} of ${lim ? lim.limit : '?'} MP` : `${mv.hexes} of ${lim ? lim.limit : '?'} hexes`;
+      unit.lines.push({ k: 'Moved', v: mv.mp || mv.modeSet ? `${label} · ${spent}` : 'Stationary', warn: over });
+      if (over && !acked.includes(a.id)) todo.push({ id: `move-${a.id}`, tag: 'MOVE', text: `${a.name} spent ${mv.mp} MP — ${lim.limitLabel} MP is ${lim.limit}`, action: 'ack', actorId: a.id });
     }
     // Weapon fire.
     const fire = attacks.filter(r => r.attacker === uuid && r.kind === 'fire');
