@@ -197,8 +197,9 @@ Rules detail for what *is* automated lives in `docs/unit-sheet-design.md`.
       rear-mounted weapons, turret arcs.
 - [ ] Token displacement: pushes, charges, death from above, skids, sideslips (chat card
       tells players what to move).
-- [ ] Movement enforcement (MP limits per mode), out-of-phase warnings, a GM phase
-      checklist (who hasn't moved / fired / resolved heat, "Resolve heat for all").
+- [x] Movement warnings (over MP), Movement-Phase-only token moves for players, GM phase
+      checklist. Open: facing changes aren't counted against MP; movement order by initiative
+      isn't enforced.
 - [ ] Terrain detection from the map (woods, water, pavement, buildings) — dialog inputs today.
 - [ ] Buildings: movement, damage absorption, collapse, building PSRs.
 - [ ] Water / underwater, hull down, life support while submerged; hover vehicles sinking

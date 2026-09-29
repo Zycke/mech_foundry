@@ -7671,3 +7671,15 @@
 .mech-foundry .wt td.w-special input.w-th, .mech-foundry .wt td.w-special input.w-clammo { width: 2.6em; }
 .mech-foundry .wt td.w-special .weapon-unjam { padding: 0 4px; width: auto; line-height: 1.2; font-size: 0.72rem; }
 .mech-foundry .mf-weapon-markers { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin: 2px 0 6px; }
+/* GM phase checklist (combat tracker) */
+.tw-phase-checklist { margin: 0 0 4px; padding: 3px 8px; background: var(--mf-panel, #1c232a); border: 1px solid var(--mf-line, #313b44); border-radius: 3px; font-size: 0.8em; }
+.tw-phase-checklist > summary { cursor: pointer; color: var(--mf-ink-dim, #8b98a3); }
+.tw-phase-checklist ul { list-style: none; margin: 3px 0 0; padding: 0; display: grid; gap: 1px; }
+.tw-phase-checklist li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; gap: 6px; align-items: baseline; padding: 1px 0; }
+.tw-phase-checklist li .n { color: var(--mf-ink, #d7dee4); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tw-phase-checklist li .s { color: var(--mf-ink-dim, #8b98a3); white-space: nowrap; }
+.tw-phase-checklist li.done .n { opacity: 0.6; }
+.tw-phase-checklist li.done .tw-check-tick { color: var(--mf-ok, #6fbf73); }
+.tw-phase-checklist li.warn .s b { color: var(--mf-danger, #d9483b); font-weight: 600; }
+.tw-phase-checklist li .p { color: var(--mf-amber, #f2a53a); }
+.tw-phase-checklist .tw-check-heat { margin-top: 4px; width: auto; padding: 1px 8px; font-size: 0.9em; }

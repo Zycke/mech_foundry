@@ -127,6 +127,17 @@ criticals and cluster grouping:
   the tracker into the Heat Phase resolves heat for every 'Mech and aerospace unit in the
   combat with the defaults (this turn's movement, weapons fired, engine hits, sinks); a unit
   resolved by hand first is skipped, and a second resolution in one turn is blocked.
+- **Movement discipline** (`module/helpers/tw-phase.mjs`): a token move that takes a unit past
+  its current MP this turn (Running / Flanking, or Walking when "Walked" is declared, Jumping
+  when "Jumped" is) warns the mover and whispers the GM — it isn't blocked. During a running
+  combat players can only move their units' tokens in the Movement Phase (world setting
+  "Hold Units to the Movement Phase", on by default; the GM is never blocked; characters and
+  units outside the combat aren't affected). A charge, push or death from above lets the
+  units it displaces move once that turn.
+- **GM phase checklist:** under the tracker's phase bar, one line per unit for the current
+  phase — initiative rolled, hexes moved of its limit (over-limit in red), weapons fired /
+  unjamming / anti-'Mech, physical attack, heat resolved — plus pending Piloting / Control
+  Rolls, a manual "done" tick per unit per phase, and "Resolve heat for all" in the Heat Phase.
 - **Phases:** the tracker bar steps forward and back (stepping back undoes nothing). After
   the End Phase — or the tracker's own Next Round — the round advances to Initiative and
   every combatant's initiative is cleared for re-rolling.

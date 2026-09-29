@@ -401,6 +401,16 @@ export async function resolvePhysicalAttack(actor, target, r) {
   }
   if (hit && (type === 'charge' || type === 'dfa') && actor.type === 'mech') notes.push(`${actor.name} must make a Piloting Skill Roll`);
 
+  // Units this attack displaces may move their tokens once this turn, outside the Movement Phase.
+  const turnKey = currentTurnKey();
+  if (turnKey) {
+    const displaced = [];
+    if (type === 'push' && hit) displaced.push(targetActor);
+    if (type === 'charge') displaced.push(actor, ...(hit ? [targetActor] : []));
+    if (type === 'dfa') displaced.push(actor, targetActor);
+    for (const a of displaced.filter(Boolean)) await writeDoc(a, { 'flags.mech-foundry.mayMove': { key: turnKey } });
+  }
+
   // A PSR the damage already queued shows as an alert; drop the duplicate note.
   const psrNote = (name) => `${name} must make a Piloting Skill Roll`;
   const shownNotes = notes.filter(n => !(n === psrNote(target?.name || 'Target') && hitResult?.psrReasons?.length)

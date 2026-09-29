@@ -50,6 +50,7 @@ import { woundDescription, conditionDescription } from "./data/status-descriptio
 import { SocketHandler, SOCKET_EVENTS } from "./helpers/socket-handler.mjs";
 import { initGMRelay } from "./helpers/gm-relay.mjs";
 import { registerMovementTracking } from "./helpers/tw-movement.mjs";
+import { checklistHTML, registerPhaseEnforcement, toggleChecklist } from "./helpers/tw-phase.mjs";
 import { registerUnitStatuses } from "./helpers/tw-status.mjs";
 import { registerCombatChat } from "./helpers/tw-chat.mjs";
 import { registerToHitRefresh } from "./sheets/unit-sheet.mjs";
@@ -525,6 +526,15 @@ function _registerSystemSettings() {
   });
 
   // Whether to show roll details in chat
+  game.settings.register("mech-foundry", "enforceMovementPhase", {
+    name: "MECHFOUNDRY.SettingEnforceMovementPhase",
+    hint: "MECHFOUNDRY.SettingEnforceMovementPhaseHint",
+    scope: "world",
+    config: true,
+    type: Boolean,
+    default: true
+  });
+
   game.settings.register("mech-foundry", "showRollDetails", {
     name: "MECHFOUNDRY.SettingShowRollDetails",
     hint: "MECHFOUNDRY.SettingShowRollDetailsHint",
@@ -585,6 +595,7 @@ function _registerSystemSettings() {
 
 // Total Warfare: per-turn hexes moved, from token moves during combat.
 registerMovementTracking();
+registerPhaseEnforcement(); // after movement tracking: reads its measured distance
 // Token status icons mirror unit conditions (prone, shut down, PSR pending…).
 registerUnitStatuses();
 // Roll PSR / Apply / Undo buttons on combat chat cards.
@@ -650,6 +661,18 @@ Hooks.on("renderCombatTracker", (app, html) => {
       `<button type="button" class="tw-next-phase"><i class="fas fa-forward-step"></i> Next Phase</button>` : "");
   bar.querySelector(".tw-next-phase")?.addEventListener("click", () => game.combat?.nextPhase());
   bar.querySelector(".tw-prev-phase")?.addEventListener("click", () => game.combat?.previousPhase());
+  // GM phase checklist: what each unit has done this phase.
+  el.querySelector(".tw-phase-checklist")?.remove();
+  if (game.user.isGM && combat.started) {
+    const wrap = document.createElement("div");
+    wrap.innerHTML = checklistHTML(combat);
+    const panel = wrap.firstElementChild;
+    if (panel) {
+      bar.after(panel);
+      panel.querySelectorAll(".tw-check-tick").forEach(a => a.addEventListener("click", (ev) => { ev.preventDefault(); toggleChecklist(combat, a.dataset.combatantId); }));
+      panel.querySelector(".tw-check-heat")?.addEventListener("click", () => combat._resolveHeat?.());
+    }
+  }
 });
 // A phase change is only a flag update: make sure the tracker shows it.
 Hooks.on("updateCombat", (combat, changes) => {

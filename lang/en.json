@@ -159,6 +159,8 @@
 
   "MECHFOUNDRY.SettingShowRollDetails": "Show Roll Details",
   "MECHFOUNDRY.SettingGMDamageRelay": "Relay Player Combat Damage Through GM",
+  "MECHFOUNDRY.SettingEnforceMovementPhase": "Hold Units to the Movement Phase",
+  "MECHFOUNDRY.SettingEnforceMovementPhaseHint": "During a running combat, players can only move their units' tokens in the Movement Phase (units displaced by a charge, push or death from above may move once that turn). The GM can always move tokens.",
   "MECHFOUNDRY.SettingGMDamageRelayHint": "When a player's attack hits a unit they don't own, the active GM's client applies the damage, criticals and crew injuries automatically. Only combat damage fields can be written this way. Requires a GM to be logged in; turn off to have players apply damage manually.",
   "MECHFOUNDRY.SettingShowRollDetailsHint": "Show detailed roll information in chat messages.",
   "MECHFOUNDRY.SettingDefaultDifficulty": "Default Difficulty",
