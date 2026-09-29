@@ -1,26 +1,38 @@
-<div class="mech-foundry tw-attack-card tw-heat-card">
-  <header class="tw-atk-head"><i class="fas fa-fire"></i> Heat Phase</header>
-  <div class="tw-heat-lines">
-    {{#each lines}}<div class="tw-heat-line"><span class="e">{{this.label}}</span><span class="v">{{#if (gte this.value 0)}}+{{/if}}{{this.value}}</span></div>{{/each}}
+{{!-- The heat phase for one unit, outcome first. Built by heatCard() in tw-cards.mjs. --}}
+<div class="mech-foundry tw-attack-card tw-v tw-heat-card">
+  <div class="tw-v-head"><i class="fas fa-fire"></i><span>Heat Phase</span>{{#if round}}<span class="tw-v-round">{{round}}</span>{{/if}}</div>
+  {{#if unitName}}<div class="tw-v-who">{{unitName}}</div>{{/if}}
+
+  <div class="tw-v-tally">
+    <div><span class="v">{{newHeat}}</span><span class="k">heat</span></div>
+    <div><span class="v">{{change}}</span><span class="k">this turn</span></div>
+    <div><span class="v">+{{effects.toHit}}</span><span class="k">to-hit</span></div>
   </div>
-  <div class="tw-atk-tn">
-    <span class="tw-atk-label">New Heat</span>
-    <span class="tw-atk-tnval">{{newHeat}}</span>
+  {{#unless aero}}<div class="tw-atk-mods tw-v-effects">
+    <span class="tw-mod">Move −{{effects.mp}} MP</span>
+    <span class="tw-mod">Shutdown {{effects.shutdown}}</span>
+    <span class="tw-mod">Ammo {{effects.ammo}}</span>
+  </div>{{/unless}}
+
+  {{> "systems/mech-foundry/templates/chat/parts/tw-alerts.hbs" a=alerts}}
+  {{#each notes}}<div class="tw-v-note">▸ {{this}}</div>{{/each}}
+  {{> "systems/mech-foundry/templates/chat/parts/tw-locs.hbs" rows=rows name=unitName}}
+
+  <div class="tw-v-sec">Details</div>
+  <div class="tw-v-list">
+    <details class="tw-v-w"><summary><span class="mark"></span><span class="wn"><span class="nm">Heat breakdown</span><span class="out">{{start}} → <b>{{newHeat}}</b></span></span><span class="roll"><span class="tw-v-chev">›</span></span></summary>
+      <div class="tw-v-wd">
+        <div class="tw-heat-lines">
+          {{#each lines}}<div class="tw-heat-line"><span class="e">{{this.label}}</span><span class="v">{{#if (gte this.value 0)}}+{{/if}}{{this.value}}</span></div>{{/each}}
+        </div>
+        {{#each quiet}}<div class="tw-hl-event">▸ {{this}}</div>{{/each}}
+      </div>
+    </details>
+    {{#each rollLines}}{{> "systems/mech-foundry/templates/chat/parts/tw-roll-line.hbs" l=this}}{{/each}}
+    {{#if ammoFrag}}
+    <details class="tw-v-w"><summary><span class="mark"></span><span class="wn"><span class="nm">Ammunition explosion</span></span><span class="roll"><span class="tw-v-chev">›</span></span></summary>
+      <div class="tw-v-wd">{{> "systems/mech-foundry/templates/chat/parts/tw-hit-result.hbs" hr=ammoFrag}}</div>
+    </details>
+    {{/if}}
   </div>
-  <div class="tw-atk-mods">
-    {{#unless aero}}<span class="tw-mod">Move −{{effects.mp}} MP</span>{{/unless}}
-    <span class="tw-mod">Fire +{{effects.toHit}}</span>
-    {{#unless aero}}<span class="tw-mod">Shutdown {{effects.shutdown}}</span>
-    <span class="tw-mod">Ammo {{effects.ammo}}</span>{{/unless}}
-  </div>
-  {{#each notes}}<div class="tw-hl-event">▸ {{this}}</div>{{/each}}
-  {{#each warriorLines}}<div class="tw-hl-event tw-crit-line">▸ {{this}}</div>{{/each}}
-  {{#if pilotDamage}}<div class="tw-hl-event">▸ Life support: {{pilotDamage}}</div>{{/if}}
-  {{#if shutdownCheck}}<div class="tw-hl-event">▸ Shutdown avoid roll {{shutdownCheck.total}} vs {{shutdownCheck.avoid}}+: <strong>{{#if shutdownCheck.shutsDown}}SHUTS DOWN{{else}}avoided{{/if}}</strong></div>{{/if}}
-  {{#if startupCheck}}<div class="tw-hl-event">▸ Shut down: {{startupCheck.text}}{{#if restarts}} — <strong>BACK ONLINE</strong>{{/if}}</div>{{/if}}
-  {{#if ammoCheck}}{{#if ammoCheck.none}}<div class="tw-hl-event">▸ Ammunition explosion check: no loaded bins linked to weapons</div>
-  {{else}}<div class="tw-hl-event">▸ Ammunition explosion avoid roll {{ammoCheck.total}} vs {{ammoCheck.avoid}}+: <strong>{{#if ammoCheck.explodes}}EXPLODES{{else}}avoided{{/if}}</strong></div>{{/if}}{{/if}}
-  {{#if ammoFrag}}{{> "systems/mech-foundry/templates/chat/parts/tw-hit-result.hbs" hr=ammoFrag}}{{/if}}
-  {{#if autoShutdown}}<div class="tw-hl-destroyed">AUTOMATIC SHUTDOWN (30+)</div>{{/if}}
-  {{#if psrNote}}<div class="tw-hl-event tw-psr-line"><i class="fas fa-person-falling"></i> {{psrNote}}</div>{{/if}}
 </div>

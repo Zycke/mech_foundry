@@ -1,0 +1,14 @@
+{{!-- Everything behind one attack line (c = the attack context). --}}
+{{#if c.weaponMods.length}}<div class="tw-atk-mods">{{#if c.baseTN}}<span class="tw-mod">Base {{c.baseTN}}</span>{{/if}}{{#each c.weaponMods}}<span class="tw-mod">{{this.label}} {{#if (gte this.value 0)}}+{{/if}}{{this.value}}</span>{{/each}}</div>{{/if}}
+{{#if c.automatic}}<div class="tw-atk-roll hit"><span class="tw-atk-result">AUTOMATIC HIT</span></div>
+{{else}}
+<div class="tw-atk-roll {{#if c.hit}}hit{{else}}miss{{/if}}">
+  <span class="tw-atk-dice">{{#each c.dice}}<span class="tw-die">{{this}}</span>{{/each}}</span>
+  <span class="tw-atk-total">= {{c.rollTotal}} vs {{c.tn}}+</span>
+  {{#if c.outOfRange}}<span class="tw-atk-result oor">OUT OF RANGE</span>
+  {{else}}<span class="tw-atk-result">{{#if c.hit}}HIT{{else}}MISS{{/if}}</span><span class="tw-atk-margin">by {{c.margin}}</span>{{/if}}
+</div>
+{{/if}}
+{{#each c.notes}}<div class="tw-hl-event">▸ {{this}}</div>{{/each}}
+{{#if c.ammoLine}}<div class="tw-atk-ammo"><i class="fas fa-box"></i> {{c.ammoLine}}</div>{{/if}}
+{{#if c.hitResult}}{{> "systems/mech-foundry/templates/chat/parts/tw-hit-result.hbs" hr=c.hitResult}}{{else if c.hit}}{{#if c.damage}}<div class="tw-atk-dmg">Damage: <strong>{{c.damage}}</strong></div>{{/if}}{{/if}}

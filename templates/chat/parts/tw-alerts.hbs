@@ -1,0 +1,2 @@
+{{!-- Outcome alerts (a = [{tag, text, red}]). --}}
+{{#if a.length}}<div class="tw-v-alerts">{{#each a}}<div class="tw-v-alert{{#if red}} red{{/if}}"><span class="tag">{{tag}}</span><span>{{text}}</span></div>{{/each}}</div>{{/if}}

@@ -16,6 +16,7 @@ import { pendingPSR, queuePSR, warriorDamage } from "./tw-psr.mjs";
 import { pilotingFor } from "./tw-falls.mjs";
 import { aeroTurnState, isAero } from "./tw-aero.mjs";
 import { firedThisTurn } from "./tw-combat.mjs";
+import { heatCard, rollCard, roundLabel } from "./tw-cards.mjs";
 
 const { DialogV2 } = foundry.applications.api;
 const num = (v) => Number(v) || 0;
@@ -63,7 +64,8 @@ export const RANDOM_MOVEMENT = {
 };
 
 async function postCard(actor, flavor, ctx, rolls) {
-  const content = await foundry.applications.handlebars.renderTemplate("systems/mech-foundry/templates/chat/tw-psr.hbs", { title: flavor, ...ctx });
+  const card = rollCard({ title: flavor, icon: 'fa-plane', round: roundLabel(), ...ctx }, actor?.name || '');
+  const content = await foundry.applications.handlebars.renderTemplate("systems/mech-foundry/templates/chat/tw-psr.hbs", card);
   await ChatMessage.create({ flags: { 'mech-foundry': endRecording() }, speaker: ChatMessage.getSpeaker({ actor }), flavor, content, rolls });
 }
 
@@ -276,9 +278,9 @@ export async function resolveAeroHeat(actor, preset = null) {
     { label: 'Heat sinks', value: -r.sinks }
   ].filter(l => l.value !== 0 || l.label === 'Start of turn');
   const toHit = [8, 13, 17, 24].filter(t => newHeat >= t).length;
-  const content = await foundry.applications.handlebars.renderTemplate("systems/mech-foundry/templates/chat/tw-heat.hbs", {
-    aero: true, lines, newHeat, effects: { toHit, shutdown: '', ammo: '' }, notes, warriorLines
-  });
+  const content = await foundry.applications.handlebars.renderTemplate("systems/mech-foundry/templates/chat/tw-heat.hbs", heatCard({
+    aero: true, round: roundLabel(), lines, newHeat, effects: { toHit, shutdown: '', ammo: '' }, notes, warriorLines
+  }, actor.name));
   await ChatMessage.create({ flags: { 'mech-foundry': endRecording() }, speaker: ChatMessage.getSpeaker({ actor }), flavor: 'Heat Phase', content, rolls });
   return { newHeat, notes, conditions };
 }

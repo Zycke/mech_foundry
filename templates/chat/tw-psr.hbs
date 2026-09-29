@@ -1,58 +1,42 @@
-<div class="mech-foundry tw-attack-card tw-psr-card">
-  <header class="tw-atk-head"><i class="fas fa-person-falling"></i> <span class="tw-atk-weapon">{{title}}</span></header>
+{{!-- A roll card (Piloting / Driving / Control rolls, falls, skids, crashes …), outcome first. Built by rollCard() in tw-cards.mjs. --}}
+<div class="mech-foundry tw-attack-card tw-v tw-psr-card">
+  <div class="tw-v-head"><i class="fas {{#if icon}}{{icon}}{{else}}fa-person-falling{{/if}}"></i><span>{{title}}</span>{{#if round}}<span class="tw-v-round">{{round}}</span>{{/if}}</div>
+  {{#if unitName}}<div class="tw-v-who">{{unitName}}</div>{{/if}}
 
-  {{#each results}}
-  <div class="tw-psr-roll">
-    <div class="tw-psr-reason">{{this.label}}{{#if this.tn}} <span class="tw-psr-tn">— needs {{this.tn}}+</span>{{/if}}</div>
-    {{#if this.mods.length}}<div class="tw-atk-mods">{{#each this.mods}}<span class="tw-mod">{{this.label}} {{#if (gte this.value 0)}}+{{/if}}{{this.value}}</span>{{/each}}</div>{{/if}}
-    <div class="tw-atk-roll {{#if this.success}}hit{{else}}miss{{/if}}">
-      {{#if this.auto}}<span class="tw-atk-result">{{this.auto}}</span>
-      {{else}}<span class="tw-atk-dice">{{#each this.dice}}<span class="tw-die">{{this}}</span>{{/each}}</span>
-      <span class="tw-atk-total">= {{this.total}}</span>
-      <span class="tw-atk-result">{{#if this.success}}PASS{{else}}FAIL{{/if}}</span>{{/if}}
-    </div>
-  </div>
-  {{/each}}
-
-  {{#each notes}}<div class="tw-hl-event tw-psr-line">▸ {{this}}</div>{{/each}}
-  {{#if stays}}<div class="tw-hl-event">▸ Stays standing.</div>{{/if}}
-  {{#if stood}}<div class="tw-hl-event">▸ Back on its feet.</div>{{/if}}
-  {{#if woke}}<div class="tw-hl-event">▸ Regains consciousness.</div>{{/if}}
-
-  {{#if fall}}
-  <div class="tw-psr-fall">
-    <div class="tw-hl-destroyed">FALLS{{#if fall.levels}} {{fall.levels}} LEVEL{{#unless (eq fall.levels 1)}}S{{/unless}}{{/if}} — {{fall.damage}} damage</div>
-    <div class="tw-hl-event">▸ Facing roll {{fall.facingRoll}}: {{fall.facing}} · hits on the {{fall.location}} column · now prone</div>
-    {{#each fall.frag.groups}}
-    <div class="tw-hit-loc">
-      <span class="tw-hl-dice">{{#each this.locDice}}<span class="tw-die">{{this}}</span>{{/each}}</span>
-      <span class="tw-hl-loc">{{this.locLabel}}</span>
-      <span class="tw-hl-dmg">{{this.damage}}</span>
-    </div>
-    {{#each this.events}}<div class="tw-hl-event">▸ {{this}}</div>{{/each}}
-    {{/each}}
-    {{#each fall.frag.critChecks}}
-    <div class="tw-hl-event tw-crit-line">▸ Crit check {{this.locLabel}} ({{this.total}}): <strong>{{this.text}}</strong></div>
-    {{#each this.slots}}<div class="tw-hl-event tw-crit-slot">· slot {{this.index}}: {{this.text}}</div>{{/each}}
-    {{/each}}
-    {{#each fall.frag.explosionLines}}<div class="tw-hl-event tw-crit-line"><strong>{{this}}</strong></div>{{/each}}
-    {{#each fall.frag.warriorLines}}<div class="tw-hl-event tw-crit-line">▸ {{this}}</div>{{/each}}
-    {{#if fall.frag.destroyedByCrit}}<div class="tw-hl-destroyed">UNIT DESTROYED</div>{{/if}}
-    <div class="tw-psr-reason">Avoid warrior damage — needs {{fall.warrior.tn}}+</div>
-    <div class="tw-atk-mods">{{#each fall.warrior.mods}}<span class="tw-mod">{{this.label}} {{#if (gte this.value 0)}}+{{/if}}{{this.value}}</span>{{/each}}</div>
-    <div class="tw-atk-roll {{#if fall.warrior.success}}hit{{else}}miss{{/if}}">
-      {{#if fall.warrior.auto}}<span class="tw-atk-result">{{fall.warrior.auto}}</span>
-      {{else}}<span class="tw-atk-dice">{{#each fall.warrior.dice}}<span class="tw-die">{{this}}</span>{{/each}}</span>
-      <span class="tw-atk-total">= {{fall.warrior.total}}</span>
-      <span class="tw-atk-result">{{#if fall.warrior.success}}NO INJURY{{else}}INJURED{{/if}}</span>{{/if}}
-    </div>
-    {{#each fall.warriorLines}}<div class="tw-hl-event tw-crit-line">▸ {{this}}</div>{{/each}}
-    {{#each fall.infantryLines}}<div class="tw-hl-event tw-psr-line">▸ {{this}}</div>{{/each}}
+  {{#if hasTally}}
+  <div class="tw-v-tally">
+    {{#if verdict}}<div><span class="v {{#if verdict.ok}}ok{{else}}no{{/if}}">{{verdict.text}}</span><span class="k">{{{verdict.roll}}}</span></div>{{/if}}
+    {{#if hasDamage}}<div><span class="v">{{damage}}</span><span class="k">damage</span></div>{{/if}}
   </div>
   {{/if}}
-  {{#if skidFrag}}{{> "systems/mech-foundry/templates/chat/parts/tw-hit-result.hbs" hr=skidFrag}}{{/if}}
-  {{#each frags}}
-  {{#if this.title}}<div class="tw-self-head">{{this.title}}</div>{{/if}}
-  {{> "systems/mech-foundry/templates/chat/parts/tw-hit-result.hbs" hr=this}}
-  {{/each}}
+
+  {{> "systems/mech-foundry/templates/chat/parts/tw-alerts.hbs" a=alerts}}
+  {{#each notes}}<div class="tw-v-note">▸ {{this}}</div>{{/each}}
+  {{#if stays}}<div class="tw-v-note">▸ Stays standing.</div>{{/if}}
+  {{#if stood}}<div class="tw-v-note">▸ Back on its feet.</div>{{/if}}
+  {{#if woke}}<div class="tw-v-note">▸ Regains consciousness.</div>{{/if}}
+  {{#each units}}{{> "systems/mech-foundry/templates/chat/parts/tw-locs.hbs" rows=this.rows name=this.name}}{{/each}}
+
+  {{#if lines.length}}
+  <div class="tw-v-sec">Rolls</div>
+  <div class="tw-v-list">
+    {{#each lines}}{{> "systems/mech-foundry/templates/chat/parts/tw-roll-line.hbs" l=this}}{{/each}}
+  </div>
+  {{/if}}
+
+  {{#if hasFrags}}
+  <div class="tw-v-list tw-v-more">
+    <details class="tw-v-w"><summary><span class="mark"></span><span class="wn"><span class="nm">Hit locations &amp; damage rolls</span></span><span class="roll"><span class="tw-v-chev">›</span></span></summary>
+      <div class="tw-v-wd">
+        {{#if fall}}<div class="tw-hl-event">▸ Facing roll {{fall.facingRoll}}: {{fall.facing}} · hits on the {{fall.location}} column</div>
+        {{#if fall.frag}}{{> "systems/mech-foundry/templates/chat/parts/tw-hit-result.hbs" hr=fall.frag}}{{/if}}{{/if}}
+        {{#if skidFrag}}{{> "systems/mech-foundry/templates/chat/parts/tw-hit-result.hbs" hr=skidFrag}}{{/if}}
+        {{#each frags}}
+        {{#if this.title}}<div class="tw-self-head">{{this.title}}</div>{{/if}}
+        {{> "systems/mech-foundry/templates/chat/parts/tw-hit-result.hbs" hr=this}}
+        {{/each}}
+      </div>
+    </details>
+  </div>
+  {{/if}}
 </div>

@@ -1,0 +1,12 @@
+{{!-- One collapsible roll line (l = rollLine(): ok, name, roll, out, r = {mods, dice, total, tn, auto}). --}}
+<details class="tw-v-w"><summary><span class="mark {{#if l.ok}}ok{{else}}no{{/if}}">{{#if l.ok}}✓{{else}}✗{{/if}}</span><span class="wn"><span class="nm">{{l.name}}</span><span class="out">{{{l.out}}}</span></span><span class="roll">{{{l.roll}}}<span class="tw-v-chev">›</span></span></summary>
+  <div class="tw-v-wd">
+    {{#if l.r.mods.length}}<div class="tw-atk-mods">{{#each l.r.mods}}<span class="tw-mod">{{this.label}} {{#if (gte this.value 0)}}+{{/if}}{{this.value}}</span>{{/each}}</div>{{/if}}
+    {{#if l.r.auto}}<div class="tw-atk-roll {{#if l.ok}}hit{{else}}miss{{/if}}"><span class="tw-atk-result">{{l.r.auto}}</span></div>
+    {{else}}<div class="tw-atk-roll {{#if l.ok}}hit{{else}}miss{{/if}}">
+      <span class="tw-atk-dice">{{#each l.r.dice}}<span class="tw-die">{{this}}</span>{{/each}}</span>
+      <span class="tw-atk-total">= {{l.r.total}}{{#if l.r.tn}} vs {{l.r.tn}}+{{/if}}</span>
+      <span class="tw-atk-result">{{#if l.ok}}PASS{{else}}FAIL{{/if}}</span>
+    </div>{{/if}}
+  </div>
+</details>

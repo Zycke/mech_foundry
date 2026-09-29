@@ -13,6 +13,7 @@ import { isImmobile, linkedCrew, pilotUnconscious } from "./tw-movement.mjs";
 import { consciousnessNumber, pendingPSR, phaseDamageSoFar, psrDamageMods, standsThisTurn, warriorDamage } from "./tw-psr.mjs";
 import { resolveDamageAgainst } from "./tw-combat.mjs";
 import { knockOff, ridersOf, swarmersOf } from "./tw-infantry.mjs";
+import { rollCard, roundLabel } from "./tw-cards.mjs";
 
 const { DialogV2 } = foundry.applications.api;
 const num = (v) => Number(v) || 0;
@@ -51,7 +52,8 @@ export function fiveGroups(total) {
 }
 
 export async function postCard(actor, flavor, ctx, rolls) {
-  const content = await foundry.applications.handlebars.renderTemplate("systems/mech-foundry/templates/chat/tw-psr.hbs", { title: flavor, ...ctx });
+  const card = rollCard({ title: flavor, round: roundLabel(), ...ctx }, actor?.name || '');
+  const content = await foundry.applications.handlebars.renderTemplate("systems/mech-foundry/templates/chat/tw-psr.hbs", card);
   await ChatMessage.create({ flags: { 'mech-foundry': endRecording() }, speaker: ChatMessage.getSpeaker({ actor }), flavor, content, rolls });
 }
 

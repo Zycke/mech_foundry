@@ -18,6 +18,7 @@ import {
 } from "./tw-movement.mjs";
 import { phaseDamageSoFar, psrDamageMods } from "./tw-psr.mjs";
 import { pilotingFor, postCard, resolveFall } from "./tw-falls.mjs";
+import { roundLabel, volleyCard } from "./tw-cards.mjs";
 import { MECH_LOC_LABEL, clusterHits, firedThisTurn, locationGone, measureHexes, resolveDamageAgainst } from "./tw-combat.mjs";
 import { actuatorEffects, physicalDamage, physicalThisTurn, rollKickLocation, rollPunchLocation } from "./tw-physical.mjs";
 import { isAero } from "./tw-aero.mjs";
@@ -243,11 +244,19 @@ export async function resolveAntiMech(actor, target, { type = 'leg', targetWoods
     await writeDoc(actor, { 'system.attached': { uuid: targetActor.uuid, mode: 'swarm', key: key || '' } });
     notes.push(`${actor.name} swarms ${targetActor.name}: no damage this turn. From the next Weapon Attack Phase it attacks with Swarm Attack on its sheet; it can't be targeted, and moves with the unit.`);
   }
-  const content = await foundry.applications.handlebars.renderTemplate("systems/mech-foundry/templates/chat/tw-attack.hbs", {
-    weaponName: type === 'leg' ? 'Leg Attack' : 'Swarm Attack', location: '', targetName: target?.name || '', attackerName: actor.name,
-    mods, tn, dice: diceOf(roll), rollTotal: roll.total, hit, margin: Math.abs(roll.total - tn), outOfRange: false, damage, hitResult, notes
+  const title = type === 'leg' ? 'Leg Attack' : 'Swarm Attack';
+  const card = volleyCard({
+    title, icon: 'fa-person-rifle', attackerName: actor.name, targetName: target?.name || '',
+    round: roundLabel(), baseMods: mods,
+    shots: [{
+      weaponName: title, location: '', targetName: target?.name || '', attackerName: actor.name,
+      mods, weaponMods: [], tn, dice: diceOf(roll), rollTotal: roll.total, hit, margin: Math.abs(roll.total - tn), outOfRange: false,
+      damage, hitResult, notes: type === 'leg' ? notes : []
+    }],
+    notes: type === 'swarm' ? notes : []
   });
-  await ChatMessage.create({ flags: { 'mech-foundry': endRecording() }, speaker: ChatMessage.getSpeaker({ actor }), flavor: type === 'leg' ? 'Leg Attack' : 'Swarm Attack', content, rolls });
+  const content = await foundry.applications.handlebars.renderTemplate("systems/mech-foundry/templates/chat/tw-volley.hbs", card);
+  await ChatMessage.create({ flags: { 'mech-foundry': endRecording() }, speaker: ChatMessage.getSpeaker({ actor }), flavor: title, content, rolls });
   return { hit, tn, mods, hitResult, notes };
 }
 
@@ -318,11 +327,16 @@ export async function swarmAttack(actor) {
   const frag = groups.length ? await resolveDamageAgainst(carrier, direction, groups, rolls, carrier.name, opts) : null;
   if (currentTurnKey()) await writeDoc(actor, { 'flags.mech-foundry.antiMech': { key: currentTurnKey(), type: 'swarmDamage' } });
   const total = groups.reduce((a, b) => a + b, 0);
-  const content = await foundry.applications.handlebars.renderTemplate("systems/mech-foundry/templates/chat/tw-attack.hbs", {
-    weaponName: 'Swarm Damage', location: '', targetName: carrier.name, attackerName: actor.name,
-    mods: [], tn: 0, dice: [], rollTotal: 0, hit: true, margin: 0, outOfRange: false, damage: total,
-    hitResult: frag ? { total, ...frag } : null, notes, automatic: true
+  const card = volleyCard({
+    title: 'Swarm Damage', icon: 'fa-person-rifle', attackerName: actor.name, targetName: carrier.name,
+    ctxLine: 'Automatic hit', round: roundLabel(),
+    shots: [{
+      weaponName: 'Swarm Damage', location: '', targetName: carrier.name, attackerName: actor.name,
+      mods: [], weaponMods: [], tn: 0, dice: [], rollTotal: 0, hit: true, margin: 0, outOfRange: false, damage: total,
+      hitResult: frag ? { total, ...frag } : null, notes, automatic: true
+    }]
   });
+  const content = await foundry.applications.handlebars.renderTemplate("systems/mech-foundry/templates/chat/tw-volley.hbs", card);
   await ChatMessage.create({ flags: { 'mech-foundry': endRecording() }, speaker: ChatMessage.getSpeaker({ actor }), flavor: 'Swarm Damage', content, rolls });
   return { frag, groups, notes };
 }

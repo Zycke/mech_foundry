@@ -51,8 +51,12 @@ export const preloadHandlebarsTemplates = async function() {
     // Chat partials
     "systems/mech-foundry/templates/chat/skill-roll.hbs",
     "systems/mech-foundry/templates/chat/weapon-attack.hbs",
-    "systems/mech-foundry/templates/chat/tw-attack.hbs",
+    "systems/mech-foundry/templates/chat/tw-volley.hbs",
     "systems/mech-foundry/templates/chat/parts/tw-hit-result.hbs",
+    "systems/mech-foundry/templates/chat/parts/tw-alerts.hbs",
+    "systems/mech-foundry/templates/chat/parts/tw-locs.hbs",
+    "systems/mech-foundry/templates/chat/parts/tw-shot-details.hbs",
+    "systems/mech-foundry/templates/chat/parts/tw-roll-line.hbs",
     "systems/mech-foundry/templates/chat/tw-heat.hbs",
     "systems/mech-foundry/templates/chat/tw-psr.hbs",
     "systems/mech-foundry/templates/chat/aoe-attack.hbs",
