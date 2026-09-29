@@ -132,7 +132,27 @@ criticals and cluster grouping:
   every combatant's initiative is cleared for re-rolling.
 - **Weapon to-hit modifiers:** each weapon's own modifier (pulse lasers −2, Clan ER pulse −1,
   heavy lasers +1, X-pulse −2, …) comes from the MegaMek-derived catalog — imported weapons
-  store it as `toHit`; hand-entered weapons are looked up by name.
+  store it as `toHit`; hand-entered weapons are looked up by name. The weapon table's Special
+  column overrides it (blank = catalog).
+- **Weapon special rules** (`module/helpers/tw-weapons.mjs`, checked against MegaMek's
+  handlers). The fire dialog has a Mode column where a weapon has choices:
+  - *Ultra AC* single / double rate (2 shots: 2× ammo and heat, Cluster Hits 2 column, each
+    hit its own location; a natural 2 at double rate jams it for the battle).
+  - *Rotary AC* 1–6 shots (ammo / heat per shot, cluster column = shots; jams on a natural
+    2 at 2–3 shots, ≤3 at 4–5, ≤4 at 6). **Unjam** (Special column) replaces the unit's
+    attacks for the turn: 2D6 ≥ Gunnery + 3.
+  - *LB-X* slug or cluster (−1 to-hit, cluster column = cannon size, 1-point pellets; cluster
+    rounds use the Special column's count when set, otherwise Rds).
+  - *Flamer* damage or heat (against 'Mechs / aerospace: heat = damage, ER half; applied in
+    the target's heat phase, max 15 external heat a turn).
+  Missile launchers take a fire-control setting: Artemis IV +2 / V +3 on the cluster roll,
+  or Narc-capable (+2 against a unit carrying a Narc pod). A target's **AMS** engages the
+  first missile attack each turn automatically (−4 on the cluster roll; a Streak rolls as
+  11 − 4; 1 ammo and its heat). Narc / iNarc hits attach a pod (shown on the target's sheet,
+  removable there); TAG designates the target for the turn; Streaks that miss don't fire
+  (no ammo or heat); one-shot weapons are spent after firing. Jams and spent one-shots are
+  reset from the Special column between battles. The importer reads Artemis IV / V units
+  (linked to the location's launchers), Narc-capable ammo and LB-X cluster bins.
 - **Condensed chat cards** (`module/helpers/tw-cards.mjs`): every combat result is one
   outcome-first card. A weapons volley (`tw-volley.hbs`) posts a single message: header with
   round and phase, attacker → target, range / arc and the shared base to-hit (click for its

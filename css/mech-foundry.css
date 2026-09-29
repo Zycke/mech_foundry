@@ -7664,3 +7664,10 @@
 .mech-foundry.tw-v .tw-v-wd .tw-hl-event { font-size: 0.74rem; }
 .mech-foundry.tw-v .tw-v-head > span:first-of-type { white-space: nowrap; }
 .mech-foundry.tw-v .tw-v-legend { margin-top: 3px; font-size: 0.68rem; color: var(--mf-ink-dim); font-style: italic; }
+.tw-fire-dialog .tw-fw-mode select { font-size: 0.75rem; width: auto; max-width: 9em; padding: 0 2px; height: auto; }
+/* Weapon special rules (tw-weapons.mjs) */
+.mech-foundry .wt td.w-special { white-space: nowrap; }
+.mech-foundry .wt td.w-special select.w-guid { width: 4.4em; font-size: 0.72rem; padding: 0 1px; }
+.mech-foundry .wt td.w-special input.w-th, .mech-foundry .wt td.w-special input.w-clammo { width: 2.6em; }
+.mech-foundry .wt td.w-special .weapon-unjam { padding: 0 4px; width: auto; line-height: 1.2; font-size: 0.72rem; }
+.mech-foundry .mf-weapon-markers { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin: 2px 0 6px; }

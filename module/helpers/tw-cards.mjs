@@ -201,12 +201,16 @@ export function shotLine(ctx) {
     ok: !!ctx.hit, name: ctx.weaponName, at: ctx.location || '',
     roll: ctx.automatic ? 'auto' : ctx.outOfRange ? 'OOR' : `${ctx.tn}+ · <b>${esc(ctx.rollTotal)}</b>`
   };
+  if (ctx.fireMode) line.at = [line.at, ctx.fireMode].filter(Boolean).join(' · ');
   if (ctx.outOfRange) line.out = 'out of range';
+  else if (ctx.jammed) line.out = '<b>JAMMED</b>';
   else if (!ctx.hit) line.out = `missed by ${esc(ctx.margin)}`;
   else if (!hr) line.out = ctx.damage ? `<b>${esc(ctx.damage)}</b> damage` : 'hit';
+  else if (hr.special) line.out = hr.special === 'heat' ? `<b>+${esc(hr.heat)}</b> heat` : hr.special === 'narc' ? 'Narc pod attached' : 'target designated';
   else {
     const parts = [];
-    if (hr.clusterInfo) parts.push(hr.clusterInfo.streak ? `all ${hr.clusterInfo.size} missiles` : `${hr.clusterInfo.missiles} of ${hr.clusterInfo.size} missiles`);
+    const ci = hr.clusterInfo;
+    if (ci) parts.push(ci.streak ? `all ${ci.size} ${ci.noun || 'missiles'}` : `${ci.missiles} of ${ci.size} ${ci.noun || 'missiles'}`);
     if (hr.baFire) parts.push(esc(hr.baFire.kind === 'platoon' ? `${hr.baFire.hits} of ${hr.baFire.troopers} troopers hit` : hr.baFire.kind === 'missile' ? `${hr.baFire.hits} of ${hr.baFire.missiles} missiles` : `${hr.baFire.hits} of ${hr.baFire.troopers} troopers hit`));
     if (hr.platoon) parts.push(`<b>${esc(hr.killed)}</b> trooper${hr.killed === 1 ? '' : 's'} eliminated`);
     else {
@@ -264,6 +268,14 @@ export function volleyCard(o) {
     return t + ((h.groups || []).reduce((a, g) => a + num(g.damage), 0) || num(h.total));
   }, 0);
   const self = o.selfFrags?.length ? unitOutcome(o.selfFrags, o.selfName) : null;
+  // Weapon events on either side: jams, the target's AMS, Narc / TAG / flamer heat.
+  const shotAlerts = [];
+  for (const s of shots) {
+    if (s.jammed) shotAlerts.push(alert('JAM', `${o.attackerName}'s ${s.weaponName} jammed`, true));
+    for (const n of s.notes || []) if (/ engages: /.test(n)) shotAlerts.push(alert('AMS', n));
+    const sp = s.hitResult?.special;
+    if (sp) shotAlerts.push(alert(sp === 'heat' ? 'HEAT' : sp.toUpperCase(), s.hitResult.note));
+  }
   return {
     title: o.title || 'Weapons Fire', icon: o.icon || 'fa-crosshairs', round: o.round || '',
     attackerName: o.attackerName, targetName: o.targetName || '', ctxLine: o.ctxLine || '',
@@ -273,7 +285,7 @@ export function volleyCard(o) {
       damage, damageLabel: platoon ? 'troopers lost' : 'damage',
       heat: o.heat ?? null, hasHeat: o.heat != null, many: shots.length > 1
     },
-    alerts: [...(target?.alerts || []), ...(o.alerts || [])],
+    alerts: [...(target?.alerts || []), ...shotAlerts, ...(o.alerts || [])],
     rows: target?.rows || [],
     lines: shots.map(s => ({ ...shotLine(s), ctx: s })),
     notes: o.notes || [], footer: o.footer || '',

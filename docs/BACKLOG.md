@@ -210,11 +210,16 @@ Rules detail for what *is* automated lives in `docs/unit-sheet-design.md`.
 **Weapons & equipment**
 - [x] Weapon to-hit modifiers (pulse −2, Clan ER pulse −1, heavy lasers +1 …) from the
       catalog; Streak (all missiles hit).
-- [ ] Per-weapon special rules still open: Ultra / Rotary AC rate of fire and jams, LB-X
-      cluster ammo (−1, cluster table), Artemis (+2 cluster), AMS, flamer heat, one-shot
-      enforcement, Narc / TAG, ammo-based to-hit modifiers.
-- [ ] Weapon-table "To-Hit" column so a hand-entered weapon's modifier can be overridden
-      (today: catalog lookup by name).
+- [x] Ultra / Rotary AC rate of fire and jams (+ RAC unjam), LB-X slug / cluster, Artemis IV / V,
+      Narc pods and Narc-capable missiles, AMS, flamer heat mode, TAG, Streak no-fire on a miss,
+      one-shot weapons, to-hit override on the weapon table.
+- [?] Rules choices to confirm: Narc pods help any attacker (no team tracking); AMS engages
+      regardless of arc; TAG only marks the target (no semi-guided / homing munitions yet);
+      ECM / stealth don't cancel Artemis / Narc bonuses (no ECM modelled).
+- [ ] Special munitions (inferno, semi-guided, swarm, thunder, precision / armor-piercing AC
+      ammo) and their to-hit / damage effects; separate ammo bins per munition.
+- [ ] Removing Narc pods by physical action / when the location is destroyed; iNarc pod types
+      (ECM, haywire, nemesis, homing).
 - [ ] Explosive components (Gauss rifles) and vehicle "Weapon Destroyed" explosions.
 - [ ] Indirect fire / artillery / spotting; C3, ECM.
 - [ ] Aimed shots against immobile targets.

@@ -1,6 +1,7 @@
 import { MechFoundryActorSheetV2 } from "./base-actor-sheet.mjs";
-import { currentTurnKey, fireWeapons, firedThisTurn, usesAmmo, weaponToHitPreview } from "../helpers/tw-combat.mjs";
-import { MOVE_MODES, movedThisTurn, setMovement } from "../helpers/tw-movement.mjs";
+import { currentTurnKey, fireWeapons, firedThisTurn, unjamWeapon, usesAmmo, weaponToHitPreview } from "../helpers/tw-combat.mjs";
+import { MOVE_MODES, movedThisTurn, setMovement, weaponOwnToHit } from "../helpers/tw-movement.mjs";
+import { EXTERNAL_HEAT_CAP, externalHeat, guidable, narcPods, taggedThisTurn, weaponKind } from "../helpers/tw-weapons.mjs";
 import { aeroMaxBracket, aeroTurnState, isAero, setAeroTurn } from "../helpers/tw-aero.mjs";
 import { physicalAttack } from "../helpers/tw-physical.mjs";
 import { sideslipCheck, skidCheck, vehicleCrash } from "../helpers/tw-skid.mjs";
@@ -63,8 +64,13 @@ export class MechFoundryUnitSheet extends MechFoundryActorSheetV2 {
       aeroMax: aeroMaxBracket(w),
       destroyed: !!w.destroyed,
       fired: fired[w.id] !== undefined,
-      outOfAmmo: usesAmmo(w) && (Number(w.ammo) || 0) <= 0
+      outOfAmmo: usesAmmo(w) && (Number(w.ammo) || 0) <= 0 && !(weaponKind(w) === 'lbx' && (Number(w.clusterAmmo) || 0) > 0),
+      special: weaponSpecialContext(w, this.actor)
     }));
+    const turnKey = currentTurnKey();
+    const markers = { narc: narcPods(this.actor), tagged: taggedThisTurn(this.actor, turnKey), extHeat: Math.min(EXTERNAL_HEAT_CAP, externalHeat(this.actor, turnKey)) };
+    markers.any = !!(markers.narc.length || markers.tagged || markers.extHeat);
+    context.weaponMarkers = markers;
     // This turn's movement (ground units, during combat): hexes accumulate from
     // token moves; the mode is inferred unless picked here (jumping must be picked).
     if (currentTurnKey() && ['mech', 'ground_vehicle', 'battle_armor', 'infantry'].includes(this.actor.type)) {
@@ -102,6 +108,13 @@ export class MechFoundryUnitSheet extends MechFoundryActorSheetV2 {
     html.on('click', '.duplicate-weapon', this._onDuplicateWeapon.bind(this));
     html.on('click', '.toggle-weapon-destroyed', this._onToggleWeaponDestroyed.bind(this));
     html.on('change', '.weapon-field', this._onWeaponFieldChange.bind(this));
+    html.on('click', '.weapon-unjam', (ev) => { ev.preventDefault(); unjamWeapon(this.actor, ev.currentTarget.dataset.weaponId); });
+    html.on('click', '.weapon-clear-state', (ev) => {
+      ev.preventDefault();
+      const id = ev.currentTarget.dataset.weaponId;
+      this._updateWeapons(w => { const x = w.find(y => y.id === id); if (!x) return false; x.jammed = false; x.spent = false; });
+    });
+    html.on('click', '.clear-narc', (ev) => { ev.preventDefault(); this.actor.update({ 'flags.mech-foundry.narc': [] }); });
     html.on('change', '.turn-move-field', this._onTurnMoveChange.bind(this));
     html.on('change', '.weapon-flag', this._onWeaponFlagChange.bind(this));
     html.on('change', '.aero-evading', (ev) => setAeroTurn(this.actor, { evading: ev.currentTarget.checked }));
@@ -204,7 +217,10 @@ export class MechFoundryUnitSheet extends MechFoundryActorSheetV2 {
     await this._updateWeapons(w => {
       const wpn = w.find(x => x.id === weaponId);
       if (!wpn) return false;
-      wpn[field] = numeric ? Math.max(0, parseInt(raw) || 0) : raw;
+      // Blank means "automatic": the catalog to-hit modifier, cluster rounds from Rds.
+      if (field === 'toHit') wpn[field] = String(raw).trim() === '' ? '' : (parseInt(raw) || 0);
+      else if (field === 'clusterAmmo') wpn[field] = String(raw).trim() === '' ? '' : Math.max(0, parseInt(raw) || 0);
+      else wpn[field] = numeric ? Math.max(0, parseInt(raw) || 0) : raw;
     });
   }
 }
@@ -223,4 +239,15 @@ export function registerToHitRefresh() {
   Hooks.on("targetToken", (user) => { if (user === game.user) refresh(); });
   Hooks.on("updateToken", (doc, changes) => { if ('x' in changes || 'y' in changes || 'rotation' in changes) refresh(); });
   Hooks.on("updateActor", () => { if (game.user.targets?.size) refresh(); });
+}
+
+/** Sheet data for a weapon's Special cell (see tw-weapons.mjs). */
+function weaponSpecialContext(w, actor) {
+  const kind = weaponKind(w);
+  const auto = weaponOwnToHit({ ...w, toHit: undefined }, actor);
+  const set = w.toHit === undefined || w.toHit === null ? '' : w.toHit;
+  return {
+    kind, guidable: guidable(w), lbx: kind === 'lbx', rotary: kind === 'rotary',
+    toHitSet: set, autoToHitText: auto > 0 ? `+${auto}` : String(auto), clearable: !!(w.jammed || w.spent)
+  };
 }

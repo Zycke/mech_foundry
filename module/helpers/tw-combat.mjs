@@ -13,7 +13,7 @@ import {
 } from "./atow-conversion.mjs";
 import { beginRecording, endRecording, writeDoc } from "./gm-relay.mjs";
 import { AERO_HEX_M, GROUND_HEX_M, measureHexes, pixelsPerMeter } from "./tw-scale.mjs";
-import { facingChanges, mechLocChanges, poolChange, volleyCard, roundLabel, ammoFooter, heatCard } from "./tw-cards.mjs";
+import { facingChanges, mechLocChanges, poolChange, volleyCard, roundLabel, ammoFooter, heatCard, rollCard } from "./tw-cards.mjs";
 import { currentTurnKey } from "./tw-turn.mjs";
 import { autoAttackMods, movedThisTurn, pilotUnconscious, rangeDependentMods, terrainMods, vehicleWeaponLocation } from "./tw-movement.mjs";
 import { damagePSRUpdate, queuePSR, standsThisTurn, warriorDamage } from "./tw-psr.mjs";
@@ -26,7 +26,11 @@ import {
   infantryDamageClass, interceptAt, interceptCache, isBattleArmor, isInfantry, killRidersOn, liveTroopers, platoonAttackDamage,
   platoonWeapon, resolveBattleArmorDamage, resolvePlatoonHit, riderLocations, stealthMod, stealthRow, untargetableReason
 } from "./tw-infantry.mjs";
-import { skillHint, skillMod, skillSource } from "./tw-skills.mjs";
+import { crewConditionMods, skillHint, skillMod, skillSource } from "./tw-skills.mjs";
+import {
+  EXTERNAL_HEAT_CAP, amsUsedThisTurn, clusterRollTotal, externalHeat, fireModes, flamerHeat, guidanceMods, isMissileAttack,
+  jams, lbxSize, modeToHit, narcPods, readyAMS, shotsFor, tracksHeat, unjamTarget, weaponKind
+} from "./tw-weapons.mjs";
 
 const { DialogV2 } = foundry.applications.api;
 
@@ -1004,6 +1008,8 @@ export async function resolveMechHeat(actor, preset = null) {
   const firedCount = Object.keys(fired).length;
   const weaponsHeatTotal = Object.values(fired).reduce((s, h) => s + num(h), 0);
 
+  // Heat from enemy flamers etc. this turn (capped at 15).
+  const extHeat = Math.min(EXTERNAL_HEAT_CAP, externalHeat(actor, currentTurnKey()));
   // Movement defaults to this turn's record (token moves / the sheet's selector).
   const moved = movedThisTurn(actor);
   const stands = standsThisTurn(actor);
@@ -1017,11 +1023,12 @@ export async function resolveMechHeat(actor, preset = null) {
       <div class="form-group"><label>Stand attempts</label><input type="number" name="stand" value="${stands}" /></div>
       <div class="form-group"><label>Weapons heat <span class="tw-hint">${firedCount} fired this turn</span></label><input type="number" name="weapons" value="${weaponsHeatTotal}" /></div>
       <div class="form-group"><label>Engine-hit heat</label><input type="number" name="engine" value="${engineHeat}" /></div>
+      <div class="form-group"><label>Heat from enemy weapons <span class="tw-hint">flamers in heat mode etc., at most 15</span></label><input type="number" name="external" value="${extHeat}" /></div>
       <div class="form-group"><label>Heat-sink dissipation</label><input type="number" name="sinks" value="${dissipation}" /></div>
     </div>`;
 
   // preset === true: resolve with the defaults (the Heat Phase does this for every unit).
-  const defaults = { move: moved.mode, hexes: moved.mode === 'jumped' ? moved.hexes : 0, stand: stands, weapons: weaponsHeatTotal, engine: engineHeat, sinks: dissipation };
+  const defaults = { move: moved.mode, hexes: moved.mode === 'jumped' ? moved.hexes : 0, stand: stands, weapons: weaponsHeatTotal, engine: engineHeat, external: extHeat, sinks: dissipation };
   const r = preset === true ? defaults : preset ?? await DialogV2.wait({
     window: { title: `Resolve Heat — ${actor.name}`, icon: "fa-solid fa-fire" },
     content,
@@ -1034,6 +1041,7 @@ export async function resolveMechHeat(actor, preset = null) {
           stand: num(b.form.elements.stand.value),
           weapons: num(b.form.elements.weapons.value),
           engine: num(b.form.elements.engine.value),
+          external: Math.min(EXTERNAL_HEAT_CAP, Math.max(0, num(b.form.elements.external?.value))),
           sinks: num(b.form.elements.sinks.value)
         })
       },
@@ -1045,7 +1053,7 @@ export async function resolveMechHeat(actor, preset = null) {
 
   const moveHeat = r.move === 'jumped' ? Math.max(3, r.hexes) : (HEAT_MOVE[r.move] || 0);
   const standHeat = Math.max(0, r.stand);
-  const gain = moveHeat + standHeat + r.weapons + r.engine;
+  const gain = moveHeat + standHeat + r.weapons + r.engine + num(r.external);
   const newHeat = Math.max(0, current + gain - r.sinks);
   const effects = mechHeatEffects(newHeat);
 
@@ -1143,6 +1151,7 @@ export async function resolveMechHeat(actor, preset = null) {
     { label: 'Stand attempts', value: standHeat },
     { label: 'Weapons fire', value: r.weapons },
     { label: 'Engine hits', value: r.engine },
+    { label: 'Enemy weapons (flamers …)', value: num(r.external) },
     { label: 'Heat sinks', value: -r.sinks }
   ].filter(l => l.value !== 0 || l.label === 'Start of turn');
 
@@ -1488,7 +1497,12 @@ export function weaponBlock(actor, weapon) {
     if (liveTroopers(actor) <= 0) return `${actor.name} has no troopers left.`;
     if (weapon?.ap && apFiredThisTurn(actor, firedThisTurn(actor))) return `${actor.name} has already made its anti-personnel attack this turn.`;
   }
-  if (weaponTracksAmmo(actor, weapon) && num(weapon.ammo) <= 0) return `${wName} is out of ammunition (set its Rds on the Combat tab to reload).`;
+  const kind = weaponKind(weapon);
+  if (kind === 'ams') return `${wName} fires automatically at incoming missile attacks.`;
+  if (weapon.jammed) return `${wName} is jammed${kind === 'rotary' ? ' — use Unjam on the Combat tab instead of attacking' : ' for the rest of the battle'}.`;
+  if (weapon.oneShot && weapon.spent) return `${wName} is a one-shot weapon and has been fired.`;
+  if (currentTurnKey() && actor.flags?.['mech-foundry']?.unjam?.key === currentTurnKey()) return `${actor.name} is unjamming a rotary autocannon this turn and can't attack.`;
+  if (weaponTracksAmmo(actor, weapon) && num(weapon.ammo) <= 0 && !(kind === 'lbx' && num(weapon.clusterAmmo) > 0)) return `${wName} is out of ammunition (set its Rds on the Combat tab to reload).`;
   if (currentTurnKey() && firedThisTurn(actor)[weapon.id] !== undefined) return `${wName} has already fired this turn.`;
   return null;
 }
@@ -1647,6 +1661,40 @@ export function weaponToHitPreview(actor) {
 }
 
 /**
+ * Try to unjam a Rotary AC (instead of any weapon attack this turn): 2D6 ≥
+ * Gunnery + 3 clears the jam. The unit makes no attacks this turn either way.
+ */
+export async function unjamWeapon(actor, weaponId) {
+  const weapon = (actor?.system?.weapons || []).find(w => w.id === weaponId);
+  if (!weapon?.jammed) return null;
+  if (weaponKind(weapon) !== 'rotary') { ui.notifications.warn(`${weapon.name} stays jammed for the rest of the battle (only rotary autocannons can be unjammed).`); return null; }
+  const key = currentTurnKey();
+  if (key && Object.keys(firedThisTurn(actor)).length) { ui.notifications.warn(`${actor.name} has already fired this turn: unjamming takes the whole Weapon Attack Phase.`); return null; }
+  if (key && actor.flags?.['mech-foundry']?.unjam?.key === key) { ui.notifications.warn(`${actor.name} has already tried to unjam this turn.`); return null; }
+  beginRecording();
+  const gun = skillMod(actor, 'gunnery');
+  const mods = [gun, ...crewConditionMods(actor), { label: 'Unjam', value: 3 }];
+  const tn = mods.reduce((t, m) => t + m.value, 0);
+  const roll = await new Roll("2d6").evaluate();
+  const success = roll.total >= tn;
+  const upd = {};
+  if (success) {
+    const weapons = foundry.utils.deepClone(actor.system.weapons || []);
+    const w = weapons.find(x => x.id === weaponId);
+    if (w) w.jammed = false;
+    upd['system.weapons'] = weapons;
+  }
+  if (key) upd['flags.mech-foundry.unjam'] = { key };
+  if (Object.keys(upd).length) await writeDoc(actor, upd);
+  const card = rollCard({ title: `Unjam ${weapon.name}`, icon: 'fa-screwdriver-wrench', round: roundLabel(),
+    results: [{ label: `Unjam ${weapon.name}`, mods, tn, total: roll.total, dice: roll.dice[0]?.results?.map(r => r.result) ?? [], success }],
+    notes: [success ? `${weapon.name} is cleared and can fire next turn.` : `${weapon.name} is still jammed.`, `${actor.name} makes no weapon attacks this turn.`] }, actor.name);
+  await ChatMessage.create({ flags: { 'mech-foundry': endRecording() }, speaker: ChatMessage.getSpeaker({ actor }), flavor: card.title,
+    content: await foundry.applications.handlebars.renderTemplate("systems/mech-foundry/templates/chat/tw-psr.hbs", card), rolls: [roll] });
+  return success;
+}
+
+/**
  * Open the GATOR to-hit dialog for one weapon (a fire group of one).
  * @param {Actor} actor   The attacking unit.
  * @param {object} weapon The weapon entry from the actor's system.weapons.
@@ -1702,9 +1750,13 @@ export async function fireWeapons(actor, preselect = []) {
     const p = previewTN(v0, rows[i]);
     const r = rows[i];
     const ranges = mode === 'aero' ? `${r.capital ? 'capital, ' : ''}to ${r.maxB}` : `${r.min ? `Min ${r.min} · ` : ''}${r.s}/${r.m}/${r.l}${r.e ? `/${r.e}` : ''}`;
+    const modes = fireModes(w, targetActor);
+    const modeCell = modes.length ? `<select name="m_${w.id}">${modes.map(m => `<option value="${m.value}">${esc(m.label)}</option>`).join('')}</select>` : '';
+    const ammoText = usesAmmo(w) ? ` · ${num(w.ammo)} rds${w.clusterAmmo !== undefined && w.clusterAmmo !== '' ? ` + ${num(w.clusterAmmo)} cluster` : ''}` : '';
     return `<tr>
         <td><input type="checkbox" name="w_${w.id}" ${preselect.includes(w.id) ? 'checked' : ''} /></td>
-        <td class="tw-fw-name">${esc(w.name || 'Weapon')}<span class="tw-hint">${esc(w.location || w.arc || '')} · ${ranges}${usesAmmo(w) ? ` · ${num(w.ammo)} rds` : ''}</span></td>
+        <td class="tw-fw-name">${esc(w.name || 'Weapon')}<span class="tw-hint">${esc(w.location || w.arc || '')} · ${ranges}${ammoText}</span></td>
+        <td class="tw-fw-mode">${modeCell}</td>
         <td class="tw-fw-heat">${num(w.heat) ? `${num(w.heat)}H` : ''}</td>
         <td class="tw-fw-tn" data-wid="${w.id}">${p.oor ? 'OOR' : `${p.tn}+ <span class="tw-hint">${p.chance}%</span>`}</td>
       </tr>`;
@@ -1713,7 +1765,7 @@ export async function fireWeapons(actor, preselect = []) {
   const content = `
     <div class="tw-attack-dialog tw-fire-dialog">
       <p class="tw-atk-target">${targetName ? `Target: <strong>${esc(targetName)}</strong>` : 'No target selected — enter range manually.'}</p>
-      <table class="tw-fire-weapons"><thead><tr><th></th><th>Weapon</th><th>Heat</th><th>To-hit</th></tr></thead><tbody>${weaponRows}</tbody></table>
+      <table class="tw-fire-weapons"><thead><tr><th></th><th>Weapon</th><th>Mode</th><th>Heat</th><th>To-hit</th></tr></thead><tbody>${weaponRows}</tbody></table>
       <p class="tw-fire-heat">Heat from checked weapons: <strong class="tw-fire-heatsum">${ready.filter(w => preselect.includes(w.id)).reduce((t, w) => t + num(w.heat), 0)}</strong></p>
       <div class="form-group"><label>Gunnery rating <span class="tw-hint">${esc(skillHint(actor, 'gunnery'))}</span></label><input type="number" name="gunnery" value="${gunnery}" /></div>
       <div class="form-group"><label>Range (hexes)</label><input type="number" name="range" value="${autoDist ?? ''}" /></div>
@@ -1757,7 +1809,8 @@ export async function fireWeapons(actor, preselect = []) {
     screen: !!f.screen?.checked,
     other: num(f.other.value),
     direction: f.direction.value,
-    ids: ready.filter(w => f[`w_${w.id}`]?.checked).map(w => w.id)
+    ids: ready.filter(w => f[`w_${w.id}`]?.checked).map(w => w.id),
+    modes: Object.fromEntries(ready.filter(w => f[`m_${w.id}`]).map(w => [w.id, f[`m_${w.id}`].value]))
   });
 
   // Live preview: recompute every weapon's target number (and the checked
@@ -1769,13 +1822,13 @@ export async function fireWeapons(actor, preselect = []) {
     const refresh = () => {
       const r = read(form.elements);
       const v = { gunnery: r.gunnery, autoSum: autoSumFor(r, mode), heat: r.heat, range: r.range, other: r.other, terrain: situationalMods(r, mode, actor, targetActor).reduce((t, m) => t + m.value, 0) };
-      rows.forEach(row => {
+      rows.forEach((row, i) => {
         const cell = form.querySelector(`.tw-fw-tn[data-wid="${row.id}"]`);
         if (!cell) return;
-        const p = previewTN(v, row);
+        const p = previewTN({ ...v, other: v.other + modeToHit(ready[i], r.modes[row.id]) }, row);
         cell.innerHTML = p.oor ? 'OOR' : `${p.tn}+ <span class="tw-hint">${p.chance}%</span>`;
       });
-      const heat = ready.filter(w => r.ids.includes(w.id)).reduce((t, w) => t + num(w.heat), 0);
+      const heat = ready.filter(w => r.ids.includes(w.id)).reduce((t, w) => t + num(w.heat) * shotsFor(w, r.modes[w.id]), 0);
       const hs = form.querySelector('.tw-fire-heatsum');
       if (hs) hs.textContent = String(heat);
     };
@@ -1842,6 +1895,9 @@ async function resolveWeaponShot(actor, weapon, target, result, rolls) {
   const targetActor = target?.actor || null;
   const mode = result.mode || attackMode(actor, targetActor);
   const baAttacker = isBattleArmor(actor);
+  // How this weapon fires (Ultra / Rotary rate, LB-X ammunition, flamer mode).
+  const kind = weaponKind(weapon);
+  const fmode = result.modes?.[weapon.id] ?? fireModes(weapon, targetActor)[0]?.value ?? '';
   const rb = shotRange(mode, result.range, weapon, isInfantry(actor));
   const stealth = mode === 'ground' ? stealthMod(targetActor, rb.bracket, actor) : 0;
   const weaponMods = [...autoAttackMods(actor, weapon, null).filter(m => WEAPON_SPECIFIC.includes(m.key)), ...aeroWeaponMods(weapon, targetActor)]
@@ -1862,6 +1918,7 @@ async function resolveWeaponShot(actor, weapon, target, result, rolls) {
     ...weaponMods,
     { label: rangeLabel, value: rb.mod },
     { label: 'Stealth armor', value: stealth },
+    { label: 'Cluster ammunition', value: modeToHit(weapon, fmode) },
     ...(mode === 'ground' ? rangeDependentMods(weapon, targetActor, result.range) : [])
   ].filter(m => m.value !== 0 || m.label === rangeLabel);
   const mods = [...baseMods, ...ownMods].filter(m => m.value !== 0 || m.key === 'gunnery');
@@ -1871,27 +1928,37 @@ async function resolveWeaponShot(actor, weapon, target, result, rolls) {
   const roll = await new Roll("2d6").evaluate();
   rolls.push(roll);
   const dice = roll.dice[0]?.results?.map(r => r.result) ?? [];
-  const hit = rb.inRange && roll.total >= tn;
+  // Ultra / Rotary autocannons jam on a low natural roll; a jammed shot does nothing.
+  const jammed = rb.inRange && jams(weapon, fmode, roll.total);
+  const hit = rb.inRange && !jammed && roll.total >= tn;
   const margin = roll.total - tn;
+  const notes = [];
+  if (jammed) notes.push(`Natural ${roll.total}: ${weapon.name} JAMS${kind === 'rotary' ? ' — Unjam on the Combat tab (2D6 ≥ Gunnery + 3, instead of attacking)' : ' for the rest of the battle'}.`);
 
   // The weapon fired (an out-of-range shot can't be declared, so it doesn't
-  // count): spend one shot of ammunition and record it for the heat phase.
+  // count): spend its shots of ammunition and record the heat for the heat phase.
   let ammoLine = null, ammoLeft = null;
+  // A Streak launcher that misses never fires: no ammunition, no heat.
+  let shots = weapon.streak && !hit ? 0 : shotsFor(weapon, fmode);
   if (rb.inRange) {
     const upd = {};
-    if (weaponTracksAmmo(actor, weapon)) {
-      const weapons = foundry.utils.deepClone(actor.system.weapons || []);
-      const w = weapons.find(x => x.id === weapon.id);
-      if (w) {
-        const before = num(w.ammo);
-        w.ammo = Math.max(0, before - 1);
-        ammoLine = `${w.ammoType}: ${before} → ${w.ammo} shots left`;
-        ammoLeft = w.ammo;
-        upd['system.weapons'] = weapons;
-      }
+    const weapons = foundry.utils.deepClone(actor.system.weapons || []);
+    const w = weapons.find(x => x.id === weapon.id);
+    if (w && shots > 0 && weaponTracksAmmo(actor, weapon)) {
+      // LB-X cluster rounds come from their own count when the sheet tracks one.
+      const field = kind === 'lbx' && fmode === 'cluster' && w.clusterAmmo !== undefined && w.clusterAmmo !== '' ? 'clusterAmmo' : 'ammo';
+      const before = num(w[field]);
+      shots = Math.max(1, Math.min(shots, before));
+      w[field] = Math.max(0, before - shots);
+      ammoLine = `${field === 'clusterAmmo' ? `${w.ammoType || weapon.name} cluster` : w.ammoType}: ${before} → ${w[field]} shots left${shots > 1 ? ` (${shots} fired)` : ''}`;
+      ammoLeft = w[field];
     }
+    if (w && jammed) w.jammed = true;
+    if (w && weapon.oneShot) w.spent = true;
+    if (w && ((shots > 0 && weaponTracksAmmo(actor, weapon)) || jammed || weapon.oneShot)) upd['system.weapons'] = weapons;
+    if (weapon.streak && !hit) notes.push('No lock: the Streak launcher doesn\'t fire (no ammunition or heat).');
     const list = Object.entries(firedThisTurn(actor)).map(([id, heat]) => ({ id, heat }));
-    list.push({ id: weapon.id, heat: num(weapon.heat) });
+    list.push({ id: weapon.id, heat: num(weapon.heat) * shots });
     upd['flags.mech-foundry.fired'] = { key: currentTurnKey(), list };
     // An air-to-ground attacker is easier to hit this turn (−3 for its targets).
     if (mode === 'a2g' && currentTurnKey()) upd['flags.mech-foundry.aeroTurn'] = { ...aeroTurnState(actor), airToGround: true, key: currentTurnKey() };
@@ -1908,7 +1975,25 @@ async function resolveWeaponShot(actor, weapon, target, result, rolls) {
   // damage; standing in Clear terrain (no terrain to-hit modifier) doubles them.
   const platoonTarget = targetActor?.type === 'infantry';
   const clear = platoonTarget && mode !== 'aero' && (result.terrain?.targetWoods ?? 'none') === 'none' && !result.terrain?.partialCover;
-  if (hit && actor.type === 'infantry') {
+  // Narc / TAG: no damage — a pod attaches, or the target is designated this turn.
+  if (hit && (kind === 'narc' || kind === 'tag') && targetActor) {
+    const key = currentTurnKey();
+    if (kind === 'narc') await writeDoc(targetActor, { 'flags.mech-foundry.narc': [...narcPods(targetActor), { by: actor.name, weapon: weapon.name }] });
+    else if (key) await writeDoc(targetActor, { 'flags.mech-foundry.tagged': { key, by: actor.name } });
+    hitResult = { special: kind, hasTarget: true, targetName, applied: true, groups: [],
+      note: kind === 'narc' ? `A Narc pod attaches to ${targetName}: Narc-capable missiles get +2 on the cluster roll against it.` : `${targetName} is TAG-designated this turn (semi-guided / homing munitions).` };
+  } else if (hit && kind === 'flamer' && fmode === 'heat' && tracksHeat(targetActor)) {
+    // Flamer in heat mode: heat instead of damage (15 external heat a turn at most).
+    const key = currentTurnKey();
+    const heat = flamerHeat(weapon);
+    const before = externalHeat(targetActor, key);
+    const after = Math.min(EXTERNAL_HEAT_CAP, before + heat);
+    // In combat it waits for the target's heat phase; outside combat it's noted for the table.
+    if (key) await writeDoc(targetActor, { 'flags.mech-foundry.externalHeat': { key, value: after } });
+    hitResult = { special: 'heat', heat, hasTarget: true, targetName, applied: true, groups: [],
+      note: key ? `+${heat} heat to ${targetName} in its heat phase (${after} external heat this turn${after < before + heat ? ', capped at 15' : ''}).`
+        : `+${heat} heat to ${targetName} — no combat running: add it to its heat by hand.` };
+  } else if (hit && actor.type === 'infantry') {
     // A platoon: Cluster Hits Table by troopers → Generic Conventional Infantry Damage Table.
     const pd = await platoonAttackDamage(actor, rolls, clusterHits);
     let frag;
@@ -1944,31 +2029,75 @@ async function resolveWeaponShot(actor, weapon, target, result, rolls) {
   } else if (hit && perHit > 0) {
     let clusterInfo = null;
     let total = perHit;
-    if (clusterSize > 0 && weapon.streak) {
-      // Streak launchers only fire on a lock: every missile hits.
-      total = clusterSize * perHit;
-      clusterInfo = { size: clusterSize, missiles: clusterSize, perHit, total, streak: true, dice: [] };
-    } else if (clusterSize > 0) {
-      const cRoll = await new Roll("2d6").evaluate();
-      rolls.push(cRoll);
-      const missiles = clusterHits(clusterSize, cRoll.total);
-      total = missiles * perHit;
-      clusterInfo = { size: clusterSize, missiles, perHit, total, rollTotal: cRoll.total, dice: cRoll.dice[0]?.results?.map(r => r.result) ?? [] };
+    let groupSizes = [total];
+    // What rolls on the Cluster Hits Table: missiles, Ultra / Rotary shots, LB-X pellets.
+    const autoShots = (kind === 'ultra' || kind === 'rotary') && shots > 1;
+    const pellets = kind === 'lbx' && fmode === 'cluster';
+    const size = autoShots ? shots : pellets ? lbxSize(weapon) : clusterSize;
+    const noun = autoShots ? 'shots' : pellets ? 'pellets' : 'missiles';
+    if (size > 0 && (autoShots || pellets || clusterSize > 0)) {
+      // Cluster-roll modifiers: Artemis / Narc guidance, then the target's AMS.
+      const cMods = guidanceMods(weapon, targetActor);
+      let ams = null;
+      if (isMissileAttack(weapon) && (ams = readyAMS(targetActor, currentTurnKey()))) cMods.push({ label: `${targetName}'s ${ams.name}`, value: -4 });
+      let missiles, cRoll = null;
+      if (weapon.streak && !ams) {
+        // Streak launchers only fire on a lock: every missile hits.
+        missiles = size;
+      } else {
+        const natural = weapon.streak ? 11 : (cRoll = await new Roll("2d6").evaluate(), rolls.push(cRoll), cRoll.total);
+        missiles = clusterHits(size, clusterRollTotal(natural, cMods));
+      }
+      const each = pellets ? 1 : perHit;
+      total = missiles * each;
+      clusterInfo = { size, missiles, perHit: each, total, noun, streak: !!weapon.streak && !ams, mods: cMods,
+        rollTotal: cRoll?.total ?? (weapon.streak ? 11 : null), modifiedTotal: cRoll || weapon.streak ? clusterRollTotal(cRoll?.total ?? 11, cMods) : null,
+        dice: cRoll?.dice[0]?.results?.map(r => r.result) ?? [] };
+      groupSizes = autoShots ? Array(missiles).fill(perHit) : pellets ? Array(missiles).fill(1) : groupDamage(total, clusterGroupSize(weapon));
+      if (ams) await spendAMS(targetActor, ams, notes);
     }
-    const groupSizes = clusterSize > 0 ? groupDamage(total, clusterGroupSize(weapon)) : [total];
     const frag = await resolveDamageAgainst(targetActor, result.direction, groupSizes, rolls, targetName, {
       partialCover: mode !== 'aero' && !!result.terrain?.partialCover && targetActor?.type === 'mech'
     });
-    hitResult = { cluster: clusterSize > 0, clusterInfo, total, ...frag };
+    hitResult = { cluster: !!clusterInfo, clusterInfo, total, ...frag };
   }
 
   return {
     weaponName: weapon.name || 'Weapon',
     location: weapon.location || weapon.arc || '',
     targetName, mods, baseMods, weaponMods: ownMods, baseTN, tn, dice, rollTotal: roll.total,
-    hit, margin: Math.abs(margin), outOfRange: !rb.inRange,
-    damage: perHit, heat: rb.inRange ? num(weapon.heat) : 0, ammoLine, ammoLeft, hitResult
+    hit, margin: Math.abs(margin), outOfRange: !rb.inRange, jammed, fireMode: fmodeLabel(weapon, fmode, targetActor),
+    damage: perHit, heat: rb.inRange ? num(weapon.heat) * shots : 0, ammoLine, ammoLeft, hitResult, notes
   };
+}
+
+/** "Double rate" / "4 shots" / "Cluster (−1)" for the card, or ''. */
+function fmodeLabel(weapon, fmode, targetActor) {
+  const modes = fireModes(weapon, targetActor);
+  return modes.length > 1 && fmode !== modes[0].value ? (modes.find(m => m.value === fmode)?.label ?? '') : '';
+}
+
+/**
+ * The target's anti-missile system engages: one shot of its ammunition (laser
+ * AMS need none), its heat added to the target's heat phase, and used for the turn.
+ */
+async function spendAMS(targetActor, ams, notes) {
+  const key = currentTurnKey();
+  const upd = {};
+  if (!/laser/i.test(ams.name || '') && String(ams.ammoType || '').trim()) {
+    const weapons = foundry.utils.deepClone(targetActor.system.weapons || []);
+    const w = weapons.find(x => x.id === ams.id);
+    if (w) { w.ammo = Math.max(0, num(w.ammo) - 1); upd['system.weapons'] = weapons; }
+  }
+  if (key) {
+    upd['flags.mech-foundry.amsUsed'] = { key, ids: [...amsUsedThisTurn(targetActor, key), ams.id] };
+    if (tracksHeat(targetActor) && num(ams.heat)) {
+      const list = Object.entries(firedThisTurn(targetActor)).map(([id, heat]) => ({ id, heat }));
+      upd['flags.mech-foundry.fired'] = { key, list: [...list, { id: ams.id, heat: num(ams.heat) }] };
+    }
+  }
+  await writeDoc(targetActor, upd);
+  notes.push(`${targetActor.name}'s ${ams.name} engages: −4 on the cluster roll${upd['system.weapons'] ? ', 1 shot spent' : ''}${num(ams.heat) && tracksHeat(targetActor) ? `, +${num(ams.heat)} heat` : ''}.`);
 }
 
 /**

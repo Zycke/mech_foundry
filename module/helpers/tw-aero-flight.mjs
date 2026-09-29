@@ -16,6 +16,7 @@ import { pendingPSR, queuePSR, warriorDamage } from "./tw-psr.mjs";
 import { aeroTurnState, isAero } from "./tw-aero.mjs";
 import { firedThisTurn } from "./tw-combat.mjs";
 import { heatCard, rollCard, roundLabel } from "./tw-cards.mjs";
+import { EXTERNAL_HEAT_CAP, externalHeat } from "./tw-weapons.mjs";
 import { pilotingMods } from "./tw-skills.mjs";
 
 const { DialogV2 } = foundry.applications.api;
@@ -174,7 +175,8 @@ export async function resolveAeroHeat(actor, preset = null) {
   const engineHeat = 2 * num(sys.crits?.engine);
 
   // preset === true: resolve with the defaults (the Heat Phase does this for every unit).
-  let r = preset === true ? { weapons: weaponsHeat, engine: engineHeat, external: 0, sinks: dissipation } : preset;
+  const extHeat = Math.min(EXTERNAL_HEAT_CAP, externalHeat(actor, currentTurnKey()));
+  let r = preset === true ? { weapons: weaponsHeat, engine: engineHeat, external: extHeat, sinks: dissipation } : preset;
   if (!r) {
     r = await DialogV2.wait({
       window: { title: `Resolve Heat — ${actor.name}`, icon: "fa-solid fa-fire" },
@@ -182,7 +184,7 @@ export async function resolveAeroHeat(actor, preset = null) {
         <div class="tw-attack-dialog">
           <div class="form-group"><label>Weapons heat <span class="tw-hint">${Object.keys(fired).length} fired this turn</span></label><input type="number" name="weapons" value="${weaponsHeat}" /></div>
           <div class="form-group"><label>Engine damage (+2 per hit)</label><input type="number" name="engine" value="${engineHeat}" /></div>
-          <div class="form-group"><label>Heat-causing weapons hitting it</label><input type="number" name="external" value="0" /></div>
+          <div class="form-group"><label>Heat-causing weapons hitting it</label><input type="number" name="external" value="${extHeat}" /></div>
           <div class="form-group"><label>Heat-sink dissipation</label><input type="number" name="sinks" value="${dissipation}" /></div>
         </div>`,
       buttons: [
