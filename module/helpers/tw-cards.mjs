@@ -8,6 +8,8 @@
  * from resolveDamageAgainst carry `locChanges` (before / after per location).
  */
 
+import { currentTurnKey } from "./tw-turn.mjs";
+
 const num = (v) => Number(v) || 0;
 const foundry_clone = (o) => JSON.parse(JSON.stringify(o));
 const esc = (t) => String(t ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -382,4 +384,59 @@ export function heatCard(ctx, unitName = '') {
     ...ctx, unitName, start, change: `${change >= 0 ? '+' : '−'}${Math.abs(change)}`,
     alerts: out, notes, quiet, rows: outcome?.rows || [], rollLines
   };
+}
+
+/* ------------------------------------------------------------------ */
+/*  Round-summary records (stored on each card's chat message)          */
+/* ------------------------------------------------------------------ */
+
+const NOTABLE = ['DESTROYED', 'AMMO', 'CRIT', 'KILLED', 'PILOT', 'MOTIVE'];
+
+/** Up to four short effects for a unit: notable alerts, then serious location damage. */
+function effectsOf(alerts = [], rows = []) {
+  const out = alerts.filter(a => NOTABLE.includes(a.tag)).map(a => a.text.replace(/^[^:]+: /, ''));
+  for (const r of rows) if (r.hurt) out.push(`${r.code} ${r.hurt}`);
+  return [...new Set(out)].slice(0, 4);
+}
+
+/**
+ * The round-summary record for an attack card (volleyCard output).
+ * @param {object} card   volleyCard(...) result
+ * @param {object} o      { turn, phase, kind: 'fire'|'physical'|'antimech'|'swarm', attacker, target } (actors)
+ */
+export function volleySummary(card, o) {
+  const crits = card.alerts.filter(a => a.tag === 'CRIT').length;
+  return {
+    turn: o.turn, phase: o.phase || '', kind: o.kind, title: card.title,
+    attacker: o.attacker?.uuid || '', attackerName: card.attackerName,
+    target: o.target?.uuid || '', targetName: card.targetName,
+    hits: card.tally.hits, shots: card.tally.shots, damage: card.tally.damage, crits,
+    destroyed: card.alerts.some(a => a.tag === 'DESTROYED' && /destroyed$|eliminated$/.test(a.text) && a.text.startsWith(card.targetName)),
+    effects: effectsOf(card.alerts, card.rows),
+    selfDamage: card.self?.total || 0, selfEffects: card.self ? effectsOf(card.self.alerts, card.self.rows) : []
+  };
+}
+
+/** The round-summary record for a roll card (rollCard output) or a heat card (heatCard output). */
+export function rollSummary(card, o) {
+  const heat = o.kind === 'heat';
+  return {
+    turn: o.turn, phase: o.phase || '', kind: o.kind || 'roll', title: heat ? 'Heat' : card.title,
+    unit: o.actor?.uuid || '', unitName: o.actor?.name || card.unitName || '',
+    ok: heat ? !card.alerts?.some(a => a.red) : !!card.verdict?.ok, verdict: heat ? `heat ${card.newHeat}` : card.verdict?.text || '',
+    damage: heat ? (card.rows || []).reduce((t, r) => t + r.damage, 0) : num(card.damage),
+    crits: (card.alerts || []).filter(a => a.tag === 'CRIT').length,
+    effects: effectsOf(card.alerts, card.rows),
+    fell: !heat && !!card.fall
+  };
+}
+
+/** The chat-message flags for a card: the relay's recording plus the round-summary record. */
+export function withSummary(recorded, summary) {
+  return summary?.turn ? { ...recorded, summary } : recorded;
+}
+
+/** This turn's key and phase name for a summary record (no turn outside a running combat). */
+export function summaryContext() {
+  return { turn: currentTurnKey(), phase: globalThis.game?.combat?.phaseName || '' };
 }

@@ -15,7 +15,7 @@ import { linkedCrew, pilotUnconscious } from "./tw-movement.mjs";
 import { pendingPSR, queuePSR, warriorDamage } from "./tw-psr.mjs";
 import { aeroTurnState, isAero } from "./tw-aero.mjs";
 import { firedThisTurn } from "./tw-combat.mjs";
-import { heatCard, rollCard, roundLabel } from "./tw-cards.mjs";
+import { heatCard, rollCard, rollSummary, roundLabel, summaryContext, withSummary } from "./tw-cards.mjs";
 import { EXTERNAL_HEAT_CAP, externalHeat } from "./tw-weapons.mjs";
 import { pilotingMods } from "./tw-skills.mjs";
 
@@ -67,7 +67,7 @@ export const RANDOM_MOVEMENT = {
 async function postCard(actor, flavor, ctx, rolls) {
   const card = rollCard({ title: flavor, icon: 'fa-plane', round: roundLabel(), ...ctx }, actor?.name || '');
   const content = await foundry.applications.handlebars.renderTemplate("systems/mech-foundry/templates/chat/tw-psr.hbs", card);
-  await ChatMessage.create({ flags: { 'mech-foundry': endRecording() }, speaker: ChatMessage.getSpeaker({ actor }), flavor, content, rolls });
+  await ChatMessage.create({ flags: { 'mech-foundry': withSummary(endRecording(), rollSummary(card, { ...summaryContext(), kind: 'roll', actor })) }, speaker: ChatMessage.getSpeaker({ actor }), flavor, content, rolls });
 }
 
 /**
@@ -282,10 +282,9 @@ export async function resolveAeroHeat(actor, preset = null) {
     { label: 'Heat sinks', value: -r.sinks }
   ].filter(l => l.value !== 0 || l.label === 'Start of turn');
   const toHit = [8, 13, 17, 24].filter(t => newHeat >= t).length;
-  const content = await foundry.applications.handlebars.renderTemplate("systems/mech-foundry/templates/chat/tw-heat.hbs", heatCard({
-    aero: true, round: roundLabel(), lines, newHeat, effects: { toHit, shutdown: '', ammo: '' }, notes, warriorLines
-  }, actor.name));
-  await ChatMessage.create({ flags: { 'mech-foundry': endRecording() }, speaker: ChatMessage.getSpeaker({ actor }), flavor: 'Heat Phase', content, rolls });
+  const hc = heatCard({ aero: true, round: roundLabel(), lines, newHeat, effects: { toHit, shutdown: '', ammo: '' }, notes, warriorLines }, actor.name);
+  const content = await foundry.applications.handlebars.renderTemplate("systems/mech-foundry/templates/chat/tw-heat.hbs", hc);
+  await ChatMessage.create({ flags: { 'mech-foundry': withSummary(endRecording(), rollSummary(hc, { ...summaryContext(), kind: 'heat', actor })) }, speaker: ChatMessage.getSpeaker({ actor }), flavor: 'Heat Phase', content, rolls });
   return { newHeat, notes, conditions };
 }
 

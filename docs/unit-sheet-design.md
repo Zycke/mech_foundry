@@ -138,6 +138,16 @@ criticals and cluster grouping:
   phase — initiative rolled, hexes moved of its limit (over-limit in red), weapons fired /
   unjamming / anti-'Mech, physical attack, heat resolved — plus pending Piloting / Control
   Rolls, a manual "done" tick per unit per phase, and "Resolve heat for all" in the Heat Phase.
+- **End Phase round summary** (`module/helpers/tw-round.mjs`, GM): in the End Phase the checklist
+  becomes a round summary — totals (damage, crits, units destroyed, items to do), "Before the
+  next round" (pending Piloting / Control Rolls with a Roll button, unresolved heat with
+  Resolve, over-MP moves with OK to dismiss, rolls resolved automatically this End Phase), and
+  a card per unit (movement of its limit, weapons hit / fired and damage by target, physical /
+  anti-'Mech attacks, damage taken with notable effects, heat and its penalties, conditions:
+  prone, shutdown, pilot hits, swarmed / swarming, Narc pod, roll pending). Destroyed units are
+  listed last with what destroyed them. The data comes from a compact record each combat card
+  stores on its chat message (`flags.mech-foundry.summary`: attacks, rolls, heat) plus the
+  units' current state; the phase button reads "Start Round N".
 - **Phases:** the tracker bar steps forward and back (stepping back undoes nothing). After
   the End Phase — or the tracker's own Next Round — the round advances to Initiative and
   every combatant's initiative is cleared for re-rolling.

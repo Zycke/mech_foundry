@@ -51,6 +51,11 @@ import { SocketHandler, SOCKET_EVENTS } from "./helpers/socket-handler.mjs";
 import { initGMRelay } from "./helpers/gm-relay.mjs";
 import { registerMovementTracking } from "./helpers/tw-movement.mjs";
 import { checklistHTML, registerPhaseEnforcement, toggleChecklist } from "./helpers/tw-phase.mjs";
+import { acknowledge, roundSummaryHTML } from "./helpers/tw-round.mjs";
+import { rollPendingPSR } from "./helpers/tw-falls.mjs";
+import { resolveAeroHeat, rollPendingControl } from "./helpers/tw-aero-flight.mjs";
+import { resolveMechHeat } from "./helpers/tw-combat.mjs";
+import { isAero } from "./helpers/tw-aero.mjs";
 import { registerUnitStatuses } from "./helpers/tw-status.mjs";
 import { registerCombatChat } from "./helpers/tw-chat.mjs";
 import { registerToHitRefresh } from "./sheets/unit-sheet.mjs";
@@ -658,21 +663,35 @@ Hooks.on("renderCombatTracker", (app, html) => {
   }
   bar.innerHTML = `<span class="tw-phase-label">Round ${combat.round || 0} · Phase: <strong>${combat.phaseName}</strong></span>` +
     (game.user.isGM ? `<button type="button" class="tw-prev-phase" title="Previous phase (nothing already resolved is undone)"><i class="fas fa-backward-step"></i></button>` +
-      `<button type="button" class="tw-next-phase"><i class="fas fa-forward-step"></i> Next Phase</button>` : "");
+      (combat.phaseName === 'End' && combat.started
+        ? `<button type="button" class="tw-next-phase tw-next-round">Start Round ${(combat.round || 0) + 1} <i class="fas fa-forward-step"></i></button>`
+        : `<button type="button" class="tw-next-phase"><i class="fas fa-forward-step"></i> Next Phase</button>`) : "");
   bar.querySelector(".tw-next-phase")?.addEventListener("click", () => game.combat?.nextPhase());
   bar.querySelector(".tw-prev-phase")?.addEventListener("click", () => game.combat?.previousPhase());
-  // GM phase checklist: what each unit has done this phase.
-  el.querySelector(".tw-phase-checklist")?.remove();
+  // GM phase checklist (the round summary in the End Phase): what each unit has done.
+  el.querySelectorAll(".tw-phase-checklist, .tw-round-summary").forEach(n => n.remove());
   if (game.user.isGM && combat.started) {
     const wrap = document.createElement("div");
-    wrap.innerHTML = checklistHTML(combat);
+    wrap.innerHTML = combat.phaseName === 'End' ? roundSummaryHTML(combat) : checklistHTML(combat);
     const panel = wrap.firstElementChild;
     if (panel) {
       bar.after(panel);
       panel.querySelectorAll(".tw-check-tick").forEach(a => a.addEventListener("click", (ev) => { ev.preventDefault(); toggleChecklist(combat, a.dataset.combatantId); }));
       panel.querySelector(".tw-check-heat")?.addEventListener("click", () => combat._resolveHeat?.());
+      panel.querySelectorAll(".tw-rs-act").forEach(b => b.addEventListener("click", async (ev) => {
+        ev.preventDefault();
+        const actor = combat.combatants.find(c => c.actor?.id === b.dataset.actorId)?.actor ?? game.actors.get(b.dataset.actorId);
+        if (b.dataset.action === 'ack') return acknowledge(combat, b.dataset.actorId);
+        if (!actor) return;
+        if (b.dataset.action === 'roll') return isAero(actor) ? rollPendingControl(actor) : rollPendingPSR(actor);
+        if (b.dataset.action === 'heat') return isAero(actor) ? resolveAeroHeat(actor, true) : resolveMechHeat(actor, true);
+      }));
     }
   }
+});
+// New combat cards feed the End Phase summary.
+Hooks.on("createChatMessage", (message) => {
+  if (game.user.isGM && game.combat?.phaseName === 'End' && message.flags?.['mech-foundry']?.summary) ui.combat?.render?.();
 });
 // A phase change is only a flag update: make sure the tracker shows it.
 Hooks.on("updateCombat", (combat, changes) => {

@@ -18,7 +18,7 @@ import {
 import { queuePSR } from "./tw-psr.mjs";
 import { isInfantry, untargetableReason } from "./tw-infantry.mjs";
 import { fiveGroups, pilotingFor, postCard, resolveFall } from "./tw-falls.mjs";
-import { roundLabel, volleyCard } from "./tw-cards.mjs";
+import { roundLabel, summaryContext, volleyCard, volleySummary, withSummary } from "./tw-cards.mjs";
 import {
   ATTACK_DIRECTIONS, MECH_LOC_LABEL, REAR_ARMOR_KEY, firedThisTurn, locationGone, measureHexes, resolveDamageAgainst
 } from "./tw-combat.mjs";
@@ -431,7 +431,7 @@ export async function resolvePhysicalAttack(actor, target, r) {
     notes: shownNotes, selfFrags: selfResult ? [selfResult] : [], selfName: actor.name
   });
   const cardContent = await foundry.applications.handlebars.renderTemplate("systems/mech-foundry/templates/chat/tw-volley.hbs", card);
-  await ChatMessage.create({ flags: { 'mech-foundry': endRecording() }, speaker: ChatMessage.getSpeaker({ actor }), flavor: `${spec.label}`, content: cardContent, rolls });
+  await ChatMessage.create({ flags: { 'mech-foundry': withSummary(endRecording(), volleySummary(card, { ...summaryContext(), kind: 'physical', attacker: actor, target: targetActor })) }, speaker: ChatMessage.getSpeaker({ actor }), flavor: `${spec.label}`, content: cardContent, rolls });
   if (fall) await postCard(actor, 'Death From Above — Missed', { results: [], fall }, []);
   return { hit, tn, mods: shown, hitResult, selfResult, notes, fall };
 }

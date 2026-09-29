@@ -18,7 +18,7 @@ import {
 } from "./tw-movement.mjs";
 import { phaseDamageSoFar, psrDamageMods } from "./tw-psr.mjs";
 import { postCard, resolveFall } from "./tw-falls.mjs";
-import { roundLabel, volleyCard } from "./tw-cards.mjs";
+import { roundLabel, summaryContext, volleyCard, volleySummary, withSummary } from "./tw-cards.mjs";
 import { MECH_LOC_LABEL, clusterHits, firedThisTurn, locationGone, measureHexes, resolveDamageAgainst } from "./tw-combat.mjs";
 import { actuatorEffects, physicalDamage, physicalThisTurn, rollKickLocation, rollPunchLocation } from "./tw-physical.mjs";
 import { isAero } from "./tw-aero.mjs";
@@ -257,7 +257,7 @@ export async function resolveAntiMech(actor, target, { type = 'leg', targetWoods
     notes: type === 'swarm' ? notes : []
   });
   const content = await foundry.applications.handlebars.renderTemplate("systems/mech-foundry/templates/chat/tw-volley.hbs", card);
-  await ChatMessage.create({ flags: { 'mech-foundry': endRecording() }, speaker: ChatMessage.getSpeaker({ actor }), flavor: title, content, rolls });
+  await ChatMessage.create({ flags: { 'mech-foundry': withSummary(endRecording(), volleySummary(card, { ...summaryContext(), kind: 'antimech', attacker: actor, target: targetActor })) }, speaker: ChatMessage.getSpeaker({ actor }), flavor: title, content, rolls });
   return { hit, tn, mods, hitResult, notes };
 }
 
@@ -338,7 +338,7 @@ export async function swarmAttack(actor) {
     }]
   });
   const content = await foundry.applications.handlebars.renderTemplate("systems/mech-foundry/templates/chat/tw-volley.hbs", card);
-  await ChatMessage.create({ flags: { 'mech-foundry': endRecording() }, speaker: ChatMessage.getSpeaker({ actor }), flavor: 'Swarm Damage', content, rolls });
+  await ChatMessage.create({ flags: { 'mech-foundry': withSummary(endRecording(), volleySummary(card, { ...summaryContext(), kind: 'swarm', attacker: actor, target: carrier })) }, speaker: ChatMessage.getSpeaker({ actor }), flavor: 'Swarm Damage', content, rolls });
   return { frag, groups, notes };
 }
 

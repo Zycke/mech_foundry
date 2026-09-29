@@ -13,7 +13,7 @@ import {
 } from "./atow-conversion.mjs";
 import { beginRecording, endRecording, writeDoc } from "./gm-relay.mjs";
 import { AERO_HEX_M, GROUND_HEX_M, measureHexes, pixelsPerMeter } from "./tw-scale.mjs";
-import { facingChanges, mechLocChanges, poolChange, volleyCard, roundLabel, ammoFooter, heatCard, rollCard } from "./tw-cards.mjs";
+import { facingChanges, mechLocChanges, poolChange, volleyCard, roundLabel, ammoFooter, heatCard, rollCard, rollSummary, summaryContext, volleySummary, withSummary } from "./tw-cards.mjs";
 import { currentTurnKey } from "./tw-turn.mjs";
 import { autoAttackMods, movedThisTurn, pilotUnconscious, rangeDependentMods, terrainMods, vehicleWeaponLocation } from "./tw-movement.mjs";
 import { damagePSRUpdate, queuePSR, standsThisTurn, warriorDamage } from "./tw-psr.mjs";
@@ -1155,12 +1155,10 @@ export async function resolveMechHeat(actor, preset = null) {
     { label: 'Heat sinks', value: -r.sinks }
   ].filter(l => l.value !== 0 || l.label === 'Start of turn');
 
-  const cardContent = await foundry.applications.handlebars.renderTemplate(
-    "systems/mech-foundry/templates/chat/tw-heat.hbs",
-    heatCard({ round: roundLabel(), lines, newHeat, effects, autoShutdown: effects.auto && shutsDown, shutdownCheck, startupCheck, restarts, ammoCheck, ammoFrag, psrNote, pilotDamage, warriorLines }, actor.name)
-  );
+  const hc = heatCard({ round: roundLabel(), lines, newHeat, effects, autoShutdown: effects.auto && shutsDown, shutdownCheck, startupCheck, restarts, ammoCheck, ammoFrag, psrNote, pilotDamage, warriorLines }, actor.name);
+  const cardContent = await foundry.applications.handlebars.renderTemplate("systems/mech-foundry/templates/chat/tw-heat.hbs", hc);
   await ChatMessage.create({
-    flags: { 'mech-foundry': endRecording() },
+    flags: { 'mech-foundry': withSummary(endRecording(), rollSummary(hc, { ...summaryContext(), kind: 'heat', actor })) },
     speaker: ChatMessage.getSpeaker({ actor }),
     flavor: "Heat Phase",
     content: cardContent,
@@ -1689,7 +1687,7 @@ export async function unjamWeapon(actor, weaponId) {
   const card = rollCard({ title: `Unjam ${weapon.name}`, icon: 'fa-screwdriver-wrench', round: roundLabel(),
     results: [{ label: `Unjam ${weapon.name}`, mods, tn, total: roll.total, dice: roll.dice[0]?.results?.map(r => r.result) ?? [], success }],
     notes: [success ? `${weapon.name} is cleared and can fire next turn.` : `${weapon.name} is still jammed.`, `${actor.name} makes no weapon attacks this turn.`] }, actor.name);
-  await ChatMessage.create({ flags: { 'mech-foundry': endRecording() }, speaker: ChatMessage.getSpeaker({ actor }), flavor: card.title,
+  await ChatMessage.create({ flags: { 'mech-foundry': withSummary(endRecording(), rollSummary(card, { ...summaryContext(), kind: 'roll', actor })) }, speaker: ChatMessage.getSpeaker({ actor }), flavor: card.title,
     content: await foundry.applications.handlebars.renderTemplate("systems/mech-foundry/templates/chat/tw-psr.hbs", card), rolls: [roll] });
   return success;
 }
@@ -1876,7 +1874,7 @@ export async function fireWeapons(actor, preselect = []) {
     footer: ammoFooter(shots)
   });
   await ChatMessage.create({
-    flags: { 'mech-foundry': recorded },
+    flags: { 'mech-foundry': withSummary(recorded, volleySummary(card, { ...summaryContext(), kind: 'fire', attacker: actor, target: targetActor })) },
     speaker: ChatMessage.getSpeaker({ actor }),
     flavor: card.title,
     content: await foundry.applications.handlebars.renderTemplate("systems/mech-foundry/templates/chat/tw-volley.hbs", card),
