@@ -1,0 +1,7 @@
+{{!-- Damage by location (rows = [{code, damage, hurt, plain}]) for one unit. --}}
+{{#if rows.length}}
+<div class="tw-v-sec">Damage to {{name}}</div>
+<table class="tw-v-locs">
+  {{#each rows}}<tr><td class="l">{{code}}</td><td class="d">{{damage}}</td><td class="s">{{#if hurt}}<span class="hurt">{{hurt}}</span>{{#if plain}} · {{/if}}{{/if}}{{plain}}</td></tr>{{/each}}
+</table>
+{{/if}}

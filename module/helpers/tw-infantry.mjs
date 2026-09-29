@@ -158,6 +158,7 @@ export function damageTrooper(trooper, amount) {
  */
 export async function resolveBattleArmorDamage(target, groupSizes, rolls, { areaEffect = false } = {}) {
   const troopers = baTroopers(target);
+  const before = troopers.map(t => ({ ...t }));
   const groups = [];
   if (areaEffect) {
     const total = groupSizes.reduce((a, b) => a + num(b), 0);
@@ -175,10 +176,14 @@ export async function resolveBattleArmorDamage(target, groupSizes, rolls, { area
   }
   const applied = await writeDoc(target, { 'system.troopers': troopersForWrite(troopers) });
   const remaining = troopers.filter(t => t.alive).length;
+  const locChanges = troopers.filter((t, i) => t.damage !== before[i].damage).map(t => ({
+    code: `#${t.n}`, label: `Trooper #${t.n}`, armor: [before[t.n - 1].armor, t.armor],
+    soldier: before[t.n - 1].alive && !t.alive, destroyed: before[t.n - 1].alive && !t.alive
+  }));
   return {
     ba: true, groups, applied, hasTarget: true, targetName: target.name,
     killed: groups.filter(g => g.killed).length, remaining, squad: troopers.length,
-    destroyed: remaining === 0
+    destroyed: remaining === 0, locChanges
   };
 }
 
@@ -826,5 +831,6 @@ export async function resolvePlatoonHit(target, { infantryDamage = null, burst =
     res = await killPlatoonTroopers(target, n);
     lines.push(`${res.killed} trooper${res.killed === 1 ? '' : 's'} eliminated`);
   }
-  return { platoon: true, lines, ...res, hasTarget: true, targetName: target.name };
+  const locChanges = res.killed > 0 ? [{ code: 'Troopers', label: 'Troopers', count: [res.before, res.remaining], destroyed: res.destroyed }] : [];
+  return { platoon: true, lines, ...res, locChanges, hasTarget: true, targetName: target.name };
 }

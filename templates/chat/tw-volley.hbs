@@ -1,0 +1,36 @@
+{{!-- One attack declaration: a weapons volley, or a physical / anti-'Mech attack. Built by volleyCard() in tw-cards.mjs. --}}
+<div class="mech-foundry tw-attack-card tw-v">
+  <div class="tw-v-head"><i class="fas {{icon}}"></i><span>{{title}}</span>{{#if round}}<span class="tw-v-round">{{round}}</span>{{/if}}</div>
+  <div class="tw-v-who">{{attackerName}}{{#if targetName}} <span class="tw-v-arrow">→</span> {{targetName}}{{/if}}</div>
+  {{#if baseMods.length}}
+  <details class="tw-v-base"><summary><span class="tw-v-ctx">{{#if ctxLine}}{{ctxLine}} · {{/if}}{{#if single}}to-hit{{else}}base to-hit{{/if}} {{baseTN}}</span><span class="tw-v-chev">›</span></summary>
+    <div class="tw-atk-mods">{{#each baseMods}}<span class="tw-mod">{{this.label}} {{#if (gte this.value 0)}}+{{/if}}{{this.value}}</span>{{/each}}</div>
+  </details>
+  {{else if ctxLine}}<div class="tw-v-ctx">{{ctxLine}}</div>{{/if}}
+
+  <div class="tw-v-tally">
+    {{#if tally.many}}<div><span class="v">{{tally.hits}} / {{tally.shots}}</span><span class="k">hits</span></div>
+    {{else}}<div><span class="v {{#if lines.0.ok}}ok{{else}}no{{/if}}">{{#if lines.0.ok}}HIT{{else}}MISS{{/if}}</span><span class="k">{{{lines.0.roll}}}</span></div>{{/if}}
+    <div><span class="v">{{tally.damage}}</span><span class="k">{{tally.damageLabel}}</span></div>
+    {{#if tally.hasHeat}}<div><span class="v">+{{tally.heat}}</span><span class="k">heat</span></div>{{/if}}
+  </div>
+
+  {{> "systems/mech-foundry/templates/chat/parts/tw-alerts.hbs" a=alerts}}
+  {{#each notes}}<div class="tw-v-note">▸ {{this}}</div>{{/each}}
+  {{> "systems/mech-foundry/templates/chat/parts/tw-locs.hbs" rows=rows name=targetName}}
+
+  <div class="tw-v-sec">{{#if single}}Attack{{else}}Weapons{{/if}}</div>
+  <div class="tw-v-list">
+    {{#each lines}}
+    <details class="tw-v-w"><summary><span class="mark {{#if ok}}ok{{else}}no{{/if}}">{{#if ok}}✓{{else}}✗{{/if}}</span><span class="wn"><span class="nm">{{name}}</span>{{#if at}} <span class="at">{{at}}</span>{{/if}}<span class="out">{{{out}}}</span></span><span class="roll">{{{roll}}}<span class="tw-v-chev">›</span></span></summary>
+      <div class="tw-v-wd">{{> "systems/mech-foundry/templates/chat/parts/tw-shot-details.hbs" c=ctx}}</div>
+    </details>
+    {{/each}}
+  </div>
+
+  {{#if self}}
+  {{> "systems/mech-foundry/templates/chat/parts/tw-alerts.hbs" a=self.alerts}}
+  {{> "systems/mech-foundry/templates/chat/parts/tw-locs.hbs" rows=self.rows name=self.name}}
+  {{/if}}
+  {{#if footer}}<div class="tw-v-foot">{{footer}}</div>{{/if}}
+</div>

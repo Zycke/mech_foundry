@@ -14,6 +14,7 @@ import {
   INFANTRY_GUNNERY_SKILLS, INFANTRY_SKILL_BASE_TN
 } from "./atow-conversion.mjs";
 import { beginRecording, endRecording, writeDoc } from "./gm-relay.mjs";
+import { facingChanges, mechLocChanges, poolChange, volleyCard, roundLabel, ammoFooter, heatCard } from "./tw-cards.mjs";
 import { currentTurnKey } from "./tw-turn.mjs";
 import { autoAttackMods, movedThisTurn, pilotUnconscious, rangeDependentMods, terrainMods, vehicleWeaponLocation } from "./tw-movement.mjs";
 import { damagePSRUpdate, queuePSR, standsThisTurn, warriorDamage } from "./tw-psr.mjs";
@@ -485,6 +486,7 @@ function vehicleCritColumn(facing) {
 export async function resolveVehicleAttack(target, direction, groupSizes, rolls, { forceMotive = false, noIntercept = false } = {}) {
   const armor = foundry.utils.deepClone(target.system.armor || {});
   const structure = foundry.utils.deepClone(target.system.structure || { value: 0, max: 0 });
+  const armorBefore = foundry.utils.deepClone(armor), structureBefore = num(structure.value);
   const crits = foundry.utils.deepClone(target.system.crits || {});
   const conditions = foundry.utils.deepClone(target.system.conditions || {});
   const crew = foundry.utils.deepClone(target.system.crew || {});
@@ -592,7 +594,8 @@ export async function resolveVehicleAttack(target, direction, groupSizes, rolls,
 
   return {
     vehicle: true, applied, hasTarget: true, targetName: target.name,
-    groups, motives, critResults, destroyed, infantryLines
+    groups, motives, critResults, destroyed, infantryLines,
+    locChanges: [...facingChanges(armorBefore, armor, VEHICLE_FACING_LABEL), ...poolChange('Structure', structureBefore, structure.value)]
   };
 }
 
@@ -914,6 +917,7 @@ export async function resolveAeroAttack(target, direction, groupSizes, rolls) {
   const crits = foundry.utils.deepClone(target.system.crits || {});
   const conditions = foundry.utils.deepClone(target.system.conditions || {});
   const crew = foundry.utils.deepClone(target.system.crew || {});
+  const armorBefore = foundry.utils.deepClone(armor), siBefore = num(si.value);
   const table = target.type === 'small_craft' ? AERO_HIT_DROPSHIP : AERO_HIT_FIGHTER;
   const col = direction === 'above' ? 'above' : direction === 'left' || direction === 'right' ? 'side' : direction === 'rear' ? 'aft' : 'nose';
 
@@ -971,7 +975,11 @@ export async function resolveAeroAttack(target, direction, groupSizes, rolls) {
   });
   if (applied && linked) for (const ev of crewEvents) await applyCrewDamage(linked, ev);
 
-  return { aero: true, applied, hasTarget: true, targetName: target.name, groups, critResults, destroyed, warriorLines, psrReasons: destroyed ? [] : controlReasons.map(r => r.label), controlRoll: true };
+  return {
+    aero: true, applied, hasTarget: true, targetName: target.name, groups, critResults, destroyed, warriorLines,
+    psrReasons: destroyed ? [] : controlReasons.map(r => r.label), controlRoll: true,
+    locChanges: [...facingChanges(armorBefore, armor, AERO_FACING_LABEL), ...poolChange('SI', siBefore, si.value)]
+  };
 }
 
 /* ------------------------------------------------------------------ */
@@ -1082,7 +1090,7 @@ export async function resolveMechHeat(actor) {
       const sr = await new Roll("2d6").evaluate();
       heatRolls.push(sr);
       shutsDown = sr.total < avoid;
-      shutdownCheck = { total: sr.total, avoid, shutsDown };
+      shutdownCheck = { total: sr.total, avoid, shutsDown, dice: sr.dice[0]?.results?.map(x => x.result) ?? [] };
     }
   }
 
@@ -1116,7 +1124,7 @@ export async function resolveMechHeat(actor) {
       const ar = await new Roll("2d6").evaluate();
       heatRolls.push(ar);
       const explodes = ar.total < need;
-      ammoCheck = { total: ar.total, avoid: need, explodes };
+      ammoCheck = { total: ar.total, avoid: need, explodes, dice: ar.dice[0]?.results?.map(x => x.result) ?? [] };
       if (explodes) {
         const bin = bins.sort((a, b) => b.damage - a.damage)[0];
         ammoFrag = await resolveDamageAgainst(actor, 'front', [], heatRolls, actor.name, { explode: { loc: bin.loc, index: bin.index } });
@@ -1153,7 +1161,7 @@ export async function resolveMechHeat(actor) {
 
   const cardContent = await foundry.applications.handlebars.renderTemplate(
     "systems/mech-foundry/templates/chat/tw-heat.hbs",
-    { lines, newHeat, effects, autoShutdown: effects.auto && shutsDown, shutdownCheck, startupCheck, restarts, ammoCheck, ammoFrag, psrNote, pilotDamage, warriorLines }
+    heatCard({ round: roundLabel(), lines, newHeat, effects, autoShutdown: effects.auto && shutsDown, shutdownCheck, startupCheck, restarts, ammoCheck, ammoFrag, psrNote, pilotDamage, warriorLines }, actor.name)
   );
   await ChatMessage.create({
     flags: { 'mech-foundry': endRecording() },
@@ -1199,6 +1207,7 @@ export async function resolveDamageAgainst(targetActor, direction, groupSizes, r
       ice: /\bice\b|internal combustion|fuel[\s-]?cell/i.test(targetActor.system.engineType || '')
     };
     const structureBefore = foundry.utils.deepClone(targetActor.system.structure || {});
+    const armorBefore = foundry.utils.deepClone(targetActor.system.armor || {});
     const deathNotes = [];
     const newCrits = [];   // actuator crits this attack (leg ones trigger PSRs)
     let headHits = 0;      // every hit on the head injures the warrior
@@ -1397,6 +1406,7 @@ export async function resolveDamageAgainst(targetActor, direction, groupSizes, r
       isMech: true, groups, critChecks, destroyedByCrit: state.destroyed, ammoExplosion: explosionCount > 0,
       explosionLines: [...explosionLines, ...deathNotes], pilotNote,
       warriorLines, psrReasons: psr.reasons.map(r => r.label), infantryLines,
+      locChanges: mechLocChanges(armorBefore, structureBefore, dmgState),
       applied, hasTarget: true, targetName: targetActor.name
     };
   } else if (tt === 'ground_vehicle') {
@@ -1802,22 +1812,34 @@ export async function fireWeapons(actor, preselect = []) {
   if (!ids.length) { ui.notifications.info("No weapons checked."); return; }
 
   const rolls = [];
-  const cards = [];
+  const shots = [];
   beginRecording();
   for (const id of ids) {
     const weapon = all.find(w => w.id === id);
     if (!weapon || weaponBlock(actor, weapon)) continue;
-    const ctx = await resolveWeaponShot(actor, weapon, target, result, rolls);
-    cards.push(await foundry.applications.handlebars.renderTemplate("systems/mech-foundry/templates/chat/tw-attack.hbs", ctx));
+    shots.push(await resolveWeaponShot(actor, weapon, target, result, rolls));
   }
   const recorded = endRecording();
-  if (!cards.length) return;
-  const names = ids.map(id => all.find(w => w.id === id)?.name || 'Weapon');
+  if (!shots.length) return;
+  // One condensed card for the whole volley (tw-cards.mjs / tw-volley.hbs).
+  const dir = dirList.find(d => d.key === result.direction)?.label;
+  const tracksHeat = actor.type === 'mech' || isAero(actor);
+  const card = volleyCard({
+    title: shots.length === 1 ? `${shots[0].weaponName} Attack` : 'Weapons Fire',
+    icon: 'fa-crosshairs',
+    attackerName: actor.name, targetName,
+    ctxLine: [result.range != null ? `Range ${result.range}` : '', targetName ? dir : ''].filter(Boolean).join(' · '),
+    round: roundLabel(),
+    baseMods: shots[0].baseMods,
+    shots,
+    heat: tracksHeat ? shots.reduce((t, s) => t + num(s.heat), 0) : null,
+    footer: ammoFooter(shots)
+  });
   await ChatMessage.create({
     flags: { 'mech-foundry': recorded },
     speaker: ChatMessage.getSpeaker({ actor }),
-    flavor: cards.length === 1 ? `${names[0]} Attack` : `Weapons Fire — ${cards.length} weapons${targetName ? ` at ${targetName}` : ''}`,
-    content: cards.length === 1 ? cards[0] : `<div class="mech-foundry tw-fire-group">${cards.join('')}</div>`,
+    flavor: card.title,
+    content: await foundry.applications.handlebars.renderTemplate("systems/mech-foundry/templates/chat/tw-volley.hbs", card),
     rolls
   });
 }
@@ -1825,7 +1847,8 @@ export async function fireWeapons(actor, preselect = []) {
 /**
  * Roll and resolve one weapon's shot with the fire dialog's values: spends
  * ammunition and records the shot for the heat phase, then on a hit rolls the
- * cluster table and hit locations. Returns the tw-attack.hbs context.
+ * cluster table and hit locations. Returns the shot context (one line of the
+ * volley card; see tw-cards.mjs).
  */
 async function resolveWeaponShot(actor, weapon, target, result, rolls) {
   const targetName = target?.name || '';
@@ -1838,17 +1861,24 @@ async function resolveWeaponShot(actor, weapon, target, result, rolls) {
     .map(m => ({ label: m.label, value: m.value }));
   const autos = (result.auto || []).filter(m => !(mode === 'a2g' && result.a2gType === 'bomb' && BOMB_EXCLUDED.includes(m.key)))
     .map(m => ({ label: m.label, value: m.value }));
-  const mods = [
+  // Modifiers shared by every weapon in the volley (the card's base to-hit) …
+  const baseMods = [
     { label: "Gunnery", value: result.gunnery },
     ...autos,
-    ...weaponMods,
-    { label: `Range (${rb.bracket})`, value: rb.mod },
-    { label: 'Stealth armor', value: stealth },
-    ...(mode === 'ground' ? rangeDependentMods(weapon, targetActor, result.range) : []),
     { label: "Heat", value: result.heat },
     ...situationalMods(result, mode, actor, targetActor),
     { label: "Other", value: result.other }
   ].filter(m => m.value !== 0 || m.label === "Gunnery");
+  // … and this weapon's own (the range bracket is always shown).
+  const rangeLabel = `Range (${rb.bracket})`;
+  const ownMods = [
+    ...weaponMods,
+    { label: rangeLabel, value: rb.mod },
+    { label: 'Stealth armor', value: stealth },
+    ...(mode === 'ground' ? rangeDependentMods(weapon, targetActor, result.range) : [])
+  ].filter(m => m.value !== 0 || m.label === rangeLabel);
+  const mods = [...baseMods, ...ownMods].filter(m => m.value !== 0 || m.label === "Gunnery");
+  const baseTN = baseMods.reduce((t, x) => t + x.value, 0);
   const tn = mods.reduce((t, x) => t + x.value, 0);
 
   const roll = await new Roll("2d6").evaluate();
@@ -1859,7 +1889,7 @@ async function resolveWeaponShot(actor, weapon, target, result, rolls) {
 
   // The weapon fired (an out-of-range shot can't be declared, so it doesn't
   // count): spend one shot of ammunition and record it for the heat phase.
-  let ammoLine = null;
+  let ammoLine = null, ammoLeft = null;
   if (rb.inRange) {
     const upd = {};
     if (weaponTracksAmmo(actor, weapon)) {
@@ -1869,6 +1899,7 @@ async function resolveWeaponShot(actor, weapon, target, result, rolls) {
         const before = num(w.ammo);
         w.ammo = Math.max(0, before - 1);
         ammoLine = `${w.ammoType}: ${before} → ${w.ammo} shots left`;
+        ammoLeft = w.ammo;
         upd['system.weapons'] = weapons;
       }
     }
@@ -1947,9 +1978,9 @@ async function resolveWeaponShot(actor, weapon, target, result, rolls) {
   return {
     weaponName: weapon.name || 'Weapon',
     location: weapon.location || weapon.arc || '',
-    targetName, mods, tn, dice, rollTotal: roll.total,
+    targetName, mods, baseMods, weaponMods: ownMods, baseTN, tn, dice, rollTotal: roll.total,
     hit, margin: Math.abs(margin), outOfRange: !rb.inRange,
-    damage: perHit, ammoLine, hitResult
+    damage: perHit, heat: rb.inRange ? num(weapon.heat) : 0, ammoLine, ammoLeft, hitResult
   };
 }
 

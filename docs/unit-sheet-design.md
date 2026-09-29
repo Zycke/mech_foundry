@@ -112,6 +112,21 @@ criticals and cluster grouping:
 - **Combat Vehicle / VTOL:** hit location + Motive System Damage + Ground/VTOL crit tables.
 - **Aerospace / Small Craft:** facing armor + threshold crits + Structural Integrity.
 - **Heat phase:** mech "Resolve" nets Heat Point Table gains vs. sink dissipation.
+- **Condensed chat cards** (`module/helpers/tw-cards.mjs`): every combat result is one
+  outcome-first card. A weapons volley (`tw-volley.hbs`) posts a single message: header with
+  round and phase, attacker → target, range / arc and the shared base to-hit (click for its
+  modifiers), a tally (hits / damage / heat), alerts for anything that changes the fight
+  (crits, destroyed locations, ammo explosions, pilot hits, PSRs / Control Rolls merged into
+  one line per unit, infantry knocked off, "no GM online"), damage by location on the target
+  (before → after, largest first), then one collapsed line per weapon ("12 of 20 missiles ·
+  12 → RT 5, LA 5, RL 2") that opens to its own modifiers, dice, cluster roll and hit
+  locations; the footer lists ammo left. Physical, anti-'Mech and swarm-damage attacks use
+  the same card (single attack: HIT / MISS tally; charge / DFA show the attacker's own damage
+  too). Roll cards (`tw-psr.hbs` — PSRs, falls, skids, crashes, Control Rolls, consciousness,
+  swarm removal …) lead with the verdict, alerts and damage table, with each roll and the hit
+  details collapsible. The heat card leads with new heat / change / fire modifier and the
+  effect chips, alerts for shutdown / restart / ammo / pilot / PSR, and folds the heat
+  breakdown and avoid rolls away. Damage fragments carry `locChanges` for the tables.
 - **Turn phases:** combat-tracker phase bar (Initiative→Movement→Weapon→Physical→Heat→End).
 - **Area effects:** Scene-Region blast tool (v14) applying damage to enclosed units.
 - **GM relay** (`module/helpers/gm-relay.mjs`): a player's attack on a unit they don't own

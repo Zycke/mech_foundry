@@ -18,6 +18,7 @@ import {
 import { queuePSR } from "./tw-psr.mjs";
 import { isInfantry, untargetableReason } from "./tw-infantry.mjs";
 import { fiveGroups, pilotingFor, postCard, resolveFall } from "./tw-falls.mjs";
+import { roundLabel, volleyCard } from "./tw-cards.mjs";
 import {
   ATTACK_DIRECTIONS, MECH_LOC_LABEL, REAR_ARMOR_KEY, firedThisTurn, locationGone, measureHexes, resolveDamageAgainst
 } from "./tw-combat.mjs";
@@ -399,18 +400,26 @@ export async function resolvePhysicalAttack(actor, target, r) {
   }
   if (hit && (type === 'charge' || type === 'dfa') && actor.type === 'mech') notes.push(`${actor.name} must make a Piloting Skill Roll`);
 
-  const cardContent = await foundry.applications.handlebars.renderTemplate(
-    "systems/mech-foundry/templates/chat/tw-attack.hbs",
-    {
-      weaponName: pw ? pw.label : spec.label,
-      location: pw ? (arm || '').toUpperCase() : '',
-      targetName: target?.name || '',
-      attackerName: actor.name,
-      mods: shown, tn, dice, rollTotal: roll.total, hit, margin: Math.abs(roll.total - tn),
-      outOfRange: false, damage: hit ? physicalDamage(actor, type, { weaponKey, hexes: r.hexes, halvings: act.halvings }) : 0,
-      hitResult, selfResult, notes
-    }
-  );
+  // A PSR the damage already queued shows as an alert; drop the duplicate note.
+  const psrNote = (name) => `${name} must make a Piloting Skill Roll`;
+  const shownNotes = notes.filter(n => !(n === psrNote(target?.name || 'Target') && hitResult?.psrReasons?.length)
+    && !(n === psrNote(actor.name) && selfResult?.psrReasons?.length));
+  const shot = {
+    weaponName: pw ? pw.label : spec.label,
+    location: pw ? (arm || '').toUpperCase() : '',
+    targetName: target?.name || '', attackerName: actor.name,
+    mods: shown, weaponMods: [], tn, dice, rollTotal: roll.total, hit, margin: Math.abs(roll.total - tn),
+    outOfRange: false, damage: hit ? physicalDamage(actor, type, { weaponKey, hexes: r.hexes, halvings: act.halvings }) : 0,
+    hitResult
+  };
+  const card = volleyCard({
+    title: spec.label, icon: 'fa-hand-fist',
+    attackerName: actor.name, targetName: target?.name || '',
+    ctxLine: r.direction ? `${r.direction[0].toUpperCase()}${r.direction.slice(1)}` : '',
+    round: roundLabel(), baseMods: shown, shots: [shot],
+    notes: shownNotes, selfFrags: selfResult ? [selfResult] : [], selfName: actor.name
+  });
+  const cardContent = await foundry.applications.handlebars.renderTemplate("systems/mech-foundry/templates/chat/tw-volley.hbs", card);
   await ChatMessage.create({ flags: { 'mech-foundry': endRecording() }, speaker: ChatMessage.getSpeaker({ actor }), flavor: `${spec.label}`, content: cardContent, rolls });
   if (fall) await postCard(actor, 'Death From Above — Missed', { results: [], fall }, []);
   return { hit, tn, mods: shown, hitResult, selfResult, notes, fall };

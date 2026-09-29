@@ -7562,7 +7562,6 @@
 .tw-fire-dialog .tw-fw-name .tw-hint { display: block; font-size: 0.7rem; }
 .tw-fire-dialog .tw-fw-tn { font-family: monospace; font-weight: 700; white-space: nowrap; }
 .tw-fire-dialog .tw-fire-heat { margin: 0 0 6px; font-size: 0.8rem; }
-.mech-foundry.tw-fire-group > .tw-attack-card + .tw-attack-card { margin-top: 6px; }
 
 /* Combat chat-card action bar (Roll PSR / Apply / Undo) */
 .mech-foundry.tw-card-actions { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; padding-top: 4px; border-top: 1px dashed rgba(128,128,128,.4); }
@@ -7601,3 +7600,65 @@
 .mech-foundry.mf-import-report .mf-import-unit { margin: 4px 0; font-size: 0.8rem; }
 .mech-foundry.mf-import-report .mf-import-unit ul { margin: 2px 0 0 1em; padding: 0; font-size: 0.74rem; }
 .mech-foundry.mf-import-report .mf-import-unit.failed { color: var(--mf-danger, #c33); }
+
+/* ---- Condensed combat cards (tw-volley / tw-psr / tw-heat) ---- */
+.mech-foundry.tw-v { font-size: 13px; }
+.mech-foundry.tw-v .tw-v-head { display: flex; align-items: center; gap: 6px; font-family: var(--mf-font-head); text-transform: uppercase; letter-spacing: 0.04em; color: var(--mf-amber-2); }
+.mech-foundry.tw-v .tw-v-head i { color: var(--mf-amber); }
+.mech-foundry.tw-v .tw-v-round { margin-left: auto; text-align: right; font-size: 0.7rem; color: var(--mf-ink-dim); letter-spacing: 0.02em; }
+.mech-foundry.tw-v .tw-v-who { font-family: var(--mf-font-head); font-size: 1rem; color: var(--mf-ink); margin-top: 2px; }
+.mech-foundry.tw-v .tw-v-arrow { color: var(--mf-amber); padding: 0 3px; }
+.mech-foundry.tw-v .tw-v-ctx { font-size: 0.72rem; color: var(--mf-ink-dim); }
+.mech-foundry.tw-v details > summary { list-style: none; cursor: pointer; }
+.mech-foundry.tw-v details > summary::-webkit-details-marker { display: none; }
+.mech-foundry.tw-v details > summary:focus-visible { outline: 1px solid var(--mf-amber); outline-offset: -1px; }
+.mech-foundry.tw-v .tw-v-chev { display: inline-block; transition: transform 0.15s; color: var(--mf-ink-dim); margin-left: 3px; }
+.mech-foundry.tw-v details[open] > summary .tw-v-chev { transform: rotate(90deg); }
+@media (prefers-reduced-motion: reduce) { .mech-foundry.tw-v .tw-v-chev { transition: none; } }
+.mech-foundry.tw-v .tw-v-base > summary { display: flex; justify-content: space-between; align-items: baseline; margin-top: 1px; }
+.mech-foundry.tw-v .tw-v-base .tw-atk-mods { margin: 2px 0 0; }
+.mech-foundry.tw-v .tw-v-tally { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; margin-top: 8px; border: 1px solid var(--mf-line); border-radius: 3px; overflow: hidden; }
+.mech-foundry.tw-v .tw-v-tally > div { padding: 4px 6px; text-align: center; min-width: 0; }
+.mech-foundry.tw-v .tw-v-tally > div + div { border-left: 1px solid var(--mf-line); }
+.mech-foundry.tw-v .tw-v-tally .v { display: block; font-family: var(--mf-font-mono); font-size: 1.05rem; color: var(--mf-amber-2); font-variant-numeric: tabular-nums; }
+.mech-foundry.tw-v .tw-v-tally .v.ok { color: var(--mf-ok); font-family: var(--mf-font-head); font-weight: 700; letter-spacing: 0.06em; }
+.mech-foundry.tw-v .tw-v-tally .v.no { color: var(--mf-danger); font-family: var(--mf-font-head); font-weight: 700; letter-spacing: 0.06em; }
+.mech-foundry.tw-v .tw-v-tally .k { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--mf-ink-dim); }
+.mech-foundry.tw-v .tw-v-tally .k b { color: var(--mf-ink); }
+.mech-foundry.tw-v .tw-v-alerts { margin-top: 8px; display: grid; gap: 4px; }
+.mech-foundry.tw-v .tw-v-alert { display: grid; grid-template-columns: auto 1fr; gap: 6px; align-items: baseline; font-size: 0.78rem; padding: 4px 6px; border-radius: 3px; background: var(--mf-bg); border-left: 3px solid var(--mf-hazard); }
+.mech-foundry.tw-v .tw-v-alert.red { border-left-color: var(--mf-danger); }
+.mech-foundry.tw-v .tw-v-alert .tag { font-family: var(--mf-font-head); font-weight: 700; font-size: 0.66rem; letter-spacing: 0.08em; color: var(--mf-hazard); }
+.mech-foundry.tw-v .tw-v-alert.red .tag { color: var(--mf-danger); }
+.mech-foundry.tw-v .tw-v-note { margin-top: 4px; font-size: 0.76rem; color: var(--mf-ink); }
+.mech-foundry.tw-v .tw-v-sec { margin-top: 9px; font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--mf-ink-dim); }
+.mech-foundry.tw-v .tw-v-locs { width: 100%; border-collapse: collapse; margin: 3px 0 0; font-size: 0.78rem; font-variant-numeric: tabular-nums; border: none; background: none; }
+.mech-foundry.tw-v .tw-v-locs tr { background: none !important; }
+.mech-foundry.tw-v .tw-v-locs td { padding: 2px 3px; border-top: 1px solid var(--mf-line); border-bottom: none; vertical-align: baseline; text-align: left; }
+.mech-foundry.tw-v .tw-v-locs td.l { font-family: var(--mf-font-head); font-weight: 700; color: var(--mf-amber-2); width: 2.6em; white-space: nowrap; }
+.mech-foundry.tw-v .tw-v-locs td.d { font-family: var(--mf-font-mono); text-align: right; width: 2.2em; color: var(--mf-ink); }
+.mech-foundry.tw-v .tw-v-locs td.s { color: var(--mf-ink-dim); font-size: 0.72rem; }
+.mech-foundry.tw-v .tw-v-locs .hurt { color: var(--mf-danger); }
+.mech-foundry.tw-v .tw-v-list { margin-top: 3px; }
+.mech-foundry.tw-v details.tw-v-w { border-top: 1px solid var(--mf-line); }
+.mech-foundry.tw-v details.tw-v-w > summary { display: grid; grid-template-columns: 14px minmax(0, 1fr) auto; gap: 6px; align-items: baseline; padding: 4px 2px; font-size: 0.78rem; }
+.mech-foundry.tw-v details.tw-v-w > summary:hover { background: var(--mf-bg); }
+.mech-foundry.tw-v .mark { font-family: var(--mf-font-head); font-weight: 700; }
+.mech-foundry.tw-v .mark.ok { color: var(--mf-ok); }
+.mech-foundry.tw-v .mark.no { color: var(--mf-danger); }
+.mech-foundry.tw-v .wn { min-width: 0; }
+.mech-foundry.tw-v .wn .nm { color: var(--mf-ink); }
+.mech-foundry.tw-v .wn .at { color: var(--mf-ink-dim); font-size: 0.7rem; }
+.mech-foundry.tw-v .wn .out { display: block; color: var(--mf-ink-dim); font-size: 0.72rem; }
+.mech-foundry.tw-v .wn .out b { color: var(--mf-ink); font-weight: 500; }
+.mech-foundry.tw-v .roll { font-family: var(--mf-font-mono); font-size: 0.74rem; color: var(--mf-ink-dim); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.mech-foundry.tw-v .roll b { color: var(--mf-ink); font-weight: 600; }
+.mech-foundry.tw-v .tw-v-wd { padding: 2px 4px 8px 20px; font-size: 0.74rem; }
+.mech-foundry.tw-v .tw-v-wd .tw-atk-roll, .mech-foundry.tw-v .tw-v-wd .tw-hit-loc, .mech-foundry.tw-v .tw-v-wd .tw-cluster { margin-top: 4px; padding-top: 4px; }
+.mech-foundry.tw-v .tw-v-wd .tw-die { width: 20px; height: 20px; font-size: 0.78rem; }
+.mech-foundry.tw-v .tw-v-foot { margin-top: 8px; padding-top: 6px; border-top: 1px solid var(--mf-line); font-size: 0.7rem; color: var(--mf-ink-dim); font-family: var(--mf-font-mono); line-height: 1.5; }
+.mech-foundry.tw-v .tw-v-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.mech-foundry.tw-v .tw-v-effects { margin-top: 6px; }
+.mech-foundry.tw-v .tw-v-more { margin-top: 8px; }
+.mech-foundry.tw-v .tw-v-wd .tw-hl-event { font-size: 0.74rem; }
+.mech-foundry.tw-v .tw-v-head > span:first-of-type { white-space: nowrap; }
