@@ -124,22 +124,11 @@ function markerParts(token) {
   return m;
 }
 
-/** A dashed arc (radius R, from bearing a to bearing b). */
-function dashedArc(g, R, a, b, color, alpha) {
-  g.lineStyle(1.5, color, alpha);
-  for (let d = a; d < b; d += 12) {
-    const e = Math.min(b, d + 7);
-    g.moveTo(Math.cos(rad(d)) * R, Math.sin(rad(d)) * R).arc(0, 0, R, rad(d), rad(e));
-  }
-  g.lineStyle(0);
-}
-
 /**
  * Draw (or clear) a unit token's markers. The solid amber wedge is where the
  * legs (hull) face — the token's rotation, which sets the hit table. A 'Mech's
- * twisted torso adds a matching cyan wedge where the torso faces. When the unit is selected its firing arcs are shaded
- * from the torso's facing, with the legs' front (the forward 180° of the hit
- * table) as a dashed amber line when the torso is twisted.
+ * twisted torso adds a matching cyan wedge where the torso faces. When the unit
+ * is selected its firing arcs are shaded from the torso's facing.
  */
 export function drawFacing(token) {
   try {
@@ -172,8 +161,6 @@ export function drawFacing(token) {
         t.position.set(Math.cos(mid) * R * 0.86 - t.width / 2, Math.sin(mid) * R * 0.86 - t.height / 2);
       });
       g.lineStyle(0);
-      // Twisted: where the legs point — the hit table's front half.
-      if (twist) dashedArc(g, R * 0.6, legs - 90, legs + 90, LEGS, 0.9);
     }
     // A notched arrowhead on the token's edge, pointing along a bearing (narrow and
     // notched so it reads the right way at any of the six facings).
