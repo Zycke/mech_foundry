@@ -200,8 +200,8 @@ Rules detail for what *is* automated lives in `docs/unit-sheet-design.md`.
 - [ ] Token displacement: pushes, charges, death from above, skids, sideslips (chat card
       tells players what to move).
 - [x] Movement warnings (over MP), Movement-Phase-only token moves for players, GM phase
-      checklist. Open: facing changes aren't counted against MP; movement order by initiative
-      isn't enforced.
+      checklist, End Phase round summary; facing changes count against MP. Open: movement order
+      by initiative isn't enforced.
 - [ ] Terrain detection from the map (woods, water, pavement, buildings) — dialog inputs today.
 - [ ] Buildings: movement, damage absorption, collapse, building PSRs.
 - [ ] Water / underwater, hull down, life support while submerged; hover vehicles sinking
