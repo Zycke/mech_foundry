@@ -13,6 +13,7 @@
  */
 import { AMMO_ROWS, WEAPON_ROWS } from "../data/tw-equipment.mjs";
 import { CI_WEAPONS, genericPlatoon } from "./tw-infantry.mjs";
+import { guidable } from "./tw-weapons.mjs";
 
 const num = (v) => Number(v) || 0;
 const rid = () => globalThis.foundry?.utils?.randomID?.() ?? Math.random().toString(36).slice(2, 18);
@@ -28,8 +29,8 @@ function catalog() {
   if (CATALOG) return CATALOG;
   const weapons = new Map(), ammo = new Map();
   const add = (map, key, obj) => { const k = norm(key); if (!map.has(k)) map.set(k, []); map.get(k).push(obj); };
-  for (const [name, keys, heat, damage, cluster, min, s, m, l, e, family, inf, flags, slots, aeroRange] of WEAPON_ROWS) {
-    const w = { name, heat, damage, cluster, min, s, m, l, e, family, inf, slots: slots || 1, aeroRange,
+  for (const [name, keys, heat, damage, cluster, min, s, m, l, e, family, inf, flags, slots, aeroRange, toHit] of WEAPON_ROWS) {
+    const w = { name, heat, damage, cluster, min, s, m, l, e, family, inf, slots: slots || 1, aeroRange, toHit: toHit || 0,
       streak: flags.includes('st'), ba: flags.includes('ba'), oneShot: flags.includes('os'), clan: flags.includes('cl') };
     for (const k of keys.split('|')) add(weapons, k, w);
   }
@@ -51,6 +52,17 @@ function pick(list, { clan = false, ba = false } = {}) {
 /** Look up a weapon by any MegaMek name (display, internal or lookup). */
 export function findWeapon(name, opts = {}) {
   return pick(catalog().weapons.get(norm(name)), opts);
+}
+
+/**
+ * A weapon's own to-hit modifier (pulse lasers −2, Clan ER pulse −1, heavy
+ * lasers +1 …) from the catalog, by the weapon's name; 0 when unknown.
+ */
+export function catalogToHit(name, opts = {}) {
+  const raw = String(name ?? '').trim();
+  const hit = findWeapon(raw, opts) ?? findWeapon(cleanEquipmentName(raw).name, opts)
+    ?? findWeapon(raw.replace(/^(IS|Clan|CL)\s+/i, ''), opts);
+  return hit?.toHit || 0;
 }
 
 /** Look up ammunition; munition variants ("… Artemis-capable", "… (Clan) Swarm") fall back to the base bin. */
@@ -94,6 +106,7 @@ function weaponEntry(w, location, extra = {}) {
   if (w.streak) entry.streak = true;
   if (w.oneShot) entry.oneShot = true;
   if (w.aeroRange) entry.aeroRange = w.aeroRange;
+  if (w.toHit) entry.toHit = w.toHit;
   if (w.inf?.startsWith('burst:')) { entry.infClass = 'burst'; entry.burst = w.inf.slice(6); }
   else if (w.inf && w.inf !== 'direct') entry.infClass = w.inf;
   return entry;
@@ -120,8 +133,13 @@ function assignAmmo(weapons, bins, catalogOf, warnings) {
     });
     const fallback = users.length ? users : weapons.filter(w => catalogOf.get(w.id)?.family === a.family);
     if (!fallback.length) { warnings.push(`Ammunition "${bin.raw}" doesn't match any weapon.`); continue; }
-    const key = fallback.map(w => w.id).join('+');
-    if (!groups.has(key)) groups.set(key, { users: fallback, shots: 0, perTon: 0, label: ammoLabel(a) });
+    // LB-X cluster rounds are counted apart from slugs; Narc-capable missiles mark the launcher.
+    const cluster = a.family === 'AC_LBX' && /cluster/i.test(bin.raw);
+    if (/narc/i.test(bin.raw) && ['LRM', 'SRM', 'MML', 'LRM_IMP', 'SRM_IMP'].includes(a.family)) {
+      for (const w of fallback) if (!w.guidance) w.guidance = 'narc';
+    }
+    const key = fallback.map(w => w.id).join('+') + (cluster ? ':cluster' : '');
+    if (!groups.has(key)) groups.set(key, { users: fallback, shots: 0, perTon: 0, label: ammoLabel(a), cluster });
     const g = groups.get(key);
     g.shots += bin.shots ?? a.shots;
     g.perTon = Math.max(g.perTon, a.name.includes('[Half]') ? a.shots * 2 : a.shots);
@@ -130,7 +148,9 @@ function assignAmmo(weapons, bins, catalogOf, warnings) {
   for (const g of groups.values()) {
     const each = Math.floor(g.shots / g.users.length);
     g.users.forEach((w, i) => {
-      w.ammo = each + (i < g.shots % g.users.length ? 1 : 0);
+      const n = each + (i < g.shots % g.users.length ? 1 : 0);
+      if (g.cluster) { w.clusterAmmo = n; if (!w.ammoType) { w.ammoType = g.label.replace(/\s*cluster/i, ''); w.ammo = 0; } return; }
+      w.ammo = n;
       w.shotsPerTon = g.perTon;
       w.ammoType = g.label;
     });
@@ -143,6 +163,25 @@ function assignAmmo(weapons, bins, catalogOf, warnings) {
     }
   }
   return feeds;
+}
+
+/** Artemis IV / V fire-control units named in a location, in order. */
+function artemisOf(names) {
+  const out = [];
+  let v5 = 0;
+  for (const n of names) {
+    if (/artemis\s*-?\s*iv/i.test(n)) out.push('artemis4');
+    else if (/artemis\s*-?\s*v\b|artemisv/i.test(n)) { if (v5++ % 2 === 0) out.push('artemis5'); } // 2 slots each
+  }
+  return out;
+}
+
+/** Link each location's Artemis units to its LRM / SRM / MML launchers, in order. */
+function linkArtemis(weapons, byLocation) {
+  for (const [loc, list] of Object.entries(byLocation)) {
+    const launchers = weapons.filter(w => w.location === loc && guidable(w));
+    list.forEach((g, i) => { if (launchers[i]) launchers[i].guidance = g; });
+  }
 }
 
 /* ------------------------------------------------------------------ */
@@ -319,6 +358,9 @@ export function parseMtf(text) {
     }
   }
 
+  // Artemis fire control: each location's units link to its launchers.
+  linkArtemis(weapons, Object.fromEntries(Object.entries(critSlots).map(([loc, sl]) => [LOC_CODE[loc], artemisOf(sl.filter(x => x.type === 'equipment').map(x => x.name))])));
+
   // Record-sheet order: arms, torsos, head, legs.
   const ORDER = ['LA', 'RA', 'LT', 'RT', 'CT', 'HD', 'LL', 'RL'];
   weapons.sort((x, y) => ORDER.indexOf(x.location.slice(0, 2)) - ORDER.indexOf(y.location.slice(0, 2)));
@@ -328,7 +370,7 @@ export function parseMtf(text) {
   // Cross-check against the file's weapon list.
   const listed = weaponList.filter(l => l.includes(',')).length;
   if (listed && listed !== weapons.length) warnings.push(`The file lists ${listed} weapons; ${weapons.length} were found in the critical slots.`);
-  const unknown = Object.values(critSlots).flat().filter(s => s.type === 'equipment').map(s => s.name);
+  const unknown = Object.values(critSlots).flat().filter(s => s.type === 'equipment' && !/artemis/i.test(s.name)).map(s => s.name);
   if (unknown.length) warnings.push(`Other equipment (no automated effect): ${[...new Set(unknown)].join(', ')}.`);
 
   // Heat sinks: "20 Single" / "17 Clan Double" / "10 IS Double".
@@ -365,9 +407,10 @@ export function readBlk(text) {
 const first = (b, k) => b[k]?.[0] ?? '';
 
 /** Load a location's equipment lines into weapons / ammo bins. */
-function loadEquipment(lines, location, { clan, ba = false }, weapons, catalogOf, bins, other) {
+function loadEquipment(lines, location, { clan, ba = false }, weapons, catalogOf, bins, other, fcs = null) {
   for (const raw of lines || []) {
     const c = cleanEquipmentName(raw.split(':')[0]);
+    if (fcs && /artemis/i.test(c.name)) { (fcs[location] ??= []).push(c.name); continue; }
     if (/ammo|pods/i.test(c.name)) {
       const a = findAmmo(c.name, { clan });
       if (a) bins.push({ raw, ammo: a });
@@ -401,11 +444,12 @@ function parseVehicle(b, warnings) {
   const av = (i) => ({ value: armorVals[i] ?? 0, max: armorVals[i] ?? 0 });
   const armor = { front: av(0), right: av(1), left: av(2), rear: av(3), turret: { value: 0, max: 0 }, rotor: { value: 0, max: 0 } };
   if (vtol) { armor.rotor = av(4); if (hasTurret) armor.turret = av(5); } else if (hasTurret) armor.turret = av(4);
-  const weapons = [], catalogOf = new Map(), bins = [], other = [];
+  const weapons = [], catalogOf = new Map(), bins = [], other = [], fcs = {};
   for (const [tag, loc] of [['Front Equipment', 'Front'], ['Right Equipment', 'Right'], ['Left Equipment', 'Left'], ['Rear Equipment', 'Rear'], ['Turret Equipment', 'Turret'], ['Rotor Equipment', 'Rotor'], ['Body Equipment', 'Body']]) {
-    loadEquipment(b[tag], loc, { clan }, weapons, catalogOf, bins, other);
+    loadEquipment(b[tag], loc, { clan }, weapons, catalogOf, bins, other, fcs);
   }
   assignAmmo(weapons, bins, catalogOf, warnings);
+  linkArtemis(weapons, Object.fromEntries(Object.entries(fcs).map(([k, v]) => [k, artemisOf(v)])));
   const extras = other.filter(n => !/^(is|cl|clan)?\s*case(\s*ii)?$/i.test(n));
   if (extras.length) warnings.push(`Other equipment (no automated effect): ${[...new Set(extras)].join(', ')}.`);
   const structure = Math.ceil(tons / 10);
@@ -430,12 +474,13 @@ function parseAero(b, warnings, type) {
   const armorVals = (b.armor || []).map(num);
   const loc = (i) => ({ value: armorVals[i] ?? 0, max: armorVals[i] ?? 0, threshold: Math.ceil((armorVals[i] ?? 0) / 10) });
   const si = num(first(b, 'structural_integrity')) || Math.max(Math.floor(tons / 10), safe);
-  const weapons = [], catalogOf = new Map(), bins = [], other = [];
+  const weapons = [], catalogOf = new Map(), bins = [], other = [], fcs = {};
   for (const [tag, where] of [['Nose Equipment', 'Nose'], ['Left Wing Equipment', 'Left Wing'], ['Right Wing Equipment', 'Right Wing'], ['Aft Equipment', 'Aft'], ['Fuselage Equipment', 'Fuselage'],
     ['Left Side Equipment', 'Left Wing'], ['Right Side Equipment', 'Right Wing']]) {
-    loadEquipment(b[tag], where, { clan }, weapons, catalogOf, bins, other);
+    loadEquipment(b[tag], where, { clan }, weapons, catalogOf, bins, other, fcs);
   }
   assignAmmo(weapons, bins, catalogOf, warnings);
+  linkArtemis(weapons, Object.fromEntries(Object.entries(fcs).map(([k, v]) => [k, artemisOf(v)])));
   const extras = other.filter(n => !/^(is|cl|clan)?\s*case(\s*ii)?$/i.test(n));
   if (extras.length) warnings.push(`Other equipment (no automated effect): ${[...new Set(extras)].join(', ')}.`);
   if (first(b, 'UnitType') === 'ConvFighter') warnings.push('Conventional fighter imported as an aerospace fighter.');

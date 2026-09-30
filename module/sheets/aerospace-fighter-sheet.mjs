@@ -1,6 +1,6 @@
 import { MechFoundryUnitSheet } from "./unit-sheet.mjs";
 import { actorSkillRating, applyCrewDamage, CREW_DAMAGE, AERO_GUNNERY_SKILLS, AERO_PILOTING_SKILLS } from "../helpers/atow-conversion.mjs";
-import { weaponAttack } from "../helpers/tw-combat.mjs";
+import { heatResolvedThisTurn, weaponAttack } from "../helpers/tw-combat.mjs";
 import { wakeRoll } from "../helpers/tw-falls.mjs";
 import { aeroLanding, aeroManeuver, randomMovement, resolveAeroHeat, rollPendingControl } from "../helpers/tw-aero-flight.mjs";
 import { pendingPSR } from "../helpers/tw-psr.mjs";
@@ -183,7 +183,11 @@ export class MechFoundryAerospaceFighterSheet extends MechFoundryUnitSheet {
     html.on('click', '.pilot-open', this._onPilotOpen.bind(this));
     html.on('click', '.weapon-attack', this._onWeaponAttack.bind(this));
     html.on('click', '.wake-roll', (ev) => { ev.preventDefault(); wakeRoll(this.actor); });
-    html.on('click', '.resolve-heat', (ev) => { ev.preventDefault(); resolveAeroHeat(this.actor); });
+    html.on('click', '.resolve-heat', (ev) => {
+      ev.preventDefault();
+      if (heatResolvedThisTurn(this.actor)) return ui.notifications.warn(`${this.actor.name}'s heat has already been resolved this turn.`);
+      resolveAeroHeat(this.actor);
+    });
     html.on('click', '.control-roll', (ev) => { ev.preventDefault(); rollPendingControl(this.actor); });
     html.on('click', '.random-move', (ev) => { ev.preventDefault(); randomMovement(this.actor); });
     html.on('click', '.aero-maneuver', (ev) => { ev.preventDefault(); aeroManeuver(this.actor); });

@@ -12,8 +12,9 @@ import { beginRecording, writeDoc } from "./gm-relay.mjs";
 import { currentTurnKey } from "./tw-turn.mjs";
 import { movedThisTurn, pilotUnconscious, setMovement, vehicleDrivingMods } from "./tw-movement.mjs";
 import { phaseDamageSoFar, psrDamageMods } from "./tw-psr.mjs";
-import { fiveGroups, pilotingFor, postCard, resolveFall } from "./tw-falls.mjs";
+import { fiveGroups, postCard, resolveFall } from "./tw-falls.mjs";
 import { resolveDamageAgainst } from "./tw-combat.mjs";
+import { pilotingMods } from "./tw-skills.mjs";
 
 const { DialogV2 } = foundry.applications.api;
 const num = (v) => Number(v) || 0;
@@ -57,7 +58,7 @@ async function askHexes(title, hint, extra = '') {
     content: `
       <div class="tw-attack-dialog">
         <div class="form-group"><label>${hint}</label><input type="number" name="hexes" value="${extra}" min="0" /></div>
-        <div class="form-group"><label>Other modifier</label><input type="number" name="other" value="0" /></div>
+        <div class="form-group"><label>Other modifier <span class="tw-hint">+ makes the roll harder, − easier</span></label><input type="number" name="other" value="0" /></div>
       </div>`,
     buttons: [
       { action: "roll", label: "Roll", icon: "fa-solid fa-dice", default: true, callback: (e, b) => ({ hexes: Math.max(0, num(b.form.elements.hexes.value)), other: num(b.form.elements.other.value) }) },
@@ -88,7 +89,7 @@ export async function skidCheck(actor, { hexes = null, other = 0 } = {}) {
   const rolls = [];
   const isMech = actor.type === 'mech';
   const plus20 = isMech && phaseDamageSoFar(actor) >= 20;
-  const mods = [{ label: isMech ? 'Piloting' : 'Driving', value: pilotingFor(actor) }];
+  const mods = [...pilotingMods(actor)];
   if (isMech) mods.push(...psrDamageMods(actor.system).filter(m => !m.gyroDestroyed));
   else mods.push(...drivingMods(actor));
   mods.push({ label: `Skid (${hexes} hex${hexes === 1 ? '' : 'es'})`, value: skidModifier(hexes) });
@@ -145,7 +146,7 @@ export async function sideslipCheck(actor, { hexes = null, other = 0 } = {}) {
   }
   beginRecording();
   const rolls = [];
-  const mods = [{ label: 'Driving', value: pilotingFor(actor) }, ...drivingMods(actor)];
+  const mods = [...pilotingMods(actor), ...drivingMods(actor)];
   if (other) mods.push({ label: 'Other', value: other });
   const res = { label: 'Avoid sideslipping', mods, tn: sum(mods) };
   if (pilotUnconscious(actor)) { res.auto = 'crew unconscious — automatic failure'; res.success = false; res.total = 0; }

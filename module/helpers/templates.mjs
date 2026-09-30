@@ -12,6 +12,8 @@ export const preloadHandlebarsTemplates = async function() {
     "systems/mech-foundry/templates/actor/actor-naval_ship-sheet.hbs",
     "systems/mech-foundry/templates/actor/parts/ship-arc-weapons.hbs",
     "systems/mech-foundry/templates/actor/parts/attached-infantry.hbs",
+    "systems/mech-foundry/templates/actor/parts/weapon-special.hbs",
+    "systems/mech-foundry/templates/actor/parts/weapon-markers.hbs",
     "systems/mech-foundry/templates/actor/actor-unit-sheet.hbs",
     "systems/mech-foundry/templates/actor/actor-mech-sheet.hbs",
     "systems/mech-foundry/templates/actor/actor-ground_vehicle-sheet.hbs",

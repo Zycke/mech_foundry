@@ -1,0 +1,7 @@
+{{!-- Weapon effects on this unit: Narc pods, TAG, heat from enemy weapons (m = weaponMarkers). --}}
+{{#if m.any}}<div class="mf-weapon-markers">
+  {{#each m.narc}}<span class="w-badge warn" title="Narc-capable missiles get +2 on the cluster roll against this unit">NARC POD{{#if this.by}} ({{this.by}}){{/if}}</span>{{/each}}
+  {{#if m.narc.length}}{{#if editable}}<a class="clear-narc" title="Remove Narc pods"><i class="fas fa-xmark"></i></a>{{/if}}{{/if}}
+  {{#if m.tagged}}<span class="w-badge warn" title="TAG-designated this turn">TAGGED</span>{{/if}}
+  {{#if m.extHeat}}<span class="w-badge warn" title="Heat from enemy weapons this turn, added in the heat phase (max 15)">+{{m.extHeat}} HEAT</span>{{/if}}
+</div>{{/if}}

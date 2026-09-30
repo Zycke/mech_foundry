@@ -8,6 +8,8 @@
  * from resolveDamageAgainst carry `locChanges` (before / after per location).
  */
 
+import { currentTurnKey } from "./tw-turn.mjs";
+
 const num = (v) => Number(v) || 0;
 const foundry_clone = (o) => JSON.parse(JSON.stringify(o));
 const esc = (t) => String(t ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -201,12 +203,16 @@ export function shotLine(ctx) {
     ok: !!ctx.hit, name: ctx.weaponName, at: ctx.location || '',
     roll: ctx.automatic ? 'auto' : ctx.outOfRange ? 'OOR' : `${ctx.tn}+ · <b>${esc(ctx.rollTotal)}</b>`
   };
+  if (ctx.fireMode) line.at = [line.at, ctx.fireMode].filter(Boolean).join(' · ');
   if (ctx.outOfRange) line.out = 'out of range';
+  else if (ctx.jammed) line.out = '<b>JAMMED</b>';
   else if (!ctx.hit) line.out = `missed by ${esc(ctx.margin)}`;
   else if (!hr) line.out = ctx.damage ? `<b>${esc(ctx.damage)}</b> damage` : 'hit';
+  else if (hr.special) line.out = hr.special === 'heat' ? `<b>+${esc(hr.heat)}</b> heat` : hr.special === 'narc' ? 'Narc pod attached' : 'target designated';
   else {
     const parts = [];
-    if (hr.clusterInfo) parts.push(hr.clusterInfo.streak ? `all ${hr.clusterInfo.size} missiles` : `${hr.clusterInfo.missiles} of ${hr.clusterInfo.size} missiles`);
+    const ci = hr.clusterInfo;
+    if (ci) parts.push(ci.streak ? `all ${ci.size} ${ci.noun || 'missiles'}` : `${ci.missiles} of ${ci.size} ${ci.noun || 'missiles'}`);
     if (hr.baFire) parts.push(esc(hr.baFire.kind === 'platoon' ? `${hr.baFire.hits} of ${hr.baFire.troopers} troopers hit` : hr.baFire.kind === 'missile' ? `${hr.baFire.hits} of ${hr.baFire.missiles} missiles` : `${hr.baFire.hits} of ${hr.baFire.troopers} troopers hit`));
     if (hr.platoon) parts.push(`<b>${esc(hr.killed)}</b> trooper${hr.killed === 1 ? '' : 's'} eliminated`);
     else {
@@ -264,6 +270,14 @@ export function volleyCard(o) {
     return t + ((h.groups || []).reduce((a, g) => a + num(g.damage), 0) || num(h.total));
   }, 0);
   const self = o.selfFrags?.length ? unitOutcome(o.selfFrags, o.selfName) : null;
+  // Weapon events on either side: jams, the target's AMS, Narc / TAG / flamer heat.
+  const shotAlerts = [];
+  for (const s of shots) {
+    if (s.jammed) shotAlerts.push(alert('JAM', `${o.attackerName}'s ${s.weaponName} jammed`, true));
+    for (const n of s.notes || []) if (/ engages: /.test(n)) shotAlerts.push(alert('AMS', n));
+    const sp = s.hitResult?.special;
+    if (sp) shotAlerts.push(alert(sp === 'heat' ? 'HEAT' : sp.toUpperCase(), s.hitResult.note));
+  }
   return {
     title: o.title || 'Weapons Fire', icon: o.icon || 'fa-crosshairs', round: o.round || '',
     attackerName: o.attackerName, targetName: o.targetName || '', ctxLine: o.ctxLine || '',
@@ -273,7 +287,7 @@ export function volleyCard(o) {
       damage, damageLabel: platoon ? 'troopers lost' : 'damage',
       heat: o.heat ?? null, hasHeat: o.heat != null, many: shots.length > 1
     },
-    alerts: [...(target?.alerts || []), ...(o.alerts || [])],
+    alerts: [...(target?.alerts || []), ...shotAlerts, ...(o.alerts || [])],
     rows: target?.rows || [],
     lines: shots.map(s => ({ ...shotLine(s), ctx: s })),
     notes: o.notes || [], footer: o.footer || '',
@@ -370,4 +384,59 @@ export function heatCard(ctx, unitName = '') {
     ...ctx, unitName, start, change: `${change >= 0 ? '+' : '−'}${Math.abs(change)}`,
     alerts: out, notes, quiet, rows: outcome?.rows || [], rollLines
   };
+}
+
+/* ------------------------------------------------------------------ */
+/*  Round-summary records (stored on each card's chat message)          */
+/* ------------------------------------------------------------------ */
+
+const NOTABLE = ['DESTROYED', 'AMMO', 'CRIT', 'KILLED', 'PILOT', 'MOTIVE'];
+
+/** Up to four short effects for a unit: notable alerts, then serious location damage. */
+function effectsOf(alerts = [], rows = []) {
+  const out = alerts.filter(a => NOTABLE.includes(a.tag)).map(a => a.text.replace(/^[^:]+: /, ''));
+  for (const r of rows) if (r.hurt) out.push(`${r.code} ${r.hurt}`);
+  return [...new Set(out)].slice(0, 4);
+}
+
+/**
+ * The round-summary record for an attack card (volleyCard output).
+ * @param {object} card   volleyCard(...) result
+ * @param {object} o      { turn, phase, kind: 'fire'|'physical'|'antimech'|'swarm', attacker, target } (actors)
+ */
+export function volleySummary(card, o) {
+  const crits = card.alerts.filter(a => a.tag === 'CRIT').length;
+  return {
+    turn: o.turn, phase: o.phase || '', kind: o.kind, title: card.title,
+    attacker: o.attacker?.uuid || '', attackerName: card.attackerName,
+    target: o.target?.uuid || '', targetName: card.targetName,
+    hits: card.tally.hits, shots: card.tally.shots, damage: card.tally.damage, crits,
+    destroyed: card.alerts.some(a => a.tag === 'DESTROYED' && /destroyed$|eliminated$/.test(a.text) && a.text.startsWith(card.targetName)),
+    effects: effectsOf(card.alerts, card.rows),
+    selfDamage: card.self?.total || 0, selfEffects: card.self ? effectsOf(card.self.alerts, card.self.rows) : []
+  };
+}
+
+/** The round-summary record for a roll card (rollCard output) or a heat card (heatCard output). */
+export function rollSummary(card, o) {
+  const heat = o.kind === 'heat';
+  return {
+    turn: o.turn, phase: o.phase || '', kind: o.kind || 'roll', title: heat ? 'Heat' : card.title,
+    unit: o.actor?.uuid || '', unitName: o.actor?.name || card.unitName || '',
+    ok: heat ? !card.alerts?.some(a => a.red) : !!card.verdict?.ok, verdict: heat ? `heat ${card.newHeat}` : card.verdict?.text || '',
+    damage: heat ? (card.rows || []).reduce((t, r) => t + r.damage, 0) : num(card.damage),
+    crits: (card.alerts || []).filter(a => a.tag === 'CRIT').length,
+    effects: effectsOf(card.alerts, card.rows),
+    fell: !heat && !!card.fall
+  };
+}
+
+/** The chat-message flags for a card: the relay's recording plus the round-summary record. */
+export function withSummary(recorded, summary) {
+  return summary?.turn ? { ...recorded, summary } : recorded;
+}
+
+/** This turn's key and phase name for a summary record (no turn outside a running combat). */
+export function summaryContext() {
+  return { turn: currentTurnKey(), phase: globalThis.game?.combat?.phaseName || '' };
 }

@@ -3,9 +3,11 @@
   <div class="tw-cluster">
     <span class="tw-hl-label">{{#if hr.clusterInfo.streak}}Streak — all hit{{else}}Cluster{{/if}}</span>
     <span class="tw-hl-dice">{{#each hr.clusterInfo.dice}}<span class="tw-die">{{this}}</span>{{/each}}</span>
-    <span class="tw-cluster-hits"><strong>{{hr.clusterInfo.missiles}}</strong> / {{hr.clusterInfo.size}} hit · {{hr.total}} dmg</span>
+    <span class="tw-cluster-hits"><strong>{{hr.clusterInfo.missiles}}</strong> / {{hr.clusterInfo.size}} {{#if hr.clusterInfo.noun}}{{hr.clusterInfo.noun}} {{/if}}hit · {{hr.total}} dmg</span>
   </div>
+  {{#if hr.clusterInfo.mods.length}}<div class="tw-hl-event">▸ Cluster roll {{hr.clusterInfo.rollTotal}}{{#each hr.clusterInfo.mods}} {{#if (gte this.value 0)}}+{{/if}}{{this.value}} ({{this.label}}){{/each}} → {{hr.clusterInfo.modifiedTotal}}</div>{{/if}}
   {{/if}}
+  {{#if hr.special}}<div class="tw-hl-event">▸ {{hr.note}}</div>{{/if}}
 
   {{#if hr.baFire}}
   {{#each hr.baFire.columns}}
@@ -87,6 +89,7 @@
     {{#if hr.psrReasons.length}}<div class="tw-hl-event tw-psr-line"><i class="fas fa-person-falling"></i> Piloting Skill Roll required: {{#each hr.psrReasons}}{{this}}{{#unless @last}}, {{/unless}}{{/each}} — {{hr.targetName}}'s controller rolls it from the sheet</div>{{/if}}
     {{#if hr.destroyedByCrit}}<div class="tw-hl-destroyed">UNIT DESTROYED</div>{{/if}}
     {{#unless hr.applied}}<div class="tw-atk-dmg"><em>Couldn't apply automatically (no permission and no GM available) — apply the above to {{hr.targetName}} manually.</em></div>{{/unless}}
+  {{else if hr.special}}
   {{else}}
     <div class="tw-atk-dmg">
       <strong>{{hr.total}}</strong> damage{{#if hr.hasTarget}} to {{hr.targetName}}{{/if}} — resolve hit location manually{{#if hr.hasTarget}} (non-mech target){{/if}}.

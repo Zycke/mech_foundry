@@ -50,6 +50,13 @@ import { woundDescription, conditionDescription } from "./data/status-descriptio
 import { SocketHandler, SOCKET_EVENTS } from "./helpers/socket-handler.mjs";
 import { initGMRelay } from "./helpers/gm-relay.mjs";
 import { registerMovementTracking } from "./helpers/tw-movement.mjs";
+import { checklistHTML, registerPhaseEnforcement, toggleChecklist } from "./helpers/tw-phase.mjs";
+import { acknowledge, roundSummaryHTML } from "./helpers/tw-round.mjs";
+import { registerFacingDisplay, registerFacingKeys } from "./helpers/tw-facing-ui.mjs";
+import { rollPendingPSR } from "./helpers/tw-falls.mjs";
+import { resolveAeroHeat, rollPendingControl } from "./helpers/tw-aero-flight.mjs";
+import { resolveMechHeat } from "./helpers/tw-combat.mjs";
+import { isAero } from "./helpers/tw-aero.mjs";
 import { registerUnitStatuses } from "./helpers/tw-status.mjs";
 import { registerCombatChat } from "./helpers/tw-chat.mjs";
 import { registerToHitRefresh } from "./sheets/unit-sheet.mjs";
@@ -525,6 +532,38 @@ function _registerSystemSettings() {
   });
 
   // Whether to show roll details in chat
+  game.settings.register("mech-foundry", "autoFaceUnits", {
+    name: "MECHFOUNDRY.SettingAutoFaceUnits",
+    hint: "MECHFOUNDRY.SettingAutoFaceUnitsHint",
+    scope: "world", config: true, type: Boolean, default: true
+  });
+  game.settings.register("mech-foundry", "tokenFacingOffset", {
+    name: "MECHFOUNDRY.SettingTokenFacingOffset",
+    hint: "MECHFOUNDRY.SettingTokenFacingOffsetHint",
+    scope: "world", config: true, type: Number, default: 0,
+    choices: { 0: "Up", 90: "Right", 180: "Down", 270: "Left" }
+  });
+  game.settings.register("mech-foundry", "showFacing", {
+    name: "MECHFOUNDRY.SettingShowFacing",
+    hint: "MECHFOUNDRY.SettingShowFacingHint",
+    scope: "client", config: true, type: Boolean, default: true
+  });
+  game.settings.register("mech-foundry", "showFiringArcs", {
+    name: "MECHFOUNDRY.SettingShowFiringArcs",
+    hint: "MECHFOUNDRY.SettingShowFiringArcsHint",
+    scope: "client", config: true, type: Boolean, default: true
+  });
+  registerFacingKeys();
+
+  game.settings.register("mech-foundry", "enforceMovementPhase", {
+    name: "MECHFOUNDRY.SettingEnforceMovementPhase",
+    hint: "MECHFOUNDRY.SettingEnforceMovementPhaseHint",
+    scope: "world",
+    config: true,
+    type: Boolean,
+    default: true
+  });
+
   game.settings.register("mech-foundry", "showRollDetails", {
     name: "MECHFOUNDRY.SettingShowRollDetails",
     hint: "MECHFOUNDRY.SettingShowRollDetailsHint",
@@ -585,6 +624,8 @@ function _registerSystemSettings() {
 
 // Total Warfare: per-turn hexes moved, from token moves during combat.
 registerMovementTracking();
+registerPhaseEnforcement(); // after movement tracking: reads its measured distance
+registerFacingDisplay();
 // Token status icons mirror unit conditions (prone, shut down, PSR pending…).
 registerUnitStatuses();
 // Roll PSR / Apply / Undo buttons on combat chat cards.
@@ -632,18 +673,54 @@ function refreshCombatantSheets(combat) {
 Hooks.on("updateCombat", (combat, changes) => { if ("round" in changes) refreshCombatantSheets(combat); });
 Hooks.on("deleteCombat", (combat) => refreshCombatantSheets(combat));
 
-// Total Warfare turn-phase bar in the combat tracker.
+// Total Warfare turn-phase bar in the combat tracker. The tracker re-renders
+// in parts, so an existing bar is refreshed rather than skipped.
 Hooks.on("renderCombatTracker", (app, html) => {
   const combat = game.combat;
-  if (!combat || typeof combat.nextPhase !== "function") return;
   const el = html instanceof HTMLElement ? html : html?.[0];
-  if (!el || el.querySelector(".tw-phase-bar")) return;
-  const bar = document.createElement("div");
-  bar.className = "tw-phase-bar";
-  bar.innerHTML = `<span class="tw-phase-label">Phase: <strong>${combat.phaseName}</strong></span>` +
-    (game.user.isGM ? `<button type="button" class="tw-next-phase"><i class="fas fa-forward-step"></i> Next Phase</button>` : "");
-  el.prepend(bar);
-  bar.querySelector(".tw-next-phase")?.addEventListener("click", () => combat.nextPhase());
+  if (!el) return;
+  let bar = el.querySelector(".tw-phase-bar");
+  if (!combat || typeof combat.nextPhase !== "function") { bar?.remove(); return; }
+  if (!bar) {
+    bar = document.createElement("div");
+    bar.className = "tw-phase-bar";
+    el.prepend(bar);
+  }
+  bar.innerHTML = `<span class="tw-phase-label">Round ${combat.round || 0} · Phase: <strong>${combat.phaseName}</strong></span>` +
+    (game.user.isGM ? `<button type="button" class="tw-prev-phase" title="Previous phase (nothing already resolved is undone)"><i class="fas fa-backward-step"></i></button>` +
+      (combat.phaseName === 'End' && combat.started
+        ? `<button type="button" class="tw-next-phase tw-next-round">Start Round ${(combat.round || 0) + 1} <i class="fas fa-forward-step"></i></button>`
+        : `<button type="button" class="tw-next-phase"><i class="fas fa-forward-step"></i> Next Phase</button>`) : "");
+  bar.querySelector(".tw-next-phase")?.addEventListener("click", () => game.combat?.nextPhase());
+  bar.querySelector(".tw-prev-phase")?.addEventListener("click", () => game.combat?.previousPhase());
+  // GM phase checklist (the round summary in the End Phase): what each unit has done.
+  el.querySelectorAll(".tw-phase-checklist, .tw-round-summary").forEach(n => n.remove());
+  if (game.user.isGM && combat.started) {
+    const wrap = document.createElement("div");
+    wrap.innerHTML = combat.phaseName === 'End' ? roundSummaryHTML(combat) : checklistHTML(combat);
+    const panel = wrap.firstElementChild;
+    if (panel) {
+      bar.after(panel);
+      panel.querySelectorAll(".tw-check-tick").forEach(a => a.addEventListener("click", (ev) => { ev.preventDefault(); toggleChecklist(combat, a.dataset.combatantId); }));
+      panel.querySelector(".tw-check-heat")?.addEventListener("click", () => combat._resolveHeat?.());
+      panel.querySelectorAll(".tw-rs-act").forEach(b => b.addEventListener("click", async (ev) => {
+        ev.preventDefault();
+        const actor = combat.combatants.find(c => c.actor?.id === b.dataset.actorId)?.actor ?? game.actors.get(b.dataset.actorId);
+        if (b.dataset.action === 'ack') return acknowledge(combat, b.dataset.actorId);
+        if (!actor) return;
+        if (b.dataset.action === 'roll') return isAero(actor) ? rollPendingControl(actor) : rollPendingPSR(actor);
+        if (b.dataset.action === 'heat') return isAero(actor) ? resolveAeroHeat(actor, true) : resolveMechHeat(actor, true);
+      }));
+    }
+  }
+});
+// New combat cards feed the End Phase summary.
+Hooks.on("createChatMessage", (message) => {
+  if (game.user.isGM && game.combat?.phaseName === 'End' && message.flags?.['mech-foundry']?.summary) ui.combat?.render?.();
+});
+// A phase change is only a flag update: make sure the tracker shows it.
+Hooks.on("updateCombat", (combat, changes) => {
+  if (foundry.utils.hasProperty(changes, "flags.mech-foundry.phase")) ui.combat?.render?.();
 });
 
 // Total Warfare area-attack tool in the token scene controls (GM only).

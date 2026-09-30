@@ -17,15 +17,15 @@ import {
   autoAttackMods, destroyedActuators, movedThisTurn, pilotUnconscious, vehicleDrivingMods, weaponArm
 } from "./tw-movement.mjs";
 import { phaseDamageSoFar, psrDamageMods } from "./tw-psr.mjs";
-import { pilotingFor, postCard, resolveFall } from "./tw-falls.mjs";
-import { roundLabel, volleyCard } from "./tw-cards.mjs";
+import { postCard, resolveFall } from "./tw-falls.mjs";
+import { roundLabel, summaryContext, volleyCard, volleySummary, withSummary } from "./tw-cards.mjs";
 import { MECH_LOC_LABEL, clusterHits, firedThisTurn, locationGone, measureHexes, resolveDamageAgainst } from "./tw-combat.mjs";
 import { actuatorEffects, physicalDamage, physicalThisTurn, rollKickLocation, rollPunchLocation } from "./tw-physical.mjs";
 import { isAero } from "./tw-aero.mjs";
 import {
-  BA_WEIGHTS, TRANSPORT_POSITIONS, antiMechFor, attachedCarrier, attachment, baTroopers, baWeaponKind, infantryAttackDamage,
-  isInfantry, knockOff, liveTroopers, manipulatorCount, platoonAttackDamage, ridersOf, swarmersOf, vibroBonus
+  BA_WEIGHTS, TRANSPORT_POSITIONS, attachedCarrier, attachment, baTroopers, baWeaponKind, infantryAttackDamage, isInfantry, knockOff, liveTroopers, manipulatorCount, platoonAttackDamage, ridersOf, swarmersOf, vibroBonus
 } from "./tw-infantry.mjs";
+import { crewConditionMods, pilotingMods, skillMod } from "./tw-skills.mjs";
 
 const { DialogV2 } = foundry.applications.api;
 const num = (v) => Number(v) || 0;
@@ -146,7 +146,8 @@ export function antiMechMods(actor, type, targetActor) {
   const table = type === 'leg' ? legAttackMod(actor) : swarmAttackMod(actor);
   const n = liveTroopers(actor);
   const mods = [
-    { label: "Anti-'Mech Skill", value: antiMechFor(actor) },
+    skillMod(actor, 'antiMech'),
+    ...crewConditionMods(actor),
     { label: `${type === 'leg' ? 'Leg' : 'Swarm'} Attacks Table (${n} trooper${n === 1 ? '' : 's'})`, value: table ?? 0 }
   ];
   if (!targetActor) return mods;
@@ -192,7 +193,7 @@ export async function antiMechAttack(actor) {
         <p class="tw-atk-target">Target: <strong>${esc(target?.name || '')}</strong> (same hex)</p>
         <div class="form-group"><label>Attack</label><select name="type">${opts}</select></div>
         <div class="form-group"><label>Target standing in</label><select name="targetWoods"><option value="none">Open</option><option value="light">Light woods (+1)</option><option value="heavy">Heavy woods (+2)</option></select></div>
-        <div class="form-group"><label>Other Mod <span class="tw-hint">e.g. −1 vs an IndustrialMech</span></label><input type="number" name="other" value="0" /></div>
+        <div class="form-group"><label>Other modifier <span class="tw-hint">+ harder, − easier (e.g. −1 vs an IndustrialMech)</span></label><input type="number" name="other" value="0" /></div>
       </div>`,
     buttons: [
       { action: "roll", label: "Roll", icon: "fa-solid fa-dice", default: true, callback: (e, b) => ({ type: b.form.elements.type.value, targetWoods: b.form.elements.targetWoods.value, other: num(b.form.elements.other.value) }) },
@@ -256,7 +257,7 @@ export async function resolveAntiMech(actor, target, { type = 'leg', targetWoods
     notes: type === 'swarm' ? notes : []
   });
   const content = await foundry.applications.handlebars.renderTemplate("systems/mech-foundry/templates/chat/tw-volley.hbs", card);
-  await ChatMessage.create({ flags: { 'mech-foundry': endRecording() }, speaker: ChatMessage.getSpeaker({ actor }), flavor: title, content, rolls });
+  await ChatMessage.create({ flags: { 'mech-foundry': withSummary(endRecording(), volleySummary(card, { ...summaryContext(), kind: 'antimech', attacker: actor, target: targetActor })) }, speaker: ChatMessage.getSpeaker({ actor }), flavor: title, content, rolls });
   return { hit, tn, mods, hitResult, notes };
 }
 
@@ -337,7 +338,7 @@ export async function swarmAttack(actor) {
     }]
   });
   const content = await foundry.applications.handlebars.renderTemplate("systems/mech-foundry/templates/chat/tw-volley.hbs", card);
-  await ChatMessage.create({ flags: { 'mech-foundry': endRecording() }, speaker: ChatMessage.getSpeaker({ actor }), flavor: 'Swarm Damage', content, rolls });
+  await ChatMessage.create({ flags: { 'mech-foundry': withSummary(endRecording(), volleySummary(card, { ...summaryContext(), kind: 'swarm', attacker: actor, target: carrier })) }, speaker: ChatMessage.getSpeaker({ actor }), flavor: 'Swarm Damage', content, rolls });
   return { frag, groups, notes };
 }
 
@@ -366,7 +367,7 @@ export function armRemovalBlock(mech, arm) {
 
 /** A PSR result row: Piloting + standing damage mods + extras (20+ damage this phase adds +1). */
 async function psrRow(actor, label, extra, rolls) {
-  const mods = [{ label: 'Piloting', value: pilotingFor(actor) }, ...psrDamageMods(actor.system).filter(m => !m.gyroDestroyed), ...extra];
+  const mods = [...pilotingMods(actor), ...psrDamageMods(actor.system).filter(m => !m.gyroDestroyed), ...extra];
   if (phaseDamageSoFar(actor) >= 20) mods.push({ label: '20+ damage this phase', value: 1 });
   const res = { label, mods, tn: sum(mods) };
   if (pilotUnconscious(actor)) { res.auto = 'warrior unconscious — automatic failure'; res.success = false; return res; }
@@ -511,7 +512,7 @@ export async function vehicleShakeOff(vehicle) {
   const rolls = [];
   const vtol = vehicle.system.movementType === 'vtol';
   const airborne = ['vtol', 'wige'].includes(vehicle.system.movementType);
-  const mods = [{ label: 'Driving', value: pilotingFor(vehicle) }, ...vehicleDrivingMods(vehicle), { label: vtol ? 'Erratic maneuvers (VTOL)' : 'Erratic maneuvers', value: vtol ? 2 : 4 }];
+  const mods = [...pilotingMods(vehicle), ...vehicleDrivingMods(vehicle), { label: vtol ? 'Erratic maneuvers (VTOL)' : 'Erratic maneuvers', value: vtol ? 2 : 4 }];
   const res = { label: 'Shake off swarming infantry', mods, tn: sum(mods) };
   if (pilotUnconscious(vehicle) || vehicle.system.conditions?.crewKilled) { res.auto = 'crew out — automatic failure'; res.success = false; }
   else {

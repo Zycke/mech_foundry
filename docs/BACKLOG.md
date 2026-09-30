@@ -193,12 +193,15 @@ Rules detail for what *is* automated lives in `docs/unit-sheet-design.md`.
 **Map / movement**
 - [ ] Elevation and level differences (physical attacks by level, LOS, falls into lower
       hexes — the Fall… button takes levels by hand).
-- [ ] Firing arcs and automatic attack direction from token facing; torso twists,
-      rear-mounted weapons, turret arcs.
+- [x] Facing (auto-facing, Q/E, torso twist), facing MP costs, firing arcs, attack direction
+      from facing. Open: physical-attack arcs (punch / kick / club by arc), quad 'Mechs,
+      lateral shifts, rear-facing arm flips, turret facing for locked turrets (assumed forward),
+      facing costs for aerospace (thrust, via the Maneuver helper today).
 - [ ] Token displacement: pushes, charges, death from above, skids, sideslips (chat card
       tells players what to move).
-- [ ] Movement enforcement (MP limits per mode), out-of-phase warnings, a GM phase
-      checklist (who hasn't moved / fired / resolved heat, "Resolve heat for all").
+- [x] Movement warnings (over MP), Movement-Phase-only token moves for players, GM phase
+      checklist. Open: facing changes aren't counted against MP; movement order by initiative
+      isn't enforced.
 - [ ] Terrain detection from the map (woods, water, pavement, buildings) — dialog inputs today.
 - [ ] Buildings: movement, damage absorption, collapse, building PSRs.
 - [ ] Water / underwater, hull down, life support while submerged; hover vehicles sinking
@@ -208,8 +211,18 @@ Rules detail for what *is* automated lives in `docs/unit-sheet-design.md`.
       not enforced).
 
 **Weapons & equipment**
-- [ ] Per-weapon special rules: pulse (−2), Streak, Ultra / Rotary AC rate of fire and
-      jams, LB-X ammo switching, Artemis, AMS, flamer heat, one-shot, Narc / TAG.
+- [x] Weapon to-hit modifiers (pulse −2, Clan ER pulse −1, heavy lasers +1 …) from the
+      catalog; Streak (all missiles hit).
+- [x] Ultra / Rotary AC rate of fire and jams (+ RAC unjam), LB-X slug / cluster, Artemis IV / V,
+      Narc pods and Narc-capable missiles, AMS, flamer heat mode, TAG, Streak no-fire on a miss,
+      one-shot weapons, to-hit override on the weapon table.
+- [?] Rules choices to confirm: Narc pods help any attacker (no team tracking); AMS engages
+      regardless of arc; TAG only marks the target (no semi-guided / homing munitions yet);
+      ECM / stealth don't cancel Artemis / Narc bonuses (no ECM modelled).
+- [ ] Special munitions (inferno, semi-guided, swarm, thunder, precision / armor-piercing AC
+      ammo) and their to-hit / damage effects; separate ammo bins per munition.
+- [ ] Removing Narc pods by physical action / when the location is destroyed; iNarc pod types
+      (ECM, haywire, nemesis, homing).
 - [ ] Explosive components (Gauss rifles) and vehicle "Weapon Destroyed" explosions.
 - [ ] Indirect fire / artillery / spotting; C3, ECM.
 - [ ] Aimed shots against immobile targets.

@@ -88,6 +88,18 @@ Lives in `module/helpers/atow-conversion.mjs`.
   Gunnery/'Mech, Piloting/'Mech, Gunnery/Ground Vehicle, Driving/Ground Vehicles,
   Gunnery/Aerospace and Piloting/Aerospace are all **8/SA** → Base TN 8. When a crew slot is
   linked to a character, the sheet derives the rating live from that actor's skill Item.
+  Unit-scale rolls keep the Total Warfare convention (the rating is added to the target
+  number; lower is better), which gives the same odds as AToW's 2D6 + level vs Base TN.
+  `module/helpers/tw-skills.mjs` labels the rating by source — "Gunnery (Lvl 5 → 8 − 5)" for
+  a linked character, "Gunnery rating" for a sheet value, "(entered)" when edited in a
+  dialog — and dialogs / sheet inputs explain the sign ("+ harder, − easier").
+- **Linked warrior condition (house rule):** a linked character's A Time of War injury and
+  fatigue modifiers carry into every unit-scale roll the warrior makes (weapon and physical
+  attacks, Piloting / Driving / Control Rolls, anti-'Mech attacks, skids, falls): an AToW −1
+  becomes +1 to the target number ("Kai injured +1", "Kai fatigued +2"). Wound attribute
+  penalties are not carried (link attributes aren't part of the conversion), though wounds
+  that reduce damage capacity raise the injury modifier. Sheet-only warriors use the unit's
+  pilot-hit rules only.
 - **Pilot/crew damage (`CREW_DAMAGE`, `AP/BD`):** pilot hit = **1B/3**; falling 1M/3; ammo
   explosion 0E/4D\*; CT-by-artillery 10X/20; overheat w/life support 0E/2D\* (15+) & 0E/4D\* (25+);
   vehicle commander/driver hit 5B/4; crew stunned 0M/5D\* (subduing); crew killed 5B/10.
@@ -111,7 +123,82 @@ criticals and cluster grouping:
   ammo, actuators resolved to specific slots.
 - **Combat Vehicle / VTOL:** hit location + Motive System Damage + Ground/VTOL crit tables.
 - **Aerospace / Small Craft:** facing armor + threshold crits + Structural Integrity.
-- **Heat phase:** mech "Resolve" nets Heat Point Table gains vs. sink dissipation.
+- **Heat phase:** mech "Resolve" nets Heat Point Table gains vs. sink dissipation. Advancing
+  the tracker into the Heat Phase resolves heat for every 'Mech and aerospace unit in the
+  combat with the defaults (this turn's movement, weapons fired, engine hits, sinks); a unit
+  resolved by hand first is skipped, and a second resolution in one turn is blocked.
+- **Facing, arcs and attack direction** (`module/helpers/tw-facing.mjs`, `tw-facing-ui.mjs`;
+  geometry from MegaMek's ComputeArc / sideTable). Six hexside facings read from the token
+  rotation (world setting for which way the art faces). Moving a unit token turns it to its
+  direction of travel along the path (auto-facing, world setting); a leg straight back is
+  backing up (facing kept); Alt while dropping keeps the facing. Q / E (rebindable) and token
+  HUD buttons turn one hexside; Shift+Q / Shift+E twist a 'Mech's torso one hexside for the
+  turn (not while prone). Facing changes cost 1 MP per hexside for 'Mechs and ground vehicles
+  (free when jumping; infantry and battle armor turn freely): MP spent = hexes + turns drives
+  the walked / ran inference, the over-MP warnings, the checklist and the round summary;
+  running while backing up is flagged. Turning is held to the Movement Phase like moving.
+  Tokens show the legs' facing as a solid amber wedge on the edge (the token's rotation — it
+  also sets the hit table). A twisted torso adds a cyan chevron inside the edge, a cyan arc
+  joining it to the legs' wedge and an "↻ R" / "↺ L" badge. The selected unit's forward, side
+  and rear arcs are shaded from the torso's facing, with the legs' front half (the hit table's
+  front) as a dashed amber line while twisted (client settings). The twist also shows on the
+  'Mech sheet's movement panel ("Torso: twisted right", with left / straighten / right
+  buttons), in the fire dialog's header, on the attack card's context line ("twisted R") and
+  in the token HUD tooltips. Arcs: forward 300–60°, left arm 240–60°, right arm
+  300–120°, rear 120–240°, vehicle sides 60–120° / 240–300°, aerospace nose / wings / aft;
+  turrets, battle armor and infantry all round (a locked turret fires forward); torso and arm
+  weapons turn with a torso twist, leg weapons don't. The fire dialog pre-selects the attack
+  direction from the target's facing ('Mech table: front 270–90°, sides 60°, rear 60°;
+  vehicles / aerospace: front 330–30°, sides 120°, rear 60°) and unchecks weapons that can't
+  bear, with the reason — they can still be checked (the card notes the override); the
+  sheet's to-hit buttons show ARC.
+- **Movement discipline** (`module/helpers/tw-phase.mjs`): a token move that takes a unit past
+  its current MP this turn (Running / Flanking, or Walking when "Walked" is declared, Jumping
+  when "Jumped" is) warns the mover and whispers the GM — it isn't blocked. During a running
+  combat players can only move their units' tokens in the Movement Phase (world setting
+  "Hold Units to the Movement Phase", on by default; the GM is never blocked; characters and
+  units outside the combat aren't affected). A charge, push or death from above lets the
+  units it displaces move once that turn.
+- **GM phase checklist:** under the tracker's phase bar, one line per unit for the current
+  phase — initiative rolled, hexes moved of its limit (over-limit in red), weapons fired /
+  unjamming / anti-'Mech, physical attack, heat resolved — plus pending Piloting / Control
+  Rolls, a manual "done" tick per unit per phase, and "Resolve heat for all" in the Heat Phase.
+- **End Phase round summary** (`module/helpers/tw-round.mjs`, GM): in the End Phase the checklist
+  becomes a round summary — totals (damage, crits, units destroyed, items to do), "Before the
+  next round" (pending Piloting / Control Rolls with a Roll button, unresolved heat with
+  Resolve, over-MP moves with OK to dismiss, rolls resolved automatically this End Phase), and
+  a card per unit (movement of its limit, weapons hit / fired and damage by target, physical /
+  anti-'Mech attacks, damage taken with notable effects, heat and its penalties, conditions:
+  prone, shutdown, pilot hits, swarmed / swarming, Narc pod, roll pending). Destroyed units are
+  listed last with what destroyed them. The data comes from a compact record each combat card
+  stores on its chat message (`flags.mech-foundry.summary`: attacks, rolls, heat) plus the
+  units' current state; the phase button reads "Start Round N".
+- **Phases:** the tracker bar steps forward and back (stepping back undoes nothing). After
+  the End Phase — or the tracker's own Next Round — the round advances to Initiative and
+  every combatant's initiative is cleared for re-rolling.
+- **Weapon to-hit modifiers:** each weapon's own modifier (pulse lasers −2, Clan ER pulse −1,
+  heavy lasers +1, X-pulse −2, …) comes from the MegaMek-derived catalog — imported weapons
+  store it as `toHit`; hand-entered weapons are looked up by name. The weapon table's Special
+  column overrides it (blank = catalog).
+- **Weapon special rules** (`module/helpers/tw-weapons.mjs`, checked against MegaMek's
+  handlers). The fire dialog has a Mode column where a weapon has choices:
+  - *Ultra AC* single / double rate (2 shots: 2× ammo and heat, Cluster Hits 2 column, each
+    hit its own location; a natural 2 at double rate jams it for the battle).
+  - *Rotary AC* 1–6 shots (ammo / heat per shot, cluster column = shots; jams on a natural
+    2 at 2–3 shots, ≤3 at 4–5, ≤4 at 6). **Unjam** (Special column) replaces the unit's
+    attacks for the turn: 2D6 ≥ Gunnery + 3.
+  - *LB-X* slug or cluster (−1 to-hit, cluster column = cannon size, 1-point pellets; cluster
+    rounds use the Special column's count when set, otherwise Rds).
+  - *Flamer* damage or heat (against 'Mechs / aerospace: heat = damage, ER half; applied in
+    the target's heat phase, max 15 external heat a turn).
+  Missile launchers take a fire-control setting: Artemis IV +2 / V +3 on the cluster roll,
+  or Narc-capable (+2 against a unit carrying a Narc pod). A target's **AMS** engages the
+  first missile attack each turn automatically (−4 on the cluster roll; a Streak rolls as
+  11 − 4; 1 ammo and its heat). Narc / iNarc hits attach a pod (shown on the target's sheet,
+  removable there); TAG designates the target for the turn; Streaks that miss don't fire
+  (no ammo or heat); one-shot weapons are spent after firing. Jams and spent one-shots are
+  reset from the Special column between battles. The importer reads Artemis IV / V units
+  (linked to the location's launchers), Narc-capable ammo and LB-X cluster bins.
 - **Condensed chat cards** (`module/helpers/tw-cards.mjs`): every combat result is one
   outcome-first card. A weapons volley (`tw-volley.hbs`) posts a single message: header with
   round and phase, attacker → target, range / arc and the shared base to-hit (click for its
@@ -139,8 +226,15 @@ criticals and cluster grouping:
   shot that round), spends one shot of ammo if the weapon has an ammo type, and the heat
   phase defaults to the heat of weapons actually fired. Destroyed (crit slot or the row's
   toggle) and out-of-ammo weapons can't fire; sheets badge FIRED / NO AMMO / DESTROYED.
-- **Movement & Attack Modifiers** (`module/helpers/tw-movement.mjs`, TW pp. 117–118): hexes
-  moved accumulate per turn from token moves during combat; the mode (stationary / walked /
+- **Map scale** (`module/helpers/tw-scale.mjs`): scenes are gridless / metric (system
+  default 1 unit = 1 m, shared with character-scale play). Unit-scale distances convert to
+  hexes of **30 m** (ground) or **500 m** (aerospace vs aerospace on the low-altitude map);
+  any part of a hex counts (91 m = 4 hexes, with ~1.5 m slack), and under 15 m is the same
+  hex. Scenes in km / ft convert through metres; a scene whose units are "hex" is read as
+  hexes. Area-attack radii are in 30 m hexes.
+- **Movement & Attack Modifiers** (`module/helpers/tw-movement.mjs`, TW pp. 117–118): metres
+  moved accumulate per turn from token moves during combat and convert to hexes (typing
+  hexes on the sheet replaces them); the mode (stationary / walked /
   ran / jumped) is inferred from Walk/Cruise MP unless set on the sheet's "This turn" row
   (jumping must be set). The attack dialog pre-fills attacker and target movement, prone,
   immobile (shutdown / unconscious pilot), battle-armor target, sensor hits and arm-actuator

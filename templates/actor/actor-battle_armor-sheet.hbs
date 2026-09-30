@@ -73,10 +73,10 @@
             <label class="mf-stat"><span class="k">UMU</span><input type="number" min="0" name="system.movement.umu" value="{{move.umu}}" {{#unless editable}}disabled{{/unless}} /></label>
           </div>
           {{#if turnMove}}
-          <div class="mf-turnmove" title="Infantry never add an attacker movement modifier; this sets the modifier for attacks against the unit. Hexes add up automatically as the token moves during combat.">
+          <div class="mf-turnmove" title="Infantry never add an attacker movement modifier; this sets the modifier for attacks against the unit. Distance moved adds up automatically as the token moves during combat (30 m per hex; any part of a hex counts).">
             <span class="k">This turn</span>
             <select class="turn-move-field" data-field="mode" {{#unless editable}}disabled{{/unless}}>{{#each turnMove.modes}}<option value="{{key}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select>
-            <input type="number" min="0" class="turn-move-field" data-field="hexes" value="{{turnMove.hexes}}" {{#unless editable}}disabled{{/unless}} /><span class="k">hexes</span>
+            <input type="number" min="0" class="turn-move-field" data-field="hexes" value="{{turnMove.hexes}}" {{#unless editable}}disabled{{/unless}} /><span class="k" title="30 m per hex; token moves add up in metres">hexes · {{turnMove.meters}} m</span>
           </div>
           {{/if}}
           {{#if equipment.bodyMissiles}}{{#unless equipment.missilesJettisoned}}<div class="penalty-line">▸ Body-mounted missile launchers: no jumping or anti-'Mech attacks until jettisoned (Details tab)</div>{{/unless}}{{/if}}
@@ -102,11 +102,11 @@
             <div class="skillpair">
               <div class="sk {{#if crew.gunneryDerived}}derived{{/if}}"><span class="k">Gun</span>
                 {{#if crew.gunneryDerived}}<span class="skv" title="{{crew.gunnerySource}}">{{crew.gunnery}}</span>
-                {{else}}<input type="number" min="0" name="system.crew.gunnery" value="{{crew.gunnery}}" {{#unless editable}}disabled{{/unless}} />{{/if}}
+                {{else}}<input type="number" min="0" name="system.crew.gunnery" title="Total Warfare rating: added to the target number, so lower is better. From an A Time of War skill level: Base TN − level (8 − level for Gunnery / Piloting / Driving; 7 − level for Small Arms)." value="{{crew.gunnery}}" {{#unless editable}}disabled{{/unless}} />{{/if}}
               </div>
               <div class="sk {{#if crew.antiMechDerived}}derived{{/if}}"><span class="k" title="Anti-'Mech Skill">A-M</span>
                 {{#if crew.antiMechDerived}}<span class="skv" title="{{crew.antiMechSource}}">{{crew.antiMech}}</span>
-                {{else}}<input type="number" min="0" name="system.crew.antiMech" value="{{crew.antiMech}}" {{#unless editable}}disabled{{/unless}} />{{/if}}
+                {{else}}<input type="number" min="0" name="system.crew.antiMech" title="Total Warfare rating: added to the target number, so lower is better. From an A Time of War skill level: Base TN − level (8 − level for Gunnery / Piloting / Driving; 7 − level for Small Arms)." value="{{crew.antiMech}}" {{#unless editable}}disabled{{/unless}} />{{/if}}
               </div>
             </div>
           </div>
@@ -118,8 +118,9 @@
     <div class="tab" data-tab="combat">
       <div class="mf-panel">
         <h4>Weapons {{#if editable}}<button type="button" class="fire-weapons" title="Fire several weapons together (one declaration, one card)"><i class="fas fa-crosshairs"></i> Fire…</button> {{#unless attached}}<button type="button" class="anti-mech-attack" {{#if antiMechBlock}}disabled title="{{antiMechBlock}}"{{else}}title="Leg or swarm attack against the targeted unit in the same hex (instead of weapon attacks)"{{/if}}><i class="fas fa-person-rifle"></i> Anti-'Mech…</button> {{/unless}}<button type="button" class="add-weapon"><i class="fas fa-plus"></i> Add</button>{{/if}}</h4>
+        {{> "systems/mech-foundry/templates/actor/parts/weapon-markers.hbs" m=weaponMarkers editable=editable}}
         <table class="wt">
-          <thead><tr><th class="w-name">Weapon</th><th title="Arm-mounted weapons count for swarm attacks">Loc</th><th title="Damage per trooper (per missile for launchers)">Dmg</th><th title="Missiles per trooper's launcher (0 = not a missile weapon)">Msl</th><th title="Anti-personnel weapon (Rifle, Ballistic column)">AP</th><th title="Minimum range">Min</th><th>S</th><th>M</th><th>L</th><th title="Against conventional infantry: the weapon's row on the Non-Infantry Weapon Damage table (auto guesses from the name)">vs Inf</th><th>Ammo Type</th><th title="Missile shots left (other weapons don't track ammunition)">Rds</th><th></th></tr></thead>
+          <thead><tr><th class="w-name">Weapon</th><th title="Arm-mounted weapons count for swarm attacks">Loc</th><th title="Damage per trooper (per missile for launchers)">Dmg</th><th title="Missiles per trooper's launcher (0 = not a missile weapon)">Msl</th><th title="Anti-personnel weapon (Rifle, Ballistic column)">AP</th><th title="Minimum range">Min</th><th>S</th><th>M</th><th>L</th><th title="Against conventional infantry: the weapon's row on the Non-Infantry Weapon Damage table (auto guesses from the name)">vs Inf</th><th>Ammo Type</th><th title="Missile shots left (other weapons don't track ammunition)">Rds</th><th title="Fire control (Artemis / Narc), LB-X cluster rounds, the weapon\'s to-hit modifier (blank = catalog), jams">Special</th><th></th></tr></thead>
           <tbody>
             {{#each weapons}}
             <tr class="w-row{{#if destroyed}} w-destroyed{{/if}}{{#if fired}} w-fired{{/if}}">
@@ -135,6 +136,7 @@
               <td><select class="weapon-field w-inf" data-weapon-id="{{id}}" data-field="infClass" {{#unless ../editable}}disabled{{/unless}}><option value="" {{#unless infClass}}selected{{/unless}}>auto</option><option value="direct" {{#if (eq infClass "direct")}}selected{{/if}}>direct</option><option value="clusterBallistic" {{#if (eq infClass "clusterBallistic")}}selected{{/if}}>clus. ball.</option><option value="pulse" {{#if (eq infClass "pulse")}}selected{{/if}}>pulse</option><option value="clusterMissile" {{#if (eq infClass "clusterMissile")}}selected{{/if}}>clus. missile</option><option value="burst" {{#if (eq infClass "burst")}}selected{{/if}}>burst</option><option value="ae" {{#if (eq infClass "ae")}}selected{{/if}}>area</option></select></td>
               <td><input type="text" class="weapon-field" data-weapon-id="{{id}}" data-field="ammoType" value="{{ammoType}}" placeholder="— none —" {{#unless ../editable}}disabled{{/unless}} /></td>
               <td><input type="number" min="0" class="weapon-field n" data-weapon-id="{{id}}" data-field="ammo" value="{{ammo}}" {{#unless ../editable}}disabled{{/unless}} /></td>
+              {{> "systems/mech-foundry/templates/actor/parts/weapon-special.hbs" w=this editable=../editable}}
               <td class="w-actions">
                 {{#if destroyed}}<span class="w-badge dmg">DESTROYED</span>{{else if outOfAmmo}}<span class="w-badge warn">NO AMMO</span>{{else if fired}}<span class="w-badge">FIRED</span>{{/if}}
                 {{#if ../editable}}{{#unless destroyed}}<button type="button" class="weapon-attack{{#if toHit}} has-tohit{{/if}}" data-weapon-id="{{id}}" title="{{#if fired}}Already fired this turn{{else if outOfAmmo}}Out of ammunition{{else if toHit}}{{toHit.title}}{{else}}Attack (target a token to see the to-hit number){{/if}}" {{#if fired}}disabled{{else if outOfAmmo}}disabled{{else if toHit.oor}}disabled{{/if}}>{{#if toHit}}<span class="w-tohit">{{toHit.text}}</span>{{else}}<i class="fas fa-bolt"></i>{{/if}}</button>{{/unless}}{{/if}}

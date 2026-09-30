@@ -1,3 +1,4 @@
+import { ScrollKeeperMixin } from "./scroll-keeper.mjs";
 import { DEPARTMENT_TYPES } from "./company-sheet.mjs";
 import {
   BAY_COMPONENT_TYPES, bayComponentDef, bayList, cargoCapacity, cargoUsed,
@@ -91,7 +92,7 @@ const CRIT_TABLE = [
  *
  * @extends {ActorSheetV2}
  */
-export class MechFoundryNavalShipSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
+export class MechFoundryNavalShipSheet extends ScrollKeeperMixin(HandlebarsApplicationMixin(ActorSheetV2)) {
 
   #activeTab = null;
   #boundElement = null;

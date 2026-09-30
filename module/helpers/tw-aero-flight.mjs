@@ -13,10 +13,11 @@ import { beginRecording, endRecording, writeDoc } from "./gm-relay.mjs";
 import { currentTurnKey } from "./tw-turn.mjs";
 import { linkedCrew, pilotUnconscious } from "./tw-movement.mjs";
 import { pendingPSR, queuePSR, warriorDamage } from "./tw-psr.mjs";
-import { pilotingFor } from "./tw-falls.mjs";
 import { aeroTurnState, isAero } from "./tw-aero.mjs";
 import { firedThisTurn } from "./tw-combat.mjs";
-import { heatCard, rollCard, roundLabel } from "./tw-cards.mjs";
+import { heatCard, rollCard, rollSummary, roundLabel, summaryContext, withSummary } from "./tw-cards.mjs";
+import { EXTERNAL_HEAT_CAP, externalHeat } from "./tw-weapons.mjs";
+import { pilotingMods } from "./tw-skills.mjs";
 
 const { DialogV2 } = foundry.applications.api;
 const num = (v) => Number(v) || 0;
@@ -66,7 +67,7 @@ export const RANDOM_MOVEMENT = {
 async function postCard(actor, flavor, ctx, rolls) {
   const card = rollCard({ title: flavor, icon: 'fa-plane', round: roundLabel(), ...ctx }, actor?.name || '');
   const content = await foundry.applications.handlebars.renderTemplate("systems/mech-foundry/templates/chat/tw-psr.hbs", card);
-  await ChatMessage.create({ flags: { 'mech-foundry': endRecording() }, speaker: ChatMessage.getSpeaker({ actor }), flavor, content, rolls });
+  await ChatMessage.create({ flags: { 'mech-foundry': withSummary(endRecording(), rollSummary(card, { ...summaryContext(), kind: 'roll', actor })) }, speaker: ChatMessage.getSpeaker({ actor }), flavor, content, rolls });
 }
 
 /**
@@ -74,7 +75,7 @@ async function postCard(actor, flavor, ctx, rolls) {
  * An unconscious pilot fails automatically.
  */
 async function controlRoll(actor, label, extra = [], rolls = []) {
-  const mods = [{ label: 'Piloting', value: pilotingFor(actor) }, ...controlRollMods(actor), ...extra.filter(m => m.value)];
+  const mods = [...pilotingMods(actor), ...controlRollMods(actor), ...extra.filter(m => m.value)];
   const res = { label, mods, tn: sum(mods) };
   if (pilotUnconscious(actor)) { res.auto = 'pilot unconscious — automatic failure'; res.success = false; return res; }
   const roll = await new Roll("2d6").evaluate();
@@ -173,7 +174,9 @@ export async function resolveAeroHeat(actor, preset = null) {
   const weaponsHeat = Object.values(fired).reduce((t, h) => t + num(h), 0);
   const engineHeat = 2 * num(sys.crits?.engine);
 
-  let r = preset;
+  // preset === true: resolve with the defaults (the Heat Phase does this for every unit).
+  const extHeat = Math.min(EXTERNAL_HEAT_CAP, externalHeat(actor, currentTurnKey()));
+  let r = preset === true ? { weapons: weaponsHeat, engine: engineHeat, external: extHeat, sinks: dissipation } : preset;
   if (!r) {
     r = await DialogV2.wait({
       window: { title: `Resolve Heat — ${actor.name}`, icon: "fa-solid fa-fire" },
@@ -181,7 +184,7 @@ export async function resolveAeroHeat(actor, preset = null) {
         <div class="tw-attack-dialog">
           <div class="form-group"><label>Weapons heat <span class="tw-hint">${Object.keys(fired).length} fired this turn</span></label><input type="number" name="weapons" value="${weaponsHeat}" /></div>
           <div class="form-group"><label>Engine damage (+2 per hit)</label><input type="number" name="engine" value="${engineHeat}" /></div>
-          <div class="form-group"><label>Heat-causing weapons hitting it</label><input type="number" name="external" value="0" /></div>
+          <div class="form-group"><label>Heat-causing weapons hitting it</label><input type="number" name="external" value="${extHeat}" /></div>
           <div class="form-group"><label>Heat-sink dissipation</label><input type="number" name="sinks" value="${dissipation}" /></div>
         </div>`,
       buttons: [
@@ -266,6 +269,7 @@ export async function resolveAeroHeat(actor, preset = null) {
 
   await writeDoc(actor, {
     'system.heat.value': newHeat, 'system.conditions': conditions, 'system.structuralIntegrity': si,
+    'flags.mech-foundry.heatDone': { key: currentTurnKey() },
     'system.weapons': weapons, 'system.crew': crew, 'flags.mech-foundry.fired': { key: currentTurnKey(), list: [] }
   });
   if (linked) for (const ev of crewEvents) await applyCrewDamage(linked, ev);
@@ -278,10 +282,9 @@ export async function resolveAeroHeat(actor, preset = null) {
     { label: 'Heat sinks', value: -r.sinks }
   ].filter(l => l.value !== 0 || l.label === 'Start of turn');
   const toHit = [8, 13, 17, 24].filter(t => newHeat >= t).length;
-  const content = await foundry.applications.handlebars.renderTemplate("systems/mech-foundry/templates/chat/tw-heat.hbs", heatCard({
-    aero: true, round: roundLabel(), lines, newHeat, effects: { toHit, shutdown: '', ammo: '' }, notes, warriorLines
-  }, actor.name));
-  await ChatMessage.create({ flags: { 'mech-foundry': endRecording() }, speaker: ChatMessage.getSpeaker({ actor }), flavor: 'Heat Phase', content, rolls });
+  const hc = heatCard({ aero: true, round: roundLabel(), lines, newHeat, effects: { toHit, shutdown: '', ammo: '' }, notes, warriorLines }, actor.name);
+  const content = await foundry.applications.handlebars.renderTemplate("systems/mech-foundry/templates/chat/tw-heat.hbs", hc);
+  await ChatMessage.create({ flags: { 'mech-foundry': withSummary(endRecording(), rollSummary(hc, { ...summaryContext(), kind: 'heat', actor })) }, speaker: ChatMessage.getSpeaker({ actor }), flavor: 'Heat Phase', content, rolls });
   return { newHeat, notes, conditions };
 }
 
@@ -485,7 +488,7 @@ export async function aeroLanding(actor, preset = null) {
   const extra = landingMods(actor, r);
   let res;
   if (actor.system.conditions?.outOfControl) {
-    const mods = [{ label: 'Piloting', value: pilotingFor(actor) }, ...controlRollMods(actor), ...extra];
+    const mods = [...pilotingMods(actor), ...controlRollMods(actor), ...extra];
     res = { label: 'Landing', mods, tn: sum(mods), auto: 'out of control — automatic failure (margin 10)', success: false, mof: 10 };
   } else res = await controlRoll(actor, r.vertical ? 'Vertical landing' : 'Horizontal landing', extra, rolls);
   const notes = [];

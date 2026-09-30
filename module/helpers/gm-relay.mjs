@@ -23,17 +23,21 @@ const TIMEOUT_MS = 10000;
 const ANTI_MECH_FLAGS = ['flags.mech-foundry.legAttacked', 'flags.mech-foundry.swarmAttacked'];
 
 /** Fields a relayed `update` may write, per actor type. */
+// Weapon effects written onto the target: Narc pods, TAG, flamer heat, its AMS firing.
+const WEAPON_EFFECT_FLAGS = ['flags.mech-foundry.narc', 'flags.mech-foundry.tagged', 'flags.mech-foundry.externalHeat',
+  'flags.mech-foundry.amsUsed', 'flags.mech-foundry.fired', 'flags.mech-foundry.mayMove'];
+
 const UPDATE_WHITELIST = {
   mech: ['system.armor', 'system.structure', 'system.critSlots', 'system.systemHits', 'system.heatSinks', 'system.weapons', 'system.pilot',
-    'system.conditions', 'flags.mech-foundry.psr', 'flags.mech-foundry.phaseDamage', ...ANTI_MECH_FLAGS],
+    'system.conditions', 'flags.mech-foundry.psr', 'flags.mech-foundry.phaseDamage', ...ANTI_MECH_FLAGS, ...WEAPON_EFFECT_FLAGS],
   ground_vehicle: ['system.armor', 'system.structure', 'system.crits', 'system.conditions', 'system.crew', 'system.weapons', 'system.elevation',
-    ...ANTI_MECH_FLAGS],
+    ...ANTI_MECH_FLAGS, ...WEAPON_EFFECT_FLAGS],
   aerospace_fighter: ['system.armor', 'system.structuralIntegrity', 'system.crits', 'system.conditions', 'system.crew', 'flags.mech-foundry.psr',
-    ...ANTI_MECH_FLAGS],
+    'system.weapons', ...ANTI_MECH_FLAGS, ...WEAPON_EFFECT_FLAGS],
   small_craft: ['system.armor', 'system.structuralIntegrity', 'system.crits', 'system.conditions', 'system.crew', 'flags.mech-foundry.psr',
-    ...ANTI_MECH_FLAGS],
-  battle_armor: ['system.troopers', 'system.attached'],
-  infantry: ['system.troopers', 'system.attached'],
+    'system.weapons', ...ANTI_MECH_FLAGS, ...WEAPON_EFFECT_FLAGS],
+  battle_armor: ['system.troopers', 'system.attached', 'system.weapons', ...WEAPON_EFFECT_FLAGS],
+  infantry: ['system.troopers', 'system.attached', ...WEAPON_EFFECT_FLAGS],
   character: ['system.unconscious'],
   npc: ['system.unconscious']
 };

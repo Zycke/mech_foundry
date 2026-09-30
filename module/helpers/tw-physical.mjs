@@ -18,10 +18,11 @@ import {
 import { queuePSR } from "./tw-psr.mjs";
 import { isInfantry, untargetableReason } from "./tw-infantry.mjs";
 import { fiveGroups, pilotingFor, postCard, resolveFall } from "./tw-falls.mjs";
-import { roundLabel, volleyCard } from "./tw-cards.mjs";
+import { roundLabel, summaryContext, volleyCard, volleySummary, withSummary } from "./tw-cards.mjs";
 import {
   ATTACK_DIRECTIONS, MECH_LOC_LABEL, REAR_ARMOR_KEY, firedThisTurn, locationGone, measureHexes, resolveDamageAgainst
 } from "./tw-combat.mjs";
+import { skillHint, skillMod } from "./tw-skills.mjs";
 
 const { DialogV2 } = foundry.applications.api;
 const num = (v) => Number(v) || 0;
@@ -226,7 +227,7 @@ export async function physicalAttack(actor) {
   const types = actor.type === 'mech' ? Object.entries(PHYSICAL_TYPES) : [['charge', PHYSICAL_TYPES.charge]];
   const typeOpts = types.map(([k, v]) => `<option value="${k}">${v.label}</option>`).join('');
   const wpnOpts = Object.entries(PHYSICAL_WEAPONS).map(([k, w]) => `<option value="${k}">${w.label} (${w.mod >= 0 ? '+' : ''}${w.mod})</option>`).join('');
-  const auto = autoAttackMods(actor, null, targetActor).filter(m => ['attackerMove', 'attackerProne', 'attackerSkid', 'targetMove', 'immobile', 'battleArmor', 'targetSkid'].includes(m.key));
+  const auto = autoAttackMods(actor, null, targetActor).filter(m => ['crewInjury', 'crewFatigue', 'attackerMove', 'attackerProne', 'attackerSkid', 'targetMove', 'immobile', 'battleArmor', 'targetSkid'].includes(m.key));
   const modRows = auto.map(x => `
       <div class="form-group"><label>${esc(x.label)}${x.hint ? ` <span class="tw-hint">${esc(x.hint)}</span>` : ''}</label><input type="number" name="auto_${x.key}" value="${x.value}" /></div>`).join('');
   const dirOpts = ATTACK_DIRECTIONS.map(d => `<option value="${d.key}">${d.label}</option>`).join('');
@@ -238,7 +239,7 @@ export async function physicalAttack(actor) {
       ${actor.type === 'mech' ? `
       <div class="form-group"><label>Physical weapon <span class="tw-hint">if attacking with one</span></label><select name="weaponKey">${wpnOpts}</select></div>
       <div class="form-group"><label>Weapon arm</label><select name="arm"><option value="ra">Right arm</option><option value="la">Left arm</option></select></div>` : ''}
-      <div class="form-group"><label>Piloting</label><input type="number" name="piloting" value="${pilotingFor(actor)}" /></div>
+      <div class="form-group"><label>Piloting rating <span class="tw-hint">${esc(skillHint(actor, 'piloting'))}</span></label><input type="number" name="piloting" value="${pilotingFor(actor)}" /></div>
       ${modRows}
       <div class="form-group"><label>Charge: hexes moved <span class="tw-hint">not counting the target's hex</span></label><input type="number" name="hexes" value="${movedThisTurn(actor).hexes}" min="0" /></div>
       <fieldset class="tw-terrain"><legend>Terrain (not used for death from above)</legend>
@@ -247,7 +248,7 @@ export async function physicalAttack(actor) {
         <div class="form-group"><label>Target standing in</label><select name="targetWoods"><option value="none">Open</option><option value="light">Light woods (+1)</option><option value="heavy">Heavy woods (+2)</option></select></div>
         <div class="form-group"><label>Partial cover (+1)</label><input type="checkbox" name="partialCover" /></div>
       </fieldset>
-      <div class="form-group"><label>Other Mod</label><input type="number" name="other" value="0" /></div>
+      <div class="form-group"><label>Other modifier <span class="tw-hint">+ makes the roll harder, − easier</span></label><input type="number" name="other" value="0" /></div>
       <div class="form-group"><label>Attack Direction</label><select name="direction">${dirOpts}</select></div>
     </div>`;
 
@@ -301,7 +302,7 @@ export async function resolvePhysicalAttack(actor, target, r) {
   const pw = type === 'weapon' ? PHYSICAL_WEAPONS[weaponKey] : null;
   const act = actuatorEffects(actor, type, arm, weaponKey);
   const mods = [
-    { label: 'Piloting', value: r.piloting },
+    skillMod(actor, 'piloting', r.piloting),
     { label: pw ? pw.label : spec.label, value: pw ? pw.mod : spec.mod },
     ...r.auto,
     ...act.mods
@@ -314,7 +315,7 @@ export async function resolvePhysicalAttack(actor, target, r) {
   if ((type === 'kick' || type === 'dfa') && isInfantry(targetActor)) mods.push({ label: 'Infantry target', value: 3 });
   if (type !== 'dfa') mods.push(...terrainMods(r.terrain));
   if (r.other) mods.push({ label: 'Other', value: r.other });
-  const shown = mods.filter(m => m.value !== 0 || m.label === 'Piloting');
+  const shown = mods.filter(m => m.value !== 0 || m.key === 'piloting');
   const tn = sum(mods);
 
   beginRecording();
@@ -400,6 +401,16 @@ export async function resolvePhysicalAttack(actor, target, r) {
   }
   if (hit && (type === 'charge' || type === 'dfa') && actor.type === 'mech') notes.push(`${actor.name} must make a Piloting Skill Roll`);
 
+  // Units this attack displaces may move their tokens once this turn, outside the Movement Phase.
+  const turnKey = currentTurnKey();
+  if (turnKey) {
+    const displaced = [];
+    if (type === 'push' && hit) displaced.push(targetActor);
+    if (type === 'charge') displaced.push(actor, ...(hit ? [targetActor] : []));
+    if (type === 'dfa') displaced.push(actor, targetActor);
+    for (const a of displaced.filter(Boolean)) await writeDoc(a, { 'flags.mech-foundry.mayMove': { key: turnKey } });
+  }
+
   // A PSR the damage already queued shows as an alert; drop the duplicate note.
   const psrNote = (name) => `${name} must make a Piloting Skill Roll`;
   const shownNotes = notes.filter(n => !(n === psrNote(target?.name || 'Target') && hitResult?.psrReasons?.length)
@@ -420,7 +431,7 @@ export async function resolvePhysicalAttack(actor, target, r) {
     notes: shownNotes, selfFrags: selfResult ? [selfResult] : [], selfName: actor.name
   });
   const cardContent = await foundry.applications.handlebars.renderTemplate("systems/mech-foundry/templates/chat/tw-volley.hbs", card);
-  await ChatMessage.create({ flags: { 'mech-foundry': endRecording() }, speaker: ChatMessage.getSpeaker({ actor }), flavor: `${spec.label}`, content: cardContent, rolls });
+  await ChatMessage.create({ flags: { 'mech-foundry': withSummary(endRecording(), volleySummary(card, { ...summaryContext(), kind: 'physical', attacker: actor, target: targetActor })) }, speaker: ChatMessage.getSpeaker({ actor }), flavor: `${spec.label}`, content: cardContent, rolls });
   if (fall) await postCard(actor, 'Death From Above — Missed', { results: [], fall }, []);
   return { hit, tn, mods: shown, hitResult, selfResult, notes, fall };
 }
