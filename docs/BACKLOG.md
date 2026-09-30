@@ -244,7 +244,7 @@ Rules detail for what *is* automated lives in `docs/unit-sheet-design.md`.
 - [ ] Explosive components (Gauss rifles) and vehicle "Weapon Destroyed" explosions.
 - [ ] Indirect fire / artillery / spotting; C3, ECM.
 - [ ] Aimed shots against immobile targets.
-- [ ] MASC, superchargers, TSM.
+- [x] MASC, superchargers, TSM (tw-gear.mjs / tw-boost.mjs). Not modelled: industrial / prototype TSM, MASC on vehicles beyond the MP change.
 - [ ] Ammo bins in crit slots vs. the weapon's pooled ammo count (bin size from Shots/Ton).
 
 **'Mechs**

@@ -14,6 +14,7 @@
 import { AMMO_ROWS, WEAPON_ROWS } from "../data/tw-equipment.mjs";
 import { CI_WEAPONS, genericPlatoon } from "./tw-infantry.mjs";
 import { guidable } from "./tw-weapons.mjs";
+import { gearFromNames } from "./tw-gear.mjs";
 
 const num = (v) => Number(v) || 0;
 const rid = () => globalThis.foundry?.utils?.randomID?.() ?? Math.random().toString(36).slice(2, 18);
@@ -370,7 +371,9 @@ export function parseMtf(text) {
   // Cross-check against the file's weapon list.
   const listed = weaponList.filter(l => l.includes(',')).length;
   if (listed && listed !== weapons.length) warnings.push(`The file lists ${listed} weapons; ${weapons.length} were found in the critical slots.`);
-  const unknown = Object.values(critSlots).flat().filter(s => s.type === 'equipment' && !/artemis/i.test(s.name)).map(s => s.name);
+  const equipNames = Object.values(critSlots).flat().filter(s => s.type === 'equipment' && !/artemis/i.test(s.name)).map(s => s.name);
+  const known = gearFromNames(equipNames).used; // MASC, TSM, ECM, probes, C3: read from the slots (tw-gear.mjs)
+  const unknown = equipNames.filter(n => !known.includes(n));
   if (unknown.length) warnings.push(`Other equipment (no automated effect): ${[...new Set(unknown)].join(', ')}.`);
 
   // Heat sinks: "20 Single" / "17 Clan Double" / "10 IS Double".
@@ -450,7 +453,9 @@ function parseVehicle(b, warnings) {
   }
   assignAmmo(weapons, bins, catalogOf, warnings);
   linkArtemis(weapons, Object.fromEntries(Object.entries(fcs).map(([k, v]) => [k, artemisOf(v)])));
-  const extras = other.filter(n => !/^(is|cl|clan)?\s*case(\s*ii)?$/i.test(n));
+  // Special equipment (MASC, supercharger, ECM, probes, C3) goes to the unit's gear record.
+  const { gear, used } = gearFromNames(other);
+  const extras = other.filter(n => !/^(is|cl|clan)?\s*case(\s*ii)?$/i.test(n) && !used.includes(n));
   if (extras.length) warnings.push(`Other equipment (no automated effect): ${[...new Set(extras)].join(', ')}.`);
   const structure = Math.ceil(tons / 10);
   warnings.push(`Internal structure set to ${structure} (⌈tonnage / 10⌉, the per-location value) for the sheet's single structure pool.`);
@@ -462,7 +467,7 @@ function parseVehicle(b, warnings) {
       movementType, movement: { cruise: num(first(b, 'cruiseMP')), flank: Math.ceil(num(first(b, 'cruiseMP')) * 1.5) },
       engineType: ENGINE_CODES[num(first(b, 'engine_type'))] ?? '', hasTurret, armor,
       structure: { value: structure, max: structure },
-      hasCASE: other.some(n => /case/i.test(n)), weapons, biography: blkBio(b)
+      hasCASE: other.some(n => /case/i.test(n)), weapons, gear, biography: blkBio(b)
     }
   };
 }

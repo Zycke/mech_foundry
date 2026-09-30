@@ -476,7 +476,7 @@ function vehicleCritColumn(facing) {
  * location, apply armor→structure damage, and roll motive/critical effects as
  * the location table dictates. Mutates and saves the target once.
  */
-export async function resolveVehicleAttack(target, direction, groupSizes, rolls, { forceMotive = false, noIntercept = false } = {}) {
+export async function resolveVehicleAttack(target, direction, groupSizes, rolls, { forceMotive = false, noIntercept = false, motiveSteps = 0 } = {}) {
   const armor = foundry.utils.deepClone(target.system.armor || {});
   const structure = foundry.utils.deepClone(target.system.structure || { value: 0, max: 0 });
   const armorBefore = foundry.utils.deepClone(armor), structureBefore = num(structure.value);
@@ -571,6 +571,17 @@ export async function resolveVehicleAttack(target, direction, groupSizes, rolls,
 
   // Charges force a motive roll on any vehicle involved (TW charging rules).
   if (forceMotive) await rollMotive();
+  // A supercharger failure: motive damage one step at a time (minor → moderate → heavy → immobile; MegaMek).
+  for (let i = 0; i < num(motiveSteps); i++) {
+    const level = !crits.motiveMinor ? 1 : !crits.motiveModerate ? 2 : !crits.motiveHeavy ? 3 : 4;
+    const lvlKey = { 1: 'motiveMinor', 2: 'motiveModerate', 3: 'motiveHeavy' }[level];
+    if (lvlKey) crits[lvlKey] = true;
+    crits.motiveDriving = (crits.motiveMinor ? 1 : 0) + (crits.motiveModerate ? 2 : 0) + (crits.motiveHeavy ? 3 : 0);
+    if (level === 2) crits.motiveHits = num(crits.motiveHits) + 1;
+    if (level === 3) crits.motiveHalvings = num(crits.motiveHalvings) + 1;
+    if (level === 4) conditions.immobile = true;
+    motives.push({ roll: '—', text: ['', 'Minor damage (+1 Driving)', 'Moderate damage (−1 Cruising MP, +2 Driving)', 'Heavy damage (½ Cruising MP, +3 Driving)', 'Immobilized'][level] });
+  }
 
   // Cruising MP can't drop below 0: cap the MP loss at the vehicle's cruise
   // (never below the 3-hit motive track the sheet already shows).
@@ -1177,7 +1188,8 @@ export async function resolveMechHeat(actor, preset = null) {
  */
 export async function resolveDamageAgainst(targetActor, direction, groupSizes, rolls, targetName = '', {
   noPSR = false, locationRoller = null, extraPSR = [], forceMotive = false, partialCover = false, explode = null,
-  areaEffect = false, autoCrit = false, noIntercept = false, platoonHit = null
+  areaEffect = false, autoCrit = false, noIntercept = false, platoonHit = null,
+  forceCrits = [], engineHits = 0, motiveSteps = 0
 } = {}) {
   // Attacking a building (no unit): the building takes it all (tw-buildings.mjs).
   if (!targetActor && activeBuildingTarget()) return buildingTargetHit(groupSizes);
@@ -1223,10 +1235,11 @@ export async function resolveDamageAgainst(targetActor, direction, groupSizes, r
     };
 
     // Determining Critical Hits for each location whose structure was struck.
-    const critCheck = async (checkLocs, always = false) => {
+    // `forced`: { count, text } — critical hits without the Determining roll (MASC failure).
+    const critCheck = async (checkLocs, always = false, forced = null) => {
       for (const cl of checkLocs) {
-        const cc = await rollDeterminingCrit(cl);
-        rolls.push(cc.roll);
+        const cc = forced ? { count: forced.count, total: '—', text: forced.text, blowOff: false } : await rollDeterminingCrit(cl);
+        if (!forced) rolls.push(cc.roll);
         if (cc.blowOff) {
           const head = blowOffLocationState(dmgState, cl);
           critChecks.push({ locLabel: MECH_LOC_LABEL[cl] || cl, total: cc.total, text: head ? `Head Blown Off — ${killWarrior(crew, state, 'Head blown off')}` : cc.text, slots: [] });
@@ -1236,7 +1249,10 @@ export async function resolveDamageAgainst(targetActor, direction, groupSizes, r
           const slots = ensureSlots(cl);
           const slotResults = [];
           for (let i = 0; i < cc.count; i++) {
-            const idx = await rollCritSlotIndex(slots.length, rolls);
+            let idx = await rollCritSlotIndex(slots.length, rolls);
+            // Forced hits land on a real component: re-roll empty or destroyed slots (MegaMek).
+            for (let tries = 0; forced && tries < 20 && (!slots[idx - 1] || slots[idx - 1].type === 'empty' || slots[idx - 1].hit)
+              && slots.some(x => x && x.type !== 'empty' && !x.hit); tries++) idx = await rollCritSlotIndex(slots.length, rolls);
             const slot = slots[idx - 1];
             if (!slot || slot.type === 'empty') { slotResults.push({ index: idx, text: 'no critical (empty slot)' }); continue; }
             if (slot.hit) { slotResults.push({ index: idx, text: `${slot.name || slot.type} (already destroyed)` }); continue; }
@@ -1305,6 +1321,18 @@ export async function resolveDamageAgainst(targetActor, direction, groupSizes, r
     // Leg / swarm attacks: one automatic Determining Critical Hits roll on the
     // struck location, on top of any the damage itself caused.
     if (autoCrit && firstLoc) await critCheck(new Set([firstLoc]), true);
+    // Forced critical hits (a MASC failure: one on each leg) and engine hits (a supercharger failure).
+    for (const fc of forceCrits) if (!locationGone(targetActor, fc.loc)) await critCheck(new Set([fc.loc]), true, { count: fc.count ?? 1, text: fc.text ?? 'Critical hit' });
+    if (num(engineHits) > 0) {
+      const slotResults = [];
+      for (let i = 0; i < num(engineHits); i++) {
+        const loc = ['ct', 'lt', 'rt'].find(l => ensureSlots(l).some(x => x.type === 'engine' && !x.hit));
+        const slot = loc ? ensureSlots(loc).find(x => x.type === 'engine' && !x.hit) : null;
+        if (slot) slot.hit = true;
+        slotResults.push({ index: '—', text: applyMechCritSlotEffect(slot ?? { type: 'engine' }, systemHits, heatSinks, weapons, crew, state) });
+      }
+      critChecks.push({ locLabel: MECH_LOC_LABEL.ct || 'Center Torso', total: '—', text: `${engineHits} engine hit${engineHits === 1 ? '' : 's'}`, slots: slotResults });
+    }
 
     // A heat-induced explosion names its bin up front.
     if (explode) {
@@ -1412,7 +1440,7 @@ export async function resolveDamageAgainst(targetActor, direction, groupSizes, r
       applied, hasTarget: true, targetName: targetActor.name
     };
   } else if (tt === 'ground_vehicle') {
-    return await resolveVehicleAttack(targetActor, direction, groupSizes, rolls, { forceMotive, noIntercept });
+    return await resolveVehicleAttack(targetActor, direction, groupSizes, rolls, { forceMotive, noIntercept, motiveSteps });
   } else if (tt === 'aerospace_fighter' || tt === 'small_craft') {
     return await resolveAeroAttack(targetActor, direction, groupSizes, rolls);
   }

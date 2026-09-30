@@ -6,6 +6,8 @@ import { torsoTwist } from "../helpers/tw-facing.mjs";
 import { setTorsoTwist, twistText } from "../helpers/tw-facing-ui.mjs";
 import { aeroMaxBracket, aeroTurnState, isAero, setAeroTurn } from "../helpers/tw-aero.mjs";
 import { physicalAttack } from "../helpers/tw-physical.mjs";
+import { boostArmed, boostTarget, tsmActive, unitGear } from "../helpers/tw-gear.mjs";
+import { engageBoost } from "../helpers/tw-boost.mjs";
 import { sideslipCheck, skidCheck, vehicleCrash } from "../helpers/tw-skid.mjs";
 import {
   antiMechAttack, attachedSummary, dismountCarrier, dropProneShakeOff, jumpShakeOff, mountCarrier, releaseSwarm, removeSwarmers,
@@ -90,6 +92,7 @@ export class MechFoundryUnitSheet extends MechFoundryActorSheetV2 {
         ]
       };
     }
+    if (['mech', 'ground_vehicle'].includes(this.actor.type)) context.gear = gearContext(this.actor);
     if (isAero(this.actor)) context.aeroTurn = { ...aeroTurnState(this.actor), inCombat: !!currentTurnKey() };
     // Infantry swarming or riding this unit.
     if (['mech', 'ground_vehicle', 'aerospace_fighter', 'small_craft'].includes(this.actor.type)) context.attachedInfantry = attachedSummary(this.actor);
@@ -120,6 +123,7 @@ export class MechFoundryUnitSheet extends MechFoundryActorSheetV2 {
     });
     html.on('click', '.clear-narc', (ev) => { ev.preventDefault(); this.actor.update({ 'flags.mech-foundry.narc': [] }); });
     html.on('click', '.twist-set', (ev) => { ev.preventDefault(); setTorsoTwist(this.actor, Number(ev.currentTarget.dataset.dir)); });
+    html.on('click', '.boost-arm', (ev) => { ev.preventDefault(); engageBoost(this.actor, ev.currentTarget.dataset.which); });
     html.on('change', '.turn-move-field', this._onTurnMoveChange.bind(this));
     html.on('change', '.weapon-flag', this._onWeaponFlagChange.bind(this));
     html.on('change', '.aero-evading', (ev) => setAeroTurn(this.actor, { evading: ev.currentTarget.checked }));
@@ -254,5 +258,38 @@ function weaponSpecialContext(w, actor) {
   return {
     kind, guidable: guidable(w), lbx: kind === 'lbx', rotary: kind === 'rotary',
     toHitSet: set, autoToHitText: auto > 0 ? `+${auto}` : String(auto), clearable: !!(w.jammed || w.spent)
+  };
+}
+
+/** Special equipment for the sheet: chips, MASC / supercharger arming, the editable record. */
+export function gearContext(actor) {
+  const g = unitGear(actor);
+  const rec = actor.system?.gear ?? {};
+  const key = currentTurnKey();
+  const chips = [];
+  const chip = (label, rec2, extra = {}) => chips.push({ label, state: !rec2.working ? 'destroyed' : extra.state ?? 'ready', title: `${rec2.name || label}${!rec2.working ? ' — destroyed' : extra.title ? ` — ${extra.title}` : ''}` });
+  if (g.masc.has) chip('MASC', g.masc, boostArmed(actor, 'masc', key) ? { state: 'on', title: 'armed this turn' } : {});
+  if (g.supercharger.has) chip('Supercharger', g.supercharger, boostArmed(actor, 'supercharger', key) ? { state: 'on', title: 'armed this turn' } : {});
+  if (g.tsm.has) chip('TSM', g.tsm, tsmActive(actor) ? { state: 'on', title: 'active (heat 9+): +2 Walking MP, double punch / kick / club damage' } : { title: 'active at heat 9+' });
+  if (g.ecm.has) chip(`${{ guardian: 'Guardian', angel: 'Angel', clan: 'Clan', watchdog: 'Watchdog' }[g.ecm.kind] ?? ''} ECM`, g.ecm, { title: `${g.ecm.range} hexes` });
+  if (g.probe.has) chip(`${{ beagle: 'Beagle', bloodhound: 'Bloodhound', clan: 'Clan', light: 'Light' }[g.probe.kind] ?? ''} Probe`, g.probe, { title: `${g.probe.range} hexes` });
+  if (g.c3.has) chip(`C3 ${{ master: 'Master', slave: 'Slave', c3i: 'i' }[g.c3.role] ?? ''}${g.c3.network ? ` (${g.c3.network})` : ''}`.replace('C3 i', 'C3i'), g.c3, g.c3.network ? {} : { title: 'no network name set' });
+  const boosts = [];
+  if (key) for (const [which, label] of [['masc', 'MASC'], ['supercharger', 'Supercharger']]) {
+    if (!g[which].has) continue;
+    const st = actor.flags?.['mech-foundry']?.boost;
+    const failed = st?.key === key && !!st.failed?.[which];
+    const armed = boostArmed(actor, which, key);
+    const tn = boostTarget(actor, which, key);
+    boosts.push({ which, label, tn, armed, failed, can: g[which].working && !armed && !failed,
+      title: armed ? `${label} armed this turn` : failed ? `${label} failed this turn` : `Arm ${label} for this turn: 2D6 ≥ ${tn} (a lower roll fails)` });
+  }
+  const opts = (list, cur) => list.map(([value, label]) => ({ value, label, selected: String(cur ?? '') === value }));
+  return {
+    chips, boosts, mech: actor.type === 'mech',
+    edit: { masc: !!rec.masc, supercharger: !!rec.supercharger, tsm: !!rec.tsm, c3Network: rec.c3Network ?? '' },
+    ecmOptions: opts([['', '— (or from crits)'], ['guardian', 'Guardian ECM'], ['angel', 'Angel ECM'], ['clan', 'Clan ECM'], ['watchdog', 'Watchdog CEWS']], rec.ecm),
+    probeOptions: opts([['', '— (or from crits)'], ['beagle', 'Beagle (4)'], ['clan', 'Clan (5)'], ['bloodhound', 'Bloodhound (8)'], ['light', 'Light (3)']], rec.probe),
+    c3Options: opts([['', '— (or from crits)'], ['master', 'C3 Master'], ['slave', 'C3 Slave'], ['c3i', 'C3i']], rec.c3)
   };
 }

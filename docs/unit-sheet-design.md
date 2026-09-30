@@ -238,6 +238,18 @@ criticals and cluster grouping:
   club or physical weapon does (TW p. 171). Not modelled: charges, death from above and pushes
   into buildings (and units displaced into one), floors / basements and overload collapse,
   fire, TacOps diagrammed line of sight.
+- **Special equipment** (`module/helpers/tw-gear.mjs`, `tw-boost.mjs`; TW, checked against
+  MegaMek): MASC, superchargers, TSM, ECM, active probes and C3. A 'Mech's are found from its
+  critical slot names (imported names like "ISMASC", "Guardian ECM Suite", "Beagle Active
+  Probe", "C3 Slave"; the C3 master computer from its weapon entry) — a destroyed slot disables
+  them; any unit can add or override them in the sheet's Equipment block (`system.gear`, with a
+  C3 network name), and the importer fills it for vehicles. MASC / supercharger: armed turn by
+  turn during combat from the sheet (2D6 ≥ the failure number 3 / 5 / 7 / 11 / 13, rising with
+  each consecutive turn of use and falling when rested); armed, Running / Flanking MP is
+  Walking × 2 (× 2.5 with both). A MASC failure puts a critical hit on each leg (re-rolled onto a
+  real component); a supercharger failure rolls 2D6 for 0–3 engine hits (motive damage steps on
+  a vehicle); either way it isn't armed that turn. TSM at heat 9+: +2 Walking MP (not with a
+  destroyed leg) and double punch, kick, club, hatchet, sword and retractable blade damage.
 - **Movement discipline** (`module/helpers/tw-phase.mjs`): a token move that takes a unit past
   its current MP this turn (Running / Flanking, or Walking when "Walked" is declared, Jumping
   when "Jumped" is) warns the mover and whispers the GM — it isn't blocked. During a running

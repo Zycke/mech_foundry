@@ -154,6 +154,11 @@ ok(ts.movementType === 'wheeled' && ts.movement.cruise === 5 && ts.engineType ==
 ok(ts.hasTurret && ts.armor.turret.max === 18 && ts.armor.right.max === 15 && ts.structure.max === 5, 'armor order front / right / left / rear / turret; structure ⌈45/10⌉');
 ok(eq(ts.weapons.map(w => `${w.name}@${w.location}:${w.ammo}`), ['Medium Laser@Front:0', 'SRM 6@Turret:15']), 'weapons by location, ammo from the body');
 
+// Special equipment on a vehicle lands in its gear record (tw-gear.mjs), not the "no effect" warning.
+const tank2 = parseUnitFile(TANK.replace('IS Ammo SRM-6\n', 'IS Ammo SRM-6\nSupercharger\nGuardian ECM Suite\nC3 Slave Unit\n'), 'Test Tank 2.blk');
+ok(tank2.system.gear?.supercharger === true && tank2.system.gear.ecm === 'guardian' && tank2.system.gear.c3 === 'slave', 'vehicle gear: supercharger, Guardian ECM, C3 slave');
+ok(!tank2.warnings.some(w => /no automated effect/.test(w) && /Supercharger|ECM|C3/.test(w)), 'recognised gear is not reported as having no effect');
+
 /* ---- Aerospace fighter ------------------------------------------------- */
 const FIGHTER = `<UnitType>
 AeroSpaceFighter

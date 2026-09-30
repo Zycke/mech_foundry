@@ -69,6 +69,7 @@
             {{#if movement.canCrash}}<button type="button" class="vehicle-crash" title="The sideslip ran into terrain or a unit at or above its elevation"><i class="fas fa-burst"></i> Crash…</button>{{/if}}
           </div>
           {{/if}}
+          {{#if gear}}{{> "systems/mech-foundry/templates/actor/parts/unit-gear.hbs" g=gear editable=editable}}{{/if}}
           {{#if turnMove}}
           <div class="mf-turnmove" title="Used for attack modifiers and heat. Distance moved adds up automatically as the token moves during combat (30 m per hex; any part of a hex counts).">
             <span class="k">This turn</span>

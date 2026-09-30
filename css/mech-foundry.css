@@ -7521,6 +7521,20 @@
 .mech-foundry .mf-turnmove input { width: 44px; height: 24px; text-align: center; }
 .mech-foundry .mf-turnmove { flex-wrap: wrap; }
 .mech-foundry .mf-turnmove .mf-mp-note { text-transform: none; letter-spacing: 0; color: var(--mf-ink); flex-basis: 100%; }
+/* Special equipment (unit-gear.hbs) */
+.mech-foundry .mf-gear { margin-top: 8px; font-size: 0.78rem; display: flex; flex-direction: column; gap: 4px; }
+.mech-foundry .mf-gear-row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.mech-foundry .mf-gear .k { color: var(--mf-ink-dim); text-transform: uppercase; letter-spacing: .04em; font-size: 0.7rem; margin-right: 2px; }
+.mech-foundry .mf-gear-chip { border: 1px solid var(--mf-ink-dim); border-radius: 3px; padding: 0 5px; line-height: 1.5; }
+.mech-foundry .mf-gear-chip.on { border-color: #e0a030; color: #e0a030; font-weight: 700; }
+.mech-foundry .mf-gear-chip.destroyed { opacity: 0.55; text-decoration: line-through; }
+.mech-foundry .mf-gear-none { opacity: 0.6; font-style: italic; }
+.mech-foundry .mf-gear .boost-arm { width: auto; height: 22px; line-height: 20px; padding: 0 6px; font-size: 0.75rem; }
+.mech-foundry .mf-gear .boost-arm.active { border-color: #e0a030; color: #e0a030; }
+.mech-foundry .mf-gear-edit summary { cursor: pointer; opacity: 0.8; }
+.mech-foundry .mf-gear-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 4px 10px; margin-top: 4px; }
+.mech-foundry .mf-gear-grid label { display: flex; align-items: center; gap: 4px; }
+.mech-foundry .mf-gear-grid select, .mech-foundry .mf-gear-grid input[type="text"] { flex: 1; min-width: 0; height: 22px; font-size: 0.75rem; }
 
 /* Attack dialog: terrain group */
 .tw-attack-dialog fieldset.tw-terrain { margin: 6px 0; padding: 4px 8px; border: 1px solid rgba(128,128,128,.35); border-radius: 4px; }
