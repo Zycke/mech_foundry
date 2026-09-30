@@ -253,7 +253,10 @@ criticals and cluster grouping:
 - **Weapon-fire animations** (`module/helpers/tw-animate.mjs`; visual only): the "Weapon
   animations" block under each unit weapon table ('Mech, vehicle, fighter, battle armor) holds a
   Sequencer / JB2A path per weapon, a delay between projectiles and a travel time — like the
-  personal-scale weapon items. A weapon left blank is handed to the Automated Animations module
+  personal-scale weapon items — plus an impact path (played on the target as each hitting
+  projectile arrives), a shot count (-1 = the rules count; otherwise that many, with the same
+  share hitting) and a size multiplier (projectile and impact; the impact is sized to the target
+  token). The block stays open through sheet re-renders until its title is clicked. A weapon left blank is handed to the Automated Animations module
   when it is active (`AutomatedAnimations.playAnimation` with the weapon's name), which matches
   it in its Automatic Recognition menu; unit weapons are sheet rows, not Items, so they can't hold
   A-A's own item settings. One projectile per missile / pellet / Ultra or Rotary shot, as many

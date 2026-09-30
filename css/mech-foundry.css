@@ -7762,5 +7762,6 @@
 .mech-foundry .mf-anim-status { margin-left: 8px; font-weight: 400; display: inline-flex; gap: 4px; }
 .mech-foundry .mf-anim-table { width: 100%; margin: 4px 0; }
 .mech-foundry .mf-anim-table td.mf-anim-name { white-space: nowrap; }
-.mech-foundry .mf-anim-table input[type="text"] { width: 100%; }
-.mech-foundry .mf-anim-table input.n { width: 4.5em; }
+.mech-foundry .mf-anim-table input[type="text"] { width: 100%; min-width: 10em; }
+.mech-foundry .mf-anim-table input.n { width: 4em; }
+.mech-foundry details.mf-anim { overflow-x: auto; }
