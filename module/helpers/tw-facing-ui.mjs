@@ -101,7 +101,10 @@ function addHudButtons(hud, html) {
 /* ------------------------------------------------------------------ */
 
 const rad = (bearingDeg) => (bearingDeg - 90) * Math.PI / 180; // bearing (clockwise from up) → PIXI angle
-const SECTOR_STYLE = { forward: [0xf2a53a, 0.14], side: [0x8b98a3, 0.08], rear: [0xd9483b, 0.12] };
+// Arc fills: forward (the torso's facing) amber, both sides blue-grey, rear red.
+const SECTOR_STYLE = { forward: [0xf2a53a, 0.22], side: [0x6f9fd8, 0.16], rear: [0xe0443a, 0.2] };
+const SECTOR_LABEL = { forward: 'F', side: 'S', rear: 'R' };
+const SECTOR_ORDER = { side: 0, rear: 1, forward: 2 }; // forward drawn last so its edges stay crisp
 const LEGS = 0xf2a53a;   // amber: the legs / hull (the token's rotation)
 const TORSO = 0x5fd3e6;  // cyan: a 'Mech's torso when twisted
 const OUTLINE = 0x14181c;
@@ -114,8 +117,10 @@ function markerParts(token) {
     root.eventMode = 'none';
     const g = root.addChild(new PIXI.Graphics());
     const label = root.addChild(new PIXI.Text('', { fontFamily: 'Roboto Condensed, Signika, sans-serif', fontSize: 14, fontWeight: '700', fill: TORSO, stroke: OUTLINE, strokeThickness: 3 }));
+    // One letter per arc (F / S / S / R) at its outer edge.
+    const arcLabels = [0, 1, 2, 3].map(() => root.addChild(new PIXI.Text('', { fontFamily: 'Roboto Condensed, Signika, sans-serif', fontSize: 15, fontWeight: '700', fill: 0xffffff, stroke: OUTLINE, strokeThickness: 3 })));
     token.addChild(root);
-    m = token.mfFacing = { root, g, label };
+    m = token.mfFacing = { root, g, label, arcLabels };
   }
   return m;
 }
@@ -142,9 +147,10 @@ export function drawFacing(token) {
   try {
     const actor = token?.actor;
     const show = MARKED.has(actor?.type) && setting('showFacing', true) !== false;
-    if (!show) { const m = token?.mfFacing; if (m && !m.root?.destroyed) { m.g.clear(); m.label.text = ''; } return; }
-    const { root, g, label } = markerParts(token);
+    if (!show) { const m = token?.mfFacing; if (m && !m.root?.destroyed) { m.g.clear(); m.label.text = ''; for (const t of m.arcLabels) t.text = ''; } return; }
+    const { root, g, label, arcLabels } = markerParts(token);
     g.clear();
+    for (const t of arcLabels) t.text = '';
     const w = token.w, h = token.h, r = Math.max(w, h) / 2;
     root.position.set(w / 2, h / 2);
     const legs = tokenFacing(token.document) * 60;
@@ -153,12 +159,21 @@ export function drawFacing(token) {
     // Firing arcs of the selected unit (about three hexes out), all from the torso.
     if (token.controlled && setting('showFiringArcs', true) !== false) {
       const R = Math.max(r * 2, pixelsPerMeter() * GROUND_HEX_M * 3);
-      for (const sct of arcSectors(actor)) {
+      const sectors = [...arcSectors(actor)].sort((a, b) => SECTOR_ORDER[a.kind] - SECTOR_ORDER[b.kind]);
+      sectors.forEach((sct, i) => {
         const [color, alpha] = SECTOR_STYLE[sct.kind];
-        g.beginFill(color, alpha).lineStyle(1, color, alpha * 3);
+        g.beginFill(color, alpha).lineStyle(2, color, 0.9);
         g.moveTo(0, 0).arc(0, 0, R, rad(torso + sct.from), rad(torso + sct.to)).lineTo(0, 0);
         g.endFill();
-      }
+        // Its letter just inside the outer edge, on the arc's centre line.
+        const t = arcLabels[i];
+        if (!t) return;
+        const mid = rad(torso + (sct.from + sct.to) / 2);
+        t.text = SECTOR_LABEL[sct.kind];
+        t.style.fill = color;
+        t.position.set(Math.cos(mid) * R * 0.86 - t.width / 2, Math.sin(mid) * R * 0.86 - t.height / 2);
+      });
+      g.lineStyle(0);
       // Twisted: where the legs point — the hit table's front half.
       if (twist) dashedArc(g, R * 0.6, legs - 90, legs + 90, LEGS, 0.9);
     }
