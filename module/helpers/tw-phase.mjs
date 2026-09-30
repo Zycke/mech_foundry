@@ -9,7 +9,7 @@
  *   current phase, what's still pending, with a manual "done" tick per unit.
  */
 import { currentPhaseKey, currentTurnKey } from "./tw-turn.mjs";
-import { MOVE_MODES, mechEffectiveMP, movedThisTurn, vehicleEffectiveCruise } from "./tw-movement.mjs";
+import { MOVE_MODES, mechEffectiveMP, movedThisTurn, mpBreakdown, vehicleEffectiveCruise } from "./tw-movement.mjs";
 import { firedThisTurn, heatResolvedThisTurn } from "./tw-combat.mjs";
 import { physicalThisTurn } from "./tw-physical.mjs";
 import { pendingPSR } from "./tw-psr.mjs";
@@ -52,16 +52,22 @@ export function movementLimit(actor, mode = movedThisTurn(actor).mode) {
  * A warning when a move takes the unit past its limit this turn, or null.
  * @param {Actor} actor
  * @param {number} hexes  total hexes moved this turn after the move
+ * @param {number} turns  total facing changes; `terrain` total terrain MP (map)
  */
-export function movementWarning(actor, hexes, turns = null, backward = null) {
+export function movementWarning(actor, hexes, turns = null, backward = null, terrain = null) {
   const mv = movedThisTurn(actor);
   const lim = movementLimit(actor, mv.mode);
   if (!lim) return null;
   const t = turns ?? mv.turns;
   const back = backward ?? mv.backward;
-  // MP spent: hexes plus hexside turns ('Mechs / ground vehicles, not when jumping).
-  const mp = hexes + (turnsCostMP(actor, mv.mode) ? t : 0);
-  const spent = mp === hexes ? `${hexes} hex${hexes === 1 ? '' : 'es'} (${hexes * GROUND_HEX_M} m)` : `${mp} MP (${hexes} hex${hexes === 1 ? '' : 'es'} + ${t} facing change${t === 1 ? '' : 's'})`;
+  const ter = mv.mode === 'jumped' ? 0 : (terrain ?? mv.terrain);
+  // MP spent: hexes plus hexside turns ('Mechs / ground vehicles, not when jumping) plus terrain.
+  const turnMP = turnsCostMP(actor, mv.mode) ? t : 0;
+  const mp = hexes + turnMP + ter;
+  const bits = [`${hexes} hex${hexes === 1 ? '' : 'es'}`];
+  if (turnMP) bits.push(`${t} facing change${t === 1 ? '' : 's'}`);
+  if (ter) bits.push(`${ter} for terrain`);
+  const spent = mp === hexes ? `${hexes} hex${hexes === 1 ? '' : 'es'} (${hexes * GROUND_HEX_M} m)` : `${mp} MP (${bits.join(' + ')})`;
   // Units can't run (flank) while backing up.
   if (back > 0 && mv.mode === 'ran' && mp > lim.walk && ['mech', 'ground_vehicle'].includes(actor.type)) {
     return `${actor.name} moved backward this turn, so it can't use ${lim.runLabel} MP: ${spent} is more than its ${lim.walkLabel} MP of ${lim.walk}.`;
@@ -77,10 +83,9 @@ export function movementWarning(actor, hexes, turns = null, backward = null) {
   return `${over}.`;
 }
 
-/** "5 hexes + 2 turns" / "5 hexes" for this turn's movement. */
+/** "7 MP: 5 hexes + 2 turns" / "5 hexes" for this turn's movement. */
 export function mpText(mv) {
-  const h = `${mv.hexes} hex${mv.hexes === 1 ? '' : 'es'}`;
-  return mv.mp > mv.hexes ? `${h} + ${mv.mp - mv.hexes} turn${mv.mp - mv.hexes === 1 ? '' : 's'}` : h;
+  return mpBreakdown(mv);
 }
 
 /** Is the phase rule on? (world setting; on by default) */
@@ -226,7 +231,10 @@ export function registerPhaseEnforcement() {
     const hexes = options.mfMovedMeters
       ? Math.max(1, Math.ceil((cur.meters + options.mfMovedMeters) / GROUND_HEX_M - 0.05))
       : cur.hexes + num(options.mfMovedHexes);
-    const warn = movementWarning(actor, hexes, cur.turns + num(options.mfTurns), cur.backward + num(options.mfBackward));
+    const ter = options.mfTerrain;
+    const warns = [movementWarning(actor, hexes, cur.turns + num(options.mfTurns), cur.backward + num(options.mfBackward), cur.terrain + num(ter?.mp))];
+    if (ter?.prohibited?.length) warns.push(`${actor.name} moved through prohibited terrain: ${ter.prohibited.join('; ')}.`);
+    const warn = warns.filter(Boolean).join(' ');
     if (!warn) return;
     ui.notifications.warn(warn);
     const gms = game.users?.filter(u => u.isGM).map(u => u.id) ?? [];

@@ -224,6 +224,146 @@ export function terrainRowBlock(map, actor, weapon) {
 }
 
 /* -------------------------------------------- */
+/*  Movement: terrain costs along a path        */
+/* -------------------------------------------- */
+
+/** How a unit moves over terrain: mech, tracked, wheeled, hover, vtol, wige, naval, hydrofoil, submarine, infantry, umu, aero. */
+export function motiveOf(actor) {
+  const t = actor?.type;
+  if (t === "mech") return "mech";
+  if (t === "ground_vehicle") return actor.system?.movementType || "tracked";
+  if (t === "infantry" || t === "battle_armor") return num(actor.system?.movement?.umu) > 0 ? "umu" : "infantry";
+  return "aero";
+}
+
+/** Motive types that fly over terrain (no terrain costs). */
+const AIRBORNE = new Set(["vtol", "wige", "aero"]);
+const NAVAL = new Set(["naval", "hydrofoil", "submarine"]);
+
+/**
+ * Entering one hex (Total Warfare Movement Costs Table; MegaMek Terrain /
+ * MoveStep / Tank.isLocationProhibited): { mp, parts: [[label, mp]], prohibited }.
+ * A road (paved) through woods, rough or rubble removes their cost and ban.
+ */
+export function hexCost(motive, hex) {
+  const out = { mp: 0, parts: [], prohibited: "" };
+  if (AIRBORNE.has(motive)) return out;
+  const add = (label, mp) => { if (mp > 0) { out.mp += mp; out.parts.push([label, mp]); } };
+  const ban = (why) => { if (!out.prohibited) out.prohibited = why; };
+  const road = !!hex.paved;
+  const water = hex.water && hex.depth > 0 && !hex.ice;
+  if (NAVAL.has(motive)) { if (!water) ban(`${motive} vessels can't leave the water`); return out; }
+  if (hex.woods && !road) {
+    add(`${hex.woods} woods`, hex.woods === "heavy" ? 2 : 1);
+    if (motive === "wheeled" || motive === "hover") ban(`${motive} vehicles can't enter woods`);
+    if (motive === "tracked" && hex.woods === "heavy") ban("tracked vehicles can't enter heavy woods");
+  }
+  if (hex.rough && !road) {
+    add("rough", 1);
+    if (motive === "wheeled") ban("wheeled vehicles can't enter rough");
+  }
+  if (hex.rubble && !road) {
+    add("rubble", 1);
+    if (motive === "wheeled") ban("wheeled vehicles can't enter rubble");
+  }
+  if (hex.swamp && motive !== "hover") add("swamp", motive === "mech" ? 1 : 2);
+  if (hex.ice && motive !== "hover") add("ice", 1);
+  if (water) {
+    if (motive === "mech") add(`depth ${hex.depth} water`, hex.depth >= 2 ? 3 : 1);
+    else if (motive === "tracked" || motive === "wheeled") ban(`${motive} vehicles can't enter water`);
+    else if (motive === "infantry") ban("infantry can't enter water (without UMU)");
+  }
+  return out;
+}
+
+/** Point `d` pixels along a polyline. */
+function pointAlong(points, d) {
+  let left = d;
+  for (let i = 1; i < points.length; i++) {
+    const a = points[i - 1], b = points[i];
+    const len = Math.hypot(b.x - a.x, b.y - a.y);
+    if (left <= len && len > 0) return { x: a.x + (b.x - a.x) * left / len, y: a.y + (b.y - a.y) * left / len };
+    left -= len;
+  }
+  return points[points.length - 1];
+}
+
+/**
+ * Terrain along a move (canvas points, centre to centre), hex by hex (each 30 m
+ * travelled enters the next hex; the last is where the unit stops):
+ * { hexes, mp, parts: {label: mp}, levels, prohibited: [], psr: [{key, label, mod}], notes: [], skidTurns }.
+ * - extra MP for terrain and for level changes ('Mechs 1 per level, at most 2
+ *   per hex; vehicles and infantry 2 per level, at most 1);
+ * - prohibited terrain for the unit's motive type (a warning, not a block);
+ * - 'Mech Piloting Skill Rolls for entering rubble (+0) or water (depth 1 −1,
+ *   2 +0, 3+ +1), each hex entered; a jump only checks where it lands (rubble);
+ * - skidTurns: facing changes made on pavement or ice (for a skid check when running).
+ * Jumping and flying units pay no terrain costs.
+ */
+export function pathTerrain(actor, points, { regions = terrainRegions(), pxPerHex = pixelsPerMeter() * GROUND_HEX_M, mode = "", startFacing = null } = {}) {
+  const out = { hexes: 0, mp: 0, parts: {}, levels: 0, prohibited: [], psr: [], notes: [], skidTurns: 0 };
+  if (!regions.length || !(pxPerHex > 0) || !points?.length) return out;
+  const motive = motiveOf(actor);
+  let L = 0;
+  for (let i = 1; i < points.length; i++) L += Math.hypot(points[i].x - points[i - 1].x, points[i].y - points[i - 1].y);
+  const N = L < pxPerHex / 2 ? 0 : Math.max(1, Math.ceil(L / pxPerHex - 0.05));
+  out.hexes = N;
+  const jumped = mode === "jumped";
+  const mech = motive === "mech";
+  const ban = (why) => { if (why && !out.prohibited.includes(why)) out.prohibited.push(why); };
+  let prev = hexAt(points[0], regions);
+  let building = false;
+  for (let k = 1; k <= N; k++) {
+    const hex = hexAt(k === N ? points[points.length - 1] : pointAlong(points, k * pxPerHex), regions);
+    if (hex.building) building = true;
+    if (jumped || AIRBORNE.has(motive)) {
+      if (jumped && k === N && mech && hex.rubble && !hex.paved) out.psr.push({ key: "rubble", label: "Landed in rubble", mod: 0 });
+      prev = hex; continue;
+    }
+    const c = hexCost(motive, hex);
+    out.mp += c.mp;
+    for (const [label, mp] of c.parts) out.parts[label] = (out.parts[label] ?? 0) + mp;
+    ban(c.prohibited);
+    const delta = Math.abs(hex.level - prev.level);
+    if (delta && !NAVAL.has(motive)) {
+      const per = mech ? 1 : 2, max = mech ? 2 : 1;
+      out.levels += delta * per;
+      out.mp += delta * per;
+      out.parts["level changes"] = (out.parts["level changes"] ?? 0) + delta * per;
+      if (delta > max) ban(`${mech ? "'Mechs" : "vehicles and infantry"} can't climb or drop more than ${max} level${max === 1 ? "" : "s"} in one hex (${delta} here)`);
+    }
+    if (mech && hex.rubble && !hex.paved) out.psr.push({ key: "rubble", label: "Entered rubble", mod: 0 });
+    if (mech && hex.water && hex.depth > 0 && !hex.ice) {
+      const mod = hex.depth === 1 ? -1 : hex.depth === 2 ? 0 : 1;
+      out.psr.push({ key: "water", label: `Entered depth ${hex.depth} water`, mod });
+    }
+    prev = hex;
+  }
+  if (building && !jumped && !AIRBORNE.has(motive)) out.notes.push("entering a building costs extra MP by its type (not counted yet)");
+  // Facing changes on pavement or ice: where each turn happens along the path.
+  if (startFacing != null && !jumped && ["mech", "tracked", "wheeled", "hover"].includes(motive)) {
+    let facing = startFacing;
+    for (let i = 1; i < points.length; i++) {
+      const a = points[i - 1], b = points[i];
+      if (Math.hypot(b.x - a.x, b.y - a.y) < 4) continue;
+      const dir = ((Math.round((((Math.atan2(b.x - a.x, -(b.y - a.y)) * 180 / Math.PI) + 360) % 360) / 60) % 6) + 6) % 6;
+      if (dir === (facing + 3) % 6) continue; // backing up
+      if (dir !== facing) {
+        const h = hexAt(a, regions);
+        if (h.paved || h.ice) out.skidTurns++;
+        facing = dir;
+      }
+    }
+  }
+  return out;
+}
+
+/** "light woods +2, level changes +2" */
+export function terrainPartsText(parts) {
+  return Object.entries(parts ?? {}).map(([label, mp]) => `${label} +${mp}`).join(", ");
+}
+
+/* -------------------------------------------- */
 /*  Canvas: region colours and hover readout    */
 /* -------------------------------------------- */
 

@@ -112,7 +112,7 @@
           <div class="mf-turnmove" title="Used for attack modifiers and heat. Distance moved adds up automatically as the token moves during combat (30 m per hex; any part of a hex counts).">
             <span class="k">This turn</span>
             <select class="turn-move-field" data-field="mode" {{#unless editable}}disabled{{/unless}}>{{#each turnMove.modes}}<option value="{{key}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select>
-            <input type="number" min="0" class="turn-move-field" data-field="hexes" value="{{turnMove.hexes}}" {{#unless editable}}disabled{{/unless}} /><span class="k" title="30 m per hex; token moves add up in metres">hexes · {{turnMove.meters}} m</span>
+            <input type="number" min="0" class="turn-move-field" data-field="hexes" value="{{turnMove.hexes}}" {{#unless editable}}disabled{{/unless}} /><span class="k" title="30 m per hex; token moves add up in metres">hexes · {{turnMove.meters}} m</span>{{#if turnMove.mpNote}}<span class="k mf-mp-note" title="MP spent this turn: hexes, facing changes and terrain from the map">{{turnMove.mpNote}}</span>{{/if}}
           </div>
           {{#if turnMove.twist}}
           <div class="mf-turnmove mf-twist" title="Torso twist for this turn (Shift+Q / Shift+E on the map): torso and arm weapons fire from the torso's facing; leg weapons and the hit table stay with the legs.">

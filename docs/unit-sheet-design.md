@@ -169,8 +169,24 @@ criticals and cluster grouping:
   unchecked with the reason, like out-of-arc ones: no line of sight; a submerged (depth 2+)
   'Mech firing at, or being fired at from, above the surface; leg weapons of a 'Mech in depth
   1 water. The sheet's to-hit buttons include map terrain (LOS / N/A when blocked); the
-  anti-'Mech dialog pre-selects the woods the target stands in. Not yet: movement costs,
-  levels / elevation line of sight, buildings.
+  anti-'Mech dialog pre-selects the woods the target stands in.
+  Movement over the map (during combat, token moves): each 30 m travelled enters the next hex
+  (the last is where the unit stops), and each hex entered adds its terrain cost (Total Warfare
+  Movement Costs Table, checked against MegaMek): light woods +1, heavy woods +2, rough +1,
+  rubble +1, ice +1, swamp +1 ('Mechs) / +2 (others; hover free), 'Mech in water +1 (depth 1)
+  / +3 (depth 2+); a road (paved) through woods / rough / rubble removes their cost. Level
+  changes cost 1 MP per level for 'Mechs (at most 2 per hex) and 2 per level for vehicles and
+  infantry (at most 1). Terrain MP adds to hexes and facing changes everywhere MP is counted
+  (walked / ran inference, over-MP warnings, the sheet's "9 MP: 6 hexes + terrain 3 (light
+  woods +3)", the GM checklist, the round summary). Prohibited terrain for the motive type
+  (wheeled: woods / rough / rubble / water; tracked: heavy woods / water; hover: woods;
+  infantry: water without UMU; naval: land; too-steep level changes) warns the mover and
+  whispers the GM — it isn't blocked. A 'Mech queues a Piloting Skill Roll for each rubble hex
+  (+0) or water hex entered (depth 1 −1, 2 +0, 3+ +1); jumping pays no terrain costs and only
+  checks the landing hex (rubble). Turning on pavement or ice while running / flanking
+  reminds the player to make a Skid check. VTOLs, WiGEs and aerospace units ignore terrain.
+  Not yet: levels / elevation line of sight, buildings (entering one notes that its MP isn't
+  counted yet).
 - **Movement discipline** (`module/helpers/tw-phase.mjs`): a token move that takes a unit past
   its current MP this turn (Running / Flanking, or Walking when "Walked" is declared, Jumping
   when "Jumped" is) warns the mover and whispers the GM — it isn't blocked. During a running

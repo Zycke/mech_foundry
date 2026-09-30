@@ -10,7 +10,7 @@
  * conditions.
  */
 import { currentTurnKey } from "./tw-turn.mjs";
-import { MOVE_MODES, movedThisTurn, pilotUnconscious } from "./tw-movement.mjs";
+import { MOVE_MODES, movedThisTurn, mpBreakdown, pilotUnconscious } from "./tw-movement.mjs";
 import { heatResolvedThisTurn } from "./tw-combat.mjs";
 import { pendingPSR } from "./tw-psr.mjs";
 import { isAero } from "./tw-aero.mjs";
@@ -98,7 +98,7 @@ export function roundSummary(combat, records = turnRecords()) {
       const m = MOVE_MODES.find(x => x.key === mv.mode);
       const label = a.type === 'ground_vehicle' ? m?.vlabel : m?.label;
       const over = lim && mv.mp > lim.limit;
-      const spent = mv.mp > mv.hexes ? `${mv.hexes} hexes + ${mv.mp - mv.hexes} turns = ${mv.mp} of ${lim ? lim.limit : '?'} MP` : `${mv.hexes} of ${lim ? lim.limit : '?'} hexes`;
+      const spent = mv.mp > mv.hexes ? `${mpBreakdown(mv)} of ${lim ? lim.limit : '?'} MP` : `${mv.hexes} of ${lim ? lim.limit : '?'} hexes`;
       unit.lines.push({ k: 'Moved', v: mv.mp || mv.modeSet ? `${label} · ${spent}` : 'Stationary', warn: over });
       if (over && !acked.includes(a.id)) todo.push({ id: `move-${a.id}`, tag: 'MOVE', text: `${a.name} spent ${mv.mp} MP — ${lim.limitLabel} MP is ${lim.limit}`, action: 'ack', actorId: a.id });
     }

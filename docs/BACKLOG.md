@@ -207,9 +207,11 @@ Rules detail for what *is* automated lives in `docs/unit-sheet-design.md`.
       by initiative isn't enforced.
 - [~] Terrain from the map (Scene Region "Mech Foundry Terrain" behaviour). Done: terrain
       lookup, woods / smoke between and target terrain, woods / smoke line of sight, water cover
-      and submerged units, infantry in the open, sheet to-hit preview. Next: movement costs,
-      prohibited terrain and PSR prompts from the path; levels, elevation line of sight, falls
-      and physical attacks across levels; buildings.
+      and submerged units, infantry in the open, sheet to-hit preview; movement terrain and
+      level-change MP along the token path, prohibited-terrain warnings, rubble / water PSRs,
+      skid reminders on pavement / ice. Next: levels, elevation line of sight, falls and
+      physical attacks across levels; buildings (entry MP, damage absorption, collapse).
+      Not modelled: swamp bog-down, road bonus MP for vehicles, careful vs. fast ice movement.
 - [ ] Buildings: movement, damage absorption, collapse, building PSRs.
 - [ ] Water / underwater, hull down, life support while submerged; hover vehicles sinking
       when immobilized over water.

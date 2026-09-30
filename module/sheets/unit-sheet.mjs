@@ -1,6 +1,6 @@
 import { MechFoundryActorSheetV2 } from "./base-actor-sheet.mjs";
 import { currentTurnKey, fireWeapons, firedThisTurn, unjamWeapon, usesAmmo, weaponToHitPreview } from "../helpers/tw-combat.mjs";
-import { MOVE_MODES, movedThisTurn, setMovement, weaponOwnToHit } from "../helpers/tw-movement.mjs";
+import { MOVE_MODES, movedThisTurn, mpBreakdown, setMovement, weaponOwnToHit } from "../helpers/tw-movement.mjs";
 import { EXTERNAL_HEAT_CAP, externalHeat, guidable, narcPods, taggedThisTurn, weaponKind } from "../helpers/tw-weapons.mjs";
 import { torsoTwist } from "../helpers/tw-facing.mjs";
 import { setTorsoTwist, twistText } from "../helpers/tw-facing-ui.mjs";
@@ -82,6 +82,7 @@ export class MechFoundryUnitSheet extends MechFoundryActorSheetV2 {
       context.turnMove = {
         hexes: mv.hexes,
         meters: Math.round(mv.meters),
+        mpNote: mv.mp > mv.hexes ? mpBreakdown(mv) : '',
         twist: this.actor.type === 'mech' ? (() => { const dir = torsoTwist(this.actor, currentTurnKey()); return { dir, left: dir < 0, right: dir > 0, text: twistText(this.actor) || 'straight' }; })() : null,
         modes: [
           { key: 'auto', label: `Auto (${label(MOVE_MODES.find(m => m.key === mv.mode))})`, selected: !mv.modeSet },

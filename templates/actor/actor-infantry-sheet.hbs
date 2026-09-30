@@ -57,7 +57,7 @@
         <div class="mf-turnmove" title="Infantry never add an attacker movement modifier; this sets the modifier for attacks against the platoon.">
           <span class="k">This turn</span>
           <select class="turn-move-field" data-field="mode" {{#unless editable}}disabled{{/unless}}>{{#each turnMove.modes}}<option value="{{key}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select>
-          <input type="number" min="0" class="turn-move-field" data-field="hexes" value="{{turnMove.hexes}}" {{#unless editable}}disabled{{/unless}} /><span class="k" title="30 m per hex; token moves add up in metres">hexes · {{turnMove.meters}} m</span>
+          <input type="number" min="0" class="turn-move-field" data-field="hexes" value="{{turnMove.hexes}}" {{#unless editable}}disabled{{/unless}} /><span class="k" title="30 m per hex; token moves add up in metres">hexes · {{turnMove.meters}} m</span>{{#if turnMove.mpNote}}<span class="k mf-mp-note" title="MP spent this turn: hexes, facing changes and terrain from the map">{{turnMove.mpNote}}</span>{{/if}}
         </div>
         {{/if}}
         {{#if editable}}{{#if platoon.generic}}<div class="mf-actions"><button type="button" class="generic-platoon" title="Set troopers and MP from the Generic Conventional Infantry Units Table"><i class="fas fa-users"></i> Generic platoon ({{platoon.generic.troopers}} troopers, {{platoon.generic.ground}}{{#if platoon.generic.jump}} / {{platoon.generic.jump}} jump{{/if}} MP)</button></div>{{/if}}{{/if}}

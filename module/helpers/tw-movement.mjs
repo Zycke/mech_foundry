@@ -15,6 +15,8 @@ import { catalogToHit } from "./megamek-import.mjs";
 import { crewConditionMods } from "./tw-skills.mjs";
 import { GROUND_HEX_M, formatMeters, measureMeters, metersToHexes } from "./tw-scale.mjs";
 import { facingRotation, hexsideTurns, pathFacing, tokenFacing, turnsCostMP } from "./tw-facing.mjs";
+import { pathTerrain, terrainPartsText, terrainRegions } from "./tw-terrain.mjs";
+import { queuePSR } from "./tw-psr.mjs";
 
 const num = (v) => Number(v) || 0;
 
@@ -112,10 +114,10 @@ export function movementPSRReasons(actor) {
   return [];
 }
 
-/** Infer a movement mode from hexes moved. */
-export function inferMode(actor, hexes, turns = 0) {
+/** Infer a movement mode from hexes moved (plus facing changes and terrain MP). */
+export function inferMode(actor, hexes, turns = 0, terrain = 0) {
   // Facing changes spend MP too ('Mechs and ground vehicles): turning in place is walking.
-  const mp = hexes + (turnsCostMP(actor) ? num(turns) : 0);
+  const mp = hexes + (turnsCostMP(actor) ? num(turns) : 0) + num(terrain);
   if (mp <= 0) return 'stationary';
   // Infantry don't run: moving past their ground MP means they jumped.
   if (isInfantry(actor)) return hexes > walkMP(actor) && num(actor.system?.movement?.jump) > 0 ? 'jumped' : 'walked';
@@ -130,14 +132,17 @@ export function inferMode(actor, hexes, turns = 0) {
 export function movedThisTurn(actor) {
   const rec = actor?.flags?.['mech-foundry']?.moved;
   const key = currentTurnKey();
-  if (!key || !rec || rec.key !== key) return { hexes: 0, meters: 0, turns: 0, backward: 0, mp: 0, mode: 'stationary', modeSet: false };
+  if (!key || !rec || rec.key !== key) return { hexes: 0, meters: 0, turns: 0, backward: 0, terrain: 0, terrainParts: {}, mp: 0, mode: 'stationary', modeSet: false };
   const meters = rec.meters == null ? null : Math.max(0, num(rec.meters));
   const hexes = meters == null ? Math.max(0, num(rec.hexes)) : metersToHexes(meters, GROUND_HEX_M, { sameHex: false });
   const turns = Math.max(0, num(rec.turns)), backward = Math.max(0, num(rec.backward));
-  const mode = rec.modeSet && MODE_MOD[rec.mode] !== undefined ? rec.mode : inferMode(actor, hexes, turns);
-  // MP spent: hexes plus hexside turns ('Mechs / ground vehicles, not when jumping).
-  const mp = hexes + (turnsCostMP(actor, mode) ? turns : 0);
-  return { hexes, meters: meters ?? hexes * GROUND_HEX_M, turns, backward, mp, mode, modeSet: !!rec.modeSet };
+  const rawTerrain = Math.max(0, num(rec.terrain));
+  const mode = rec.modeSet && MODE_MOD[rec.mode] !== undefined ? rec.mode : inferMode(actor, hexes, turns, rawTerrain);
+  // MP spent: hexes plus hexside turns ('Mechs / ground vehicles, not when
+  // jumping) plus terrain and level changes from the map (not when jumping).
+  const terrain = mode === 'jumped' ? 0 : rawTerrain;
+  const mp = hexes + (turnsCostMP(actor, mode) ? turns : 0) + terrain;
+  return { hexes, meters: meters ?? hexes * GROUND_HEX_M, turns, backward, terrain, terrainParts: terrain ? (rec.terrainParts ?? {}) : {}, mp, mode, modeSet: !!rec.modeSet };
 }
 
 /**
@@ -145,20 +150,39 @@ export function movedThisTurn(actor) {
  * merge. `meters` (token moves on a metric scene) sets the hexes; hexes typed
  * on the sheet replace the metres.
  */
-export async function setMovement(actor, { hexes, meters, mode, turns, backward } = {}) {
+export async function setMovement(actor, { hexes, meters, mode, turns, backward, terrain, terrainParts } = {}) {
   const key = currentTurnKey();
   if (!actor || !key) return;
   const cur = movedThisTurn(actor);
-  const rec = { key, hexes: cur.hexes, meters: cur.meters, turns: cur.turns, backward: cur.backward, mode: cur.mode, modeSet: cur.modeSet };
+  const prev = actor.flags?.['mech-foundry']?.moved;
+  const same = prev?.key === key;
+  const rec = { key, hexes: cur.hexes, meters: cur.meters, turns: cur.turns, backward: cur.backward, mode: cur.mode, modeSet: cur.modeSet,
+    terrain: same ? Math.max(0, num(prev.terrain)) : 0, terrainParts: same ? (prev.terrainParts ?? {}) : {} };
   if (meters != null) { rec.meters = Math.max(0, num(meters)); rec.hexes = metersToHexes(rec.meters, GROUND_HEX_M, { sameHex: false }); }
   else if (hexes != null) { rec.hexes = Math.max(0, num(hexes)); rec.meters = rec.hexes * GROUND_HEX_M; }
   if (turns != null) rec.turns = Math.max(0, num(turns));
   if (backward != null) rec.backward = Math.max(0, num(backward));
+  if (terrain != null) rec.terrain = Math.max(0, num(terrain));
+  if (terrainParts != null) rec.terrainParts = terrainParts;
   if (mode !== undefined) {
     rec.modeSet = mode !== 'auto';
-    rec.mode = mode === 'auto' ? inferMode(actor, rec.hexes, rec.turns) : mode;
-  } else if (!rec.modeSet) rec.mode = inferMode(actor, rec.hexes, rec.turns);
+    rec.mode = mode === 'auto' ? inferMode(actor, rec.hexes, rec.turns, rec.terrain) : mode;
+  } else if (!rec.modeSet) rec.mode = inferMode(actor, rec.hexes, rec.turns, rec.terrain);
   await actor.update({ 'flags.mech-foundry.moved': rec });
+}
+
+/**
+ * MP spent this turn, spelled out: "7 MP: 4 hexes + 1 turn + terrain 2 (light woods +2)",
+ * or just "4 hexes" when nothing but hexes was spent.
+ */
+export function mpBreakdown(mv) {
+  const h = `${mv.hexes} hex${mv.hexes === 1 ? '' : 'es'}`;
+  const turns = mv.mp - mv.hexes - num(mv.terrain);
+  if (mv.mp <= mv.hexes) return h;
+  const bits = [h];
+  if (turns > 0) bits.push(`${turns} turn${turns === 1 ? '' : 's'}`);
+  if (num(mv.terrain) > 0) bits.push(`terrain ${mv.terrain}${Object.keys(mv.terrainParts ?? {}).length ? ` (${terrainPartsText(mv.terrainParts)})` : ''}`);
+  return `${mv.mp} MP: ${bits.join(' + ')}`;
 }
 
 /** "4 hexes (95 m)" */
@@ -234,6 +258,14 @@ export function registerMovementTracking() {
     const d = pathDistance(doc, path);
     if (d?.meters > 0) options.mfMovedMeters = d.meters;
     else if (d?.hexes > 0) options.mfMovedHexes = d.hexes;
+    // Terrain along the path (the map's terrain regions): extra MP, prohibited
+    // terrain, Piloting Skill Rolls, facing changes on pavement.
+    const regions = terrainRegions(doc.parent ?? canvas?.scene);
+    if (regions.length && d?.meters > 0) {
+      const cur = movedThisTurn(actor);
+      const t = pathTerrain(actor, path.map(p => centerOf(doc, p)), { regions, mode: cur.modeSet ? cur.mode : '', startFacing: keep ? null : startFacing });
+      if (t.mp || t.prohibited.length || t.psr.length || t.notes.length || t.skidTurns) options.mfTerrain = t;
+    }
   });
 
   Hooks.on("updateToken", async (doc, changes, options, userId) => {
@@ -244,8 +276,37 @@ export function registerMovementTracking() {
     const upd = { turns: cur.turns + num(options.mfTurns), backward: cur.backward + num(options.mfBackward) };
     if (options.mfMovedMeters) upd.meters = cur.meters + options.mfMovedMeters;
     else if (options.mfMovedHexes) upd.hexes = cur.hexes + options.mfMovedHexes;
+    const t = options.mfTerrain;
+    if (t?.mp) {
+      const rec = actor.flags?.['mech-foundry']?.moved;
+      const parts = { ...(rec?.key === currentTurnKey() ? rec.terrainParts ?? {} : {}) };
+      for (const [k, v] of Object.entries(t.parts)) parts[k] = (parts[k] ?? 0) + v;
+      upd.terrain = (rec?.key === currentTurnKey() ? num(rec.terrain) : 0) + t.mp;
+      upd.terrainParts = parts;
+    }
     await setMovement(actor, upd);
+    if (t) await terrainAftermath(actor, t);
   });
+}
+
+/**
+ * After a move through terrain: queue the 'Mech's Piloting Skill Rolls
+ * (rubble, water) and tell the mover (and the GM) what's owed.
+ */
+async function terrainAftermath(actor, t) {
+  const notes = [];
+  if (t.psr?.length && actor.type === 'mech' && !actor.system?.conditions?.prone) {
+    await actor.update({ 'flags.mech-foundry.psr': queuePSR(actor, t.psr) });
+    notes.push(`${t.psr.length === 1 ? 'a Piloting Skill Roll' : `${t.psr.length} Piloting Skill Rolls`} pending (${t.psr.map(r => `${r.label}${r.mod ? ` ${r.mod > 0 ? '+' : '−'}${Math.abs(r.mod)}` : ''}`).join('; ')}) — roll from the sheet or the GM checklist`);
+  }
+  if (t.skidTurns && movedThisTurn(actor).mode === 'ran') notes.push(`turned on pavement / ice while ${actor.type === 'mech' ? 'running' : 'flanking'} — make a Skid check from the sheet`);
+  for (const n of t.notes ?? []) notes.push(n);
+  if (!notes.length) return;
+  const text = `${actor.name}: ${notes.join('; ')}.`;
+  ui.notifications?.info?.(text);
+  const gms = game.users?.filter?.(u => u.isGM).map(u => u.id) ?? [];
+  await ChatMessage.create({ whisper: [...new Set([game.user.id, ...gms])], speaker: ChatMessage.getSpeaker({ actor }),
+    content: `<div class="mech-foundry tw-phase-psr"><i class="fas fa-mountain"></i> ${text.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))}</div>` });
 }
 
 /** Unit types whose tokens face (and auto-face) on the map. */
