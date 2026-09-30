@@ -137,9 +137,9 @@ criticals and cluster grouping:
   (free when jumping; infantry and battle armor turn freely): MP spent = hexes + turns drives
   the walked / ran inference, the over-MP warnings, the checklist and the round summary;
   running while backing up is flagged. Turning is held to the Movement Phase like moving.
-  Tokens show the legs' facing as a solid amber wedge on the edge (the token's rotation — it
-  also sets the hit table). A twisted torso adds a cyan chevron inside the edge, a cyan arc
-  joining it to the legs' wedge and an "↻ R" / "↺ L" badge. The selected unit's arcs are
+  Tokens show the legs' facing as a small amber arrowhead on the edge (the token's rotation —
+  it also sets the hit table). A twisted torso adds the same arrowhead in cyan where the torso
+  faces. The selected unit's arcs are
   shaded from the torso's facing — forward amber, the two sides blue-grey, rear red — each
   outlined in its colour and lettered F / S / S / R, with the legs' front half (the hit table's
   front) as a dashed amber line while twisted (client settings). The twist also shows on the
