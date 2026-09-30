@@ -17,6 +17,7 @@ import { isAero } from "./tw-aero.mjs";
 import { unitDestroyed } from "./tw-status.mjs";
 import { GROUND_HEX_M } from "./tw-scale.mjs";
 import { turnsCostMP } from "./tw-facing.mjs";
+import { boostArmed, boostedRun, unitGear } from "./tw-gear.mjs";
 import { hexAt, terrainRegions, tokenCenter, unitBase, unitElevation } from "./tw-terrain.mjs";
 
 const num = (v) => Number(v) || 0;
@@ -38,7 +39,9 @@ export function movementLimit(actor, mode = movedThisTurn(actor).mode) {
     ({ walk, run, jump } = e);
   } else if (actor?.type === 'ground_vehicle') {
     walk = vehicleEffectiveCruise(actor);
-    run = Math.ceil(walk * 1.5);
+    // A supercharger (or MASC) armed this turn: Flanking = Cruising × 2 (× 2.5 with both).
+    const gear = unitGear(actor);
+    run = boostedRun(walk, gear.masc.working && boostArmed(actor, 'masc'), gear.supercharger.working && boostArmed(actor, 'supercharger')) ?? Math.ceil(walk * 1.5);
     walkLabel = 'Cruising'; runLabel = 'Flanking';
   } else if (actor?.type === 'infantry' || actor?.type === 'battle_armor') {
     walk = run = Math.max(num(mv.ground), num(mv.vtol), num(mv.umu));

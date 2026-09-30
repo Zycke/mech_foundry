@@ -238,6 +238,55 @@ criticals and cluster grouping:
   club or physical weapon does (TW p. 171). Not modelled: charges, death from above and pushes
   into buildings (and units displaced into one), floors / basements and overload collapse,
   fire, TacOps diagrammed line of sight.
+- **Special equipment** (`module/helpers/tw-gear.mjs`, `tw-boost.mjs`; TW, checked against
+  MegaMek): MASC, superchargers, TSM, ECM, active probes and C3. A 'Mech's are found from its
+  critical slot names (imported names like "ISMASC", "Guardian ECM Suite", "Beagle Active
+  Probe", "C3 Slave"; the C3 master computer from its weapon entry) — a destroyed slot disables
+  them; any unit can add or override them in the sheet's Equipment block (`system.gear`, with a
+  C3 network name), and the importer fills it for vehicles. MASC / supercharger: armed turn by
+  turn during combat from the sheet (2D6 ≥ the failure number 3 / 5 / 7 / 11 / 13, rising with
+  each consecutive turn of use and falling when rested); armed, Running / Flanking MP is
+  Walking × 2 (× 2.5 with both). A MASC failure puts a critical hit on each leg (re-rolled onto a
+  real component); a supercharger failure rolls 2D6 for 0–3 engine hits (motive damage steps on
+  a vehicle); either way it isn't armed that turn. TSM at heat 9+: +2 Walking MP (not with a
+  destroyed leg) and double punch, kick, club, hatchet, sword and retractable blade damage.
+- **Weapon-fire animations** (`module/helpers/tw-animate.mjs`; visual only): the "Weapon
+  animations" block under each unit weapon table ('Mech, vehicle, fighter, battle armor) holds a
+  Sequencer / JB2A path per weapon, a delay between projectiles and a travel time — like the
+  personal-scale weapon items. A weapon left blank is handed to the Automated Animations module
+  when it is active (`AutomatedAnimations.playAnimation` with the weapon's name), which matches
+  it in its Automatic Recognition menu; unit weapons are sheet rows, not Items, so they can't hold
+  A-A's own item settings. One projectile per missile / pellet / Ultra or Rotary shot, as many
+  reaching the target as the Cluster Hits Table says; misses land at a random spot just outside the
+  target token's edge (15–50 % of its radius beyond it), never on a line through the token. Out-of-range, jammed and Streak-no-lock shots don't animate; a building
+  target gets Sequencer animations only. The volley's animations play before its chat card.
+- **Electronic warfare** (`module/helpers/tw-ecm.mjs`; TW, checked against MegaMek ComputeECM /
+  ComputeC3Spotter): sides come from token disposition (different dispositions are enemies; a
+  secret token counts as hostile). An ECM suite projects a 6-hex bubble (not while shut down or
+  destroyed). All of these distances are measured like weapon range: straight-line metres on the
+  gridless map, 30 m a hex, rounded up (6 hexes reach 181 m). Enemy ECM over any hex of the line of fire cancels Artemis IV / V; over the
+  target's hex, the Narc bonus. Active probe (Beagle 4, Clan 5, Bloodhound 8, light 3 hexes; not
+  through enemy ECM; a C3 mate's counts): −1 against a target in or behind woods. C3: units with
+  the same network name (and side) use the range bracket of the linked member closest to the
+  target that has line of sight; the attacker's own distance still decides minimum range and
+  whether the weapon reaches at all. A standard network needs a working master; a unit inside
+  enemy ECM, or whose link to the master crosses it, is cut off. The fire dialog's Electronics
+  block shows and pre-fills all of this (C3 spotter range, probe, the two ECM boxes) so it can be
+  overridden; the sheet's equipment chips show the live C3 link and an "Enemy ECM" chip.
+- **Special munitions** (`module/helpers/tw-weapons.mjs` MUNITIONS; checked against MegaMek):
+  Inferno SRM, semi-guided LRM, precision and armor-piercing autocannon rounds. Each has its own
+  shot count on the weapon (Special column; blank = none carried), apart from the standard Rds,
+  and is picked per weapon in the fire dialog (the default is standard rounds while they last).
+  The importer puts MegaMek's munition bins there (precision / AP at half the shots a ton).
+  Inferno: no damage; the cluster roll gives the missiles (every missile against conventional
+  infantry or on an automatic hit) — 2 heat each to a 'Mech or fighter (external heat, 15 a turn
+  at most; behind partial cover, leg hits strike the cover), a critical roll at −2 each against
+  a vehicle, 1 damage per 3 missiles to battle armor, 3 troopers per missile, 2 damage per
+  missile to a building. Semi-guided: against a target TAG-designated this turn the target
+  movement modifier is cancelled (untagged, standard LRMs). Precision: up to 2 off the target
+  movement modifier. Armor-piercing: +1 to-hit; a hit the armor stops still rolls for a
+  critical hit at −4 / −3 / −2 / −1 (AC/2 / 5 / 10 / 20) on a 'Mech or vehicle. Not modelled:
+  swarm and thunder (minefield) LRMs, other munitions, hardened / reactive armor immunity to AP.
 - **Movement discipline** (`module/helpers/tw-phase.mjs`): a token move that takes a unit past
   its current MP this turn (Running / Flanking, or Walking when "Walked" is declared, Jumping
   when "Jumped" is) warns the mover and whispers the GM — it isn't blocked. During a running

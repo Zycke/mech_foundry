@@ -208,7 +208,7 @@ export function shotLine(ctx) {
   else if (ctx.jammed) line.out = '<b>JAMMED</b>';
   else if (!ctx.hit) line.out = `missed by ${esc(ctx.margin)}`;
   else if (!hr) line.out = ctx.damage ? `<b>${esc(ctx.damage)}</b> damage` : 'hit';
-  else if (hr.special) line.out = hr.special === 'heat' ? `<b>+${esc(hr.heat)}</b> heat` : hr.special === 'narc' ? 'Narc pod attached' : 'target designated';
+  else if (hr.special) line.out = hr.special === 'heat' ? `${hr.clusterInfo ? `${esc(hr.clusterInfo.missiles)} of ${esc(hr.clusterInfo.size)} ${esc(hr.clusterInfo.noun)} · ` : ''}<b>+${esc(hr.heat)}</b> heat` : hr.special === 'narc' ? 'Narc pod attached' : 'target designated';
   else {
     const parts = [];
     const ci = hr.clusterInfo;

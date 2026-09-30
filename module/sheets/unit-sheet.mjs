@@ -1,11 +1,15 @@
 import { MechFoundryActorSheetV2 } from "./base-actor-sheet.mjs";
 import { currentTurnKey, fireWeapons, firedThisTurn, unjamWeapon, usesAmmo, weaponToHitPreview } from "../helpers/tw-combat.mjs";
 import { MOVE_MODES, movedThisTurn, mpBreakdown, setMovement, weaponOwnToHit } from "../helpers/tw-movement.mjs";
-import { EXTERNAL_HEAT_CAP, externalHeat, guidable, narcPods, taggedThisTurn, weaponKind } from "../helpers/tw-weapons.mjs";
+import { c3Network, enemyECM, sideOf } from "../helpers/tw-ecm.mjs";
+import { automatedAnimationsActive, sequencerActive } from "../helpers/tw-animate.mjs";
+import { EXTERNAL_HEAT_CAP, MUNITIONS, externalHeat, guidable, hasAnyAmmo, munitionKeys, narcPods, taggedThisTurn, weaponKind } from "../helpers/tw-weapons.mjs";
 import { torsoTwist } from "../helpers/tw-facing.mjs";
 import { setTorsoTwist, twistText } from "../helpers/tw-facing-ui.mjs";
 import { aeroMaxBracket, aeroTurnState, isAero, setAeroTurn } from "../helpers/tw-aero.mjs";
 import { physicalAttack } from "../helpers/tw-physical.mjs";
+import { boostArmed, boostTarget, tsmActive, unitGear } from "../helpers/tw-gear.mjs";
+import { engageBoost } from "../helpers/tw-boost.mjs";
 import { sideslipCheck, skidCheck, vehicleCrash } from "../helpers/tw-skid.mjs";
 import {
   antiMechAttack, attachedSummary, dismountCarrier, dropProneShakeOff, jumpShakeOff, mountCarrier, releaseSwarm, removeSwarmers,
@@ -66,13 +70,17 @@ export class MechFoundryUnitSheet extends MechFoundryActorSheetV2 {
       aeroMax: aeroMaxBracket(w),
       destroyed: !!w.destroyed,
       fired: fired[w.id] !== undefined,
-      outOfAmmo: usesAmmo(w) && (Number(w.ammo) || 0) <= 0 && !(weaponKind(w) === 'lbx' && (Number(w.clusterAmmo) || 0) > 0),
-      special: weaponSpecialContext(w, this.actor)
+      outOfAmmo: usesAmmo(w) && !hasAnyAmmo(w),
+      special: weaponSpecialContext(w, this.actor),
+      animDelay: w.animationDelay === undefined || w.animationDelay === '' ? 50 : w.animationDelay,
+      animDuration: Number(w.animationDuration) || 0
     }));
     const turnKey = currentTurnKey();
     const markers = { narc: narcPods(this.actor), tagged: taggedThisTurn(this.actor, turnKey), extHeat: Math.min(EXTERNAL_HEAT_CAP, externalHeat(this.actor, turnKey)) };
     markers.any = !!(markers.narc.length || markers.tagged || markers.extHeat);
     context.weaponMarkers = markers;
+    // Weapon-fire animations (tw-animate.mjs): which animation modules are running.
+    context.animStatus = { sequencer: sequencerActive(), aa: automatedAnimationsActive() };
     // This turn's movement (ground units, during combat): hexes accumulate from
     // token moves; the mode is inferred unless picked here (jumping must be picked).
     if (currentTurnKey() && ['mech', 'ground_vehicle', 'battle_armor', 'infantry'].includes(this.actor.type)) {
@@ -90,6 +98,7 @@ export class MechFoundryUnitSheet extends MechFoundryActorSheetV2 {
         ]
       };
     }
+    if (['mech', 'ground_vehicle'].includes(this.actor.type)) context.gear = gearContext(this.actor);
     if (isAero(this.actor)) context.aeroTurn = { ...aeroTurnState(this.actor), inCombat: !!currentTurnKey() };
     // Infantry swarming or riding this unit.
     if (['mech', 'ground_vehicle', 'aerospace_fighter', 'small_craft'].includes(this.actor.type)) context.attachedInfantry = attachedSummary(this.actor);
@@ -120,6 +129,7 @@ export class MechFoundryUnitSheet extends MechFoundryActorSheetV2 {
     });
     html.on('click', '.clear-narc', (ev) => { ev.preventDefault(); this.actor.update({ 'flags.mech-foundry.narc': [] }); });
     html.on('click', '.twist-set', (ev) => { ev.preventDefault(); setTorsoTwist(this.actor, Number(ev.currentTarget.dataset.dir)); });
+    html.on('click', '.boost-arm', (ev) => { ev.preventDefault(); engageBoost(this.actor, ev.currentTarget.dataset.which); });
     html.on('change', '.turn-move-field', this._onTurnMoveChange.bind(this));
     html.on('change', '.weapon-flag', this._onWeaponFlagChange.bind(this));
     html.on('change', '.aero-evading', (ev) => setAeroTurn(this.actor, { evading: ev.currentTarget.checked }));
@@ -213,7 +223,7 @@ export class MechFoundryUnitSheet extends MechFoundryActorSheetV2 {
   }
 
   /** Weapon fields stored as non-negative integers (all others are strings). */
-  static NUMERIC_WEAPON_FIELDS = ['shotsPerTon', 'heat', 'ammo'];
+  static NUMERIC_WEAPON_FIELDS = ['shotsPerTon', 'heat', 'ammo', 'animationDelay', 'animationDuration'];
 
   async _onWeaponFieldChange(event) {
     const { weaponId, field } = event.currentTarget.dataset;
@@ -224,7 +234,7 @@ export class MechFoundryUnitSheet extends MechFoundryActorSheetV2 {
       if (!wpn) return false;
       // Blank means "automatic": the catalog to-hit modifier, cluster rounds from Rds.
       if (field === 'toHit') wpn[field] = String(raw).trim() === '' ? '' : (parseInt(raw) || 0);
-      else if (field === 'clusterAmmo') wpn[field] = String(raw).trim() === '' ? '' : Math.max(0, parseInt(raw) || 0);
+      else if (field === 'clusterAmmo' || Object.values(MUNITIONS).some(m => m.field === field)) wpn[field] = String(raw).trim() === '' ? '' : Math.max(0, parseInt(raw) || 0);
       else wpn[field] = numeric ? Math.max(0, parseInt(raw) || 0) : raw;
     });
   }
@@ -253,6 +263,52 @@ function weaponSpecialContext(w, actor) {
   const set = w.toHit === undefined || w.toHit === null ? '' : w.toHit;
   return {
     kind, guidable: guidable(w), lbx: kind === 'lbx', rotary: kind === 'rotary',
-    toHitSet: set, autoToHitText: auto > 0 ? `+${auto}` : String(auto), clearable: !!(w.jammed || w.spent)
+    toHitSet: set, autoToHitText: auto > 0 ? `+${auto}` : String(auto), clearable: !!(w.jammed || w.spent),
+    // Special munitions this weapon can carry (a blank count = none).
+    munitions: usesAmmo(w) ? munitionKeys(w).map(k => ({ key: k, field: MUNITIONS[k].field, short: MUNITIONS[k].short, label: MUNITIONS[k].label, value: w[MUNITIONS[k].field] ?? '' })) : []
+  };
+}
+
+/** Special equipment for the sheet: chips, MASC / supercharger arming, the editable record. */
+export function gearContext(actor) {
+  const g = unitGear(actor);
+  const rec = actor.system?.gear ?? {};
+  const key = currentTurnKey();
+  const chips = [];
+  const chip = (label, rec2, extra = {}) => chips.push({ label, state: !rec2.working ? 'destroyed' : extra.state ?? 'ready', title: `${rec2.name || label}${!rec2.working ? ' — destroyed' : extra.title ? ` — ${extra.title}` : ''}` });
+  if (g.masc.has) chip('MASC', g.masc, boostArmed(actor, 'masc', key) ? { state: 'on', title: 'armed this turn' } : {});
+  if (g.supercharger.has) chip('Supercharger', g.supercharger, boostArmed(actor, 'supercharger', key) ? { state: 'on', title: 'armed this turn' } : {});
+  if (g.tsm.has) chip('TSM', g.tsm, tsmActive(actor) ? { state: 'on', title: 'active (heat 9+): +2 Walking MP, double punch / kick / club damage' } : { title: 'active at heat 9+' });
+  if (g.ecm.has) chip(`${{ guardian: 'Guardian', angel: 'Angel', clan: 'Clan', watchdog: 'Watchdog' }[g.ecm.kind] ?? ''} ECM`, g.ecm, { title: `${g.ecm.range} hexes` });
+  if (g.probe.has) chip(`${{ beagle: 'Beagle', bloodhound: 'Bloodhound', clan: 'Clan', light: 'Light' }[g.probe.kind] ?? ''} Probe`, g.probe, { title: `${g.probe.range} hexes` });
+  // On the map: is the unit inside an enemy ECM bubble, and who is on its C3 network now (tw-ecm.mjs)?
+  const token = actor.getActiveTokens?.()[0] ?? null;
+  const jam = token?.center ? enemyECM(sideOf(token), token.center) : null;
+  if (g.c3.has) {
+    const net = token && g.c3.working && g.c3.network ? c3Network(token) : null;
+    const status = !g.c3.network ? { title: 'no network name set' }
+      : !token ? {}
+      : net ? { state: 'on', title: `linked: ${net.members.map(t => t.actor?.name).join(', ')}` }
+      : { state: 'off', title: jam ? `cut off: inside ${jam.name}'s ECM` : g.c3.role === 'c3i' ? 'no link' : 'no working C3 master on the network' };
+    chip(`C3 ${{ master: 'Master', slave: 'Slave', c3i: 'i' }[g.c3.role] ?? ''}${g.c3.network ? ` (${g.c3.network})` : ''}`.replace('C3 i', 'C3i'), g.c3, status);
+  }
+  if (jam) chips.push({ label: 'Enemy ECM', state: 'off', title: `Inside ${jam.name}'s ECM: no C3 link; Artemis / probe lines through it fail` });
+  const boosts = [];
+  if (key) for (const [which, label] of [['masc', 'MASC'], ['supercharger', 'Supercharger']]) {
+    if (!g[which].has) continue;
+    const st = actor.flags?.['mech-foundry']?.boost;
+    const failed = st?.key === key && !!st.failed?.[which];
+    const armed = boostArmed(actor, which, key);
+    const tn = boostTarget(actor, which, key);
+    boosts.push({ which, label, tn, armed, failed, can: g[which].working && !armed && !failed,
+      title: armed ? `${label} armed this turn` : failed ? `${label} failed this turn` : `Arm ${label} for this turn: 2D6 ≥ ${tn} (a lower roll fails)` });
+  }
+  const opts = (list, cur) => list.map(([value, label]) => ({ value, label, selected: String(cur ?? '') === value }));
+  return {
+    chips, boosts, mech: actor.type === 'mech',
+    edit: { masc: !!rec.masc, supercharger: !!rec.supercharger, tsm: !!rec.tsm, c3Network: rec.c3Network ?? '' },
+    ecmOptions: opts([['', '— (or from crits)'], ['guardian', 'Guardian ECM'], ['angel', 'Angel ECM'], ['clan', 'Clan ECM'], ['watchdog', 'Watchdog CEWS']], rec.ecm),
+    probeOptions: opts([['', '— (or from crits)'], ['beagle', 'Beagle (4)'], ['clan', 'Clan (5)'], ['bloodhound', 'Bloodhound (8)'], ['light', 'Light (3)']], rec.probe),
+    c3Options: opts([['', '— (or from crits)'], ['master', 'C3 Master'], ['slave', 'C3 Slave'], ['c3i', 'C3i']], rec.c3)
   };
 }

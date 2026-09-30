@@ -148,6 +148,7 @@
             {{/each}}
           </tbody>
         </table>
+        {{> "systems/mech-foundry/templates/actor/parts/weapon-animations.hbs" weapons=weapons anim=animStatus editable=editable}}
         {{#unless weapons.length}}<p class="empty-notice">No weapons. Click "Add".</p>{{/unless}}
         <p class="logi-note">Enter per-trooper values from the record sheet: all troopers fire each weapon together. Missile launchers: Dmg per missile, Msl = launcher size; only missiles track ammunition. One anti-personnel attack per turn.</p>
       </div>

@@ -7521,6 +7521,21 @@
 .mech-foundry .mf-turnmove input { width: 44px; height: 24px; text-align: center; }
 .mech-foundry .mf-turnmove { flex-wrap: wrap; }
 .mech-foundry .mf-turnmove .mf-mp-note { text-transform: none; letter-spacing: 0; color: var(--mf-ink); flex-basis: 100%; }
+/* Special equipment (unit-gear.hbs) */
+.mech-foundry .mf-gear { margin-top: 8px; font-size: 0.78rem; display: flex; flex-direction: column; gap: 4px; }
+.mech-foundry .mf-gear-row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.mech-foundry .mf-gear .k { color: var(--mf-ink-dim); text-transform: uppercase; letter-spacing: .04em; font-size: 0.7rem; margin-right: 2px; }
+.mech-foundry .mf-gear-chip { border: 1px solid var(--mf-ink-dim); border-radius: 3px; padding: 0 5px; line-height: 1.5; }
+.mech-foundry .mf-gear-chip.on { border-color: #e0a030; color: #e0a030; font-weight: 700; }
+.mech-foundry .mf-gear-chip.destroyed { opacity: 0.55; text-decoration: line-through; }
+.mech-foundry .mf-gear-chip.off { border-color: #c0504d; color: #c0504d; }
+.mech-foundry .mf-gear-none { opacity: 0.6; font-style: italic; }
+.mech-foundry .mf-gear .boost-arm { width: auto; height: 22px; line-height: 20px; padding: 0 6px; font-size: 0.75rem; }
+.mech-foundry .mf-gear .boost-arm.active { border-color: #e0a030; color: #e0a030; }
+.mech-foundry .mf-gear-edit summary { cursor: pointer; opacity: 0.8; }
+.mech-foundry .mf-gear-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 4px 10px; margin-top: 4px; }
+.mech-foundry .mf-gear-grid label { display: flex; align-items: center; gap: 4px; }
+.mech-foundry .mf-gear-grid select, .mech-foundry .mf-gear-grid input[type="text"] { flex: 1; min-width: 0; height: 22px; font-size: 0.75rem; }
 
 /* Attack dialog: terrain group */
 .tw-attack-dialog fieldset.tw-terrain { margin: 6px 0; padding: 4px 8px; border: 1px solid rgba(128,128,128,.35); border-radius: 4px; }
@@ -7670,7 +7685,7 @@
 /* Weapon special rules (tw-weapons.mjs) */
 .mech-foundry .wt td.w-special { white-space: nowrap; }
 .mech-foundry .wt td.w-special select.w-guid { width: 4.4em; font-size: 0.72rem; padding: 0 1px; }
-.mech-foundry .wt td.w-special input.w-th, .mech-foundry .wt td.w-special input.w-clammo { width: 2.6em; }
+.mech-foundry .wt td.w-special input.w-th, .mech-foundry .wt td.w-special input.w-clammo, .mech-foundry .wt td.w-special input.w-mun { width: 2.6em; }
 .mech-foundry .wt td.w-special .weapon-unjam { padding: 0 4px; width: auto; line-height: 1.2; font-size: 0.72rem; }
 .mech-foundry .mf-weapon-markers { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin: 2px 0 6px; }
 /* GM phase checklist (combat tracker) */
@@ -7740,3 +7755,12 @@
 .tw-fire-dialog .tw-fire-twist { margin: 0 0 4px; font-size: 0.8rem; color: #5fd3e6; }
 .tw-fire-dialog .tw-fire-map { margin: 0 0 4px; font-size: 0.8rem; color: #8fc27a; }
 .tw-fire-dialog .tw-fire-map i { margin-right: 3px; }
+
+/* Weapon-fire animations block under the unit weapon table (tw-animate.mjs). */
+.mech-foundry details.mf-anim { margin: 6px 0; font-size: 0.9em; }
+.mech-foundry details.mf-anim > summary { cursor: pointer; font-weight: 700; }
+.mech-foundry .mf-anim-status { margin-left: 8px; font-weight: 400; display: inline-flex; gap: 4px; }
+.mech-foundry .mf-anim-table { width: 100%; margin: 4px 0; }
+.mech-foundry .mf-anim-table td.mf-anim-name { white-space: nowrap; }
+.mech-foundry .mf-anim-table input[type="text"] { width: 100%; }
+.mech-foundry .mf-anim-table input.n { width: 4.5em; }

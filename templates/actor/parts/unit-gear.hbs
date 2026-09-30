@@ -1,0 +1,28 @@
+{{!-- Special equipment: what the unit carries (chips), MASC / supercharger arming (combat), and the editable record. --}}
+<div class="mf-gear" title="Special equipment. 'Mechs: found from the critical slots by name; add or override it here (vehicles: set it here or import it).">
+  <div class="mf-gear-row">
+    <span class="k">Equipment</span>
+    {{#each g.chips}}<span class="mf-gear-chip {{state}}" title="{{title}}">{{label}}</span>{{else}}<span class="mf-gear-none">none</span>{{/each}}
+  </div>
+  {{#if g.boosts.length}}
+  <div class="mf-gear-row">
+    {{#each g.boosts}}
+    <button type="button" class="boost-arm{{#if armed}} active{{/if}}" data-which="{{which}}" {{#unless can}}disabled{{/unless}} title="{{title}}"><i class="fas fa-bolt"></i> {{label}} {{#if armed}}armed{{else if failed}}failed{{else}}{{tn}}+{{/if}}</button>
+    {{/each}}
+  </div>
+  {{/if}}
+  {{#if editable}}
+  <details class="mf-gear-edit">
+    <summary>Edit equipment</summary>
+    <div class="mf-gear-grid">
+      <label class="chk"><input type="checkbox" name="system.gear.masc" {{checked g.edit.masc}}> MASC</label>
+      <label class="chk"><input type="checkbox" name="system.gear.supercharger" {{checked g.edit.supercharger}}> Supercharger</label>
+      {{#if g.mech}}<label class="chk"><input type="checkbox" name="system.gear.tsm" {{checked g.edit.tsm}}> TSM</label>{{/if}}
+      <label>ECM <select name="system.gear.ecm">{{#each g.ecmOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select></label>
+      <label>Active probe <select name="system.gear.probe">{{#each g.probeOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select></label>
+      <label>C3 <select name="system.gear.c3">{{#each g.c3Options}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select></label>
+      <label title="Units whose C3 network name matches share a network (master + up to 3 slaves, or up to 6 C3i).">C3 network <input type="text" name="system.gear.c3Network" value="{{g.edit.c3Network}}" placeholder="e.g. Lance A" /></label>
+    </div>
+  </details>
+  {{/if}}
+</div>

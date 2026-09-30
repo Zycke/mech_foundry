@@ -235,16 +235,23 @@ Rules detail for what *is* automated lives in `docs/unit-sheet-design.md`.
       Narc pods and Narc-capable missiles, AMS, flamer heat mode, TAG, Streak no-fire on a miss,
       one-shot weapons, to-hit override on the weapon table.
 - [?] Rules choices to confirm: Narc pods help any attacker (no team tracking); AMS engages
-      regardless of arc; TAG only marks the target (no semi-guided / homing munitions yet);
-      ECM / stealth don't cancel Artemis / Narc bonuses (no ECM modelled).
-- [ ] Special munitions (inferno, semi-guided, swarm, thunder, precision / armor-piercing AC
-      ammo) and their to-hit / damage effects; separate ammo bins per munition.
+      regardless of arc; TAG marks the target for semi-guided LRMs (no homing artillery);
+      sides for ECM / C3 come from token disposition (a secret token counts as hostile).
+- [x] Special munitions: Inferno SRM, semi-guided LRM, precision and armor-piercing AC, each
+      with its own count on the weapon (tw-weapons.mjs MUNITIONS).
+- [ ] More munitions: swarm LRMs (with the other swarm rules), thunder LRMs (with minefield
+      regions), fragmentation, tandem-charge, smoke, flechette, Narc / Artemis-capable bins as
+      separate munitions; AP against hardened / reactive / ferro-lamellor armor.
 - [ ] Removing Narc pods by physical action / when the location is destroyed; iNarc pod types
       (ECM, haywire, nemesis, homing).
 - [ ] Explosive components (Gauss rifles) and vehicle "Weapon Destroyed" explosions.
-- [ ] Indirect fire / artillery / spotting; C3, ECM.
+- [x] ECM (vs Artemis / Narc, cuts C3 links, blocks probes), active probes (−1 vs woods),
+      C3 / C3i range sharing by network name (tw-ecm.mjs). Not modelled: ECCM and Angel ECM's
+      extra effects, ECM vs stealth armor, TacOps ghost targets, Watchdog's probe half, BA / ProtoMech
+      C3, probes spotting hidden units, network size limits (reported, not enforced), boosted C3.
+- [ ] Indirect fire / artillery / spotting.
 - [ ] Aimed shots against immobile targets.
-- [ ] MASC, superchargers, TSM.
+- [x] MASC, superchargers, TSM (tw-gear.mjs / tw-boost.mjs). Not modelled: industrial / prototype TSM, MASC on vehicles beyond the MP change.
 - [ ] Ammo bins in crit slots vs. the weapon's pooled ammo count (bin size from Shots/Ton).
 
 **'Mechs**
@@ -286,7 +293,7 @@ Rules detail for what *is* automated lives in `docs/unit-sheet-design.md`.
       self-detonation, torpedoes / multi-purpose missiles, UMU / VTOL movement rules,
       jettisoning launchers as an action.
 - [ ] Importer follow-ups: equipment effects the importer only lists (Artemis IV/V cluster
-      bonus, MASC / TSM / superchargers, targeting computers, ECM / probes, C3, A-Pods, PPC
+      bonus, targeting computers, A-Pods, PPC
       capacitors), physical weapons (hatchets, swords) into the physical-attack dialog, quad /
       tripod / LAM 'Mechs, superheavy and dual-turret vehicles, support vehicle BAR, DropShips and
       larger craft, field guns and custom infantry weapons, variable-damage weapons (Heavy Gauss,

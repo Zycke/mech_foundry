@@ -1,0 +1,25 @@
+{{!-- Weapon-fire animations (tw-animate.mjs): a Sequencer path per weapon; blank = Automated Animations by weapon name. --}}
+{{#if weapons.length}}
+<details class="mf-anim">
+  <summary>Weapon animations
+    <span class="mf-anim-status" title="Sequencer plays the paths below; Automated Animations handles weapons left blank, matched by name in its Automatic Recognition menu.">
+      <span class="mf-gear-chip {{#if anim.sequencer}}on{{else}}destroyed{{/if}}">Sequencer</span>
+      <span class="mf-gear-chip {{#if anim.aa}}on{{else}}destroyed{{/if}}">Automated Animations</span>
+    </span>
+  </summary>
+  <table class="mf-anim-table">
+    <thead><tr><th>Weapon</th><th title="Sequencer / JB2A database path, e.g. jb2a.lasershot.red. Blank: Automated Animations matches the weapon by name, if it's installed.">Sequencer path</th><th title="Delay between projectiles (missiles, pellets, Ultra / Rotary shots), ms">Delay</th><th title="Projectile travel time, ms (0 = the animation's own)">Travel</th></tr></thead>
+    <tbody>
+      {{#each weapons}}
+      <tr>
+        <td class="mf-anim-name">{{name}}{{#if location}} <span class="hint">({{location}})</span>{{/if}}</td>
+        <td><input type="text" class="weapon-field" data-weapon-id="{{id}}" data-field="animation" value="{{animation}}" placeholder="{{#if ../anim.aa}}blank: Automated Animations{{else}}e.g. jb2a.lasershot.red{{/if}}" {{#unless ../editable}}disabled{{/unless}} /></td>
+        <td><input type="number" min="0" step="10" class="weapon-field n" data-weapon-id="{{id}}" data-field="animationDelay" value="{{animDelay}}" {{#unless ../editable}}disabled{{/unless}} /></td>
+        <td><input type="number" min="0" step="50" class="weapon-field n" data-weapon-id="{{id}}" data-field="animationDuration" value="{{animDuration}}" {{#unless ../editable}}disabled{{/unless}} /></td>
+      </tr>
+      {{/each}}
+    </tbody>
+  </table>
+  <p class="hint">One projectile per missile, pellet or Ultra / Rotary shot (the Cluster Hits Table decides how many reach the target); misses land just outside the target's edge. Visual only — nothing here changes a roll.</p>
+</details>
+{{/if}}

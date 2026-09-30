@@ -29,6 +29,7 @@ import {
   ATTACK_DIRECTIONS, MECH_LOC_LABEL, REAR_ARMOR_KEY, facingContext, firedThisTurn, locationGone, measureHexes, resolveDamageAgainst
 } from "./tw-combat.mjs";
 import { physicalArcCheck } from "./tw-facing.mjs";
+import { tsmActive } from "./tw-gear.mjs";
 import { skillHint, skillMod } from "./tw-skills.mjs";
 import { mapAttackTerrain, unitElevation, unitHeight } from "./tw-terrain.mjs";
 import { beginBuildingTarget, beginShield, chooseBuildingTarget, collapseBuilding, endBuildingTarget, endShield, postOccupantCard } from "./tw-buildings.mjs";
@@ -227,16 +228,21 @@ export function actuatorEffects(actor, type, arm, weaponKey) {
 /** Damage to the target for a successful physical attack (before 5-point grouping). */
 export function physicalDamage(actor, type, { weaponKey = null, hexes = 0, halvings = 0 } = {}) {
   const t = num(actor.system.tonnage);
+  // TSM at heat 9+ doubles punches, kicks, clubs and bladed physical weapons (not saws, drills and the like; MegaMek).
+  const tsm = tsmActive(actor) && (['punchL', 'punchR', 'kick', 'club'].includes(type) || (type === 'weapon' && TSM_WEAPONS.has(weaponKey))) ? 2 : 1;
   switch (type) {
-    case 'punchL': case 'punchR': return halve(Math.ceil(t / 10), halvings);
-    case 'kick': return halve(Math.ceil(t / 5), halvings);
-    case 'club': return Math.ceil(t / 5);
-    case 'weapon': return halve(PHYSICAL_WEAPONS[weaponKey]?.dmg(t) ?? 0, halvings);
+    case 'punchL': case 'punchR': return tsm * halve(Math.ceil(t / 10), halvings);
+    case 'kick': return tsm * halve(Math.ceil(t / 5), halvings);
+    case 'club': return tsm * Math.ceil(t / 5);
+    case 'weapon': return tsm * halve(PHYSICAL_WEAPONS[weaponKey]?.dmg(t) ?? 0, halvings);
     case 'charge': return Math.ceil((t / 10) * Math.max(0, num(hexes)));
     case 'dfa': return Math.ceil((t / 10) * 3);
     default: return 0;
   }
 }
+
+/** Physical weapons TSM doubles (the others are powered tools). */
+const TSM_WEAPONS = new Set(['hatchet', 'sword', 'retractableBlade']);
 
 /* ------------------------------------------------------------------ */
 /*  The attack                                                          */

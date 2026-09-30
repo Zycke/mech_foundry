@@ -447,6 +447,16 @@
         "actorId": "",
         "unconscious": false,
         "unconsciousKey": ""
+      },
+      "gear": {
+        "masc": false,
+        "supercharger": false,
+        "tsm": false,
+        "ecm": "",
+        "probe": "",
+        "c3": "",
+        "c3Network": "",
+        "destroyed": {}
       }
     },
     "ground_vehicle": {
@@ -535,7 +545,17 @@
       },
       "weapons": [],
       "hasCASE": false,
-      "hasCargo": false
+      "hasCargo": false,
+      "gear": {
+        "masc": false,
+        "supercharger": false,
+        "tsm": false,
+        "ecm": "",
+        "probe": "",
+        "c3": "",
+        "c3Network": "",
+        "destroyed": {}
+      }
     },
     "aerospace_fighter": {
       "biography": "",

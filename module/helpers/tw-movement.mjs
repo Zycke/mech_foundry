@@ -17,6 +17,7 @@ import { GROUND_HEX_M, formatMeters, measureMeters, metersToHexes } from "./tw-s
 import { facingRotation, hexsideTurns, pathFacing, tokenFacing, turnsCostMP } from "./tw-facing.mjs";
 import { pathTerrain, terrainPartsText, terrainRegions } from "./tw-terrain.mjs";
 import { queuePSR } from "./tw-psr.mjs";
+import { boostArmed, boostedRun, tsmActive, unitGear } from "./tw-gear.mjs";
 
 const num = (v) => Number(v) || 0;
 
@@ -36,7 +37,8 @@ const MODE_MOD = Object.fromEntries(MOVE_MODES.map(m => [m.key, m.mod]));
  * one hip hit halves Walking MP (round up) and two leave 0; each upper / lower
  * leg or foot actuator on a leg without a hip hit is −1; a destroyed leg leaves
  * 1 Walking MP and no running; heat takes −1 per 5 points; each destroyed jump
- * jet slot is −1 Jumping MP. Running = Walking × 1.5, rounded up.
+ * jet slot is −1 Jumping MP; TSM at heat 9+ is +2. Running = Walking × 1.5,
+ * rounded up — × 2 with MASC or a supercharger armed, × 2.5 with both.
  */
 export function mechEffectiveMP(actor) {
   const sys = actor?.system || {};
@@ -56,7 +58,13 @@ export function mechEffectiveMP(actor) {
   const heatMP = Math.min(5, Math.floor(num(sys.heat?.value) / 5));
   if (heatMP) { walk = Math.max(0, walk - heatMP); notes.push(`heat −${heatMP}`); }
   if (clampedRiders(actor)) { walk = Math.max(0, walk - 1); notes.push('carrying battle armor −1'); }
-  let run = Math.ceil(walk * 1.5);
+  // TSM at heat 9+: +2 Walking MP (not with a destroyed leg; tw-gear.mjs).
+  if (tsmActive(actor) && !legsGone) { walk += 2; notes.push('TSM +2'); }
+  // MASC / supercharger armed this turn: Running = Walking × 2 (× 2.5 with both).
+  const gear = unitGear(actor);
+  const masc = gear.masc.working && boostArmed(actor, 'masc'), sc = gear.supercharger.working && boostArmed(actor, 'supercharger');
+  let run = boostedRun(walk, masc, sc) ?? Math.ceil(walk * 1.5);
+  if (masc || sc) notes.push([masc && 'MASC', sc && 'supercharger'].filter(Boolean).join(' + '));
   if (legsGone) { walk = Math.min(walk, legsGone >= 2 ? 0 : 1); run = walk; notes.push(legsGone >= 2 ? 'no legs' : 'leg destroyed: 1 MP, no running'); }
   const jets = Object.values(sys.critSlots || {}).flat().filter(x => x?.type === 'jumpJet' && x.hit).length;
   const jump = Math.max(0, jumpBase - jets);

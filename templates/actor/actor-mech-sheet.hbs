@@ -108,6 +108,7 @@
             <button type="button" class="skid-check" title="Running and turned on pavement, about to enter a new hex: Piloting Skill Roll to avoid skidding"><i class="fas fa-road"></i> Skid…</button>
           </div>
           {{/if}}
+          {{#if gear}}{{> "systems/mech-foundry/templates/actor/parts/unit-gear.hbs" g=gear editable=editable}}{{/if}}
           {{#if turnMove}}
           <div class="mf-turnmove" title="Used for attack modifiers and heat. Distance moved adds up automatically as the token moves during combat (30 m per hex; any part of a hex counts).">
             <span class="k">This turn</span>
@@ -205,6 +206,7 @@
             {{/each}}
           </tbody>
         </table>
+        {{> "systems/mech-foundry/templates/actor/parts/weapon-animations.hbs" weapons=weapons anim=animStatus editable=editable}}
         {{#unless weapons.length}}<p class="empty-notice">No weapons. Click "Add".</p>{{/unless}}
         <p class="logi-note">Ammo types feed the company Logistics roll-up. Attack buttons activate in the combat-automation phase.</p>
       </div>
