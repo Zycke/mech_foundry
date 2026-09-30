@@ -30,7 +30,8 @@ import {
 } from "./tw-combat.mjs";
 import { skillHint, skillMod } from "./tw-skills.mjs";
 import { mapAttackTerrain, unitElevation, unitHeight } from "./tw-terrain.mjs";
-import { beginShield, collapseBuilding, endShield } from "./tw-buildings.mjs";
+import { beginBuildingTarget, beginShield, chooseBuildingTarget, collapseBuilding, endBuildingTarget, endShield, postOccupantCard } from "./tw-buildings.mjs";
+import { activeShield, shieldMiss } from "./tw-shield.mjs";
 
 const { DialogV2 } = foundry.applications.api;
 const num = (v) => Number(v) || 0;
@@ -243,13 +244,19 @@ export function physicalDamage(actor, type, { weaponKey = null, hexes = 0, halvi
 /** Open the physical attack dialog for a unit, roll, and resolve both sides. */
 export async function physicalAttack(actor) {
   if (!actor) return;
-  const target = [...(game.user?.targets ?? [])][0] || null;
-  const targetActor = target?.actor || null;
+  let target = [...(game.user?.targets ?? [])][0] || null;
   const attackerToken = actor.getActiveTokens?.()[0] || null;
+  // No unit targeted: offer an adjacent building (tw-buildings.mjs).
+  if (!target && attackerToken) {
+    const b = await chooseBuildingTarget(actor, attackerToken, { adjacentOnly: true });
+    if (b === 'cancel') return;
+    target = b;
+  }
+  const targetActor = target?.actor || null;
   const dist = attackerToken && target ? measureHexes(attackerToken, target) : null;
   const esc = (t) => foundry.utils.escapeHTML?.(String(t)) ?? String(t);
   // The map's terrain regions: level difference, target terrain, water cover.
-  const map = attackerToken?.center && target?.center ? mapAttackTerrain(actor, targetActor, attackerToken.center, target.center,
+  const map = attackerToken?.center && target?.center && !target.building ? mapAttackTerrain(actor, targetActor, attackerToken.center, target.center,
     { attackerElevation: unitElevation(actor, attackerToken.document), targetElevation: unitElevation(targetActor, target.document) }) : null;
   const levelDiff = map ? map.levelDiff : null;
   const fromMap = map ? ' <span class="tw-hint">(from map)</span>' : '';
@@ -265,6 +272,7 @@ export async function physicalAttack(actor) {
   const content = `
     <div class="tw-attack-dialog">
       <p class="tw-atk-target">${target ? `Target: <strong>${esc(target.name)}</strong>${dist != null ? ` · ${dist} hex${dist === 1 ? '' : 'es'}` : ''}` : 'No target selected.'}</p>
+      ${target?.building ? `<p class="tw-fire-map"><i class="fa-solid fa-building"></i> ${esc(target.name)}: ${esc(target.building.cls)} building, CF ${target.building.cf} — adjacent: automatic hit (punch, kick, club or physical weapon)</p>` : ''}
       ${map ? `<p class="tw-fire-map"><i class="fa-solid fa-mountain"></i> From the map: ${esc(levelText(levelDiff))} · target in ${esc(map.summary.find(x => x.startsWith('target in'))?.slice(10) ?? 'clear')}</p>` : ''}
       <div class="form-group"><label>Attack</label><select name="type">${typeOpts}</select></div>
       ${actor.type === 'mech' ? `
@@ -329,7 +337,9 @@ export async function resolvePhysicalAttack(actor, target, r) {
   const { type, weaponKey, arm } = r;
   const levelDiff = r.levelDiff ?? null;
   const d = levelDiff ?? 0;
-  const block = physicalBlock(actor, type, { arm, weaponKey, target: targetActor, levelDiff });
+  const block = target?.building && ['charge', 'dfa', 'push'].includes(type)
+    ? `${PHYSICAL_TYPES[type]?.label ?? type} against a building isn't supported — punch, kick, club or use a physical weapon.`
+    : physicalBlock(actor, type, { arm, weaponKey, target: targetActor, levelDiff });
   if (block) { ui.notifications.warn(block); return null; }
 
   const spec = PHYSICAL_TYPES[type];
@@ -353,11 +363,13 @@ export async function resolvePhysicalAttack(actor, target, r) {
   const tn = sum(mods);
 
   beginRecording();
-  // A target inside a building is shielded by it.
+  // A target inside a building is shielded by it; a building target takes the blow.
   beginShield(targetActor, target, actor, actor.getActiveTokens?.()[0] ?? null);
+  if (target?.building) beginBuildingTarget(target);
   const roll = await new Roll("2d6").evaluate();
   const rolls = [roll];
-  const hit = roll.total >= tn;
+  // An adjacent building can't be missed.
+  const hit = !!target?.building || roll.total >= tn;
   const dice = roll.dice[0]?.results?.map(x => x.result) ?? [];
 
   // Record the attack (one per turn; two punches may combine).
@@ -433,6 +445,11 @@ export async function resolvePhysicalAttack(actor, target, r) {
       notes.push(`${actor.name} lands in the target's hex; ${target?.name || 'the target'} is pushed one hex away from the attack — move both tokens`);
     }
   } else {
+    // A missed blow at a unit inside a building hits the building instead.
+    if (activeShield() && !['push', 'charge', 'dfa'].includes(type)) {
+      const dmg = physicalDamage(actor, type, { weaponKey, hexes: r.hexes, halvings: act.halvings });
+      if (shieldMiss(targetActor, dmg)) notes.push(`The miss hits the building: ${dmg} damage`);
+    }
     if (type === 'kick') {
       await writeDoc(actor, { 'flags.mech-foundry.psr': queuePSR(actor, [{ key: 'missedKick', label: 'Missed a kick', mod: 0 }]) });
       notes.push(`${actor.name} missed a kick: Piloting Skill Roll required`);
@@ -470,9 +487,11 @@ export async function resolvePhysicalAttack(actor, target, r) {
     outOfRange: false, damage: hit ? physicalDamage(actor, type, { weaponKey, hexes: r.hexes, halvings: act.halvings }) : 0,
     hitResult
   };
-  const building = await endShield();
+  const shielded = await endShield();
+  const hitBuilding = target?.building ? await endBuildingTarget(rolls) : null;
+  if (target?.building) shownNotes.unshift(`${target.name}: automatic hit (adjacent building)`);
   const card = volleyCard({
-    alerts: building ? [building.alert] : [],
+    alerts: [shielded?.alert, hitBuilding?.alert].filter(Boolean),
     title: spec.label, icon: 'fa-hand-fist',
     attackerName: actor.name, targetName: target?.name || '',
     ctxLine: r.direction ? `${r.direction[0].toUpperCase()}${r.direction.slice(1)}` : '',
@@ -482,6 +501,8 @@ export async function resolvePhysicalAttack(actor, target, r) {
   const cardContent = await foundry.applications.handlebars.renderTemplate("systems/mech-foundry/templates/chat/tw-volley.hbs", card);
   await ChatMessage.create({ flags: { 'mech-foundry': withSummary(endRecording(), volleySummary(card, { ...summaryContext(), kind: 'physical', attacker: actor, target: targetActor })) }, speaker: ChatMessage.getSpeaker({ actor }), flavor: `${spec.label}`, content: cardContent, rolls });
   if (fall) await postCard(actor, 'Death From Above — Missed', { results: [], fall }, []);
-  if (building?.collapse) await collapseBuilding(building.collapse.uuid, { cfBefore: building.collapse.cfBefore });
+  if (hitBuilding?.occupants) await postOccupantCard(target.name, hitBuilding.occupants);
+  const collapse = shielded?.collapse ?? hitBuilding?.collapse;
+  if (collapse) await collapseBuilding(collapse.uuid, { cfBefore: collapse.cfBefore });
   return { hit, tn, mods: shown, hitResult, selfResult, notes, fall };
 }

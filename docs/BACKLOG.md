@@ -214,9 +214,9 @@ Rules detail for what *is* automated lives in `docs/unit-sheet-design.md`.
       across levels, falls when displaced 2+ levels down; buildings (class / CF, entry MP, wall
       rolls and damage both ways, absorption for units inside, collapse). Not modelled: swamp
       bog-down, road bonus MP for vehicles, careful vs. fast ice movement, TacOps diagrammed line
-      of sight, level-based falls outside displacement (e.g. skids off a ledge), attacking a
-      building directly (and the damage reaching infantry inside), floors / basements /
-      overload collapse, per-hex CF within one building region.
+      of sight, level-based falls outside displacement (e.g. skids off a ledge), charges /
+      death from above / pushes into buildings (and units displaced into one), floors /
+      basements / overload collapse, per-hex CF within one building region, fire.
 - [x] Buildings: movement, damage absorption, collapse, building PSRs — from the map's terrain
       regions (see the terrain item for what's not modelled).
 - [ ] Water / underwater, hull down, life support while submerged; hover vehicles sinking

@@ -25,26 +25,31 @@
  */
 import { beginRecording, endRecording, writeDoc } from "./gm-relay.mjs";
 import { hexAt, regionHas, terrainRegions, tokenCenter, unitElevation } from "./tw-terrain.mjs";
+import { GROUND_HEX_M, metersToHexes, pixelsPerMeter } from "./tw-scale.mjs";
 import { resolveDamageAgainst } from "./tw-combat.mjs";
 import { fiveGroups, postCard, resolveFall } from "./tw-falls.mjs";
 import { pilotingMods } from "./tw-skills.mjs";
 import { psrDamageMods } from "./tw-psr.mjs";
 import { pilotUnconscious, vehicleDrivingMods } from "./tw-movement.mjs";
 import { rollPunchLocation } from "./tw-physical.mjs";
-import { activeShield, setShield } from "./tw-shield.mjs";
+import { activeBuildingTarget, activeShield, setBuildingTarget, setShield } from "./tw-shield.mjs";
 
-export { shieldGroups, shieldPlatoon } from "./tw-shield.mjs";
+export { shieldGroups, shieldMiss, shieldPlatoon } from "./tw-shield.mjs";
 
 const num = (v) => Number(v) || 0;
 const sum = (mods) => mods.reduce((t, m) => t + num(m.value), 0);
 const diceOf = (roll) => roll?.dice?.[0]?.results?.map(r => r.result) ?? [];
 
-/** Building classes: label, the wall-roll modifier, the share it absorbs of fire at infantry between its floors. */
+/**
+ * Building classes: label, the wall-roll modifier, the share it absorbs of fire
+ * at infantry between its floors, and the share of an attack on the building
+ * that reaches infantry inside (TW p. 172).
+ */
 export const BUILDING_CLASSES = {
-  light: { label: "Light", psr: 0, inside: 0 },
-  medium: { label: "Medium", psr: 1, inside: 0 },
-  heavy: { label: "Heavy", psr: 2, inside: 0.25 },
-  hardened: { label: "Hardened", psr: 5, inside: 0.5 }
+  light: { label: "Light", psr: 0, inside: 0, occupants: 0.75 },
+  medium: { label: "Medium", psr: 1, inside: 0, occupants: 0.5 },
+  heavy: { label: "Heavy", psr: 2, inside: 0.25, occupants: 0.25 },
+  hardened: { label: "Hardened", psr: 5, inside: 0.5, occupants: 0 }
 };
 
 /** A building region's current CF. */
@@ -196,11 +201,15 @@ export function beginShield(targetActor, targetToken, attacker = null, attackerT
 export async function endShield() {
   const sh = activeShield();
   setShield(null);
-  if (!sh || sh.absorbed <= 0) return null;
-  const d = await damageBuilding(sh.rec, sh.absorbed);
+  const missed = num(sh?.missed);
+  if (!sh || sh.absorbed + missed <= 0) return null;
+  const d = await damageBuilding(sh.rec, sh.absorbed + missed);
   const name = sh.rec.region?.name || "The building";
+  const bits = [];
+  if (sh.absorbed) bits.push(`absorbs ${sh.absorbed} damage (${sh.mode === "outside" ? `${sh.absorb} per hit` : `${Math.round(sh.share * 100)}% between floors`})`);
+  if (missed) bits.push(`takes ${missed} from missed attacks`);
   return {
-    alert: { tag: "BUILDING", text: `${name} absorbs ${sh.absorbed} damage (${sh.mode === "outside" ? `${sh.absorb} per hit` : `${Math.round(sh.share * 100)}% between floors`}): CF ${d.before} → ${d.after}${d.collapsed ? " — it collapses" : ""}`, red: d.collapsed },
+    alert: { tag: "BUILDING", text: `${name} ${bits.join(" and ")}: CF ${d.before} → ${d.after}${d.collapsed ? " — it collapses" : ""}`, red: d.collapsed },
     collapse: d.collapsed ? { uuid: sh.rec.behavior?.uuid, cfBefore: sh.cfBefore } : null
   };
 }
@@ -247,4 +256,140 @@ export async function collapseBuilding(uuid, { cfBefore = 0, scene = globalThis.
   }
   await postCard(first, "Building Collapse", { results: [], frags, notes }, rolls);
   return { frags, notes };
+}
+
+/* -------------------------------------------- */
+/*  Attacking a building                        */
+/* -------------------------------------------- */
+
+/** The middle of a region's shapes (canvas px), or null. */
+export function regionCentre(region) {
+  const b = region?.object?.bounds;
+  if (b && Number.isFinite(b.x)) return { x: b.x + b.width / 2, y: b.y + b.height / 2 };
+  const pts = [];
+  for (const sh of region?.shapes ?? []) {
+    if (sh.type === "rectangle") pts.push({ x: num(sh.x) + num(sh.width) / 2, y: num(sh.y) + num(sh.height) / 2 });
+    else if (sh.type === "ellipse" || sh.type === "circle") pts.push({ x: num(sh.x), y: num(sh.y) });
+    else if (Array.isArray(sh.points) && sh.points.length >= 2) {
+      let x = 0, y = 0, n = 0;
+      for (let i = 0; i + 1 < sh.points.length; i += 2) { x += num(sh.points[i]); y += num(sh.points[i + 1]); n++; }
+      if (n) pts.push({ x: x / n, y: y / n });
+    }
+  }
+  if (!pts.length) return null;
+  return { x: pts.reduce((t, p) => t + p.x, 0) / pts.length, y: pts.reduce((t, p) => t + p.y, 0) / pts.length };
+}
+
+/** The building's nearest wall from a point, walking toward its middle (1 m steps); the point itself if inside. */
+export function nearestWall(from, rec) {
+  if (!rec?.region || !from) return null;
+  if (regionHas(rec.region, from)) return { ...from };
+  const c = regionCentre(rec.region);
+  if (!c) return null;
+  const d = Math.hypot(c.x - from.x, c.y - from.y);
+  const step = Math.max(0.5, pixelsPerMeter());
+  for (let t = 0; t <= d; t += step) {
+    const p = { x: from.x + (c.x - from.x) * t / d, y: from.y + (c.y - from.y) * t / d };
+    if (regionHas(rec.region, p)) return p;
+  }
+  return regionHas(rec.region, c) ? c : null;
+}
+
+/**
+ * Buildings a unit can attack, nearest first:
+ * [{ rec, name, point (nearest wall), hexes, inside, adjacent, cf }].
+ */
+export function buildingTargets(actor, attackerToken, scene = attackerToken?.document?.parent ?? globalThis.canvas?.scene) {
+  const from = attackerToken?.center ?? (attackerToken && tokenCenter(attackerToken.document ?? attackerToken));
+  if (!from) return [];
+  const out = [];
+  for (const rec of terrainRegions(scene).filter(r => r.terrain === "building" && currentCF(r) > 0)) {
+    const point = nearestWall(from, rec);
+    if (!point) continue;
+    const meters = Math.hypot(point.x - from.x, point.y - from.y) / Math.max(1e-6, pixelsPerMeter());
+    const inside = regionHas(rec.region, from) && unitElevation(actor, attackerToken?.document ?? attackerToken) < rec.height;
+    const hexes = inside ? 0 : metersToHexes(meters, GROUND_HEX_M, { sameHex: false });
+    out.push({ rec, name: rec.region?.name || "Building", point, hexes, inside, adjacent: inside || hexes <= 1, cf: currentCF(rec) });
+  }
+  return out.sort((a, b) => a.hexes - b.hexes);
+}
+
+/** A stand-in "token" for a building target (the fire and physical dialogs use its name and centre). */
+export function buildingTargetToken(t) {
+  return { name: t.name, actor: null, center: t.point, document: { elevation: 0, rotation: 0 },
+    building: { uuid: t.rec.behavior?.uuid, name: t.name, autoHit: t.adjacent, adjacent: t.adjacent, inside: t.inside, cf: t.cf, cls: t.rec.buildingClass } };
+}
+
+/**
+ * No unit targeted: offer the buildings in reach (all, or only adjacent ones for
+ * a physical attack). Resolves to a building target token, null (no target), or
+ * "cancel". Skips the question when the scene has no buildings in reach.
+ */
+export async function chooseBuildingTarget(actor, attackerToken, { adjacentOnly = false } = {}) {
+  const list = buildingTargets(actor, attackerToken).filter(t => !adjacentOnly || t.adjacent);
+  if (!list.length) return null;
+  const esc = (t) => foundry.utils.escapeHTML?.(String(t)) ?? String(t);
+  const opts = list.map((t, i) => `<option value="${i}"${i === 0 ? " selected" : ""}>${esc(t.name)} — ${BUILDING_CLASSES[t.rec.buildingClass]?.label ?? ""} building, CF ${t.cf}, ${t.inside ? "you're inside it" : `${t.hexes} hex${t.hexes === 1 ? "" : "es"}`}${t.adjacent ? " (automatic hit)" : ""}</option>`).join("");
+  const r = await foundry.applications.api.DialogV2.wait({
+    window: { title: `No unit targeted — ${actor.name}`, icon: "fa-solid fa-building" },
+    content: `<div class="tw-attack-dialog"><p>No unit is targeted. Attack a building?</p>
+      <div class="form-group"><label>Building</label><select name="building">${opts}${adjacentOnly ? "" : '<option value="none">No — attack without a target (enter the range)</option>'}</select></div></div>`,
+    buttons: [
+      { action: "ok", label: "Continue", icon: "fa-solid fa-crosshairs", default: true, callback: (e, b) => b.form.elements.building.value },
+      { action: "cancel", label: "Cancel", icon: "fa-solid fa-times" }
+    ],
+    rejectClose: false
+  });
+  if (!r || r === "cancel") return "cancel";
+  if (r === "none") return null;
+  const t = list[num(r)];
+  return t ? buildingTargetToken(t) : null;
+}
+
+/** Start an attack on a building (the damage code collects what hits it). */
+export function beginBuildingTarget(target) {
+  const rec = target?.building ? buildingRecord(target.building.uuid, globalThis.canvas?.scene) : null;
+  return setBuildingTarget(rec ? { rec, name: target.name } : null);
+}
+
+/**
+ * Finish an attack on a building: it takes everything that hit it; infantry
+ * inside take their share of each attack (light ¾, medium ½, heavy ¼, hardened
+ * none — conventional infantry as direct fire, battle armor in 5-point groups).
+ * Returns { alert, occupants: { frags, notes } | null, collapse } or null.
+ */
+export async function endBuildingTarget(rolls = []) {
+  const bt = activeBuildingTarget();
+  setBuildingTarget(null);
+  if (!bt?.attacks?.length) return null;
+  const total = bt.attacks.reduce((t, a) => t + a, 0);
+  const cfBefore = currentCF(bt.rec);
+  const d = await damageBuilding(bt.rec, total);
+  const cls = BUILDING_CLASSES[bt.rec.buildingClass] ?? BUILDING_CLASSES.medium;
+  const frags = [], notes = [];
+  const scene = bt.rec.region?.parent ?? globalThis.canvas?.scene;
+  if (cls.occupants > 0) {
+    for (const doc of scene?.tokens ?? []) {
+      const a = doc.actor;
+      if (!a || !["infantry", "battle_armor"].includes(a.type)) continue;
+      if (buildingAround(a, doc)?.behavior !== bt.rec.behavior) continue;
+      for (const hit of bt.attacks) {
+        const share = Math.round(hit * cls.occupants);
+        if (share <= 0) continue;
+        frags.push(await resolveDamageAgainst(a, "front", a.type === "battle_armor" ? fiveGroups(share) : [share], rolls, doc.name || a.name, { noIntercept: true }));
+        notes.push(`${doc.name || a.name} inside takes ${share} of a ${hit}-point attack (${cls.label}: ${Math.round(cls.occupants * 100)}%)`);
+      }
+    }
+  }
+  return {
+    alert: { tag: "BUILDING", text: `${bt.name} takes ${total} damage: CF ${d.before} → ${d.after}${d.collapsed ? " — it collapses" : ""}`, red: d.collapsed },
+    occupants: frags.length ? { frags, notes } : null,
+    collapse: d.collapsed ? { uuid: bt.rec.behavior?.uuid, cfBefore } : null
+  };
+}
+
+/** The card for the infantry inside an attacked building. */
+export async function postOccupantCard(name, occupants) {
+  if (!occupants?.frags?.length) return;
+  await postCard(null, `Fire into ${name}`, { results: [], frags: occupants.frags, notes: occupants.notes }, []);
 }

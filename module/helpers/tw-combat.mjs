@@ -15,8 +15,8 @@ import { beginRecording, endRecording, writeDoc } from "./gm-relay.mjs";
 import { AERO_HEX_M, GROUND_HEX_M, measureHexes, pixelsPerMeter } from "./tw-scale.mjs";
 import { arcCheck, attackSide, tokenFacing, torsoTwist } from "./tw-facing.mjs";
 import { mapAttackTerrain, terrainRowBlock, unitElevation } from "./tw-terrain.mjs";
-import { beginShield, collapseBuilding, endShield } from "./tw-buildings.mjs";
-import { shieldGroups } from "./tw-shield.mjs";
+import { beginBuildingTarget, beginShield, chooseBuildingTarget, collapseBuilding, endBuildingTarget, endShield, postOccupantCard } from "./tw-buildings.mjs";
+import { activeBuildingTarget, activeShield, buildingTargetHit, shieldGroups, shieldMiss } from "./tw-shield.mjs";
 import { facingChanges, mechLocChanges, poolChange, volleyCard, roundLabel, ammoFooter, heatCard, rollCard, rollSummary, summaryContext, volleySummary, withSummary } from "./tw-cards.mjs";
 import { currentTurnKey } from "./tw-turn.mjs";
 import { autoAttackMods, movedThisTurn, pilotUnconscious, rangeDependentMods, terrainMods, vehicleWeaponLocation } from "./tw-movement.mjs";
@@ -1179,6 +1179,8 @@ export async function resolveDamageAgainst(targetActor, direction, groupSizes, r
   noPSR = false, locationRoller = null, extraPSR = [], forceMotive = false, partialCover = false, explode = null,
   areaEffect = false, autoCrit = false, noIntercept = false, platoonHit = null
 } = {}) {
+  // Attacking a building (no unit): the building takes it all (tw-buildings.mjs).
+  if (!targetActor && activeBuildingTarget()) return buildingTargetHit(groupSizes);
   const tt = targetActor?.type;
   // A unit inside a building: the building takes its share of each hit first (tw-buildings.mjs).
   if (!areaEffect && tt !== 'infantry') groupSizes = shieldGroups(targetActor, groupSizes);
@@ -1754,7 +1756,14 @@ export async function fireWeapons(actor, preselect = []) {
   const gunnery = gunneryFor(actor);
   const heatMod = heatToHitMod(actor);
   const attackerToken = actor.getActiveTokens?.()[0] || null;
-  const target = [...(game.user?.targets ?? [])][0] || null;
+  let target = [...(game.user?.targets ?? [])][0] || null;
+  // No unit targeted: offer the buildings in reach (tw-buildings.mjs).
+  if (!target && attackerToken) {
+    const b = await chooseBuildingTarget(actor, attackerToken);
+    if (b === 'cancel') return;
+    target = b;
+  }
+  const building = target?.building ?? null;
   const targetName = target?.name || '';
   const targetActor = target?.actor || null;
   const tb = targetBlock(actor, targetActor);
@@ -1763,6 +1772,8 @@ export async function fireWeapons(actor, preselect = []) {
   const autoDist = attackerToken && target ? measureHexes(attackerToken, target, mode === 'aero' ? AERO_HEX_M : GROUND_HEX_M) : null;
   const shared = [...autoAttackMods(actor, null, targetActor).filter(m => !WEAPON_SPECIFIC.includes(m.key)), ...aeroAttackMods(actor, targetActor)]
     .filter(m => !(closeQuarters(actor, targetActor) && CLOSE_QUARTERS_DROP.includes(m.key)));
+  // A building is an immobile target (−4); adjacent or from inside, every shot hits.
+  if (building && !building.autoHit) shared.push({ key: 'immobileBuilding', label: 'Building (immobile target)', value: -4 });
   const rows = ready.map(w => weaponPreviewRow(actor, w, targetActor, mode));
 
   const esc = (t) => foundry.utils.escapeHTML?.(String(t)) ?? String(t);
@@ -1771,11 +1782,20 @@ export async function fireWeapons(actor, preselect = []) {
     : ATTACK_DIRECTIONS;
   // Facing: the attack direction from where the attacker stands against the
   // target's facing, and whether each weapon's firing arc bears on the target.
-  const facing = facingContext(actor, attackerToken, target, targetActor);
+  // (Firing at the building it stands in, a unit has no arc to worry about.)
+  const facing = building?.inside ? null : facingContext(actor, attackerToken, target, targetActor);
   // Terrain from the map's terrain regions (ground attacks): woods / smoke
   // between, what the target stands in, water cover, line of sight.
   const map = mode === 'ground' && attackerToken?.center && target?.center ? mapAttackTerrain(actor, targetActor, attackerToken.center, target.center, { attackerElevation: unitElevation(actor, attackerToken.document), targetElevation: unitElevation(targetActor, target.document) }) : null;
+  if (map && building) {
+    // The target is the building's nearest wall: drop what it "stands in"; say what it is.
+    map.summary = map.summary.filter(x => !/^target (in|inside) |^both inside/.test(x));
+    map.summary.unshift(`${building.cls} building, CF ${building.cf}${building.autoHit ? (building.inside ? ' — from inside: every shot hits' : ' — adjacent: every shot hits') : ' — immobile target (−4)'}`);
+    map.targetWoods = 'none';
+  }
   const fromMap = map ? ' <span class="tw-hint">(from map)</span>' : '';
+  // A unit inside a building, fired on from next to it: missed shots hit the building (TW p. 171).
+  const missIntoBuilding = !building && mode === 'ground' && targetActor && targetActor.type !== 'infantry' && autoDist != null && autoDist <= 1;
   const dirOpts = dirList.map(d => `<option value="${d.key}"${d.key === facing?.side ? ' selected' : ''}>${d.label}${d.key === facing?.side ? ' (from facing)' : ''}</option>`).join('');
   const modRows = shared.map(x => `
       <div class="form-group"><label>${esc(x.label)}${x.hint ? ` <span class="tw-hint">${esc(x.hint)}</span>` : ''}</label><input type="number" name="auto_${x.key}" value="${x.value}" /></div>`).join('');
@@ -1856,6 +1876,8 @@ export async function fireWeapons(actor, preselect = []) {
     other: num(f.other.value),
     direction: f.direction.value,
     ids: ready.filter(w => f[`w_${w.id}`]?.checked).map(w => w.id),
+    building: building ? { autoHit: !!building.autoHit, name: building.name } : null,
+    missIntoBuilding,
     modes: Object.fromEntries(ready.filter(w => f[`m_${w.id}`]).map(w => [w.id, f[`m_${w.id}`].value]))
   });
 
@@ -1902,6 +1924,7 @@ export async function fireWeapons(actor, preselect = []) {
   beginRecording();
   // A target inside a building is shielded by it (ground attacks).
   if (mode === 'ground') beginShield(targetActor, target, actor, attackerToken);
+  if (building) beginBuildingTarget(target);
   for (const id of ids) {
     const weapon = all.find(w => w.id === id);
     if (!weapon || weaponBlock(actor, weapon)) continue;
@@ -1911,7 +1934,8 @@ export async function fireWeapons(actor, preselect = []) {
     else if (terrainRowBlock(map, actor, weapon)) (shot.notes ??= []).push(`Fired although ${terrainRowBlock(map, actor, weapon)} — allowed by the firing player / GM.`);
     shots.push(shot);
   }
-  const building = await endShield();
+  const shielded = await endShield();
+  const hitBuilding = building ? await endBuildingTarget(rolls) : null;
   const recorded = endRecording();
   if (!shots.length) return;
   // One condensed card for the whole volley (tw-cards.mjs / tw-volley.hbs).
@@ -1927,7 +1951,7 @@ export async function fireWeapons(actor, preselect = []) {
     shots,
     heat: tracksHeat ? shots.reduce((t, s) => t + num(s.heat), 0) : null,
     footer: ammoFooter(shots),
-    alerts: building ? [building.alert] : []
+    alerts: [shielded?.alert, hitBuilding?.alert].filter(Boolean)
   });
   await ChatMessage.create({
     flags: { 'mech-foundry': withSummary(recorded, volleySummary(card, { ...summaryContext(), kind: 'fire', attacker: actor, target: targetActor })) },
@@ -1936,7 +1960,9 @@ export async function fireWeapons(actor, preselect = []) {
     content: await foundry.applications.handlebars.renderTemplate("systems/mech-foundry/templates/chat/tw-volley.hbs", card),
     rolls
   });
-  if (building?.collapse) await collapseBuilding(building.collapse.uuid, { cfBefore: building.collapse.cfBefore });
+  if (hitBuilding?.occupants) await postOccupantCard(building.name, hitBuilding.occupants);
+  const collapse = shielded?.collapse ?? hitBuilding?.collapse;
+  if (collapse) await collapseBuilding(collapse.uuid, { cfBefore: collapse.cfBefore });
 }
 
 /**
@@ -1985,9 +2011,11 @@ async function resolveWeaponShot(actor, weapon, target, result, rolls) {
   const dice = roll.dice[0]?.results?.map(r => r.result) ?? [];
   // Ultra / Rotary autocannons jam on a low natural roll; a jammed shot does nothing.
   const jammed = rb.inRange && jams(weapon, fmode, roll.total);
-  const hit = rb.inRange && !jammed && roll.total >= tn;
+  const autoHit = !!result.building?.autoHit;
+  const hit = rb.inRange && !jammed && (autoHit || roll.total >= tn);
   const margin = roll.total - tn;
   const notes = [];
+  if (autoHit && rb.inRange && !jammed) notes.push(`${result.building.name}: automatic hit${num(weapon.clusterSize) > 0 ? ', every missile hits' : ''}.`);
   if (jammed) notes.push(`Natural ${roll.total}: ${weapon.name} JAMS${kind === 'rotary' ? ' — Unjam on the Combat tab (2D6 ≥ Gunnery + 3, instead of attacking)' : ' for the rest of the battle'}.`);
 
   // The weapon fired (an out-of-range shot can't be declared, so it doesn't
@@ -2096,8 +2124,8 @@ async function resolveWeaponShot(actor, weapon, target, result, rolls) {
       let ams = null;
       if (isMissileAttack(weapon) && (ams = readyAMS(targetActor, currentTurnKey()))) cMods.push({ label: `${targetName}'s ${ams.name}`, value: -4 });
       let missiles, cRoll = null;
-      if (weapon.streak && !ams) {
-        // Streak launchers only fire on a lock: every missile hits.
+      if ((weapon.streak && !ams) || autoHit) {
+        // Streak launchers only fire on a lock: every missile hits (and every shot at an adjacent building).
         missiles = size;
       } else {
         const natural = weapon.streak ? 11 : (cRoll = await new Roll("2d6").evaluate(), rolls.push(cRoll), cRoll.total);
@@ -2115,6 +2143,17 @@ async function resolveWeaponShot(actor, weapon, target, result, rolls) {
       partialCover: mode !== 'aero' && !!result.terrain?.partialCover && targetActor?.type === 'mech'
     });
     hitResult = { cluster: !!clusterInfo, clusterInfo, total, ...frag };
+  }
+
+  // A miss from next to a unit inside a building hits the building (TW p. 171).
+  if (!hit && rb.inRange && !jammed && result.missIntoBuilding && perHit > 0 && activeShield()) {
+    let dmg = perHit * Math.max(1, shotsFor(weapon, fmode));
+    if (clusterSize > 0) {
+      const cr = await new Roll("2d6").evaluate();
+      rolls.push(cr);
+      dmg = clusterHits(clusterSize, cr.total) * perHit;
+    }
+    if (shieldMiss(targetActor, dmg)) notes.push(`Missed: the building takes ${dmg}.`);
   }
 
   return {

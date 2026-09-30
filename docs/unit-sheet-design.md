@@ -224,9 +224,20 @@ criticals and cluster grouping:
   to rubble). The hover readout shows "Medium building (CF 32, 2 levels)", and ground units
   ('Mechs, vehicles, battle armor, infantry) inside a building below its roof carry the
   "Inside a Building" status (house icon), kept up to date as tokens move or change elevation
-  and as building regions are drawn, moved, collapsed or deleted (tw-status.mjs). Not modelled:
-  shooting at a building itself (and the share of it reaching infantry inside) (set its CF lost by hand), floors / basements and overload collapse, TacOps
-  diagrammed line of sight.
+  and as building regions are drawn, moved, collapsed or deleted (tw-status.mjs).
+  Attacking a building: firing (or making a physical attack) with no unit targeted offers the
+  buildings in reach, nearest first (physical: adjacent ones only), measured to the nearest wall.
+  A building is an immobile target (−4); from an adjacent hex or from inside it every shot hits
+  automatically and every missile hits (MegaMek). It takes all the damage; conventional infantry
+  and battle armor inside take a share of each attack (light ¾, medium ½, heavy ¼, hardened
+  none; infantry converted as direct fire, battle armor in 5-point groups — "Fire into …" card).
+  Physical attacks on an adjacent building hit automatically (punch, kick, club, physical
+  weapon; charges, death from above and pushes against buildings aren't supported). Missed
+  attacks at a unit inside a building: weapon fire from an adjacent hex at a non-infantry unit
+  hits the building (cluster weapons roll the Cluster Hits Table), and any missed punch, kick,
+  club or physical weapon does (TW p. 171). Not modelled: charges, death from above and pushes
+  into buildings (and units displaced into one), floors / basements and overload collapse,
+  fire, TacOps diagrammed line of sight.
 - **Movement discipline** (`module/helpers/tw-phase.mjs`): a token move that takes a unit past
   its current MP this turn (Running / Flanking, or Walking when "Walked" is declared, Jumping
   when "Jumped" is) warns the mover and whispers the GM — it isn't blocked. During a running

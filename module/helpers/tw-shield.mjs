@@ -46,3 +46,46 @@ export function shieldPlatoon(targetActor, points, hits = 1) {
     : `Firing between floors of ${name}: it absorbs ${Math.round(shield.share * 100)}% (${absorbed}): ${p} → ${p - absorbed}`;
   return { points: p - absorbed, absorbed, line };
 }
+
+/* -------------------------------------------- */
+/*  Missed shots at a unit inside a building    */
+/* -------------------------------------------- */
+
+/**
+ * A missed attack on the shielded unit that hits the building instead (TW
+ * p. 171: weapon fire from an adjacent hex at a non-infantry unit; any missed
+ * physical attack). Returns the damage taken by the building (0 if not shielded).
+ */
+export function shieldMiss(targetActor, damage) {
+  const d = Math.max(0, Math.round(num(damage)));
+  if (!shield || !targetActor || targetActor.uuid !== shield.uuid || d <= 0) return 0;
+  shield.missed = num(shield.missed) + d;
+  return d;
+}
+
+/* -------------------------------------------- */
+/*  A building as the target                    */
+/* -------------------------------------------- */
+
+let buildingTarget = null;
+
+/** The building being attacked this volley: { rec, name, attacks: [damage per attack] } or null. */
+export function activeBuildingTarget() {
+  return buildingTarget;
+}
+
+/** Start (or clear, with null) attacking a building. */
+export function setBuildingTarget(t) {
+  buildingTarget = t ? { attacks: [], ...t } : null;
+  return buildingTarget;
+}
+
+/**
+ * Damage groups from one attack on the building target: the building takes
+ * them all. Returns a damage fragment for the card (no unit hit).
+ */
+export function buildingTargetHit(groups) {
+  const total = (groups || []).reduce((t, g) => t + Math.max(0, num(g)), 0);
+  if (buildingTarget && total > 0) buildingTarget.attacks.push(total);
+  return { building: true, hasTarget: false, applied: true, total, groups: (groups || []).map(d => ({ damage: num(d) })), targetName: buildingTarget?.name ?? '' };
+}
