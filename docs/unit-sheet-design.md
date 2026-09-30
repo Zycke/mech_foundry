@@ -153,6 +153,24 @@ criticals and cluster grouping:
   vehicles / aerospace: front 330–30°, sides 120°, rear 60°) and unchecks weapons that can't
   bear, with the reason — they can still be checked (the card notes the override); the
   sheet's to-hit buttons show ARC.
+- **Map terrain** (`module/helpers/tw-terrain.mjs`): the GM draws Scene Regions and gives
+  them the "Mech Foundry Terrain" region behaviour (type, ground level, water depth). Types:
+  clear, paved / road, rough, rubble, light / heavy woods, water, swamp, ice, building, light /
+  heavy smoke; a new terrain region is coloured by type and named after it (custom names are
+  kept). Regions overlap and combine (woods on a level-2 hill). A unit's hex is the terrain
+  under its token's centre (shown under a hovered token, "Heavy woods · Level 1"). Along a line,
+  each continuous stretch of a feature counts round(length ÷ 30 m) hexes — half a hex (15 m)
+  counts — and the attacker's and target's own hexes (the first and last 15 m) aren't
+  "between". Ground attacks read from the map (tagged "(from map)", all still editable): light
+  / heavy woods and smoke hexes between (+1 / +2 each), what the target stands in, partial
+  cover for a 'Mech in depth 1 water, and whether conventional infantry are in the open (not in
+  woods, rough, rubble, swamp or a building — MegaMek infantryInOpen). Line of sight: 3+ points
+  of intervening woods / smoke (light 1, heavy 2) block it. Weapons that can't fire are
+  unchecked with the reason, like out-of-arc ones: no line of sight; a submerged (depth 2+)
+  'Mech firing at, or being fired at from, above the surface; leg weapons of a 'Mech in depth
+  1 water. The sheet's to-hit buttons include map terrain (LOS / N/A when blocked); the
+  anti-'Mech dialog pre-selects the woods the target stands in. Not yet: movement costs,
+  levels / elevation line of sight, buildings.
 - **Movement discipline** (`module/helpers/tw-phase.mjs`): a token move that takes a unit past
   its current MP this turn (Running / Flanking, or Walking when "Walked" is declared, Jumping
   when "Jumped" is) warns the mover and whispers the GM — it isn't blocked. During a running

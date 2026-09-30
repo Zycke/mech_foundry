@@ -549,5 +549,15 @@
   "MECHFOUNDRY.Rating": "Rating",
   "MECHFOUNDRY.Assignment": "Assignment",
   "MECHFOUNDRY.Unassigned": "Unassigned",
-  "MECHFOUNDRY.SummarySkillRoll": "Summary Skill Roll"
+  "MECHFOUNDRY.SummarySkillRoll": "Summary Skill Roll",
+
+  "TYPES.RegionBehavior.mech-foundry.terrain": "Mech Foundry Terrain",
+  "TYPES.HINTS.RegionBehavior.mech-foundry.terrain": "Mark the region as Total Warfare terrain (woods, water, rough, buildings, smoke …) with its ground level. Attacks read woods, smoke, water and cover from it.",
+  "MFTERRAIN": {
+    "FIELDS": {
+      "terrain": { "label": "Terrain", "hint": "What covers this area. Regions can overlap: woods on a hill, smoke over rubble." },
+      "level": { "label": "Ground level", "hint": "Hills and hollows in levels (1 level = 6 m). Leave 0 for flat ground; used for levels and line of sight." },
+      "depth": { "label": "Water depth", "hint": "Water only: depth in levels. Depth 1 gives a 'Mech partial cover and stops its leg weapons; depth 2+ submerges it." }
+    }
+  }
 }

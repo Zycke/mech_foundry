@@ -7736,3 +7736,5 @@
 .mech-foundry .mf-twist .twist-set.active { border-color: #5fd3e6; color: #5fd3e6; }
 .mech-foundry .mf-twist .twist-set:disabled { opacity: 0.4; }
 .tw-fire-dialog .tw-fire-twist { margin: 0 0 4px; font-size: 0.8rem; color: #5fd3e6; }
+.tw-fire-dialog .tw-fire-map { margin: 0 0 4px; font-size: 0.8rem; color: #8fc27a; }
+.tw-fire-dialog .tw-fire-map i { margin-right: 3px; }

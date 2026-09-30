@@ -444,10 +444,10 @@ export function rangeDependentMods(weapon, targetActor, range) {
 /** Terrain / cover / secondary-target modifiers from the dialog inputs. */
 export function terrainMods({ lightWoods = 0, heavyWoods = 0, targetWoods = 'none', partialCover = false, secondary = 'none' } = {}) {
   const mods = [];
-  if (lightWoods > 0) mods.push({ label: `Light woods ×${lightWoods}`, value: lightWoods });
-  if (heavyWoods > 0) mods.push({ label: `Heavy woods ×${heavyWoods}`, value: 2 * heavyWoods });
-  if (targetWoods === 'light') mods.push({ label: 'Target in light woods', value: 1 });
-  if (targetWoods === 'heavy') mods.push({ label: 'Target in heavy woods', value: 2 });
+  if (lightWoods > 0) mods.push({ label: `Light woods/smoke between ×${lightWoods}`, value: lightWoods });
+  if (heavyWoods > 0) mods.push({ label: `Heavy woods/smoke between ×${heavyWoods}`, value: 2 * heavyWoods });
+  if (targetWoods === 'light') mods.push({ label: 'Target in light woods/smoke', value: 1 });
+  if (targetWoods === 'heavy') mods.push({ label: 'Target in heavy woods/smoke', value: 2 });
   if (partialCover) mods.push({ label: 'Partial cover', value: 1 });
   if (secondary === 'front') mods.push({ label: 'Secondary target (front arc)', value: 1 });
   if (secondary === 'side') mods.push({ label: 'Secondary target (side/rear)', value: 2 });

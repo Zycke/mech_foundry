@@ -14,6 +14,7 @@ import {
 import { beginRecording, endRecording, writeDoc } from "./gm-relay.mjs";
 import { AERO_HEX_M, GROUND_HEX_M, measureHexes, pixelsPerMeter } from "./tw-scale.mjs";
 import { arcCheck, attackSide, tokenFacing, torsoTwist } from "./tw-facing.mjs";
+import { mapAttackTerrain, terrainRowBlock } from "./tw-terrain.mjs";
 import { facingChanges, mechLocChanges, poolChange, volleyCard, roundLabel, ammoFooter, heatCard, rollCard, rollSummary, summaryContext, volleySummary, withSummary } from "./tw-cards.mjs";
 import { currentTurnKey } from "./tw-turn.mjs";
 import { autoAttackMods, movedThisTurn, pilotUnconscious, rangeDependentMods, terrainMods, vehicleWeaponLocation } from "./tw-movement.mjs";
@@ -1629,8 +1630,8 @@ function autoSumFor(r, mode) {
 
 /**
  * To-hit preview for every weapon against the user's current target, for the
- * weapon rows on the sheet: { weaponId: {text, title, oor} }. Terrain isn't
- * known here, so it assumes open ground; the fire dialog adds it.
+ * weapon rows on the sheet: { weaponId: {text, title, oor} }. Terrain comes
+ * from the map's terrain regions when the scene has them (else open ground).
  */
 export function weaponToHitPreview(actor) {
   const target = [...(game.user?.targets ?? [])][0] || null;
@@ -1641,7 +1642,9 @@ export function weaponToHitPreview(actor) {
   const range = attackerToken ? measureHexes(attackerToken, target, mode === 'aero' ? AERO_HEX_M : GROUND_HEX_M) : null;
   const shared = [...autoAttackMods(actor, null, targetActor).filter(m => !WEAPON_SPECIFIC.includes(m.key)), ...aeroAttackMods(actor, targetActor)]
     .filter(m => !(closeQuarters(actor, targetActor) && CLOSE_QUARTERS_DROP.includes(m.key)));
-  const v = { gunnery: gunneryFor(actor), autoSum: shared.reduce((t, m) => t + m.value, 0), heat: heatToHitMod(actor), range, other: 0, terrain: 0 };
+  const map = mode === 'ground' && attackerToken?.center && target?.center ? mapAttackTerrain(actor, targetActor, attackerToken.center, target.center) : null;
+  const mapMods = map ? terrainMods(map) : [];
+  const v = { gunnery: gunneryFor(actor), autoSum: shared.reduce((t, m) => t + m.value, 0), heat: heatToHitMod(actor), range, other: 0, terrain: mapMods.reduce((t, m) => t + m.value, 0) };
   const out = {};
   const facing = facingContext(actor, attackerToken, target, targetActor);
   for (const w of unitWeapons(actor)) {
@@ -1649,15 +1652,18 @@ export function weaponToHitPreview(actor) {
     const p = previewTN(v, row);
     const arc = facing ? arcCheck({ actor, weapon: w, from: facing.from, facing: facing.attackerFacing, to: facing.to, twist: facing.twist }) : null;
     if (arc && !arc.ok) { out[w.id] = { text: 'ARC', oor: true, title: `Out of arc vs ${target.name}: ${arc.why}` }; continue; }
+    const blocked = terrainRowBlock(map, actor, w);
+    if (blocked) { out[w.id] = { text: map.line.blocked ? 'LOS' : 'N/A', oor: true, title: `Can't fire at ${target.name}: ${blocked}` }; continue; }
     const parts = [`Gunnery ${v.gunnery}`, ...shared.map(m => `${m.label} ${m.value >= 0 ? '+' : ''}${m.value}`)];
     if (row.fixed) parts.push(`Weapon mods +${row.fixed}`);
+    for (const m of mapMods) parts.push(`${m.label} +${m.value}`);
     if (mode === 'a2g') parts.push('air-to-ground: pick strafe / strike / bomb in the fire dialog');
     if (mode === 'aero') parts.push('angle of attack added in the fire dialog');
     if (v.heat) parts.push(`Heat +${v.heat}`);
     parts.push(range == null ? 'range unknown (no token on the map)' : `Range ${range} (${p.bracket})`);
     out[w.id] = p.oor
       ? { text: 'OOR', oor: true, title: `Out of range vs ${target.name} (${range} hexes)` }
-      : { text: `${p.tn}+`, oor: false, title: `vs ${target.name}: needs ${p.tn}+ (${p.chance}%) · ${parts.join(' · ')} · terrain not included` };
+      : { text: `${p.tn}+`, oor: false, title: `vs ${target.name}: needs ${p.tn}+ (${p.chance}%) · ${parts.join(' · ')} · ${map ? 'terrain from the map' : 'terrain not included'}` };
   }
   return out;
 }
@@ -1762,11 +1768,22 @@ export async function fireWeapons(actor, preselect = []) {
   // Facing: the attack direction from where the attacker stands against the
   // target's facing, and whether each weapon's firing arc bears on the target.
   const facing = facingContext(actor, attackerToken, target, targetActor);
+  // Terrain from the map's terrain regions (ground attacks): woods / smoke
+  // between, what the target stands in, water cover, line of sight.
+  const map = mode === 'ground' && attackerToken?.center && target?.center ? mapAttackTerrain(actor, targetActor, attackerToken.center, target.center) : null;
+  const fromMap = map ? ' <span class="tw-hint">(from map)</span>' : '';
   const dirOpts = dirList.map(d => `<option value="${d.key}"${d.key === facing?.side ? ' selected' : ''}>${d.label}${d.key === facing?.side ? ' (from facing)' : ''}</option>`).join('');
   const modRows = shared.map(x => `
       <div class="form-group"><label>${esc(x.label)}${x.hint ? ` <span class="tw-hint">${esc(x.hint)}</span>` : ''}</label><input type="number" name="auto_${x.key}" value="${x.value}" /></div>`).join('');
   const v0 = { gunnery, autoSum: shared.reduce((t, m) => t + m.value, 0), heat: heatMod, range: autoDist, other: 0,
-    terrain: mode === 'aero' ? num(aeroAngleMod(targetActor, 'front')?.value) : mode === 'a2g' ? airToGroundMods(actor, 'strafe').reduce((t, m) => t + m.value, 0) : 0 };
+    terrain: mode === 'aero' ? num(aeroAngleMod(targetActor, 'front')?.value) : mode === 'a2g' ? airToGroundMods(actor, 'strafe').reduce((t, m) => t + m.value, 0) : map ? terrainMods(map).reduce((t, m) => t + m.value, 0) : 0 };
+  // Why a weapon can't bear (unchecked, but the player / GM may fire anyway).
+  const rowBlock = (w) => {
+    const arc = facing ? arcCheck({ actor, weapon: w, from: facing.from, facing: facing.attackerFacing, to: facing.to, twist: facing.twist }) : null;
+    if (arc && !arc.ok) return `Out of arc: ${arc.why}`;
+    const t = terrainRowBlock(map, actor, w);
+    return t ? `Can't fire: ${t}` : '';
+  };
   const weaponRows = ready.map((w, i) => {
     const p = previewTN(v0, rows[i]);
     const r = rows[i];
@@ -1774,11 +1791,10 @@ export async function fireWeapons(actor, preselect = []) {
     const modes = fireModes(w, targetActor);
     const modeCell = modes.length ? `<select name="m_${w.id}">${modes.map(m => `<option value="${m.value}">${esc(m.label)}</option>`).join('')}</select>` : '';
     const ammoText = usesAmmo(w) ? ` · ${num(w.ammo)} rds${w.clusterAmmo !== undefined && w.clusterAmmo !== '' ? ` + ${num(w.clusterAmmo)} cluster` : ''}` : '';
-    const arc = facing ? arcCheck({ actor, weapon: w, from: facing.from, facing: facing.attackerFacing, to: facing.to, twist: facing.twist }) : null;
-    const outOfArc = arc && !arc.ok;
-    return `<tr${outOfArc ? ' class="tw-fw-oa"' : ''}>
-        <td><input type="checkbox" name="w_${w.id}" ${preselect.includes(w.id) && !outOfArc ? 'checked' : ''} /></td>
-        <td class="tw-fw-name">${esc(w.name || 'Weapon')}<span class="tw-hint">${esc(w.location || w.arc || '')} · ${ranges}${ammoText}</span>${outOfArc ? `<span class="tw-hint tw-fw-arc">Out of arc: ${esc(arc.why)} — check to fire anyway</span>` : ''}</td>
+    const why = rowBlock(w);
+    return `<tr${why ? ' class="tw-fw-oa"' : ''}>
+        <td><input type="checkbox" name="w_${w.id}" ${preselect.includes(w.id) && !why ? 'checked' : ''} /></td>
+        <td class="tw-fw-name">${esc(w.name || 'Weapon')}<span class="tw-hint">${esc(w.location || w.arc || '')} · ${ranges}${ammoText}</span>${why ? `<span class="tw-hint tw-fw-arc">${esc(why)} — check to fire anyway</span>` : ''}</td>
         <td class="tw-fw-mode">${modeCell}</td>
         <td class="tw-fw-heat">${num(w.heat) ? `${num(w.heat)}H` : ''}</td>
         <td class="tw-fw-tn" data-wid="${w.id}">${p.oor ? 'OOR' : `${p.tn}+ <span class="tw-hint">${p.chance}%</span>`}</td>
@@ -1788,6 +1804,7 @@ export async function fireWeapons(actor, preselect = []) {
   const content = `
     <div class="tw-attack-dialog tw-fire-dialog">
       <p class="tw-atk-target">${targetName ? `Target: <strong>${esc(targetName)}</strong>` : 'No target selected — enter range manually.'}</p>
+      ${map ? `<p class="tw-fire-map"><i class="fa-solid fa-tree"></i> From the map: ${esc(map.summary.join(' · '))}</p>` : ''}
       ${facing?.twist ? `<p class="tw-fire-twist">Torso twisted ${facing.twist > 0 ? 'right' : 'left'} this turn: torso and arm weapons fire from the torso's facing; leg weapons from the legs.</p>` : ''}
       <table class="tw-fire-weapons"><thead><tr><th></th><th>Weapon</th><th>Mode</th><th>Heat</th><th>To-hit</th></tr></thead><tbody>${weaponRows}</tbody></table>
       <p class="tw-fire-heat">Heat from checked weapons: <strong class="tw-fire-heatsum">${ready.filter(w => preselect.includes(w.id)).reduce((t, w) => t + num(w.heat), 0)}</strong></p>
@@ -1803,10 +1820,10 @@ export async function fireWeapons(actor, preselect = []) {
         <div class="form-group"><label>Firing into / out of a screen hex (+2)</label><input type="checkbox" name="screen" /></div>
         <div class="form-group"><label>Secondary target</label><select name="secondary"><option value="none">No (primary)</option><option value="front">Yes, forward arc (+1)</option><option value="side">Yes, side/rear arc (+2)</option></select></div>
       </fieldset>` : `<fieldset class="tw-terrain"><legend>Terrain &amp; target</legend>
-        <div class="form-group"><label>Light woods hexes between</label><input type="number" name="lightWoods" value="0" min="0" /></div>
-        <div class="form-group"><label>Heavy woods hexes between</label><input type="number" name="heavyWoods" value="0" min="0" /></div>
-        <div class="form-group"><label>Target standing in${targetActor?.type === 'infantry' ? ' <span class="tw-hint">conventional infantry in the open take double damage</span>' : ''}</label><select name="targetWoods"><option value="none">Open</option><option value="light">Light woods (+1)</option><option value="heavy">Heavy woods (+2)</option></select></div>
-        <div class="form-group"><label>Partial cover (+1; leg hits strike the cover)</label><input type="checkbox" name="partialCover" /></div>
+        <div class="form-group"><label>Light woods / smoke hexes between${fromMap}</label><input type="number" name="lightWoods" value="${map?.lightWoods ?? 0}" min="0" /></div>
+        <div class="form-group"><label>Heavy woods / smoke hexes between${fromMap}</label><input type="number" name="heavyWoods" value="${map?.heavyWoods ?? 0}" min="0" /></div>
+        <div class="form-group"><label>Target standing in${fromMap}${targetActor?.type === 'infantry' ? ` <span class="tw-hint">conventional infantry in the open take double damage${map && !map.inOpen ? ' (not in the open here)' : ''}</span>` : ''}</label><select name="targetWoods">${[['none', 'Open'], ['light', 'Light woods / smoke (+1)'], ['heavy', 'Heavy woods / smoke (+2)']].map(([k, l]) => `<option value="${k}"${k === (map?.targetWoods ?? 'none') ? ' selected' : ''}>${l}</option>`).join('')}</select></div>
+        <div class="form-group"><label>Partial cover (+1; leg hits strike the cover)${map?.partialCover ? ' <span class="tw-hint">(from map: depth 1 water)</span>' : ''}</label><input type="checkbox" name="partialCover"${map?.partialCover ? ' checked' : ''} /></div>
         <div class="form-group"><label>Secondary target</label><select name="secondary"><option value="none">No (primary)</option>${isInfantry(actor)
           ? '<option value="front">Yes (+1; infantry have no arcs)</option>'
           : '<option value="front">Yes, front arc (+1)</option><option value="side">Yes, side/rear arc (+2)</option>'}</select></div>
@@ -1826,7 +1843,8 @@ export async function fireWeapons(actor, preselect = []) {
       heavyWoods: Math.max(0, num(f.heavyWoods?.value)),
       targetWoods: f.targetWoods?.value ?? 'none',
       partialCover: !!f.partialCover?.checked,
-      secondary: f.secondary?.value ?? 'none'
+      secondary: f.secondary?.value ?? 'none',
+      inOpen: map ? map.inOpen : true
     },
     a2gType: f.a2gType?.value ?? 'strafe',
     atmoHexes: Math.max(0, num(f.atmoHexes?.value)),
@@ -1884,6 +1902,7 @@ export async function fireWeapons(actor, preselect = []) {
     const shot = await resolveWeaponShot(actor, weapon, target, result, rolls);
     const arc = facing ? arcCheck({ actor, weapon, from: facing.from, facing: facing.attackerFacing, to: facing.to, twist: facing.twist }) : null;
     if (arc && !arc.ok) (shot.notes ??= []).push(`Fired outside its ${arc.label} (${arc.why}) — allowed by the firing player / GM.`);
+    else if (terrainRowBlock(map, actor, weapon)) (shot.notes ??= []).push(`Fired although ${terrainRowBlock(map, actor, weapon)} — allowed by the firing player / GM.`);
     shots.push(shot);
   }
   const recorded = endRecording();
@@ -2001,7 +2020,7 @@ async function resolveWeaponShot(actor, weapon, target, result, rolls) {
   // Conventional infantry targets take trooper losses rather than location
   // damage; standing in Clear terrain (no terrain to-hit modifier) doubles them.
   const platoonTarget = targetActor?.type === 'infantry';
-  const clear = platoonTarget && mode !== 'aero' && (result.terrain?.targetWoods ?? 'none') === 'none' && !result.terrain?.partialCover;
+  const clear = platoonTarget && mode !== 'aero' && (result.terrain?.targetWoods ?? 'none') === 'none' && !result.terrain?.partialCover && result.terrain?.inOpen !== false;
   // Narc / TAG: no damage — a pod attaches, or the target is designated this turn.
   if (hit && (kind === 'narc' || kind === 'tag') && targetActor) {
     const key = currentTurnKey();

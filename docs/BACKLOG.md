@@ -22,6 +22,9 @@ Priority things to test in a real v14 world:
       GM prompt), unlinked-token defender uses token actor, Roll survives the socket.
 - [ ] **NPC attacks** from the NPC sheet; **NPC armor BAR** shows `M/B/E/X`.
 - [ ] Skill/attribute/weapon rolls; **link modifiers** at scores 0, 10, 11+.
+- [ ] **Terrain regions**: the "Mech Foundry Terrain" region behaviour appears in a Region's
+      behaviours, saves its type / level / depth, colours and names the region; the fire dialog
+      reads woods / smoke / water from it (`documentTypes.RegionBehavior` in system.json).
 
 ---
 
@@ -202,7 +205,11 @@ Rules detail for what *is* automated lives in `docs/unit-sheet-design.md`.
 - [x] Movement warnings (over MP), Movement-Phase-only token moves for players, GM phase
       checklist, End Phase round summary; facing changes count against MP. Open: movement order
       by initiative isn't enforced.
-- [ ] Terrain detection from the map (woods, water, pavement, buildings) — dialog inputs today.
+- [~] Terrain from the map (Scene Region "Mech Foundry Terrain" behaviour). Done: terrain
+      lookup, woods / smoke between and target terrain, woods / smoke line of sight, water cover
+      and submerged units, infantry in the open, sheet to-hit preview. Next: movement costs,
+      prohibited terrain and PSR prompts from the path; levels, elevation line of sight, falls
+      and physical attacks across levels; buildings.
 - [ ] Buildings: movement, damage absorption, collapse, building PSRs.
 - [ ] Water / underwater, hull down, life support while submerged; hover vehicles sinking
       when immobilized over water.

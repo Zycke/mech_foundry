@@ -53,6 +53,7 @@ import { registerMovementTracking } from "./helpers/tw-movement.mjs";
 import { checklistHTML, registerPhaseEnforcement, toggleChecklist } from "./helpers/tw-phase.mjs";
 import { acknowledge, roundSummaryHTML } from "./helpers/tw-round.mjs";
 import { registerFacingDisplay, registerFacingKeys } from "./helpers/tw-facing-ui.mjs";
+import { registerTerrainBehavior, registerTerrainDisplay } from "./helpers/tw-terrain.mjs";
 import { rollPendingPSR } from "./helpers/tw-falls.mjs";
 import { resolveAeroHeat, rollPendingControl } from "./helpers/tw-aero-flight.mjs";
 import { resolveMechHeat } from "./helpers/tw-combat.mjs";
@@ -135,6 +136,8 @@ Hooks.once('init', function() {
   CONFIG.Item.documentClass = MechFoundryItem;
   CONFIG.Combat.documentClass = MechFoundryCombat;
   CONFIG.Combatant.documentClass = MechFoundryCombatant;
+  // Map terrain: the "Mech Foundry Terrain" Scene Region behaviour.
+  registerTerrainBehavior();
 
   // Token bar attributes for combat units: the derived Total Armor / Total
   // Structure pools (bars) plus heat as a trackable single value. These appear
@@ -626,6 +629,8 @@ function _registerSystemSettings() {
 registerMovementTracking();
 registerPhaseEnforcement(); // after movement tracking: reads its measured distance
 registerFacingDisplay();
+// Terrain regions: colour / name them; show the terrain under a hovered token.
+registerTerrainDisplay();
 // Token status icons mirror unit conditions (prone, shut down, PSR pending…).
 registerUnitStatuses();
 // Roll PSR / Apply / Undo buttons on combat chat cards.
