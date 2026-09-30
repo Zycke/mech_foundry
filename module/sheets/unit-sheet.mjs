@@ -2,6 +2,8 @@ import { MechFoundryActorSheetV2 } from "./base-actor-sheet.mjs";
 import { currentTurnKey, fireWeapons, firedThisTurn, unjamWeapon, usesAmmo, weaponToHitPreview } from "../helpers/tw-combat.mjs";
 import { MOVE_MODES, movedThisTurn, setMovement, weaponOwnToHit } from "../helpers/tw-movement.mjs";
 import { EXTERNAL_HEAT_CAP, externalHeat, guidable, narcPods, taggedThisTurn, weaponKind } from "../helpers/tw-weapons.mjs";
+import { torsoTwist } from "../helpers/tw-facing.mjs";
+import { setTorsoTwist, twistText } from "../helpers/tw-facing-ui.mjs";
 import { aeroMaxBracket, aeroTurnState, isAero, setAeroTurn } from "../helpers/tw-aero.mjs";
 import { physicalAttack } from "../helpers/tw-physical.mjs";
 import { sideslipCheck, skidCheck, vehicleCrash } from "../helpers/tw-skid.mjs";
@@ -80,6 +82,7 @@ export class MechFoundryUnitSheet extends MechFoundryActorSheetV2 {
       context.turnMove = {
         hexes: mv.hexes,
         meters: Math.round(mv.meters),
+        twist: this.actor.type === 'mech' ? (() => { const dir = torsoTwist(this.actor, currentTurnKey()); return { dir, left: dir < 0, right: dir > 0, text: twistText(this.actor) || 'straight' }; })() : null,
         modes: [
           { key: 'auto', label: `Auto (${label(MOVE_MODES.find(m => m.key === mv.mode))})`, selected: !mv.modeSet },
           ...MOVE_MODES.map(m => ({ key: m.key, label: `${label(m)} (+${m.mod})`, selected: mv.modeSet && mv.mode === m.key }))
@@ -115,6 +118,7 @@ export class MechFoundryUnitSheet extends MechFoundryActorSheetV2 {
       this._updateWeapons(w => { const x = w.find(y => y.id === id); if (!x) return false; x.jammed = false; x.spent = false; });
     });
     html.on('click', '.clear-narc', (ev) => { ev.preventDefault(); this.actor.update({ 'flags.mech-foundry.narc': [] }); });
+    html.on('click', '.twist-set', (ev) => { ev.preventDefault(); setTorsoTwist(this.actor, Number(ev.currentTarget.dataset.dir)); });
     html.on('change', '.turn-move-field', this._onTurnMoveChange.bind(this));
     html.on('change', '.weapon-flag', this._onWeaponFlagChange.bind(this));
     html.on('change', '.aero-evading', (ev) => setAeroTurn(this.actor, { evading: ev.currentTarget.checked }));

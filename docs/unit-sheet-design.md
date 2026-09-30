@@ -137,8 +137,14 @@ criticals and cluster grouping:
   (free when jumping; infantry and battle armor turn freely): MP spent = hexes + turns drives
   the walked / ran inference, the over-MP warnings, the checklist and the round summary;
   running while backing up is flagged. Turning is held to the Movement Phase like moving.
-  Tokens show a facing wedge (and a torso-twist wedge); the selected unit shows its forward,
-  side and rear arcs (client settings). Arcs: forward 300–60°, left arm 240–60°, right arm
+  Tokens show the legs' facing as a solid amber wedge on the edge (the token's rotation — it
+  also sets the hit table). A twisted torso adds a cyan chevron inside the edge, a cyan arc
+  joining it to the legs' wedge and an "↻ R" / "↺ L" badge. The selected unit's forward, side
+  and rear arcs are shaded from the torso's facing, with the legs' front half (the hit table's
+  front) as a dashed amber line while twisted (client settings). The twist also shows on the
+  'Mech sheet's movement panel ("Torso: twisted right", with left / straighten / right
+  buttons), in the fire dialog's header, on the attack card's context line ("twisted R") and
+  in the token HUD tooltips. Arcs: forward 300–60°, left arm 240–60°, right arm
   300–120°, rear 120–240°, vehicle sides 60–120° / 240–300°, aerospace nose / wings / aft;
   turrets, battle armor and infantry all round (a locked turret fires forward); torso and arm
   weapons turn with a torso twist, leg weapons don't. The fire dialog pre-selects the attack

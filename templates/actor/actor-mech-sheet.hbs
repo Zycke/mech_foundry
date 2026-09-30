@@ -114,6 +114,17 @@
             <select class="turn-move-field" data-field="mode" {{#unless editable}}disabled{{/unless}}>{{#each turnMove.modes}}<option value="{{key}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select>
             <input type="number" min="0" class="turn-move-field" data-field="hexes" value="{{turnMove.hexes}}" {{#unless editable}}disabled{{/unless}} /><span class="k" title="30 m per hex; token moves add up in metres">hexes · {{turnMove.meters}} m</span>
           </div>
+          {{#if turnMove.twist}}
+          <div class="mf-turnmove mf-twist" title="Torso twist for this turn (Shift+Q / Shift+E on the map): torso and arm weapons fire from the torso's facing; leg weapons and the hit table stay with the legs.">
+            <span class="k">Torso</span>
+            <span class="mf-twist-state{{#if turnMove.twist.dir}} on{{/if}}">{{turnMove.twist.text}}</span>
+            {{#if editable}}
+            <button type="button" class="twist-set{{#if turnMove.twist.left}} active{{/if}}" data-dir="-1" aria-label="Twist torso left" title="Twist left"><i class="fas fa-arrow-rotate-left"></i></button>
+            <button type="button" class="twist-set" data-dir="0" aria-label="Straighten torso" title="Straighten"{{#unless turnMove.twist.dir}} disabled{{/unless}}><i class="fas fa-arrows-up-to-line"></i></button>
+            <button type="button" class="twist-set{{#if turnMove.twist.right}} active{{/if}}" data-dir="1" aria-label="Twist torso right" title="Twist right"><i class="fas fa-arrow-rotate-right"></i></button>
+            {{/if}}
+          </div>
+          {{/if}}
           {{/if}}
         </div>
       </div>

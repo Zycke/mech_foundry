@@ -7729,3 +7729,10 @@
 .mf-facing-hud { display: flex; flex-direction: column; gap: 2px; }
 .tw-fire-dialog tr.tw-fw-oa .tw-fw-name { opacity: 0.75; }
 .tw-fire-dialog .tw-fw-arc { display: block; color: var(--mf-hazard, #e8b13a); }
+/* Torso twist row ('Mech sheet) */
+.mech-foundry .mf-twist .mf-twist-state { flex: 1; color: var(--mf-ink-dim); }
+.mech-foundry .mf-twist .mf-twist-state.on { color: #5fd3e6; font-weight: 600; }
+.mech-foundry .mf-twist .twist-set { width: auto; flex: 0 0 auto; padding: 0 6px; height: 22px; line-height: 20px; font-size: 0.72rem; background: var(--mf-panel-2); color: var(--mf-ink); border: 1px solid var(--mf-steel); border-radius: 2px; }
+.mech-foundry .mf-twist .twist-set.active { border-color: #5fd3e6; color: #5fd3e6; }
+.mech-foundry .mf-twist .twist-set:disabled { opacity: 0.4; }
+.tw-fire-dialog .tw-fire-twist { margin: 0 0 4px; font-size: 0.8rem; color: #5fd3e6; }

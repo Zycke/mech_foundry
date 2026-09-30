@@ -1788,6 +1788,7 @@ export async function fireWeapons(actor, preselect = []) {
   const content = `
     <div class="tw-attack-dialog tw-fire-dialog">
       <p class="tw-atk-target">${targetName ? `Target: <strong>${esc(targetName)}</strong>` : 'No target selected — enter range manually.'}</p>
+      ${facing?.twist ? `<p class="tw-fire-twist">Torso twisted ${facing.twist > 0 ? 'right' : 'left'} this turn: torso and arm weapons fire from the torso's facing; leg weapons from the legs.</p>` : ''}
       <table class="tw-fire-weapons"><thead><tr><th></th><th>Weapon</th><th>Mode</th><th>Heat</th><th>To-hit</th></tr></thead><tbody>${weaponRows}</tbody></table>
       <p class="tw-fire-heat">Heat from checked weapons: <strong class="tw-fire-heatsum">${ready.filter(w => preselect.includes(w.id)).reduce((t, w) => t + num(w.heat), 0)}</strong></p>
       <div class="form-group"><label>Gunnery rating <span class="tw-hint">${esc(skillHint(actor, 'gunnery'))}</span></label><input type="number" name="gunnery" value="${gunnery}" /></div>
@@ -1894,7 +1895,7 @@ export async function fireWeapons(actor, preselect = []) {
     title: shots.length === 1 ? `${shots[0].weaponName} Attack` : 'Weapons Fire',
     icon: 'fa-crosshairs',
     attackerName: actor.name, targetName,
-    ctxLine: [result.range != null ? `Range ${result.range}` : '', targetName ? dir : '', result.heat ? `heat +${result.heat}` : ''].filter(Boolean).join(' · '),
+    ctxLine: [result.range != null ? `Range ${result.range}` : '', targetName ? dir : '', facing?.twist ? `twisted ${facing.twist > 0 ? 'R' : 'L'}` : '', result.heat ? `heat +${result.heat}` : ''].filter(Boolean).join(' · '),
     round: roundLabel(),
     baseMods: shots[0].baseMods,
     shots,
