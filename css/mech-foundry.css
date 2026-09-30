@@ -7528,6 +7528,7 @@
 .mech-foundry .mf-gear-chip { border: 1px solid var(--mf-ink-dim); border-radius: 3px; padding: 0 5px; line-height: 1.5; }
 .mech-foundry .mf-gear-chip.on { border-color: #e0a030; color: #e0a030; font-weight: 700; }
 .mech-foundry .mf-gear-chip.destroyed { opacity: 0.55; text-decoration: line-through; }
+.mech-foundry .mf-gear-chip.off { border-color: #c0504d; color: #c0504d; }
 .mech-foundry .mf-gear-none { opacity: 0.6; font-style: italic; }
 .mech-foundry .mf-gear .boost-arm { width: auto; height: 22px; line-height: 20px; padding: 0 6px; font-size: 0.75rem; }
 .mech-foundry .mf-gear .boost-arm.active { border-color: #e0a030; color: #e0a030; }

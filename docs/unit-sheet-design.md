@@ -250,6 +250,18 @@ criticals and cluster grouping:
   real component); a supercharger failure rolls 2D6 for 0–3 engine hits (motive damage steps on
   a vehicle); either way it isn't armed that turn. TSM at heat 9+: +2 Walking MP (not with a
   destroyed leg) and double punch, kick, club, hatchet, sword and retractable blade damage.
+- **Electronic warfare** (`module/helpers/tw-ecm.mjs`; TW, checked against MegaMek ComputeECM /
+  ComputeC3Spotter): sides come from token disposition (different dispositions are enemies; a
+  secret token counts as hostile). An ECM suite projects a 6-hex bubble (not while shut down or
+  destroyed). Enemy ECM over any hex of the line of fire cancels Artemis IV / V; over the
+  target's hex, the Narc bonus. Active probe (Beagle 4, Clan 5, Bloodhound 8, light 3 hexes; not
+  through enemy ECM; a C3 mate's counts): −1 against a target in or behind woods. C3: units with
+  the same network name (and side) use the range bracket of the linked member closest to the
+  target that has line of sight; the attacker's own distance still decides minimum range and
+  whether the weapon reaches at all. A standard network needs a working master; a unit inside
+  enemy ECM, or whose link to the master crosses it, is cut off. The fire dialog's Electronics
+  block shows and pre-fills all of this (C3 spotter range, probe, the two ECM boxes) so it can be
+  overridden; the sheet's equipment chips show the live C3 link and an "Enemy ECM" chip.
 - **Special munitions** (`module/helpers/tw-weapons.mjs` MUNITIONS; checked against MegaMek):
   Inferno SRM, semi-guided LRM, precision and armor-piercing autocannon rounds. Each has its own
   shot count on the weapon (Special column; blank = none carried), apart from the standard Rds,

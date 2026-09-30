@@ -17,6 +17,8 @@ import { arcCheck, attackSide, tokenFacing, torsoTwist } from "./tw-facing.mjs";
 import { mapAttackTerrain, terrainRowBlock, unitElevation } from "./tw-terrain.mjs";
 import { beginBuildingTarget, beginShield, chooseBuildingTarget, collapseBuilding, endBuildingTarget, endShield, postOccupantCard } from "./tw-buildings.mjs";
 import { activeBuildingTarget, activeShield, buildingTargetHit, shieldGroups, shieldMiss } from "./tw-shield.mjs";
+import { electronicWarfare } from "./tw-ecm.mjs";
+import { unitGear } from "./tw-gear.mjs";
 import { facingChanges, mechLocChanges, poolChange, volleyCard, roundLabel, ammoFooter, heatCard, rollCard, rollSummary, summaryContext, volleySummary, withSummary } from "./tw-cards.mjs";
 import { currentTurnKey } from "./tw-turn.mjs";
 import { autoAttackMods, movedThisTurn, pilotUnconscious, rangeDependentMods, terrainMods, vehicleWeaponLocation } from "./tw-movement.mjs";
@@ -32,7 +34,7 @@ import {
 } from "./tw-infantry.mjs";
 import { crewConditionMods, skillHint, skillMod, skillSource } from "./tw-skills.mjs";
 import {
-  EXTERNAL_HEAT_CAP, MUNITIONS, amsUsedThisTurn, apCritMod, clusterRollTotal, externalHeat, fireModes, flamerHeat, guidanceMods,
+  EXTERNAL_HEAT_CAP, MUNITIONS, amsUsedThisTurn, apCritMod, clusterRollTotal, externalHeat, fireModes, flamerHeat, guidanceLost, guidanceMods,
   hasAnyAmmo, isMissileAttack, jams, lbxSize, modeToHit, munitionOf, munitionToHit, narcPods, readyAMS, shotsFor, taggedThisTurn,
   tracksHeat, unjamTarget, weaponKind
 } from "./tw-weapons.mjs";
@@ -1616,7 +1618,8 @@ function weaponPreviewRow(actor, weapon, targetActor, mode = attackMode(actor, t
  * @returns {{tn:number, oor:boolean, bracket:string, chance:number}}
  */
 export function previewTN(v, row) {
-  const rb = shotRange(row.mode, v.range, { rangeS: row.s, rangeM: row.m, rangeL: row.l, rangeE: row.e, aeroRange: row.maxB, capital: row.capital, ap: row.ap, ciType: row.ciType }, row.inf);
+  const wr = { rangeS: row.s, rangeM: row.m, rangeL: row.l, rangeE: row.e, aeroRange: row.maxB, capital: row.capital, ap: row.ap, ciType: row.ciType };
+  const rb = shotRange(row.mode, bracketRange(v.range, v.c3Range, wr, row.mode, row.inf), wr, row.inf);
   let tn = num(v.gunnery) + num(v.autoSum) + num(v.heat) + num(v.other) + num(v.terrain) + row.fixed + rb.mod;
   const si = ['Short', 'Medium', 'Long'].indexOf(String(rb.bracket).split(' ')[0]);
   if (si >= 0 && row.stealth) tn += num(row.stealth[si]);
@@ -1637,6 +1640,22 @@ export function attackMode(actor, targetActor) {
 }
 
 /** Range bracket for a shot by attack mode (air-to-ground attacks have no range modifier). */
+/**
+ * The distance a weapon's range bracket is read at: a C3 spotter's when it is
+ * closer, as long as the weapon reaches the target from where it is (tw-ecm.mjs).
+ */
+function bracketRange(range, c3Range, weapon, mode, infantryAttacker = false) {
+  if (mode !== 'ground' || infantryAttacker || c3Range == null || range == null || c3Range >= range) return range;
+  return shotRange(mode, range, weapon, infantryAttacker).inRange ? Math.max(0, c3Range) : range;
+}
+
+/** Active probe: −1 against a target in or behind woods it reaches (tw-ecm.mjs). */
+function probeMods(r) {
+  const t = r?.terrain || {};
+  const woods = num(t.lightWoods) + num(t.heavyWoods) > 0 || (t.targetWoods && t.targetWoods !== 'none');
+  return r?.ew?.probe && woods ? [{ label: `Active probe (${r.ew.probeName || 'woods'})`, value: -1 }] : [];
+}
+
 function shotRange(mode, range, weapon, infantryAttacker = false) {
   if (mode === 'aero') return aeroRangeBracket(range, weapon);
   if (mode === 'a2g') return { bracket: 'air-to-ground', mod: 0, inRange: true };
@@ -1665,7 +1684,7 @@ function situationalMods(r, mode, actor, targetActor) {
   if (mode === 'a2g') {
     return [...airToGroundMods(actor, r.a2gType), ...(r.a2gType === 'bomb' ? [] : terrainMods(r.terrain || {}))];
   }
-  return terrainMods(r.terrain || {});
+  return [...terrainMods(r.terrain || {}), ...probeMods(r)];
 }
 
 /** Sum of the shared automatic modifiers the attack uses (bombing drops target movement). */
@@ -1688,8 +1707,9 @@ export function weaponToHitPreview(actor) {
   const shared = [...autoAttackMods(actor, null, targetActor).filter(m => !WEAPON_SPECIFIC.includes(m.key)), ...aeroAttackMods(actor, targetActor)]
     .filter(m => !(closeQuarters(actor, targetActor) && CLOSE_QUARTERS_DROP.includes(m.key)));
   const map = mode === 'ground' && attackerToken?.center && target?.center ? mapAttackTerrain(actor, targetActor, attackerToken.center, target.center, { attackerElevation: unitElevation(actor, attackerToken.document), targetElevation: unitElevation(targetActor, target.document) }) : null;
-  const mapMods = map ? terrainMods(map) : [];
-  const v = { gunnery: gunneryFor(actor), autoSum: shared.reduce((t, m) => t + m.value, 0), heat: heatToHitMod(actor), range, other: 0, terrain: mapMods.reduce((t, m) => t + m.value, 0) };
+  const ew = mode === 'ground' && attackerToken?.center && target?.center && !isInfantry(actor) ? electronicWarfare(attackerToken, target) : null;
+  const mapMods = map ? [...terrainMods(map), ...probeMods({ terrain: map, ew: { probe: !!ew?.probe, probeName: ew?.probe?.name } })] : [];
+  const v = { gunnery: gunneryFor(actor), autoSum: shared.reduce((t, m) => t + m.value, 0), heat: heatToHitMod(actor), range, c3Range: ew?.c3?.range ?? null, other: 0, terrain: mapMods.reduce((t, m) => t + m.value, 0) };
   const out = {};
   const facing = facingContext(actor, attackerToken, target, targetActor);
   for (const w of unitWeapons(actor)) {
@@ -1833,13 +1853,24 @@ export async function fireWeapons(actor, preselect = []) {
     map.targetWoods = 'none';
   }
   const fromMap = map ? ' <span class="tw-hint">(from map)</span>' : '';
+  // Electronic warfare (tw-ecm.mjs): enemy ECM against Artemis / Narc, active probe, C3 spotter.
+  const ew = mode === 'ground' && attackerToken?.center && target?.center && !isInfantry(actor) ? electronicWarfare(attackerToken, target) : null;
+  const gear = ['mech', 'ground_vehicle'].includes(actor.type) ? unitGear(actor) : null;
+  const guided = (g) => ready.some(w => w.guidance === g || (g === 'artemis' && /^artemis/.test(w.guidance || '')));
+  const ewFields = mode !== 'ground' || isInfantry(actor) ? '' : [
+    gear?.c3?.has || ew?.c3 ? `<div class="form-group"><label>C3 spotter range (hexes)${ew?.c3 ? ` <span class="tw-hint">${esc(ew.c3.name)} is ${ew.c3.range} from the target</span>` : ' <span class="tw-hint">blank: no network mate closer</span>'}</label><input type="number" name="c3Range" value="${ew?.c3?.range ?? ''}" min="0" /><input type="hidden" name="c3Name" value="${esc(ew?.c3?.name ?? '')}" /></div>` : '',
+    gear?.probe?.has || ew?.probe ? `<div class="form-group"><label>Active probe reaches the target (−1 against a target in or behind woods)${ew?.probe ? ` <span class="tw-hint">${esc(ew.probe.owner)}'s ${esc(ew.probe.name)}</span>` : ''}</label><input type="checkbox" name="probe"${ew?.probe ? ' checked' : ''} /><input type="hidden" name="probeName" value="${esc(ew?.probe?.name ?? '')}" /></div>` : '',
+    guided('artemis') || ew?.artemisECM ? `<div class="form-group"><label>Enemy ECM along the line of fire (no Artemis bonus)${ew?.artemisECM ? ` <span class="tw-hint">${esc(ew.artemisECM)}</span>` : ''}</label><input type="checkbox" name="ecmArtemis"${ew?.artemisECM ? ' checked' : ''} /></div>` : '',
+    guided('narc') || ew?.narcECM ? `<div class="form-group"><label>Enemy ECM covers the target (no Narc bonus)${ew?.narcECM ? ` <span class="tw-hint">${esc(ew.narcECM)}</span>` : ''}</label><input type="checkbox" name="ecmNarc"${ew?.narcECM ? ' checked' : ''} /></div>` : ''
+  ].filter(Boolean).join('');
   // A unit inside a building, fired on from next to it: missed shots hit the building (TW p. 171).
   const missIntoBuilding = !building && mode === 'ground' && targetActor && targetActor.type !== 'infantry' && autoDist != null && autoDist <= 1;
   const dirOpts = dirList.map(d => `<option value="${d.key}"${d.key === facing?.side ? ' selected' : ''}>${d.label}${d.key === facing?.side ? ' (from facing)' : ''}</option>`).join('');
   const modRows = shared.map(x => `
       <div class="form-group"><label>${esc(x.label)}${x.hint ? ` <span class="tw-hint">${esc(x.hint)}</span>` : ''}</label><input type="number" name="auto_${x.key}" value="${x.value}" /></div>`).join('');
-  const v0 = { gunnery, autoSum: shared.reduce((t, m) => t + m.value, 0), heat: heatMod, range: autoDist, other: 0,
-    terrain: mode === 'aero' ? num(aeroAngleMod(targetActor, 'front')?.value) : mode === 'a2g' ? airToGroundMods(actor, 'strafe').reduce((t, m) => t + m.value, 0) : map ? terrainMods(map).reduce((t, m) => t + m.value, 0) : 0 };
+  const v0 = { gunnery, autoSum: shared.reduce((t, m) => t + m.value, 0), heat: heatMod, range: autoDist, c3Range: ew?.c3?.range ?? null, other: 0,
+    terrain: mode === 'aero' ? num(aeroAngleMod(targetActor, 'front')?.value) : mode === 'a2g' ? airToGroundMods(actor, 'strafe').reduce((t, m) => t + m.value, 0)
+      : map ? [...terrainMods(map), ...probeMods({ terrain: map, ew: { probe: !!ew?.probe } })].reduce((t, m) => t + m.value, 0) : 0 };
   // Why a weapon can't bear (unchecked, but the player / GM may fire anyway).
   const rowBlock = (w) => {
     const arc = facing ? arcCheck({ actor, weapon: w, from: facing.from, facing: facing.attackerFacing, to: facing.to, twist: facing.twist }) : null;
@@ -1892,6 +1923,7 @@ export async function fireWeapons(actor, preselect = []) {
           ? '<option value="front">Yes (+1; infantry have no arcs)</option>'
           : '<option value="front">Yes, front arc (+1)</option><option value="side">Yes, side/rear arc (+2)</option>'}</select></div>
       </fieldset>`}
+      ${ewFields ? `<fieldset class="tw-terrain tw-ew"><legend>Electronics</legend>${ewFields}</fieldset>` : ''}
       <div class="form-group"><label>Other modifier <span class="tw-hint">+ makes the roll harder, − easier</span></label><input type="number" name="other" value="0" /></div>
       <div class="form-group"><label>Attack Direction</label><select name="direction">${dirOpts}</select></div>
     </div>`;
@@ -1918,6 +1950,11 @@ export async function fireWeapons(actor, preselect = []) {
     ids: ready.filter(w => f[`w_${w.id}`]?.checked).map(w => w.id),
     building: building ? { autoHit: !!building.autoHit, name: building.name } : null,
     missIntoBuilding,
+    ew: {
+      c3Range: f.c3Range && String(f.c3Range.value).trim() !== '' ? Math.max(0, num(f.c3Range.value)) : null, c3Name: f.c3Name?.value ?? '',
+      probe: !!f.probe?.checked, probeName: f.probeName?.value ?? '',
+      artemisECM: !!f.ecmArtemis?.checked, narcECM: !!f.ecmNarc?.checked
+    },
     modes: Object.fromEntries(ready.filter(w => f[`m_${w.id}`]).map(w => [w.id, f[`m_${w.id}`].value]))
   });
 
@@ -1929,7 +1966,7 @@ export async function fireWeapons(actor, preselect = []) {
     if (!form?.querySelectorAll) return;
     const refresh = () => {
       const r = read(form.elements);
-      const v = { gunnery: r.gunnery, autoSum: autoSumFor(r, mode), heat: r.heat, range: r.range, other: r.other, terrain: situationalMods(r, mode, actor, targetActor).reduce((t, m) => t + m.value, 0) };
+      const v = { gunnery: r.gunnery, autoSum: autoSumFor(r, mode), heat: r.heat, range: r.range, c3Range: r.ew?.c3Range ?? null, other: r.other, terrain: situationalMods(r, mode, actor, targetActor).reduce((t, m) => t + m.value, 0) };
       rows.forEach((row, i) => {
         const cell = form.querySelector(`.tw-fw-tn[data-wid="${row.id}"]`);
         if (!cell) return;
@@ -2021,7 +2058,9 @@ async function resolveWeaponShot(actor, weapon, target, result, rolls) {
   const fmode = result.modes?.[weapon.id] ?? fireModes(weapon, targetActor)[0]?.value ?? '';
   // Special munitions (inferno, semi-guided, precision, armor-piercing; see tw-weapons.mjs).
   const munition = munitionOf(weapon, fmode);
-  const rb = shotRange(mode, result.range, weapon, isInfantry(actor));
+  // C3: the range bracket from the network mate closest to the target (the minimum range stays the attacker's own).
+  const bRange = bracketRange(result.range, result.ew?.c3Range, weapon, mode, isInfantry(actor));
+  const rb = shotRange(mode, bRange, weapon, isInfantry(actor));
   const stealth = mode === 'ground' ? stealthMod(targetActor, rb.bracket, actor) : 0;
   const weaponMods = [...autoAttackMods(actor, weapon, null).filter(m => WEAPON_SPECIFIC.includes(m.key)), ...aeroWeaponMods(weapon, targetActor)]
     .map(m => ({ label: m.label, value: m.value }));
@@ -2036,7 +2075,7 @@ async function resolveWeaponShot(actor, weapon, target, result, rolls) {
     { label: "Other", value: result.other }
   ].filter(m => m.value !== 0 || m.key === 'gunnery');
   // … and this weapon's own (the range bracket is always shown).
-  const rangeLabel = `Range (${rb.bracket})`;
+  const rangeLabel = `Range (${rb.bracket}${bRange !== result.range ? `, C3: ${result.ew?.c3Name || 'network'} at ${bRange}` : ''})`;
   const ownMods = [
     ...weaponMods,
     { label: rangeLabel, value: rb.mod },
@@ -2167,7 +2206,9 @@ async function resolveWeaponShot(actor, weapon, target, result, rolls) {
     const noun = autoShots ? 'shots' : pellets ? 'pellets' : 'missiles';
     if (size > 0 && (autoShots || pellets || clusterSize > 0)) {
       // Cluster-roll modifiers: Artemis / Narc guidance, then the target's AMS.
-      const cMods = guidanceMods(weapon, targetActor);
+      const cMods = guidanceMods(weapon, targetActor, result.ew);
+      const lost = guidanceLost(weapon, targetActor, result.ew);
+      if (lost) notes.push(lost);
       let ams = null;
       if (isMissileAttack(weapon) && (ams = readyAMS(targetActor, currentTurnKey()))) cMods.push({ label: `${targetName}'s ${ams.name}`, value: -4 });
       let missiles, cRoll = null;
@@ -2241,7 +2282,9 @@ async function infernoHit(actor, weapon, target, result, rolls, notes) {
   const targetActor = target?.actor || null;
   const targetName = target?.name || '';
   const size = num(weapon.clusterSize) || 1;
-  const cMods = guidanceMods(weapon, targetActor);
+  const cMods = guidanceMods(weapon, targetActor, result.ew);
+  const lost = guidanceLost(weapon, targetActor, result.ew);
+  if (lost) notes.push(lost);
   let ams = null;
   if ((ams = readyAMS(targetActor, currentTurnKey()))) cMods.push({ label: `${targetName}'s ${ams.name}`, value: -4 });
   let missiles, cRoll = null;

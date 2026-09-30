@@ -1,6 +1,7 @@
 import { MechFoundryActorSheetV2 } from "./base-actor-sheet.mjs";
 import { currentTurnKey, fireWeapons, firedThisTurn, unjamWeapon, usesAmmo, weaponToHitPreview } from "../helpers/tw-combat.mjs";
 import { MOVE_MODES, movedThisTurn, mpBreakdown, setMovement, weaponOwnToHit } from "../helpers/tw-movement.mjs";
+import { c3Network, enemyECM, sideOf } from "../helpers/tw-ecm.mjs";
 import { EXTERNAL_HEAT_CAP, MUNITIONS, externalHeat, guidable, hasAnyAmmo, munitionKeys, narcPods, taggedThisTurn, weaponKind } from "../helpers/tw-weapons.mjs";
 import { torsoTwist } from "../helpers/tw-facing.mjs";
 import { setTorsoTwist, twistText } from "../helpers/tw-facing-ui.mjs";
@@ -275,7 +276,18 @@ export function gearContext(actor) {
   if (g.tsm.has) chip('TSM', g.tsm, tsmActive(actor) ? { state: 'on', title: 'active (heat 9+): +2 Walking MP, double punch / kick / club damage' } : { title: 'active at heat 9+' });
   if (g.ecm.has) chip(`${{ guardian: 'Guardian', angel: 'Angel', clan: 'Clan', watchdog: 'Watchdog' }[g.ecm.kind] ?? ''} ECM`, g.ecm, { title: `${g.ecm.range} hexes` });
   if (g.probe.has) chip(`${{ beagle: 'Beagle', bloodhound: 'Bloodhound', clan: 'Clan', light: 'Light' }[g.probe.kind] ?? ''} Probe`, g.probe, { title: `${g.probe.range} hexes` });
-  if (g.c3.has) chip(`C3 ${{ master: 'Master', slave: 'Slave', c3i: 'i' }[g.c3.role] ?? ''}${g.c3.network ? ` (${g.c3.network})` : ''}`.replace('C3 i', 'C3i'), g.c3, g.c3.network ? {} : { title: 'no network name set' });
+  // On the map: is the unit inside an enemy ECM bubble, and who is on its C3 network now (tw-ecm.mjs)?
+  const token = actor.getActiveTokens?.()[0] ?? null;
+  const jam = token?.center ? enemyECM(sideOf(token), token.center) : null;
+  if (g.c3.has) {
+    const net = token && g.c3.working && g.c3.network ? c3Network(token) : null;
+    const status = !g.c3.network ? { title: 'no network name set' }
+      : !token ? {}
+      : net ? { state: 'on', title: `linked: ${net.members.map(t => t.actor?.name).join(', ')}` }
+      : { state: 'off', title: jam ? `cut off: inside ${jam.name}'s ECM` : g.c3.role === 'c3i' ? 'no link' : 'no working C3 master on the network' };
+    chip(`C3 ${{ master: 'Master', slave: 'Slave', c3i: 'i' }[g.c3.role] ?? ''}${g.c3.network ? ` (${g.c3.network})` : ''}`.replace('C3 i', 'C3i'), g.c3, status);
+  }
+  if (jam) chips.push({ label: 'Enemy ECM', state: 'off', title: `Inside ${jam.name}'s ECM: no C3 link; Artemis / probe lines through it fail` });
   const boosts = [];
   if (key) for (const [which, label] of [['masc', 'MASC'], ['supercharger', 'Supercharger']]) {
     if (!g[which].has) continue;

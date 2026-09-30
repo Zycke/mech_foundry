@@ -206,16 +206,26 @@ export const EXTERNAL_HEAT_CAP = 15;
 
 /**
  * Cluster-roll modifiers for a missile launcher: Artemis IV +2 / V +3 and
- * Narc-capable +2 against a Narc-tagged target.
+ * Narc-capable +2 against a Narc-tagged target — unless enemy ECM stops them
+ * (`ew`: { artemisECM, narcECM } from the fire dialog; tw-ecm.mjs).
  * @returns {Array<{label, value}>}
  */
-export function guidanceMods(w, targetActor) {
+export function guidanceMods(w, targetActor, ew = null) {
   if (!guidable(w)) return [];
   const g = w?.guidance || '';
-  if (g === 'artemis4') return [{ label: 'Artemis IV', value: 2 }];
-  if (g === 'artemis5') return [{ label: 'Artemis V', value: 3 }];
-  if (g === 'narc' && narcPods(targetActor).length) return [{ label: 'Narc pod on target', value: 2 }];
+  if (g === 'artemis4' && !ew?.artemisECM) return [{ label: 'Artemis IV', value: 2 }];
+  if (g === 'artemis5' && !ew?.artemisECM) return [{ label: 'Artemis V', value: 3 }];
+  if (g === 'narc' && narcPods(targetActor).length && !ew?.narcECM) return [{ label: 'Narc pod on target', value: 2 }];
   return [];
+}
+
+/** The card note when enemy ECM cancels a launcher's guidance bonus, or ''. */
+export function guidanceLost(w, targetActor, ew = null) {
+  if (!guidable(w)) return '';
+  const g = w?.guidance || '';
+  if (/^artemis/.test(g) && ew?.artemisECM) return `Enemy ECM on the line of fire: no ${g === 'artemis5' ? 'Artemis V' : 'Artemis IV'} bonus.`;
+  if (g === 'narc' && narcPods(targetActor).length && ew?.narcECM) return 'Enemy ECM covers the target: no Narc bonus.';
+  return '';
 }
 
 /** Cluster roll after modifiers, clamped to 2–12. */
