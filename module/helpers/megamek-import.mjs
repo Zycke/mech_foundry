@@ -13,7 +13,7 @@
  */
 import { AMMO_ROWS, WEAPON_ROWS } from "../data/tw-equipment.mjs";
 import { CI_WEAPONS, genericPlatoon } from "./tw-infantry.mjs";
-import { guidable } from "./tw-weapons.mjs";
+import { MUNITIONS, guidable } from "./tw-weapons.mjs";
 import { gearFromNames } from "./tw-gear.mjs";
 
 const num = (v) => Number(v) || 0;
@@ -74,8 +74,18 @@ export function findAmmo(name, opts = {}) {
     if (hit) return hit;
   }
   // Munition variants named in one word ("ISArrowIVHomingAmmo") → the standard bin.
-  const base = String(name ?? '').replace(/(Homing|Cluster|Illumination|Smoke|Inferno|Swarm\w*|Thunder\w*|Fragmentation|Precision|ArmorPiercing|Flechette|Tracer|Incendiary|DeadFire|Tandem\w*|Artemis\w*|Narc\w*|Semiguided|ADA|Laser\w*)(?=\s*Ammo)/i, '');
+  const base = String(name ?? '').replace(/(Homing|Cluster|Illumination|Smoke|Inferno|Swarm\w*|Thunder\w*|Fragmentation|Precision|Armou?r-?Piercing|Flechette|Tracer|Incendiary|DeadFire|Tandem\w*|Artemis\w*|Narc\w*|Semi-?guided|ADA|Laser\w*)(?=\s*Ammo)/i, '');
   return base !== name ? findAmmo(base, opts) : null;
+}
+
+/** The special munition an ammunition bin holds (tw-weapons.mjs MUNITIONS), or null for standard rounds. */
+export function ammoMunition(name) {
+  const n = String(name ?? '');
+  if (/inferno/i.test(n)) return 'inferno';
+  if (/semi-?guided/i.test(n)) return 'semiguided';
+  if (/precision/i.test(n)) return 'precision';
+  if (/armou?r-?piercing|\bAP\b(?!DS)/i.test(n)) return 'ap';
+  return null;
 }
 
 /** Strip MegaMek mounting suffixes: (R) rear, (T) turret, (OMNIPOD), (ARMORED), … */
@@ -136,13 +146,18 @@ function assignAmmo(weapons, bins, catalogOf, warnings) {
     if (!fallback.length) { warnings.push(`Ammunition "${bin.raw}" doesn't match any weapon.`); continue; }
     // LB-X cluster rounds are counted apart from slugs; Narc-capable missiles mark the launcher.
     const cluster = a.family === 'AC_LBX' && /cluster/i.test(bin.raw);
+    // Inferno / semi-guided / precision / armor-piercing rounds: their own count on the weapon.
+    const mk = ammoMunition(bin.raw);
+    const munition = mk && fallback.every(w => MUNITIONS[mk].applies(w)) ? mk : null;
+    if (mk && !munition) warnings.push(`${bin.raw}: special munition not supported — counted as standard rounds.`);
     if (/narc/i.test(bin.raw) && ['LRM', 'SRM', 'MML', 'LRM_IMP', 'SRM_IMP'].includes(a.family)) {
       for (const w of fallback) if (!w.guidance) w.guidance = 'narc';
     }
-    const key = fallback.map(w => w.id).join('+') + (cluster ? ':cluster' : '');
-    if (!groups.has(key)) groups.set(key, { users: fallback, shots: 0, perTon: 0, label: ammoLabel(a), cluster });
+    const key = fallback.map(w => w.id).join('+') + (cluster ? ':cluster' : '') + (munition ? `:${munition}` : '');
+    if (!groups.has(key)) groups.set(key, { users: fallback, shots: 0, perTon: 0, label: ammoLabel(a), cluster, munition });
     const g = groups.get(key);
-    g.shots += bin.shots ?? a.shots;
+    // Precision and armor-piercing rounds: half the shots a ton.
+    g.shots += bin.shots ?? (['precision', 'ap'].includes(munition) ? Math.floor(a.shots / 2) : a.shots);
     g.perTon = Math.max(g.perTon, a.name.includes('[Half]') ? a.shots * 2 : a.shots);
     feeds.set(bin, fallback[0].id);
   }
@@ -151,6 +166,7 @@ function assignAmmo(weapons, bins, catalogOf, warnings) {
     g.users.forEach((w, i) => {
       const n = each + (i < g.shots % g.users.length ? 1 : 0);
       if (g.cluster) { w.clusterAmmo = n; if (!w.ammoType) { w.ammoType = g.label.replace(/\s*cluster/i, ''); w.ammo = 0; } return; }
+      if (g.munition) { w[MUNITIONS[g.munition].field] = n; if (!w.ammoType) { w.ammoType = g.label; w.ammo = 0; } return; }
       w.ammo = n;
       w.shotsPerTon = g.perTon;
       w.ammoType = g.label;

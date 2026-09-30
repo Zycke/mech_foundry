@@ -250,6 +250,20 @@ criticals and cluster grouping:
   real component); a supercharger failure rolls 2D6 for 0–3 engine hits (motive damage steps on
   a vehicle); either way it isn't armed that turn. TSM at heat 9+: +2 Walking MP (not with a
   destroyed leg) and double punch, kick, club, hatchet, sword and retractable blade damage.
+- **Special munitions** (`module/helpers/tw-weapons.mjs` MUNITIONS; checked against MegaMek):
+  Inferno SRM, semi-guided LRM, precision and armor-piercing autocannon rounds. Each has its own
+  shot count on the weapon (Special column; blank = none carried), apart from the standard Rds,
+  and is picked per weapon in the fire dialog (the default is standard rounds while they last).
+  The importer puts MegaMek's munition bins there (precision / AP at half the shots a ton).
+  Inferno: no damage; the cluster roll gives the missiles (every missile against conventional
+  infantry or on an automatic hit) — 2 heat each to a 'Mech or fighter (external heat, 15 a turn
+  at most; behind partial cover, leg hits strike the cover), a critical roll at −2 each against
+  a vehicle, 1 damage per 3 missiles to battle armor, 3 troopers per missile, 2 damage per
+  missile to a building. Semi-guided: against a target TAG-designated this turn the target
+  movement modifier is cancelled (untagged, standard LRMs). Precision: up to 2 off the target
+  movement modifier. Armor-piercing: +1 to-hit; a hit the armor stops still rolls for a
+  critical hit at −4 / −3 / −2 / −1 (AC/2 / 5 / 10 / 20) on a 'Mech or vehicle. Not modelled:
+  swarm and thunder (minefield) LRMs, other munitions, hardened / reactive armor immunity to AP.
 - **Movement discipline** (`module/helpers/tw-phase.mjs`): a token move that takes a unit past
   its current MP this turn (Running / Flanking, or Walking when "Walked" is declared, Jumping
   when "Jumped" is) warns the mover and whispers the GM — it isn't blocked. During a running

@@ -7684,7 +7684,7 @@
 /* Weapon special rules (tw-weapons.mjs) */
 .mech-foundry .wt td.w-special { white-space: nowrap; }
 .mech-foundry .wt td.w-special select.w-guid { width: 4.4em; font-size: 0.72rem; padding: 0 1px; }
-.mech-foundry .wt td.w-special input.w-th, .mech-foundry .wt td.w-special input.w-clammo { width: 2.6em; }
+.mech-foundry .wt td.w-special input.w-th, .mech-foundry .wt td.w-special input.w-clammo, .mech-foundry .wt td.w-special input.w-mun { width: 2.6em; }
 .mech-foundry .wt td.w-special .weapon-unjam { padding: 0 4px; width: auto; line-height: 1.2; font-size: 0.72rem; }
 .mech-foundry .mf-weapon-markers { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin: 2px 0 6px; }
 /* GM phase checklist (combat tracker) */

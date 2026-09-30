@@ -32,8 +32,9 @@ import {
 } from "./tw-infantry.mjs";
 import { crewConditionMods, skillHint, skillMod, skillSource } from "./tw-skills.mjs";
 import {
-  EXTERNAL_HEAT_CAP, amsUsedThisTurn, clusterRollTotal, externalHeat, fireModes, flamerHeat, guidanceMods, isMissileAttack,
-  jams, lbxSize, modeToHit, narcPods, readyAMS, shotsFor, tracksHeat, unjamTarget, weaponKind
+  EXTERNAL_HEAT_CAP, MUNITIONS, amsUsedThisTurn, apCritMod, clusterRollTotal, externalHeat, fireModes, flamerHeat, guidanceMods,
+  hasAnyAmmo, isMissileAttack, jams, lbxSize, modeToHit, munitionOf, munitionToHit, narcPods, readyAMS, shotsFor, taggedThisTurn,
+  tracksHeat, unjamTarget, weaponKind
 } from "./tw-weapons.mjs";
 
 const { DialogV2 } = foundry.applications.api;
@@ -346,9 +347,9 @@ export function ammoExplosionDamage(slot, weapons) {
  * Roll the Determining Critical Hits Table for a struck location.
  * @param {string} loc  Location key (drives torso vs limb/head handling on a 12).
  */
-export async function rollDeterminingCrit(loc) {
+export async function rollDeterminingCrit(loc, mod = 0) {
   const roll = await new Roll("2d6").evaluate();
-  const t = roll.total;
+  const t = roll.total + num(mod);
   const isTorso = MECH_TORSO.has(loc);
   let count = 0, blowOff = false, text = 'No critical hit';
   if (t >= 8 && t <= 9) { count = 1; text = '1 critical hit'; }
@@ -476,7 +477,7 @@ function vehicleCritColumn(facing) {
  * location, apply armor→structure damage, and roll motive/critical effects as
  * the location table dictates. Mutates and saves the target once.
  */
-export async function resolveVehicleAttack(target, direction, groupSizes, rolls, { forceMotive = false, noIntercept = false, motiveSteps = 0 } = {}) {
+export async function resolveVehicleAttack(target, direction, groupSizes, rolls, { forceMotive = false, noIntercept = false, motiveSteps = 0, specialCrit = null } = {}) {
   const armor = foundry.utils.deepClone(target.system.armor || {});
   const structure = foundry.utils.deepClone(target.system.structure || { value: 0, max: 0 });
   const armorBefore = foundry.utils.deepClone(armor), structureBefore = num(structure.value);
@@ -548,23 +549,29 @@ export async function resolveVehicleAttack(target, direction, groupSizes, rolls,
       facingLabel: VEHICLE_FACING_LABEL[facing] || facing, dice: locRoll.dice[0]?.results?.map(r => r.result) ?? [], structureHit
     });
 
-    // Motive system damage (†, ground vehicles).
-    if (flags.includes('M')) await rollMotive();
+    // Motive system damage (†, ground vehicles). Not from a no-damage hit (infernos).
+    if (flags.includes('M') && g0 > 0) await rollMotive();
 
     // Critical hit: the table's marked results (2/12, or 8 on side attacks)
     // AND any hit that penetrates to internal structure. The penetration crit
     // is an intentional house rule (confirmed by the user) beyond the vehicle
     // tables' footnotes -- do not remove it to "match the book".
-    if (flags.includes('C') || structureHit) {
+    // Armor-piercing ammunition (a hit the armor stopped) and infernos (every
+    // missile) roll too, with their modifier (MegaMek).
+    const tableCrit = flags.includes('C') || structureHit;
+    const special = specialCrit && !tableCrit && (specialCrit.always || dealt > 0);
+    if (tableCrit || special) {
       const cRoll = await new Roll("2d6").evaluate();
       rolls.push(cRoll);
+      const cTotal = cRoll.total + (special ? num(specialCrit.mod) : 0);
       const table = isVTOL ? VTOL_VEHICLE_CRITS : GROUND_VEHICLE_CRITS;
       const column = table[vehicleCritColumn(facing)] || {};
       ctx.facing = facing;
-      const pick = pickVehicleCrit(column, cRoll.total, ctx);
+      const pick = pickVehicleCrit(column, cTotal, ctx);
       const res = await applyVehicleCrit(pick.effect, ctx, rolls);
       if (res.destroyed) destroyed = true;
-      critResults.push({ facingLabel: VEHICLE_FACING_LABEL[facing] || facing, roll: cRoll.total, effect: res.effect || pick.effect, note: [pick.note, res.note].filter(Boolean).join('; ') });
+      critResults.push({ facingLabel: VEHICLE_FACING_LABEL[facing] || facing, roll: cTotal, effect: res.effect || pick.effect,
+        note: [special ? `${specialCrit.label ?? 'special'} ${num(specialCrit.mod)}` : '', pick.note, res.note].filter(Boolean).join('; ') });
       for (const ev of res.crewEvents || []) crewEvents.push(ev);
     }
   }
@@ -1189,7 +1196,7 @@ export async function resolveMechHeat(actor, preset = null) {
 export async function resolveDamageAgainst(targetActor, direction, groupSizes, rolls, targetName = '', {
   noPSR = false, locationRoller = null, extraPSR = [], forceMotive = false, partialCover = false, explode = null,
   areaEffect = false, autoCrit = false, noIntercept = false, platoonHit = null,
-  forceCrits = [], engineHits = 0, motiveSteps = 0
+  forceCrits = [], engineHits = 0, motiveSteps = 0, specialCrit = null
 } = {}) {
   // Attacking a building (no unit): the building takes it all (tw-buildings.mjs).
   if (!targetActor && activeBuildingTarget()) return buildingTargetHit(groupSizes);
@@ -1236,9 +1243,11 @@ export async function resolveDamageAgainst(targetActor, direction, groupSizes, r
 
     // Determining Critical Hits for each location whose structure was struck.
     // `forced`: { count, text } — critical hits without the Determining roll (MASC failure).
-    const critCheck = async (checkLocs, always = false, forced = null) => {
+    // `mod`: a modifier on the Determining roll (armor-piercing ammunition).
+    const critCheck = async (checkLocs, always = false, forced = null, mod = 0) => {
       for (const cl of checkLocs) {
-        const cc = forced ? { count: forced.count, total: '—', text: forced.text, blowOff: false } : await rollDeterminingCrit(cl);
+        const cc = forced ? { count: forced.count, total: '—', text: forced.text, blowOff: false } : await rollDeterminingCrit(cl, mod);
+        if (mod) cc.text = `${cc.text} (${specialCrit?.label ?? 'modified'} ${mod})`;
         if (!forced) rolls.push(cc.roll);
         if (cc.blowOff) {
           const head = blowOffLocationState(dmgState, cl);
@@ -1317,6 +1326,8 @@ export async function resolveDamageAgainst(targetActor, direction, groupSizes, r
       const checkLocs = new Set(dmg.structureHits);
       if (locRoll.crit) checkLocs.add(locRoll.loc);
       await critCheck(checkLocs);
+      // Armor-piercing: a hit the armor stopped still rolls for a critical hit, at a penalty.
+      if (specialCrit && !checkLocs.size && !dmg.destroyed) await critCheck(new Set([locRoll.loc]), true, null, num(specialCrit.mod));
     }
     // Leg / swarm attacks: one automatic Determining Critical Hits roll on the
     // struck location, on top of any the damage itself caused.
@@ -1440,7 +1451,7 @@ export async function resolveDamageAgainst(targetActor, direction, groupSizes, r
       applied, hasTarget: true, targetName: targetActor.name
     };
   } else if (tt === 'ground_vehicle') {
-    return await resolveVehicleAttack(targetActor, direction, groupSizes, rolls, { forceMotive, noIntercept, motiveSteps });
+    return await resolveVehicleAttack(targetActor, direction, groupSizes, rolls, { forceMotive, noIntercept, motiveSteps, specialCrit });
   } else if (tt === 'aerospace_fighter' || tt === 'small_craft') {
     return await resolveAeroAttack(targetActor, direction, groupSizes, rolls);
   }
@@ -1536,7 +1547,7 @@ export function weaponBlock(actor, weapon) {
   if (weapon.jammed) return `${wName} is jammed${kind === 'rotary' ? ' — use Unjam on the Combat tab instead of attacking' : ' for the rest of the battle'}.`;
   if (weapon.oneShot && weapon.spent) return `${wName} is a one-shot weapon and has been fired.`;
   if (currentTurnKey() && actor.flags?.['mech-foundry']?.unjam?.key === currentTurnKey()) return `${actor.name} is unjamming a rotary autocannon this turn and can't attack.`;
-  if (weaponTracksAmmo(actor, weapon) && num(weapon.ammo) <= 0 && !(kind === 'lbx' && num(weapon.clusterAmmo) > 0)) return `${wName} is out of ammunition (set its Rds on the Combat tab to reload).`;
+  if (weaponTracksAmmo(actor, weapon) && !hasAnyAmmo(weapon)) return `${wName} is out of ammunition (set its Rds on the Combat tab to reload).`;
   if (currentTurnKey() && firedThisTurn(actor)[weapon.id] !== undefined) return `${wName} has already fired this turn.`;
   return null;
 }
@@ -1842,7 +1853,8 @@ export async function fireWeapons(actor, preselect = []) {
     const ranges = mode === 'aero' ? `${r.capital ? 'capital, ' : ''}to ${r.maxB}` : `${r.min ? `Min ${r.min} · ` : ''}${r.s}/${r.m}/${r.l}${r.e ? `/${r.e}` : ''}`;
     const modes = fireModes(w, targetActor);
     const modeCell = modes.length ? `<select name="m_${w.id}">${modes.map(m => `<option value="${m.value}">${esc(m.label)}</option>`).join('')}</select>` : '';
-    const ammoText = usesAmmo(w) ? ` · ${num(w.ammo)} rds${w.clusterAmmo !== undefined && w.clusterAmmo !== '' ? ` + ${num(w.clusterAmmo)} cluster` : ''}` : '';
+    const special = Object.entries(MUNITIONS).filter(([k, m]) => m.applies(w) && w[m.field] !== undefined && String(w[m.field]).trim() !== '').map(([, m]) => ` + ${num(w[m.field])} ${m.short}`).join('');
+    const ammoText = usesAmmo(w) ? ` · ${num(w.ammo)} rds${w.clusterAmmo !== undefined && w.clusterAmmo !== '' ? ` + ${num(w.clusterAmmo)} cluster` : ''}${special}` : '';
     const why = rowBlock(w);
     return `<tr${why ? ' class="tw-fw-oa"' : ''}>
         <td><input type="checkbox" name="w_${w.id}" ${preselect.includes(w.id) && !why ? 'checked' : ''} /></td>
@@ -1921,7 +1933,7 @@ export async function fireWeapons(actor, preselect = []) {
       rows.forEach((row, i) => {
         const cell = form.querySelector(`.tw-fw-tn[data-wid="${row.id}"]`);
         if (!cell) return;
-        const p = previewTN({ ...v, other: v.other + modeToHit(ready[i], r.modes[row.id]) }, row);
+        const p = previewTN({ ...v, other: v.other + modeToHit(ready[i], r.modes[row.id]) + munitionMods(ready[i], r.modes[row.id], r, targetActor).reduce((t, m) => t + m.value, 0) }, row);
         cell.innerHTML = p.oor ? 'OOR' : `${p.tn}+ <span class="tw-hint">${p.chance}%</span>`;
       });
       const heat = ready.filter(w => r.ids.includes(w.id)).reduce((t, w) => t + num(w.heat) * shotsFor(w, r.modes[w.id]), 0);
@@ -2007,6 +2019,8 @@ async function resolveWeaponShot(actor, weapon, target, result, rolls) {
   // How this weapon fires (Ultra / Rotary rate, LB-X ammunition, flamer mode).
   const kind = weaponKind(weapon);
   const fmode = result.modes?.[weapon.id] ?? fireModes(weapon, targetActor)[0]?.value ?? '';
+  // Special munitions (inferno, semi-guided, precision, armor-piercing; see tw-weapons.mjs).
+  const munition = munitionOf(weapon, fmode);
   const rb = shotRange(mode, result.range, weapon, isInfantry(actor));
   const stealth = mode === 'ground' ? stealthMod(targetActor, rb.bracket, actor) : 0;
   const weaponMods = [...autoAttackMods(actor, weapon, null).filter(m => WEAPON_SPECIFIC.includes(m.key)), ...aeroWeaponMods(weapon, targetActor)]
@@ -2028,6 +2042,7 @@ async function resolveWeaponShot(actor, weapon, target, result, rolls) {
     { label: rangeLabel, value: rb.mod },
     { label: 'Stealth armor', value: stealth },
     { label: 'Cluster ammunition', value: modeToHit(weapon, fmode) },
+    ...munitionMods(weapon, fmode, result, targetActor),
     ...(mode === 'ground' ? rangeDependentMods(weapon, targetActor, result.range) : [])
   ].filter(m => m.value !== 0 || m.label === rangeLabel);
   const mods = [...baseMods, ...ownMods].filter(m => m.value !== 0 || m.key === 'gunnery');
@@ -2056,12 +2071,14 @@ async function resolveWeaponShot(actor, weapon, target, result, rolls) {
     const weapons = foundry.utils.deepClone(actor.system.weapons || []);
     const w = weapons.find(x => x.id === weapon.id);
     if (w && shots > 0 && weaponTracksAmmo(actor, weapon)) {
-      // LB-X cluster rounds come from their own count when the sheet tracks one.
-      const field = kind === 'lbx' && fmode === 'cluster' && w.clusterAmmo !== undefined && w.clusterAmmo !== '' ? 'clusterAmmo' : 'ammo';
+      // LB-X cluster rounds and special munitions come from their own counts when the sheet tracks them.
+      const field = munition ? MUNITIONS[munition].field
+        : kind === 'lbx' && fmode === 'cluster' && w.clusterAmmo !== undefined && w.clusterAmmo !== '' ? 'clusterAmmo' : 'ammo';
       const before = num(w[field]);
       shots = Math.max(1, Math.min(shots, before));
       w[field] = Math.max(0, before - shots);
-      ammoLine = `${field === 'clusterAmmo' ? `${w.ammoType || weapon.name} cluster` : w.ammoType}: ${before} → ${w[field]} shots left${shots > 1 ? ` (${shots} fired)` : ''}`;
+      const ammoName = munition ? `${w.ammoType || weapon.name} ${MUNITIONS[munition].label}` : field === 'clusterAmmo' ? `${w.ammoType || weapon.name} cluster` : w.ammoType;
+      ammoLine = `${ammoName}: ${before} → ${w[field]} shots left${shots > 1 ? ` (${shots} fired)` : ''}`;
       ammoLeft = w[field];
     }
     if (w && jammed) w.jammed = true;
@@ -2104,6 +2121,8 @@ async function resolveWeaponShot(actor, weapon, target, result, rolls) {
     hitResult = { special: 'heat', heat, hasTarget: true, targetName, applied: true, groups: [],
       note: key ? `+${heat} heat to ${targetName} in its heat phase (${after} external heat this turn${after < before + heat ? ', capped at 15' : ''}).`
         : `+${heat} heat to ${targetName} — no combat running: add it to its heat by hand.` };
+  } else if (hit && munition === 'inferno') {
+    hitResult = await infernoHit(actor, weapon, target, result, rolls, notes);
   } else if (hit && actor.type === 'infantry') {
     // A platoon: Cluster Hits Table by troopers → Generic Conventional Infantry Damage Table.
     const pd = await platoonAttackDamage(actor, rolls, clusterHits);
@@ -2168,18 +2187,22 @@ async function resolveWeaponShot(actor, weapon, target, result, rolls) {
       if (ams) await spendAMS(targetActor, ams, notes);
     }
     const frag = await resolveDamageAgainst(targetActor, result.direction, groupSizes, rolls, targetName, {
-      partialCover: mode !== 'aero' && !!result.terrain?.partialCover && targetActor?.type === 'mech'
+      partialCover: mode !== 'aero' && !!result.terrain?.partialCover && targetActor?.type === 'mech',
+      specialCrit: munition === 'ap' ? { mod: apCritMod(weapon), label: 'Armor-piercing' } : null
     });
+    if (munition === 'semiguided' && !taggedThisTurn(targetActor, currentTurnKey())) notes.push('Semi-guided missiles without a TAG designation fire as standard LRMs.');
     hitResult = { cluster: !!clusterInfo, clusterInfo, total, ...frag };
   }
 
   // A miss from next to a unit inside a building hits the building (TW p. 171).
   if (!hit && rb.inRange && !jammed && result.missIntoBuilding && perHit > 0 && activeShield()) {
-    let dmg = perHit * Math.max(1, shotsFor(weapon, fmode));
+    // Inferno missiles do 2 to a building each.
+    const each = munition === 'inferno' ? 2 : perHit;
+    let dmg = each * Math.max(1, shotsFor(weapon, fmode));
     if (clusterSize > 0) {
       const cr = await new Roll("2d6").evaluate();
       rolls.push(cr);
-      dmg = clusterHits(clusterSize, cr.total) * perHit;
+      dmg = clusterHits(clusterSize, cr.total) * each;
     }
     if (shieldMiss(targetActor, dmg)) notes.push(`Missed: the building takes ${dmg}.`);
   }
@@ -2193,10 +2216,92 @@ async function resolveWeaponShot(actor, weapon, target, result, rolls) {
   };
 }
 
-/** "Double rate" / "4 shots" / "Cluster (−1)" for the card, or ''. */
+/** "Double rate" / "4 shots" / "Cluster (−1)" / "Inferno" for the card, or ''. */
 function fmodeLabel(weapon, fmode, targetActor) {
+  const m = munitionOf(weapon, fmode);
+  if (m) return MUNITIONS[m].label;
   const modes = fireModes(weapon, targetActor);
-  return modes.length > 1 && fmode !== modes[0].value ? (modes.find(m => m.value === fmode)?.label ?? '') : '';
+  return modes.length > 1 && fmode !== modes[0].value && fmode !== 'std' ? (modes.find(m => m.value === fmode)?.label ?? '').replace(/\s*\(\d+\)$/, '') : '';
+}
+
+/** To-hit modifiers from a weapon's special munition in this attack (tw-weapons.mjs munitionToHit). */
+function munitionMods(weapon, fmode, result, targetActor) {
+  const targetMove = (result?.auto || []).filter(m => m.key === 'targetMove').reduce((t, m) => t + num(m.value), 0);
+  return munitionToHit(weapon, fmode, { targetMove, tagged: taggedThisTurn(targetActor, currentTurnKey()) });
+}
+
+/**
+ * Inferno SRMs hit (MegaMek deliverInfernoMissiles): the cluster roll gives the
+ * missiles (all of them against conventional infantry or an automatic hit); no
+ * damage — heat to a 'Mech or fighter, critical rolls at −2 on a vehicle,
+ * 1 damage per 3 missiles to battle armor, 3 troopers per missile, 2 damage per
+ * missile to a building.
+ */
+async function infernoHit(actor, weapon, target, result, rolls, notes) {
+  const targetActor = target?.actor || null;
+  const targetName = target?.name || '';
+  const size = num(weapon.clusterSize) || 1;
+  const cMods = guidanceMods(weapon, targetActor);
+  let ams = null;
+  if ((ams = readyAMS(targetActor, currentTurnKey()))) cMods.push({ label: `${targetName}'s ${ams.name}`, value: -4 });
+  let missiles, cRoll = null;
+  if (result.building?.autoHit || targetActor?.type === 'infantry') missiles = size;
+  else {
+    cRoll = await new Roll("2d6").evaluate();
+    rolls.push(cRoll);
+    missiles = clusterHits(size, clusterRollTotal(cRoll.total, cMods));
+  }
+  if (ams) await spendAMS(targetActor, ams, notes);
+  const clusterInfo = { size, missiles, perHit: 0, total: 0, noun: 'inferno missiles', streak: false, mods: cMods,
+    rollTotal: cRoll?.total ?? null, modifiedTotal: cRoll ? clusterRollTotal(cRoll.total, cMods) : null,
+    dice: cRoll?.dice[0]?.results?.map(r => r.result) ?? [] };
+  const base = { cluster: true, clusterInfo, total: 0, hasTarget: !!targetActor, targetName, applied: true, groups: [] };
+  // A building: 2 per missile.
+  if (!targetActor) {
+    if (!activeBuildingTarget()) return base;
+    const frag = await resolveDamageAgainst(null, result.direction, [2 * missiles], rolls, targetName);
+    return { ...base, ...frag, total: 2 * missiles };
+  }
+  const tt = targetActor.type;
+  if (tracksHeat(targetActor)) {
+    // 2 heat a missile; behind partial cover, missiles striking the legs hit the cover instead.
+    let landed = missiles;
+    if (tt === 'mech' && result.terrain?.partialCover && result.mode !== 'aero') {
+      for (let i = 0; i < missiles; i++) {
+        const lr = await rollMechLocation(result.direction);
+        rolls.push(lr.roll);
+        if (lr.loc === 'll' || lr.loc === 'rl') landed--;
+      }
+      if (landed < missiles) notes.push(`${missiles - landed} inferno missile${missiles - landed === 1 ? '' : 's'} struck the cover.`);
+    }
+    const heat = 2 * landed;
+    const key = currentTurnKey();
+    const before = externalHeat(targetActor, key);
+    const after = Math.min(EXTERNAL_HEAT_CAP, before + heat);
+    if (key && heat > 0) await writeDoc(targetActor, { 'flags.mech-foundry.externalHeat': { key, value: after } });
+    return { ...base, special: 'heat', heat,
+      note: !heat ? `No inferno missiles reach ${targetName}.` : key ? `Infernos: +${heat} heat to ${targetName} in its heat phase (${after} external heat this turn${after < before + heat ? ', capped at 15' : ''}).`
+        : `Infernos: +${heat} heat to ${targetName} — no combat running: add it to its heat by hand.` };
+  }
+  if (tt === 'ground_vehicle') {
+    notes.push(`Infernos: ${missiles} critical roll${missiles === 1 ? '' : 's'} at −2 against ${targetName}.`);
+    const frag = await resolveDamageAgainst(targetActor, result.direction, Array(missiles).fill(0), rolls, targetName, { noIntercept: true, specialCrit: { mod: -2, always: true, label: 'Inferno' } });
+    return { ...base, ...frag, total: 0 };
+  }
+  if (tt === 'battle_armor') {
+    const pts = Math.floor(missiles / 3);
+    notes.push(`Infernos: ${missiles} missile${missiles === 1 ? '' : 's'} — ${pts} point${pts === 1 ? '' : 's'} of damage (1 per 3 missiles).`);
+    if (!pts) return base;
+    const frag = await resolveDamageAgainst(targetActor, result.direction, Array(pts).fill(1), rolls, targetName);
+    return { ...base, ...frag, total: pts };
+  }
+  if (tt === 'infantry') {
+    const frag = await resolvePlatoonHit(targetActor, { infantryDamage: 3 * missiles }, rolls);
+    frag.lines = [`Infernos: all ${missiles} missiles hit, 3 each`, ...(frag.lines || [])];
+    return { ...base, ...frag, total: 3 * missiles };
+  }
+  notes.push(`Infernos have no effect on ${targetName}.`);
+  return base;
 }
 
 /**

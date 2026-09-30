@@ -1,7 +1,7 @@
 import { MechFoundryActorSheetV2 } from "./base-actor-sheet.mjs";
 import { currentTurnKey, fireWeapons, firedThisTurn, unjamWeapon, usesAmmo, weaponToHitPreview } from "../helpers/tw-combat.mjs";
 import { MOVE_MODES, movedThisTurn, mpBreakdown, setMovement, weaponOwnToHit } from "../helpers/tw-movement.mjs";
-import { EXTERNAL_HEAT_CAP, externalHeat, guidable, narcPods, taggedThisTurn, weaponKind } from "../helpers/tw-weapons.mjs";
+import { EXTERNAL_HEAT_CAP, MUNITIONS, externalHeat, guidable, hasAnyAmmo, munitionKeys, narcPods, taggedThisTurn, weaponKind } from "../helpers/tw-weapons.mjs";
 import { torsoTwist } from "../helpers/tw-facing.mjs";
 import { setTorsoTwist, twistText } from "../helpers/tw-facing-ui.mjs";
 import { aeroMaxBracket, aeroTurnState, isAero, setAeroTurn } from "../helpers/tw-aero.mjs";
@@ -68,7 +68,7 @@ export class MechFoundryUnitSheet extends MechFoundryActorSheetV2 {
       aeroMax: aeroMaxBracket(w),
       destroyed: !!w.destroyed,
       fired: fired[w.id] !== undefined,
-      outOfAmmo: usesAmmo(w) && (Number(w.ammo) || 0) <= 0 && !(weaponKind(w) === 'lbx' && (Number(w.clusterAmmo) || 0) > 0),
+      outOfAmmo: usesAmmo(w) && !hasAnyAmmo(w),
       special: weaponSpecialContext(w, this.actor)
     }));
     const turnKey = currentTurnKey();
@@ -228,7 +228,7 @@ export class MechFoundryUnitSheet extends MechFoundryActorSheetV2 {
       if (!wpn) return false;
       // Blank means "automatic": the catalog to-hit modifier, cluster rounds from Rds.
       if (field === 'toHit') wpn[field] = String(raw).trim() === '' ? '' : (parseInt(raw) || 0);
-      else if (field === 'clusterAmmo') wpn[field] = String(raw).trim() === '' ? '' : Math.max(0, parseInt(raw) || 0);
+      else if (field === 'clusterAmmo' || Object.values(MUNITIONS).some(m => m.field === field)) wpn[field] = String(raw).trim() === '' ? '' : Math.max(0, parseInt(raw) || 0);
       else wpn[field] = numeric ? Math.max(0, parseInt(raw) || 0) : raw;
     });
   }
@@ -257,7 +257,9 @@ function weaponSpecialContext(w, actor) {
   const set = w.toHit === undefined || w.toHit === null ? '' : w.toHit;
   return {
     kind, guidable: guidable(w), lbx: kind === 'lbx', rotary: kind === 'rotary',
-    toHitSet: set, autoToHitText: auto > 0 ? `+${auto}` : String(auto), clearable: !!(w.jammed || w.spent)
+    toHitSet: set, autoToHitText: auto > 0 ? `+${auto}` : String(auto), clearable: !!(w.jammed || w.spent),
+    // Special munitions this weapon can carry (a blank count = none).
+    munitions: usesAmmo(w) ? munitionKeys(w).map(k => ({ key: k, field: MUNITIONS[k].field, short: MUNITIONS[k].short, label: MUNITIONS[k].label, value: w[MUNITIONS[k].field] ?? '' })) : []
   };
 }
 

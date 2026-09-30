@@ -235,10 +235,13 @@ Rules detail for what *is* automated lives in `docs/unit-sheet-design.md`.
       Narc pods and Narc-capable missiles, AMS, flamer heat mode, TAG, Streak no-fire on a miss,
       one-shot weapons, to-hit override on the weapon table.
 - [?] Rules choices to confirm: Narc pods help any attacker (no team tracking); AMS engages
-      regardless of arc; TAG only marks the target (no semi-guided / homing munitions yet);
+      regardless of arc; TAG marks the target for semi-guided LRMs (no homing artillery);
       ECM / stealth don't cancel Artemis / Narc bonuses (no ECM modelled).
-- [ ] Special munitions (inferno, semi-guided, swarm, thunder, precision / armor-piercing AC
-      ammo) and their to-hit / damage effects; separate ammo bins per munition.
+- [x] Special munitions: Inferno SRM, semi-guided LRM, precision and armor-piercing AC, each
+      with its own count on the weapon (tw-weapons.mjs MUNITIONS).
+- [ ] More munitions: swarm LRMs (with the other swarm rules), thunder LRMs (with minefield
+      regions), fragmentation, tandem-charge, smoke, flechette, Narc / Artemis-capable bins as
+      separate munitions; AP against hardened / reactive / ferro-lamellor armor.
 - [ ] Removing Narc pods by physical action / when the location is destroyed; iNarc pod types
       (ECM, haywire, nemesis, homing).
 - [ ] Explosive components (Gauss rifles) and vehicle "Weapon Destroyed" explosions.

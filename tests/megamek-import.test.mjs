@@ -159,6 +159,14 @@ const tank2 = parseUnitFile(TANK.replace('IS Ammo SRM-6\n', 'IS Ammo SRM-6\nSupe
 ok(tank2.system.gear?.supercharger === true && tank2.system.gear.ecm === 'guardian' && tank2.system.gear.c3 === 'slave', 'vehicle gear: supercharger, Guardian ECM, C3 slave');
 ok(!tank2.warnings.some(w => /no automated effect/.test(w) && /Supercharger|ECM|C3/.test(w)), 'recognised gear is not reported as having no effect');
 
+// Special munitions keep their own count on the weapon (tw-weapons.mjs MUNITIONS).
+const tank3 = parseUnitFile(TANK.replace('IS Ammo SRM-6\n', 'IS Ammo SRM-6\nIS Ammo SRM-6 Inferno\n'), 'Test Tank 3.blk');
+const srm3 = tank3.system.weapons.find(w => w.name === 'SRM 6');
+ok(srm3?.ammo === 15 && srm3.infernoAmmo === 15, 'inferno SRM bin → infernoAmmo, standard rounds kept apart');
+const tank4 = parseUnitFile(TANK.replace('IS Ammo SRM-6\n', 'IS Ammo SRM-6 Inferno\n'), 'Test Tank 4.blk');
+const srm4 = tank4.system.weapons.find(w => w.name === 'SRM 6');
+ok(srm4?.ammo === 0 && srm4.infernoAmmo === 15 && /SRM 6/.test(srm4.ammoType), 'only infernos carried: no standard rounds');
+
 /* ---- Aerospace fighter ------------------------------------------------- */
 const FIGHTER = `<UnitType>
 AeroSpaceFighter
