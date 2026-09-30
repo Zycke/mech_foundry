@@ -221,7 +221,10 @@ criticals and cluster grouping:
   (infantry ×3, battle armor ×2; Punch Location Table for 'Mechs inside) and units above the
   ground floor fall ("Building Collapse" card). Units inside the same building aren't blocked
   by it. Players' building damage goes through the GM relay (only the CF lost and the collapse
-  to rubble). The hover readout shows "Medium building (CF 32, 2 levels)". Not modelled:
+  to rubble). The hover readout shows "Medium building (CF 32, 2 levels)", and ground units
+  ('Mechs, vehicles, battle armor, infantry) inside a building below its roof carry the
+  "Inside a Building" status (house icon), kept up to date as tokens move or change elevation
+  and as building regions are drawn, moved, collapsed or deleted (tw-status.mjs). Not modelled:
   shooting at a building itself (and the share of it reaching infantry inside) (set its CF lost by hand), floors / basements and overload collapse, TacOps
   diagrammed line of sight.
 - **Movement discipline** (`module/helpers/tw-phase.mjs`): a token move that takes a unit past
