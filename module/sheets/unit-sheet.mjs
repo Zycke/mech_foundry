@@ -2,6 +2,7 @@ import { MechFoundryActorSheetV2 } from "./base-actor-sheet.mjs";
 import { currentTurnKey, fireWeapons, firedThisTurn, unjamWeapon, usesAmmo, weaponToHitPreview } from "../helpers/tw-combat.mjs";
 import { MOVE_MODES, movedThisTurn, mpBreakdown, setMovement, weaponOwnToHit } from "../helpers/tw-movement.mjs";
 import { c3Network, enemyECM, sideOf } from "../helpers/tw-ecm.mjs";
+import { automatedAnimationsActive, sequencerActive } from "../helpers/tw-animate.mjs";
 import { EXTERNAL_HEAT_CAP, MUNITIONS, externalHeat, guidable, hasAnyAmmo, munitionKeys, narcPods, taggedThisTurn, weaponKind } from "../helpers/tw-weapons.mjs";
 import { torsoTwist } from "../helpers/tw-facing.mjs";
 import { setTorsoTwist, twistText } from "../helpers/tw-facing-ui.mjs";
@@ -70,12 +71,16 @@ export class MechFoundryUnitSheet extends MechFoundryActorSheetV2 {
       destroyed: !!w.destroyed,
       fired: fired[w.id] !== undefined,
       outOfAmmo: usesAmmo(w) && !hasAnyAmmo(w),
-      special: weaponSpecialContext(w, this.actor)
+      special: weaponSpecialContext(w, this.actor),
+      animDelay: w.animationDelay === undefined || w.animationDelay === '' ? 50 : w.animationDelay,
+      animDuration: Number(w.animationDuration) || 0
     }));
     const turnKey = currentTurnKey();
     const markers = { narc: narcPods(this.actor), tagged: taggedThisTurn(this.actor, turnKey), extHeat: Math.min(EXTERNAL_HEAT_CAP, externalHeat(this.actor, turnKey)) };
     markers.any = !!(markers.narc.length || markers.tagged || markers.extHeat);
     context.weaponMarkers = markers;
+    // Weapon-fire animations (tw-animate.mjs): which animation modules are running.
+    context.animStatus = { sequencer: sequencerActive(), aa: automatedAnimationsActive() };
     // This turn's movement (ground units, during combat): hexes accumulate from
     // token moves; the mode is inferred unless picked here (jumping must be picked).
     if (currentTurnKey() && ['mech', 'ground_vehicle', 'battle_armor', 'infantry'].includes(this.actor.type)) {
@@ -218,7 +223,7 @@ export class MechFoundryUnitSheet extends MechFoundryActorSheetV2 {
   }
 
   /** Weapon fields stored as non-negative integers (all others are strings). */
-  static NUMERIC_WEAPON_FIELDS = ['shotsPerTon', 'heat', 'ammo'];
+  static NUMERIC_WEAPON_FIELDS = ['shotsPerTon', 'heat', 'ammo', 'animationDelay', 'animationDuration'];
 
   async _onWeaponFieldChange(event) {
     const { weaponId, field } = event.currentTarget.dataset;

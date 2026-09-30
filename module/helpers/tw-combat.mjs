@@ -18,6 +18,7 @@ import { mapAttackTerrain, terrainRowBlock, unitElevation } from "./tw-terrain.m
 import { beginBuildingTarget, beginShield, chooseBuildingTarget, collapseBuilding, endBuildingTarget, endShield, postOccupantCard } from "./tw-buildings.mjs";
 import { activeBuildingTarget, activeShield, buildingTargetHit, shieldGroups, shieldMiss } from "./tw-shield.mjs";
 import { electronicWarfare } from "./tw-ecm.mjs";
+import { animateVolley } from "./tw-animate.mjs";
 import { unitGear } from "./tw-gear.mjs";
 import { facingChanges, mechLocChanges, poolChange, volleyCard, roundLabel, ammoFooter, heatCard, rollCard, rollSummary, summaryContext, volleySummary, withSummary } from "./tw-cards.mjs";
 import { currentTurnKey } from "./tw-turn.mjs";
@@ -1998,6 +1999,7 @@ export async function fireWeapons(actor, preselect = []) {
 
   const rolls = [];
   const shots = [];
+  const fired = []; // { weapon, shot } for the animations (tw-animate.mjs)
   beginRecording();
   // A target inside a building is shielded by it (ground attacks).
   if (mode === 'ground') beginShield(targetActor, target, actor, attackerToken);
@@ -2010,11 +2012,14 @@ export async function fireWeapons(actor, preselect = []) {
     if (arc && !arc.ok) (shot.notes ??= []).push(`Fired outside its ${arc.label} (${arc.why}) — allowed by the firing player / GM.`);
     else if (terrainRowBlock(map, actor, weapon)) (shot.notes ??= []).push(`Fired although ${terrainRowBlock(map, actor, weapon)} — allowed by the firing player / GM.`);
     shots.push(shot);
+    fired.push({ weapon, shot });
   }
   const shielded = await endShield();
   const hitBuilding = building ? await endBuildingTarget(rolls) : null;
   const recorded = endRecording();
   if (!shots.length) return;
+  // Weapon-fire animations (Sequencer path per weapon, else Automated Animations by name); visual only.
+  await animateVolley(attackerToken, target, fired);
   // One condensed card for the whole volley (tw-cards.mjs / tw-volley.hbs).
   const dir = dirList.find(d => d.key === result.direction)?.label;
   const tracksHeat = actor.type === 'mech' || isAero(actor);

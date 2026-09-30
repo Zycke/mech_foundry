@@ -250,6 +250,16 @@ criticals and cluster grouping:
   real component); a supercharger failure rolls 2D6 for 0–3 engine hits (motive damage steps on
   a vehicle); either way it isn't armed that turn. TSM at heat 9+: +2 Walking MP (not with a
   destroyed leg) and double punch, kick, club, hatchet, sword and retractable blade damage.
+- **Weapon-fire animations** (`module/helpers/tw-animate.mjs`; visual only): the "Weapon
+  animations" block under each unit weapon table ('Mech, vehicle, fighter, battle armor) holds a
+  Sequencer / JB2A path per weapon, a delay between projectiles and a travel time — like the
+  personal-scale weapon items. A weapon left blank is handed to the Automated Animations module
+  when it is active (`AutomatedAnimations.playAnimation` with the weapon's name), which matches
+  it in its Automatic Recognition menu; unit weapons are sheet rows, not Items, so they can't hold
+  A-A's own item settings. One projectile per missile / pellet / Ultra or Rotary shot, as many
+  reaching the target as the Cluster Hits Table says; misses land beside it (15 m + 10 m per point
+  missed, at most 60 m). Out-of-range, jammed and Streak-no-lock shots don't animate; a building
+  target gets Sequencer animations only. The volley's animations play before its chat card.
 - **Electronic warfare** (`module/helpers/tw-ecm.mjs`; TW, checked against MegaMek ComputeECM /
   ComputeC3Spotter): sides come from token disposition (different dispositions are enemies; a
   secret token counts as hostile). An ECM suite projects a 6-hex bubble (not while shut down or

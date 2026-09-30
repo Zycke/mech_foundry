@@ -7755,3 +7755,12 @@
 .tw-fire-dialog .tw-fire-twist { margin: 0 0 4px; font-size: 0.8rem; color: #5fd3e6; }
 .tw-fire-dialog .tw-fire-map { margin: 0 0 4px; font-size: 0.8rem; color: #8fc27a; }
 .tw-fire-dialog .tw-fire-map i { margin-right: 3px; }
+
+/* Weapon-fire animations block under the unit weapon table (tw-animate.mjs). */
+.mech-foundry details.mf-anim { margin: 6px 0; font-size: 0.9em; }
+.mech-foundry details.mf-anim > summary { cursor: pointer; font-weight: 700; }
+.mech-foundry .mf-anim-status { margin-left: 8px; font-weight: 400; display: inline-flex; gap: 4px; }
+.mech-foundry .mf-anim-table { width: 100%; margin: 4px 0; }
+.mech-foundry .mf-anim-table td.mf-anim-name { white-space: nowrap; }
+.mech-foundry .mf-anim-table input[type="text"] { width: 100%; }
+.mech-foundry .mf-anim-table input.n { width: 4.5em; }
