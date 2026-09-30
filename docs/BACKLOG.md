@@ -197,8 +197,8 @@ Rules detail for what *is* automated lives in `docs/unit-sheet-design.md`.
 - [x] Elevation and level differences (physical attacks by level, LOS, falls into lower
       hexes when displaced) — from the map's terrain regions.
 - [x] Facing (auto-facing, Q/E, torso twist), facing MP costs, firing arcs, attack direction
-      from facing, physical-attack arcs (punch / kick / club / push). Open: quad 'Mechs, mule kicks,
-      lateral shifts, rear-facing arm flips, turret facing for locked turrets (assumed forward),
+      from facing, physical-attack arcs (punch / kick / club / push). Deferred (by decision):
+      quad 'Mechs, mule kicks. Open: lateral shifts, rear-facing arm flips, turret facing for locked turrets (assumed forward),
       facing costs for aerospace (thrust, via the Maneuver helper today).
 - [ ] Token displacement: pushes, charges, death from above, skids, sideslips (chat card
       tells players what to move).
@@ -245,7 +245,7 @@ Rules detail for what *is* automated lives in `docs/unit-sheet-design.md`.
 - [ ] Ammo bins in crit slots vs. the weapon's pooled ammo count (bin size from Shots/Ton).
 
 **'Mechs**
-- [ ] Four-legged 'Mechs; IndustrialMechs; small cockpits (+1 PSR); heavy-duty gyros;
+- [ ] Four-legged 'Mechs (deferred by decision); IndustrialMechs; small cockpits (+1 PSR); heavy-duty gyros;
       fission-engine radiation.
 - [ ] Physical-attack restrictions while prone; wrecking ball self-hit on a 2; spot welder
       +2 heat.
