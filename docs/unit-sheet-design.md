@@ -343,8 +343,9 @@ criticals and cluster grouping:
   Punch table (attacker ⌈t/5⌉ on the Kick table); charges force a motive roll on vehicles.
   PSRs: kicked 0, missed kick 0, pushed 0, charged +2 / charging +2, DFA target +2 / attacker +4;
   a missed DFA is a 2-level fall on the rear. Displacement (pushes, charges, DFAs) is noted on
-  the card for the players to move tokens. Not modelled: level differences, TSM, the wrecking
-  ball's self-hit on a 2, the spot welder's +2 heat.
+  the card for the players to move tokens. Level differences come from the map's terrain
+  regions (see Map terrain). Not modelled: TSM, the wrecking ball's self-hit on a 2, the spot
+  welder's +2 heat.
 - **Initiative** (A Time of War): 2D6, highest acts first, ties to the higher RFL; Combat Sense
   rolls 3D6 keeping the highest two. Combat units roll with their linked pilot / crew
   character's traits and break ties on that character's RFL (`MechFoundryCombatant`).
