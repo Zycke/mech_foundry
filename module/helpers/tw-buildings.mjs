@@ -12,9 +12,12 @@
  *   hexes moved this turn (3–4 +1, 5–6 +2, 7–9 +3, 10–17 +4, 18–24 +5, 25+ +6).
  *   A failure: the unit takes CF ÷ 10 (round up) damage (front, or rear when
  *   backing). Either way the building takes the unit's tonnage ÷ 10.
- * - A unit inside a building (below its roof) is shielded: every hit on it
- *   from an attack loses CF ÷ 10 (round up) damage, which the building takes
- *   instead. (Conventional infantry inside use TW's own table: not modelled.)
+ * - A unit inside a building (below its roof) is shielded from attacks from
+ *   outside it: every hit loses CF ÷ 10 (round up) damage, which the building
+ *   takes instead — for conventional infantry, off the damage the platoon takes
+ *   (troopers). An attacker inside the same building gets no such shield in
+ *   the way, except fire at conventional infantry on another floor: the building
+ *   takes a share (heavy ¼, hardened ½; light / medium none — TW p. 175).
  * - At CF 0 the building collapses into rubble: every unit inside takes
  *   CF (before the collapse) × floors above it ÷ 10 (round up; infantry ×3,
  *   battle armor ×2) in 5-point groups (Punch Location Table for 'Mechs
@@ -28,17 +31,20 @@ import { pilotingMods } from "./tw-skills.mjs";
 import { psrDamageMods } from "./tw-psr.mjs";
 import { pilotUnconscious, vehicleDrivingMods } from "./tw-movement.mjs";
 import { rollPunchLocation } from "./tw-physical.mjs";
+import { activeShield, setShield } from "./tw-shield.mjs";
+
+export { shieldGroups, shieldPlatoon } from "./tw-shield.mjs";
 
 const num = (v) => Number(v) || 0;
 const sum = (mods) => mods.reduce((t, m) => t + num(m.value), 0);
 const diceOf = (roll) => roll?.dice?.[0]?.results?.map(r => r.result) ?? [];
 
-/** Building classes: label, the wall-roll modifier. */
+/** Building classes: label, the wall-roll modifier, the share it absorbs of fire at infantry between its floors. */
 export const BUILDING_CLASSES = {
-  light: { label: "Light", psr: 0 },
-  medium: { label: "Medium", psr: 1 },
-  heavy: { label: "Heavy", psr: 2 },
-  hardened: { label: "Hardened", psr: 5 }
+  light: { label: "Light", psr: 0, inside: 0 },
+  medium: { label: "Medium", psr: 1, inside: 0 },
+  heavy: { label: "Heavy", psr: 2, inside: 0.25 },
+  hardened: { label: "Hardened", psr: 5, inside: 0.5 }
 };
 
 /** A building region's current CF. */
@@ -152,34 +158,35 @@ export async function resolveBuildingWalls(actor, walls, { backward = false, sce
 /*  Attacks on units inside buildings           */
 /* -------------------------------------------- */
 
-let shield = null;
+
+/**
+ * How a building shields a target from an attacker, or null:
+ * { rec, mode: 'outside' (absorbs `absorb` per hit) | 'inside' (absorbs `share` of an
+ * infantry attack on infantry), absorb, share }.
+ */
+export function shieldFor(targetActor, targetToken, attacker = null, attackerToken = null) {
+  if (!targetActor || !targetToken) return null;
+  const rec = buildingAround(targetActor, targetToken);
+  if (!rec) return null;
+  const inSame = attackerToken && buildingAround(attacker, attackerToken)?.behavior === rec.behavior;
+  if (inSame) {
+    // Inside the same building: only infantry on infantry across floors.
+    const share = BUILDING_CLASSES[rec.buildingClass]?.inside ?? 0;
+    const floors = unitElevation(attacker, attackerToken.document ?? attackerToken) !== unitElevation(targetActor, targetToken.document ?? targetToken);
+    return targetActor.type === "infantry" && floors && share > 0 ? { rec, mode: "inside", share, absorb: 0 } : null;
+  }
+  const absorb = absorption(rec);
+  return absorb > 0 ? { rec, mode: "outside", absorb, share: 0 } : null;
+}
 
 /**
  * Start shielding a target inside a building for one attack (volley): every
- * damage group resolveDamageAgainst applies to it loses the building's
- * absorption. Returns the shield or null.
+ * damage group (or platoon hit) applied to it loses the building's share.
+ * Returns the shield or null.
  */
-export function beginShield(targetActor, targetToken) {
-  shield = null;
-  if (!targetActor || targetActor.type === "infantry" || !targetToken) return null;
-  const doc = targetToken.document ?? targetToken;
-  const center = targetToken.center ?? tokenCenter(doc);
-  const rec = hexAt(center, terrainRegions(doc.parent ?? globalThis.canvas?.scene)).buildingRec;
-  if (!rec || unitElevation(targetActor, doc) >= rec.height || absorption(rec) <= 0) return null;
-  shield = { uuid: targetActor.uuid, rec, absorb: absorption(rec), absorbed: 0, cfBefore: currentCF(rec) };
-  return shield;
-}
-
-/** Damage groups after the shielding building takes its share (unchanged if not shielded). */
-export function shieldGroups(targetActor, groups) {
-  if (!shield || !targetActor || targetActor.uuid !== shield.uuid) return groups;
-  const out = [];
-  for (const g of groups) {
-    const a = Math.min(shield.absorb, num(g));
-    shield.absorbed += a;
-    if (num(g) - a > 0) out.push(num(g) - a);
-  }
-  return out;
+export function beginShield(targetActor, targetToken, attacker = null, attackerToken = null) {
+  const sf = shieldFor(targetActor, targetToken, attacker, attackerToken);
+  return setShield(sf ? { uuid: targetActor.uuid, ...sf, absorbed: 0, cfBefore: currentCF(sf.rec) } : null);
 }
 
 /**
@@ -187,13 +194,13 @@ export function shieldGroups(targetActor, groups) {
  * { alert, collapse } for the card (or null when nothing was absorbed).
  */
 export async function endShield() {
-  const sh = shield;
-  shield = null;
+  const sh = activeShield();
+  setShield(null);
   if (!sh || sh.absorbed <= 0) return null;
   const d = await damageBuilding(sh.rec, sh.absorbed);
   const name = sh.rec.region?.name || "The building";
   return {
-    alert: { tag: "BUILDING", text: `${name} absorbs ${sh.absorbed} damage (${sh.absorb} per hit): CF ${d.before} → ${d.after}${d.collapsed ? " — it collapses" : ""}`, red: d.collapsed },
+    alert: { tag: "BUILDING", text: `${name} absorbs ${sh.absorbed} damage (${sh.mode === "outside" ? `${sh.absorb} per hit` : `${Math.round(sh.share * 100)}% between floors`}): CF ${d.before} → ${d.after}${d.collapsed ? " — it collapses" : ""}`, red: d.collapsed },
     collapse: d.collapsed ? { uuid: sh.rec.behavior?.uuid, cfBefore: sh.cfBefore } : null
   };
 }

@@ -15,7 +15,8 @@ import { beginRecording, endRecording, writeDoc } from "./gm-relay.mjs";
 import { AERO_HEX_M, GROUND_HEX_M, measureHexes, pixelsPerMeter } from "./tw-scale.mjs";
 import { arcCheck, attackSide, tokenFacing, torsoTwist } from "./tw-facing.mjs";
 import { mapAttackTerrain, terrainRowBlock, unitElevation } from "./tw-terrain.mjs";
-import { beginShield, collapseBuilding, endShield, shieldGroups } from "./tw-buildings.mjs";
+import { beginShield, collapseBuilding, endShield } from "./tw-buildings.mjs";
+import { shieldGroups } from "./tw-shield.mjs";
 import { facingChanges, mechLocChanges, poolChange, volleyCard, roundLabel, ammoFooter, heatCard, rollCard, rollSummary, summaryContext, volleySummary, withSummary } from "./tw-cards.mjs";
 import { currentTurnKey } from "./tw-turn.mjs";
 import { autoAttackMods, movedThisTurn, pilotUnconscious, rangeDependentMods, terrainMods, vehicleWeaponLocation } from "./tw-movement.mjs";
@@ -1900,7 +1901,7 @@ export async function fireWeapons(actor, preselect = []) {
   const shots = [];
   beginRecording();
   // A target inside a building is shielded by it (ground attacks).
-  if (mode === 'ground') beginShield(targetActor, target);
+  if (mode === 'ground') beginShield(targetActor, target, actor, attackerToken);
   for (const id of ids) {
     const weapon = all.find(w => w.id === id);
     if (!weapon || weaponBlock(actor, weapon)) continue;

@@ -266,11 +266,13 @@ export function mapAttackTerrain(actor, targetActor, from, to, opts = {}) {
   const mech = (a) => a?.type === "mech";
   const attackerBase = unitBase(actor, attackerHex, num(opts.attackerElevation));
   const targetBase = unitBase(targetActor, targetHex, num(opts.targetElevation));
+  const inside = (hex, elev) => hex.buildingRec && num(elev) < hex.buildingRec.height ? hex.buildingRec : null;
+  const tIn = inside(targetHex, opts.targetElevation), aIn = inside(attackerHex, opts.attackerElevation);
+  const sameBuilding = !!tIn && tIn === aIn;
   const line = lineTerrain(from, to, { regions, pxPerHex: opts.pxPerHex ?? pixelsPerMeter() * GROUND_HEX_M,
     attackerAbs: attackerBase + unitHeight(actor), targetAbs: targetBase + unitHeight(targetActor),
     attackerMech: mech(actor) && unitHeight(actor) > 0, targetMech: mech(targetActor) && unitHeight(targetActor) > 0,
-    sameBuilding: attackerHex.buildingRec && attackerHex.buildingRec === targetHex.buildingRec
-      && num(opts.attackerElevation) < attackerHex.buildingRec.height && num(opts.targetElevation) < targetHex.buildingRec.height ? attackerHex.buildingRec.behavior : null });
+    sameBuilding: sameBuilding ? tIn.behavior : null });
   const cover = (h) => (h.woods === "heavy" || h.smoke === "heavy") ? "heavy" : (h.woods || h.smoke) ? "light" : "none";
   const waterCover = mech(targetActor) && targetHex.water && targetHex.depth === 1 && !targetHex.ice;
   const res = {
@@ -282,7 +284,7 @@ export function mapAttackTerrain(actor, targetActor, from, to, opts = {}) {
     coverWhy: waterCover ? "depth 1 water" : line.targetCover ? "terrain in front of it" : "",
     attackerCover: line.attackerCover,
     inOpen: inTheOpen(targetHex),
-    targetBuilding: targetHex.buildingRec && num(opts.targetElevation) < targetHex.buildingRec.height ? targetHex.buildingRec : null,
+    targetBuilding: tIn, sameBuilding,
     attackerDepth: mech(actor) && attackerHex.water && !attackerHex.ice ? attackerHex.depth : 0,
     attackerSubmerged: mech(actor) && attackerHex.water && !attackerHex.ice && attackerHex.depth >= 2,
     targetSubmerged: mech(targetActor) && targetHex.water && !targetHex.ice && targetHex.depth >= 2
@@ -296,9 +298,14 @@ export function mapAttackTerrain(actor, targetActor, from, to, opts = {}) {
   s.push(`target in ${describeHex(targetHex).toLowerCase()}`);
   if (res.levelDiff) s.push(`target ${Math.abs(res.levelDiff)} level${Math.abs(res.levelDiff) === 1 ? "" : "s"} ${res.levelDiff > 0 ? "higher" : "lower"}`);
   if (res.partialCover) s.push(`partial cover (${res.coverWhy})`);
-  if (res.targetBuilding && targetActor?.type !== "infantry") {
+  if (res.targetBuilding && !sameBuilding) {
     const cf = Math.max(0, res.targetBuilding.cf - res.targetBuilding.damage);
     s.push(`target inside a ${res.targetBuilding.buildingClass} building: it absorbs ${Math.ceil(cf / 10)} of each hit (CF ${cf})`);
+  } else if (sameBuilding) {
+    const share = { heavy: 25, hardened: 50 }[tIn.buildingClass] ?? 0;
+    const floors = num(opts.attackerElevation) !== num(opts.targetElevation);
+    s.push(targetActor?.type === "infantry" && floors && share ? `both inside the same ${tIn.buildingClass} building, on different floors: it absorbs ${share}% of the damage to the infantry`
+      : "both inside the same building: it neither blocks nor shields");
   }
   if (res.attackerCover) s.push("attacker in partial cover (leg weapons can't fire)");
   if (line.heightBlocked) s.push(`line of sight blocked by a ${line.blockedBy}`);
@@ -357,7 +364,7 @@ const NAVAL = new Set(["naval", "hydrofoil", "submarine"]);
  * MoveStep / Tank.isLocationProhibited): { mp, parts: [[label, mp]], prohibited }.
  * A road (paved) through woods, rough or rubble removes their cost and ban.
  */
-export function hexCost(motive, hex) {
+export function hexCost(motive, hex, { mechanized = false } = {}) {
   const out = { mp: 0, parts: [], prohibited: "" };
   if (AIRBORNE.has(motive)) return out;
   const add = (label, mp) => { if (mp > 0) { out.mp += mp; out.parts.push([label, mp]); } };
@@ -379,8 +386,9 @@ export function hexCost(motive, hex) {
     if (motive === "wheeled") ban("wheeled vehicles can't enter rubble");
   }
   if (hex.swamp && motive !== "hover") add("swamp", motive === "mech" ? 1 : 2);
-  // Entering a building: 'Mechs and vehicles pay by its class (light 1 … hardened 4); infantry don't.
+  // Entering a building: 'Mechs and vehicles pay by its class (light 1 … hardened 4); infantry don't (mechanized 1).
   if (hex.building && !["infantry", "umu"].includes(motive)) add(`${hex.buildingRec?.buildingClass ?? "medium"} building`, BUILDING_MP[hex.buildingRec?.buildingClass] ?? 2);
+  else if (hex.building && mechanized) add("building (mechanized)", 1);
   if (hex.ice && motive !== "hover") add("ice", 1);
   if (water) {
     if (motive === "mech") add(`depth ${hex.depth} water`, hex.depth >= 2 ? 3 : 1);
@@ -439,7 +447,7 @@ export function pathTerrain(actor, points, { regions = terrainRegions(), pxPerHe
       if (jumped && k === N && mech && hex.rubble && !hex.paved) out.psr.push({ key: "rubble", label: "Landed in rubble", mod: 0 });
       prev = hex; continue;
     }
-    const c = hexCost(motive, hex);
+    const c = hexCost(motive, hex, { mechanized: actor?.type === "infantry" && actor.system?.platoonType === "mechanized" });
     out.mp += c.mp;
     for (const [label, mp] of c.parts) out.parts[label] = (out.parts[label] ?? 0) + mp;
     ban(c.prohibited);

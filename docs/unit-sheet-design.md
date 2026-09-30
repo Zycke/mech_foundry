@@ -210,15 +210,19 @@ criticals and cluster grouping:
   and vehicles — is rolled when the move lands (Piloting / Driving, + light 0 / medium 1 / heavy
   2 / hardened 5, + hexes moved this turn: 3–4 +1 … 25+ +6); a failure costs the unit CF ÷ 10
   damage (front, or rear when backing), and the building takes the unit's tonnage ÷ 10 either
-  way ("Moving Through Buildings" card). A unit inside a building (below its roof) is shielded:
-  each hit on it loses CF ÷ 10, which the building takes instead (card alert; Undo covers the
-  building). At CF 0 it collapses into rubble: units inside take CF × floors above ÷ 10
+  way ("Moving Through Buildings" card). A unit inside a building (below its roof) is shielded
+  from attacks from outside: each hit on it loses CF ÷ 10, which the building takes instead
+  (card alert; Undo covers the building) — for conventional infantry, off the troopers the hit
+  would eliminate (per hit; the platoon's card line shows it). An attacker inside the same
+  building gets no shield in the way, except fire at conventional infantry on another floor
+  (by token elevation): the building takes a share — heavy ¼, hardened ½, light / medium none
+  (TW p. 175). The fire dialog's map line says which applies. Mechanized platoons pay 1 MP to
+  enter a building (foot infantry nothing). At CF 0 it collapses into rubble: units inside take CF × floors above ÷ 10
   (infantry ×3, battle armor ×2; Punch Location Table for 'Mechs inside) and units above the
   ground floor fall ("Building Collapse" card). Units inside the same building aren't blocked
   by it. Players' building damage goes through the GM relay (only the CF lost and the collapse
   to rubble). The hover readout shows "Medium building (CF 32, 2 levels)". Not modelled:
-  conventional infantry inside buildings (TW's own damage table), shooting at a building
-  itself (set its CF lost by hand), floors / basements and overload collapse, TacOps
+  shooting at a building itself (and the share of it reaching infantry inside) (set its CF lost by hand), floors / basements and overload collapse, TacOps
   diagrammed line of sight.
 - **Movement discipline** (`module/helpers/tw-phase.mjs`): a token move that takes a unit past
   its current MP this turn (Running / Flanking, or Walking when "Walked" is declared, Jumping

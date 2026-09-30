@@ -354,7 +354,7 @@ export async function resolvePhysicalAttack(actor, target, r) {
 
   beginRecording();
   // A target inside a building is shielded by it.
-  beginShield(targetActor, target);
+  beginShield(targetActor, target, actor, actor.getActiveTokens?.()[0] ?? null);
   const roll = await new Roll("2d6").evaluate();
   const rolls = [roll];
   const hit = roll.total >= tn;
