@@ -15,6 +15,7 @@ import { beginRecording, endRecording, writeDoc } from "./gm-relay.mjs";
 import { AERO_HEX_M, GROUND_HEX_M, measureHexes, pixelsPerMeter } from "./tw-scale.mjs";
 import { arcCheck, attackSide, tokenFacing, torsoTwist } from "./tw-facing.mjs";
 import { mapAttackTerrain, terrainRowBlock, unitElevation } from "./tw-terrain.mjs";
+import { beginShield, collapseBuilding, endShield, shieldGroups } from "./tw-buildings.mjs";
 import { facingChanges, mechLocChanges, poolChange, volleyCard, roundLabel, ammoFooter, heatCard, rollCard, rollSummary, summaryContext, volleySummary, withSummary } from "./tw-cards.mjs";
 import { currentTurnKey } from "./tw-turn.mjs";
 import { autoAttackMods, movedThisTurn, pilotUnconscious, rangeDependentMods, terrainMods, vehicleWeaponLocation } from "./tw-movement.mjs";
@@ -1178,6 +1179,8 @@ export async function resolveDamageAgainst(targetActor, direction, groupSizes, r
   areaEffect = false, autoCrit = false, noIntercept = false, platoonHit = null
 } = {}) {
   const tt = targetActor?.type;
+  // A unit inside a building: the building takes its share of each hit first (tw-buildings.mjs).
+  if (!areaEffect && tt !== 'infantry') groupSizes = shieldGroups(targetActor, groupSizes);
   if (tt === 'battle_armor') return await resolveBattleArmorDamage(targetActor, groupSizes, rolls, { areaEffect });
   // Conventional infantry: troopers eliminated per the Non-Infantry Weapon Damage table
   // (callers that know the weapon pass `platoonHit`; otherwise direct fire / physical).
@@ -1896,6 +1899,8 @@ export async function fireWeapons(actor, preselect = []) {
   const rolls = [];
   const shots = [];
   beginRecording();
+  // A target inside a building is shielded by it (ground attacks).
+  if (mode === 'ground') beginShield(targetActor, target);
   for (const id of ids) {
     const weapon = all.find(w => w.id === id);
     if (!weapon || weaponBlock(actor, weapon)) continue;
@@ -1905,6 +1910,7 @@ export async function fireWeapons(actor, preselect = []) {
     else if (terrainRowBlock(map, actor, weapon)) (shot.notes ??= []).push(`Fired although ${terrainRowBlock(map, actor, weapon)} — allowed by the firing player / GM.`);
     shots.push(shot);
   }
+  const building = await endShield();
   const recorded = endRecording();
   if (!shots.length) return;
   // One condensed card for the whole volley (tw-cards.mjs / tw-volley.hbs).
@@ -1919,7 +1925,8 @@ export async function fireWeapons(actor, preselect = []) {
     baseMods: shots[0].baseMods,
     shots,
     heat: tracksHeat ? shots.reduce((t, s) => t + num(s.heat), 0) : null,
-    footer: ammoFooter(shots)
+    footer: ammoFooter(shots),
+    alerts: building ? [building.alert] : []
   });
   await ChatMessage.create({
     flags: { 'mech-foundry': withSummary(recorded, volleySummary(card, { ...summaryContext(), kind: 'fire', attacker: actor, target: targetActor })) },
@@ -1928,6 +1935,7 @@ export async function fireWeapons(actor, preselect = []) {
     content: await foundry.applications.handlebars.renderTemplate("systems/mech-foundry/templates/chat/tw-volley.hbs", card),
     rolls
   });
+  if (building?.collapse) await collapseBuilding(building.collapse.uuid, { cfBefore: building.collapse.cfBefore });
 }
 
 /**

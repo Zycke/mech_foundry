@@ -30,6 +30,7 @@ import {
 } from "./tw-combat.mjs";
 import { skillHint, skillMod } from "./tw-skills.mjs";
 import { mapAttackTerrain, unitElevation, unitHeight } from "./tw-terrain.mjs";
+import { beginShield, collapseBuilding, endShield } from "./tw-buildings.mjs";
 
 const { DialogV2 } = foundry.applications.api;
 const num = (v) => Number(v) || 0;
@@ -352,6 +353,8 @@ export async function resolvePhysicalAttack(actor, target, r) {
   const tn = sum(mods);
 
   beginRecording();
+  // A target inside a building is shielded by it.
+  beginShield(targetActor, target);
   const roll = await new Roll("2d6").evaluate();
   const rolls = [roll];
   const hit = roll.total >= tn;
@@ -467,7 +470,9 @@ export async function resolvePhysicalAttack(actor, target, r) {
     outOfRange: false, damage: hit ? physicalDamage(actor, type, { weaponKey, hexes: r.hexes, halvings: act.halvings }) : 0,
     hitResult
   };
+  const building = await endShield();
   const card = volleyCard({
+    alerts: building ? [building.alert] : [],
     title: spec.label, icon: 'fa-hand-fist',
     attackerName: actor.name, targetName: target?.name || '',
     ctxLine: r.direction ? `${r.direction[0].toUpperCase()}${r.direction.slice(1)}` : '',
@@ -477,5 +482,6 @@ export async function resolvePhysicalAttack(actor, target, r) {
   const cardContent = await foundry.applications.handlebars.renderTemplate("systems/mech-foundry/templates/chat/tw-volley.hbs", card);
   await ChatMessage.create({ flags: { 'mech-foundry': withSummary(endRecording(), volleySummary(card, { ...summaryContext(), kind: 'physical', attacker: actor, target: targetActor })) }, speaker: ChatMessage.getSpeaker({ actor }), flavor: `${spec.label}`, content: cardContent, rolls });
   if (fall) await postCard(actor, 'Death From Above — Missed', { results: [], fall }, []);
+  if (building?.collapse) await collapseBuilding(building.collapse.uuid, { cfBefore: building.collapse.cfBefore });
   return { hit, tn, mods: shown, hitResult, selfResult, notes, fall };
 }

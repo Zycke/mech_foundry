@@ -263,8 +263,8 @@ export function registerMovementTracking() {
     const regions = terrainRegions(doc.parent ?? canvas?.scene);
     if (regions.length && d?.meters > 0) {
       const cur = movedThisTurn(actor);
-      const t = pathTerrain(actor, path.map(p => centerOf(doc, p)), { regions, mode: cur.modeSet ? cur.mode : '', startFacing: keep ? null : startFacing });
-      if (t.mp || t.prohibited.length || t.psr.length || t.notes.length || t.skidTurns) options.mfTerrain = t;
+      const t = pathTerrain(actor, path.map(p => centerOf(doc, p)), { regions, mode: cur.modeSet ? cur.mode : '', startFacing: keep ? null : startFacing, priorHexes: cur.hexes });
+      if (t.mp || t.prohibited.length || t.psr.length || t.notes.length || t.skidTurns || t.walls.length) options.mfTerrain = t;
     }
   });
 
@@ -285,7 +285,7 @@ export function registerMovementTracking() {
       upd.terrainParts = parts;
     }
     await setMovement(actor, upd);
-    if (t) await terrainAftermath(actor, t);
+    if (t) await terrainAftermath(actor, t, { backward: num(options.mfBackward) > 0 });
   });
 }
 
@@ -293,7 +293,12 @@ export function registerMovementTracking() {
  * After a move through terrain: queue the 'Mech's Piloting Skill Rolls
  * (rubble, water) and tell the mover (and the GM) what's owed.
  */
-async function terrainAftermath(actor, t) {
+async function terrainAftermath(actor, t, { backward = false } = {}) {
+  // Building walls passed: rolled now (a failure is damage, not a fall).
+  if (t.walls?.length) {
+    const { resolveBuildingWalls } = await import("./tw-buildings.mjs");
+    await resolveBuildingWalls(actor, t.walls, { backward });
+  }
   const notes = [];
   if (t.psr?.length && actor.type === 'mech' && !actor.system?.conditions?.prone) {
     await actor.update({ 'flags.mech-foundry.psr': queuePSR(actor, t.psr) });

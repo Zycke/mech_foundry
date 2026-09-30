@@ -56,7 +56,11 @@ export function defineTerrainBehavior() {
           choices: Object.fromEntries(Object.entries(TERRAIN_TYPES).map(([k, t]) => [k, t.label])) }),
         level: new NumberField({ required: true, nullable: false, initial: 0, integer: true, min: -20, max: 50 }),
         depth: new NumberField({ required: true, nullable: false, initial: 0, integer: true, min: 0, max: 20 }),
-        height: new NumberField({ required: true, nullable: false, initial: 2, integer: true, min: 1, max: 30 })
+        height: new NumberField({ required: true, nullable: false, initial: 2, integer: true, min: 1, max: 30 }),
+        buildingClass: new StringField({ required: true, initial: "medium",
+          choices: { light: "Light (CF up to 15)", medium: "Medium (CF 16–40)", heavy: "Heavy (CF 41–90)", hardened: "Hardened (CF 91–150)" } }),
+        cf: new NumberField({ required: true, nullable: false, initial: 40, integer: true, min: 1, max: 1000 }),
+        damage: new NumberField({ required: true, nullable: false, initial: 0, integer: true, min: 0, max: 1000 })
       };
     }
   };
@@ -70,14 +74,16 @@ export function registerTerrainBehavior() {
   if (CONFIG.RegionBehavior.typeIcons) CONFIG.RegionBehavior.typeIcons[TERRAIN_BEHAVIOR] = "fa-solid fa-tree";
 }
 
-/** The scene's terrain regions: [{ region, terrain, level, depth, height (buildings) }]. */
+/** The scene's terrain regions: [{ region, behavior, terrain, level, depth, height, buildingClass, cf, damage (buildings) }]. */
 export function terrainRegions(scene = globalThis.canvas?.scene) {
   const out = [];
   for (const region of scene?.regions ?? []) {
     for (const b of region.behaviors ?? []) {
       if (b.type !== TERRAIN_BEHAVIOR || b.disabled) continue;
       const s = b.system ?? {};
-      out.push({ region, terrain: TERRAIN_TYPES[s.terrain] ? s.terrain : "clear", level: num(s.level), depth: Math.max(0, num(s.depth)), height: Math.max(1, num(s.height) || 2) });
+      out.push({ region, behavior: b, terrain: TERRAIN_TYPES[s.terrain] ? s.terrain : "clear", level: num(s.level), depth: Math.max(0, num(s.depth)),
+        height: Math.max(1, num(s.height) || 2), buildingClass: ["light", "medium", "heavy", "hardened"].includes(s.buildingClass) ? s.buildingClass : "medium",
+        cf: Math.max(1, num(s.cf) || 40), damage: Math.max(0, num(s.damage)) });
     }
   }
   return out;
@@ -106,7 +112,7 @@ export function regionHas(region, p) {
  * depth (water), level (ground), building, rough, rubble, swamp, paved, ice }.
  */
 export function hexAt(p, regions = terrainRegions()) {
-  const hex = { terrains: [], woods: null, smoke: null, depth: 0, level: 0, water: false, buildingHeight: 0 };
+  const hex = { terrains: [], woods: null, smoke: null, depth: 0, level: 0, water: false, buildingHeight: 0, buildingRec: null };
   const levels = [];
   for (const r of regions) {
     if (!regionHas(r.region, p)) continue;
@@ -116,7 +122,7 @@ export function hexAt(p, regions = terrainRegions()) {
     if (r.terrain === "heavySmoke") hex.smoke = "heavy";
     else if (r.terrain === "lightSmoke" && hex.smoke !== "heavy") hex.smoke = "light";
     if (r.terrain === "water") { hex.water = true; hex.depth = Math.max(hex.depth, r.depth); }
-    if (r.terrain === "building") hex.buildingHeight = Math.max(hex.buildingHeight, r.height);
+    if (r.terrain === "building" && r.height >= hex.buildingHeight) { hex.buildingHeight = r.height; hex.buildingRec = r; }
     if (r.level) levels.push(r.level);
   }
   // Ground level: the highest hill level here, else the deepest hollow (0 when none is set).
@@ -127,7 +133,10 @@ export function hexAt(p, regions = terrainRegions()) {
 
 /** "Heavy woods · Level 1", "Water (depth 1)", "Clear". */
 export function describeHex(hex) {
-  const parts = hex.terrains.filter(t => t !== "clear").map(t => t === "water" ? `Water (depth ${hex.depth})` : TERRAIN_TYPES[t].label);
+  const b = hex.buildingRec;
+  const parts = hex.terrains.filter(t => t !== "clear").map(t => t === "water" ? `Water (depth ${hex.depth})`
+    : t === "building" && b ? `${b.buildingClass[0].toUpperCase()}${b.buildingClass.slice(1)} building (CF ${Math.max(0, b.cf - b.damage)}, ${b.height} level${b.height === 1 ? "" : "s"})`
+    : TERRAIN_TYPES[t].label);
   if (!parts.length) parts.push("Clear");
   if (hex.level) parts.push(`Level ${hex.level}`);
   return parts.join(" · ");
@@ -151,12 +160,14 @@ export function stretchHexes(px, pxPerHex) {
  *   'Mech's hip line (its ground + 1) when the other unit is no higher. For the
  *   target that is +1 to-hit (leg hits strike the cover); an attacker with it
  *   can't fire its leg weapons.
+ * - Units inside the same building (`sameBuilding`, its behaviour) aren't
+ *   blocked by it.
  * Each continuous stretch counts round(length ÷ 30 m) hexes (half a hex counts).
  * @returns {{ lightWoods, heavyWoods, lightSmoke, heavySmoke, points, woodsBlocked,
  *   heightBlocked, blockedBy, blocked, targetCover, attackerCover }}
  */
 export function lineTerrain(from, to, { regions = terrainRegions(), pxPerHex = pixelsPerMeter() * GROUND_HEX_M,
-  attackerAbs = 1, targetAbs = 1, attackerMech = false, targetMech = false } = {}) {
+  attackerAbs = 1, targetAbs = 1, attackerMech = false, targetMech = false, sameBuilding = null } = {}) {
   const out = { lightWoods: 0, heavyWoods: 0, lightSmoke: 0, heavySmoke: 0, points: 0, woodsBlocked: false,
     heightBlocked: false, blockedBy: "", blocked: false, targetCover: false, attackerCover: false };
   const d = Math.hypot(to.x - from.x, to.y - from.y);
@@ -187,8 +198,10 @@ export function lineTerrain(from, to, { regions = terrainRegions(), pxPerHex = p
     const seg = Math.min(step, end - (t - step / 2));
     const nextToAttacker = t < pxPerHex * 1.5, nextToTarget = t > d - pxPerHex * 1.5;
     const affects = (el) => el > maxAbs || (nextToAttacker && el > attackerAbs) || (nextToTarget && el > targetAbs);
-    const top = hex.level + (hex.building ? hex.buildingHeight : 0);
-    track("wall", affects(top) ? (hex.building ? "building" : "hill") : null, seg);
+    // Units inside the same building see each other through it (MegaMek thruBldg).
+    const walls = hex.building && !(sameBuilding && hex.buildingRec?.behavior === sameBuilding);
+    const top = hex.level + (walls ? hex.buildingHeight : 0);
+    track("wall", affects(top) ? (walls ? "building" : "hill") : null, seg);
     const foliage = affects(hex.level + 2);
     track("woods", foliage ? hex.woods : null, seg);
     track("smoke", foliage ? hex.smoke : null, seg);
@@ -255,7 +268,9 @@ export function mapAttackTerrain(actor, targetActor, from, to, opts = {}) {
   const targetBase = unitBase(targetActor, targetHex, num(opts.targetElevation));
   const line = lineTerrain(from, to, { regions, pxPerHex: opts.pxPerHex ?? pixelsPerMeter() * GROUND_HEX_M,
     attackerAbs: attackerBase + unitHeight(actor), targetAbs: targetBase + unitHeight(targetActor),
-    attackerMech: mech(actor) && unitHeight(actor) > 0, targetMech: mech(targetActor) && unitHeight(targetActor) > 0 });
+    attackerMech: mech(actor) && unitHeight(actor) > 0, targetMech: mech(targetActor) && unitHeight(targetActor) > 0,
+    sameBuilding: attackerHex.buildingRec && attackerHex.buildingRec === targetHex.buildingRec
+      && num(opts.attackerElevation) < attackerHex.buildingRec.height && num(opts.targetElevation) < targetHex.buildingRec.height ? attackerHex.buildingRec.behavior : null });
   const cover = (h) => (h.woods === "heavy" || h.smoke === "heavy") ? "heavy" : (h.woods || h.smoke) ? "light" : "none";
   const waterCover = mech(targetActor) && targetHex.water && targetHex.depth === 1 && !targetHex.ice;
   const res = {
@@ -267,6 +282,7 @@ export function mapAttackTerrain(actor, targetActor, from, to, opts = {}) {
     coverWhy: waterCover ? "depth 1 water" : line.targetCover ? "terrain in front of it" : "",
     attackerCover: line.attackerCover,
     inOpen: inTheOpen(targetHex),
+    targetBuilding: targetHex.buildingRec && num(opts.targetElevation) < targetHex.buildingRec.height ? targetHex.buildingRec : null,
     attackerDepth: mech(actor) && attackerHex.water && !attackerHex.ice ? attackerHex.depth : 0,
     attackerSubmerged: mech(actor) && attackerHex.water && !attackerHex.ice && attackerHex.depth >= 2,
     targetSubmerged: mech(targetActor) && targetHex.water && !targetHex.ice && targetHex.depth >= 2
@@ -280,6 +296,10 @@ export function mapAttackTerrain(actor, targetActor, from, to, opts = {}) {
   s.push(`target in ${describeHex(targetHex).toLowerCase()}`);
   if (res.levelDiff) s.push(`target ${Math.abs(res.levelDiff)} level${Math.abs(res.levelDiff) === 1 ? "" : "s"} ${res.levelDiff > 0 ? "higher" : "lower"}`);
   if (res.partialCover) s.push(`partial cover (${res.coverWhy})`);
+  if (res.targetBuilding && targetActor?.type !== "infantry") {
+    const cf = Math.max(0, res.targetBuilding.cf - res.targetBuilding.damage);
+    s.push(`target inside a ${res.targetBuilding.buildingClass} building: it absorbs ${Math.ceil(cf / 10)} of each hit (CF ${cf})`);
+  }
   if (res.attackerCover) s.push("attacker in partial cover (leg weapons can't fire)");
   if (line.heightBlocked) s.push(`line of sight blocked by a ${line.blockedBy}`);
   else if (line.woodsBlocked) s.push(`line of sight blocked (${line.points} woods / smoke points; 3 block)`);
@@ -325,6 +345,9 @@ export function motiveOf(actor) {
   return "aero";
 }
 
+/** MP to enter a building by class (MegaMek BuildingType.getTypeValue). */
+const BUILDING_MP = { light: 1, medium: 2, heavy: 3, hardened: 4 };
+
 /** Motive types that fly over terrain (no terrain costs). */
 const AIRBORNE = new Set(["vtol", "wige", "aero"]);
 const NAVAL = new Set(["naval", "hydrofoil", "submarine"]);
@@ -356,6 +379,8 @@ export function hexCost(motive, hex) {
     if (motive === "wheeled") ban("wheeled vehicles can't enter rubble");
   }
   if (hex.swamp && motive !== "hover") add("swamp", motive === "mech" ? 1 : 2);
+  // Entering a building: 'Mechs and vehicles pay by its class (light 1 … hardened 4); infantry don't.
+  if (hex.building && !["infantry", "umu"].includes(motive)) add(`${hex.buildingRec?.buildingClass ?? "medium"} building`, BUILDING_MP[hex.buildingRec?.buildingClass] ?? 2);
   if (hex.ice && motive !== "hover") add("ice", 1);
   if (water) {
     if (motive === "mech") add(`depth ${hex.depth} water`, hex.depth >= 2 ? 3 : 1);
@@ -389,8 +414,8 @@ function pointAlong(points, d) {
  * - skidTurns: facing changes made on pavement or ice (for a skid check when running).
  * Jumping and flying units pay no terrain costs.
  */
-export function pathTerrain(actor, points, { regions = terrainRegions(), pxPerHex = pixelsPerMeter() * GROUND_HEX_M, mode = "", startFacing = null } = {}) {
-  const out = { hexes: 0, mp: 0, parts: {}, levels: 0, prohibited: [], psr: [], notes: [], skidTurns: 0 };
+export function pathTerrain(actor, points, { regions = terrainRegions(), pxPerHex = pixelsPerMeter() * GROUND_HEX_M, mode = "", startFacing = null, priorHexes = 0 } = {}) {
+  const out = { hexes: 0, mp: 0, parts: {}, levels: 0, prohibited: [], psr: [], notes: [], skidTurns: 0, walls: [] };
   if (!regions.length || !(pxPerHex > 0) || !points?.length) return out;
   const motive = motiveOf(actor);
   let L = 0;
@@ -401,10 +426,15 @@ export function pathTerrain(actor, points, { regions = terrainRegions(), pxPerHe
   const mech = motive === "mech";
   const ban = (why) => { if (why && !out.prohibited.includes(why)) out.prohibited.push(why); };
   let prev = hexAt(points[0], regions);
-  let building = false;
   for (let k = 1; k <= N; k++) {
     const hex = hexAt(k === N ? points[points.length - 1] : pointAlong(points, k * pxPerHex), regions);
-    if (hex.building) building = true;
+    // Passing a building wall: entering one, leaving one ('Mechs and vehicles; MegaMek passBuildingWall).
+    if (!jumped && !AIRBORNE.has(motive) && !["infantry", "umu"].includes(motive) && !NAVAL.has(motive)) {
+      // (plain data: this rides in the token update's options)
+      const w = (rec, entering) => out.walls.push({ uuid: rec.behavior?.uuid ?? "", name: rec.region?.name ?? "building", entering, distance: priorHexes + k - 1 });
+      if (hex.buildingRec && hex.buildingRec.behavior !== prev.buildingRec?.behavior) w(hex.buildingRec, true);
+      else if (prev.buildingRec && !hex.buildingRec) w(prev.buildingRec, false);
+    }
     if (jumped || AIRBORNE.has(motive)) {
       if (jumped && k === N && mech && hex.rubble && !hex.paved) out.psr.push({ key: "rubble", label: "Landed in rubble", mod: 0 });
       prev = hex; continue;
@@ -428,7 +458,6 @@ export function pathTerrain(actor, points, { regions = terrainRegions(), pxPerHe
     }
     prev = hex;
   }
-  if (building && !jumped && !AIRBORNE.has(motive)) out.notes.push("entering a building costs extra MP by its type (not counted yet)");
   // Facing changes on pavement or ice: where each turn happens along the path.
   if (startFacing != null && !jumped && ["mech", "tracked", "wheeled", "hover"].includes(motive)) {
     let facing = startFacing;

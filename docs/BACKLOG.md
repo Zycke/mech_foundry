@@ -211,11 +211,14 @@ Rules detail for what *is* automated lives in `docs/unit-sheet-design.md`.
       level-change MP along the token path, prohibited-terrain warnings, rubble / water PSRs,
       skid reminders on pavement / ice; levels and height-based line of sight (hills, building
       height, woods / smoke only where tall enough), partial cover from terrain, physical attacks
-      across levels, falls when displaced 2+ levels down. Next: buildings (entry MP, damage
-      absorption, collapse, units inside). Not modelled: swamp bog-down, road bonus MP for
-      vehicles, careful vs. fast ice movement, TacOps diagrammed line of sight, level-based
-      falls outside displacement (e.g. skids off a ledge).
-- [ ] Buildings: movement, damage absorption, collapse, building PSRs.
+      across levels, falls when displaced 2+ levels down; buildings (class / CF, entry MP, wall
+      rolls and damage both ways, absorption for units inside, collapse). Not modelled: swamp
+      bog-down, road bonus MP for vehicles, careful vs. fast ice movement, TacOps diagrammed line
+      of sight, level-based falls outside displacement (e.g. skids off a ledge), conventional
+      infantry inside buildings, attacking a building directly, floors / basements / overload
+      collapse, per-hex CF within one building region.
+- [x] Buildings: movement, damage absorption, collapse, building PSRs — from the map's terrain
+      regions (see the terrain item for what's not modelled).
 - [ ] Water / underwater, hull down, life support while submerged; hover vehicles sinking
       when immobilized over water.
 - [ ] Motive-damage timing (TW applies it at the end of the phase; applied immediately).
