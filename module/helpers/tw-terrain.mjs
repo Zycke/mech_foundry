@@ -55,7 +55,8 @@ export function defineTerrainBehavior() {
         terrain: new StringField({ required: true, initial: "lightWoods",
           choices: Object.fromEntries(Object.entries(TERRAIN_TYPES).map(([k, t]) => [k, t.label])) }),
         level: new NumberField({ required: true, nullable: false, initial: 0, integer: true, min: -20, max: 50 }),
-        depth: new NumberField({ required: true, nullable: false, initial: 0, integer: true, min: 0, max: 20 })
+        depth: new NumberField({ required: true, nullable: false, initial: 0, integer: true, min: 0, max: 20 }),
+        height: new NumberField({ required: true, nullable: false, initial: 2, integer: true, min: 1, max: 30 })
       };
     }
   };
@@ -69,14 +70,14 @@ export function registerTerrainBehavior() {
   if (CONFIG.RegionBehavior.typeIcons) CONFIG.RegionBehavior.typeIcons[TERRAIN_BEHAVIOR] = "fa-solid fa-tree";
 }
 
-/** The scene's terrain regions: [{ region, terrain, level, depth }]. */
+/** The scene's terrain regions: [{ region, terrain, level, depth, height (buildings) }]. */
 export function terrainRegions(scene = globalThis.canvas?.scene) {
   const out = [];
   for (const region of scene?.regions ?? []) {
     for (const b of region.behaviors ?? []) {
       if (b.type !== TERRAIN_BEHAVIOR || b.disabled) continue;
       const s = b.system ?? {};
-      out.push({ region, terrain: TERRAIN_TYPES[s.terrain] ? s.terrain : "clear", level: num(s.level), depth: Math.max(0, num(s.depth)) });
+      out.push({ region, terrain: TERRAIN_TYPES[s.terrain] ? s.terrain : "clear", level: num(s.level), depth: Math.max(0, num(s.depth)), height: Math.max(1, num(s.height) || 2) });
     }
   }
   return out;
@@ -105,7 +106,7 @@ export function regionHas(region, p) {
  * depth (water), level (ground), building, rough, rubble, swamp, paved, ice }.
  */
 export function hexAt(p, regions = terrainRegions()) {
-  const hex = { terrains: [], woods: null, smoke: null, depth: 0, level: 0, water: false };
+  const hex = { terrains: [], woods: null, smoke: null, depth: 0, level: 0, water: false, buildingHeight: 0 };
   const levels = [];
   for (const r of regions) {
     if (!regionHas(r.region, p)) continue;
@@ -115,6 +116,7 @@ export function hexAt(p, regions = terrainRegions()) {
     if (r.terrain === "heavySmoke") hex.smoke = "heavy";
     else if (r.terrain === "lightSmoke" && hex.smoke !== "heavy") hex.smoke = "light";
     if (r.terrain === "water") { hex.water = true; hex.depth = Math.max(hex.depth, r.depth); }
+    if (r.terrain === "building") hex.buildingHeight = Math.max(hex.buildingHeight, r.height);
     if (r.level) levels.push(r.level);
   }
   // Ground level: the highest hill level here, else the deepest hollow (0 when none is set).
@@ -137,34 +139,95 @@ export function stretchHexes(px, pxPerHex) {
 }
 
 /**
- * Woods and smoke between two points, not counting either end hex:
- * { lightWoods, heavyWoods, lightSmoke, heavySmoke, points, blocked }.
+ * What lies between two units, not counting either end hex (MegaMek
+ * LosEffects, non-diagram rules). Heights are absolute levels: a unit's
+ * ground level (+ its elevation) + its height (a standing 'Mech 1, others 0).
+ * - A hill or building blocks line of sight where its top is higher than both
+ *   units, or higher than the unit it stands next to.
+ * - Woods and smoke rise 2 levels above their ground: they only count (and
+ *   only add to the to-hit number) where that top would block by the same test.
+ *   3+ points of woods / smoke (light 1, heavy 2) block line of sight.
+ * - Partial cover: terrain in the hex next to a 'Mech exactly as high as the
+ *   'Mech's hip line (its ground + 1) when the other unit is no higher. For the
+ *   target that is +1 to-hit (leg hits strike the cover); an attacker with it
+ *   can't fire its leg weapons.
+ * Each continuous stretch counts round(length ÷ 30 m) hexes (half a hex counts).
+ * @returns {{ lightWoods, heavyWoods, lightSmoke, heavySmoke, points, woodsBlocked,
+ *   heightBlocked, blockedBy, blocked, targetCover, attackerCover }}
  */
-export function lineTerrain(from, to, { regions = terrainRegions(), pxPerHex = pixelsPerMeter() * GROUND_HEX_M } = {}) {
-  const out = { lightWoods: 0, heavyWoods: 0, lightSmoke: 0, heavySmoke: 0, points: 0, blocked: false };
+export function lineTerrain(from, to, { regions = terrainRegions(), pxPerHex = pixelsPerMeter() * GROUND_HEX_M,
+  attackerAbs = 1, targetAbs = 1, attackerMech = false, targetMech = false } = {}) {
+  const out = { lightWoods: 0, heavyWoods: 0, lightSmoke: 0, heavySmoke: 0, points: 0, woodsBlocked: false,
+    heightBlocked: false, blockedBy: "", blocked: false, targetCover: false, attackerCover: false };
   const d = Math.hypot(to.x - from.x, to.y - from.y);
   const start = pxPerHex / 2, end = d - pxPerHex / 2;
   if (!regions.length || !(pxPerHex > 0) || end <= start) return out;
   const step = Math.max(pxPerHex / GROUND_HEX_M, (end - start) / 4000); // ~1 m
-  const runs = { woods: [null, 0], smoke: [null, 0] };
+  const maxAbs = Math.max(attackerAbs, targetAbs);
+  // Stretches: [class, length] per feature.
+  const runs = { woods: [null, 0], smoke: [null, 0], wall: [null, 0], tcover: [null, 0], acover: [null, 0] };
   const close = (k) => {
     const [cls, len] = runs[k];
-    if (cls) out[`${cls}${k === "woods" ? "Woods" : "Smoke"}`] += stretchHexes(len, pxPerHex);
+    const n = cls ? stretchHexes(len, pxPerHex) : 0;
+    if (n) {
+      if (k === "woods" || k === "smoke") out[`${cls}${k === "woods" ? "Woods" : "Smoke"}`] += n;
+      else if (k === "wall") { out.heightBlocked = true; out.blockedBy ||= cls; }
+      else if (k === "tcover") out.targetCover = true;
+      else out.attackerCover = true;
+    }
     runs[k] = [null, 0];
+  };
+  const track = (k, cls, seg) => {
+    if (runs[k][0] !== cls) close(k);
+    if (cls) runs[k] = [cls, runs[k][1] + seg];
   };
   for (let t = start + step / 2; t < end; t += step) {
     const f = t / d;
     const hex = hexAt({ x: from.x + (to.x - from.x) * f, y: from.y + (to.y - from.y) * f }, regions);
     const seg = Math.min(step, end - (t - step / 2));
-    for (const k of ["woods", "smoke"]) {
-      if (runs[k][0] !== hex[k]) close(k);
-      if (hex[k]) runs[k] = [hex[k], runs[k][1] + seg];
-    }
+    const nextToAttacker = t < pxPerHex * 1.5, nextToTarget = t > d - pxPerHex * 1.5;
+    const affects = (el) => el > maxAbs || (nextToAttacker && el > attackerAbs) || (nextToTarget && el > targetAbs);
+    const top = hex.level + (hex.building ? hex.buildingHeight : 0);
+    track("wall", affects(top) ? (hex.building ? "building" : "hill") : null, seg);
+    const foliage = affects(hex.level + 2);
+    track("woods", foliage ? hex.woods : null, seg);
+    track("smoke", foliage ? hex.smoke : null, seg);
+    track("tcover", targetMech && nextToTarget && top === targetAbs && attackerAbs <= targetAbs ? "cover" : null, seg);
+    track("acover", attackerMech && nextToAttacker && top === attackerAbs && attackerAbs >= targetAbs ? "cover" : null, seg);
   }
-  close("woods"); close("smoke");
+  for (const k of Object.keys(runs)) close(k);
   out.points = out.lightWoods + out.lightSmoke + 2 * (out.heavyWoods + out.heavySmoke);
-  out.blocked = out.points >= 3;
+  out.woodsBlocked = out.points >= 3;
+  out.blocked = out.woodsBlocked || out.heightBlocked;
+  if (out.heightBlocked) out.targetCover = out.attackerCover = false;
   return out;
+}
+
+/* -------------------------------------------- */
+/*  Unit heights                                */
+/* -------------------------------------------- */
+
+/** A unit's height above its own ground, in levels (a standing 'Mech is 2 levels tall: 1). */
+export function unitHeight(actor) {
+  return actor?.type === "mech" && !actor.system?.conditions?.prone ? 1 : 0;
+}
+
+/** Levels a unit is above the ground: a VTOL / WiGE's elevation, else the token's elevation (6 m a level). */
+export function unitElevation(actor, tokenDoc = null) {
+  if (actor?.type === "ground_vehicle" && ["vtol", "wige"].includes(actor.system?.movementType)) return Math.max(0, num(actor.system?.elevation));
+  return Math.max(0, Math.floor(num(tokenDoc?.elevation) / LEVEL_M));
+}
+
+/** A token's centre on the canvas for a top-left position (default: where it is). */
+export function tokenCenter(doc, pos = doc) {
+  const size = num(globalThis.canvas?.grid?.size) || 100;
+  return { x: num(pos?.x) + (num(doc?.width) || 1) * size / 2, y: num(pos?.y) + (num(doc?.height) || 1) * size / 2 };
+}
+
+/** The level a unit stands on: ground level + elevation; a 'Mech wading in water stands on the bottom. */
+export function unitBase(actor, hex, elevation = 0) {
+  const wading = actor?.type === "mech" && hex?.water && hex.depth > 0 && !hex.ice && !elevation;
+  return num(hex?.level) + elevation - (wading ? hex.depth : 0);
 }
 
 /** Is conventional infantry in this hex in the open (double damage)? */
@@ -178,27 +241,35 @@ const LEG_LOC = /^(ll|rl|left leg|right leg)\b/;
  * Terrain for a ground attack from the map, or null when the scene has no
  * terrain regions or a token is missing:
  * { lightWoods, heavyWoods (intervening woods + smoke), targetWoods ('none'|'light'|'heavy'),
- *   partialCover, inOpen, line, attackerHex, targetHex, attackerSubmerged,
- *   targetSubmerged, attackerDepth, summary[] }.
+ *   partialCover, coverWhy, inOpen, line, attackerHex, targetHex, attackerBase, targetBase,
+ *   levelDiff (target − attacker), attackerSubmerged, targetSubmerged, attackerDepth, summary[] }.
+ * opts: { regions, pxPerHex, attackerElevation, targetElevation } (levels above ground).
  */
 export function mapAttackTerrain(actor, targetActor, from, to, opts = {}) {
   if (!from || !to) return null;
   const regions = opts.regions ?? terrainRegions();
   if (!regions.length) return null;
-  const line = lineTerrain(from, to, { regions, pxPerHex: opts.pxPerHex ?? pixelsPerMeter() * GROUND_HEX_M });
   const attackerHex = hexAt(from, regions), targetHex = hexAt(to, regions);
   const mech = (a) => a?.type === "mech";
+  const attackerBase = unitBase(actor, attackerHex, num(opts.attackerElevation));
+  const targetBase = unitBase(targetActor, targetHex, num(opts.targetElevation));
+  const line = lineTerrain(from, to, { regions, pxPerHex: opts.pxPerHex ?? pixelsPerMeter() * GROUND_HEX_M,
+    attackerAbs: attackerBase + unitHeight(actor), targetAbs: targetBase + unitHeight(targetActor),
+    attackerMech: mech(actor) && unitHeight(actor) > 0, targetMech: mech(targetActor) && unitHeight(targetActor) > 0 });
   const cover = (h) => (h.woods === "heavy" || h.smoke === "heavy") ? "heavy" : (h.woods || h.smoke) ? "light" : "none";
+  const waterCover = mech(targetActor) && targetHex.water && targetHex.depth === 1 && !targetHex.ice;
   const res = {
-    line, attackerHex, targetHex,
+    line, attackerHex, targetHex, attackerBase, targetBase, levelDiff: targetBase - attackerBase,
     lightWoods: line.lightWoods + line.lightSmoke,
     heavyWoods: line.heavyWoods + line.heavySmoke,
     targetWoods: cover(targetHex),
-    partialCover: mech(targetActor) && targetHex.water && targetHex.depth === 1,
+    partialCover: waterCover || line.targetCover,
+    coverWhy: waterCover ? "depth 1 water" : line.targetCover ? "terrain in front of it" : "",
+    attackerCover: line.attackerCover,
     inOpen: inTheOpen(targetHex),
-    attackerDepth: mech(actor) && attackerHex.water ? attackerHex.depth : 0,
-    attackerSubmerged: mech(actor) && attackerHex.water && attackerHex.depth >= 2,
-    targetSubmerged: mech(targetActor) && targetHex.water && targetHex.depth >= 2
+    attackerDepth: mech(actor) && attackerHex.water && !attackerHex.ice ? attackerHex.depth : 0,
+    attackerSubmerged: mech(actor) && attackerHex.water && !attackerHex.ice && attackerHex.depth >= 2,
+    targetSubmerged: mech(targetActor) && targetHex.water && !targetHex.ice && targetHex.depth >= 2
   };
   const s = [];
   const between = [
@@ -207,8 +278,11 @@ export function mapAttackTerrain(actor, targetActor, from, to, opts = {}) {
   ].filter(Boolean);
   s.push(between.length ? `${between.join(", ")} between` : "open ground between");
   s.push(`target in ${describeHex(targetHex).toLowerCase()}`);
-  if (res.partialCover) s.push("partial cover (depth 1 water)");
-  if (line.blocked) s.push(`line of sight blocked (${line.points} woods / smoke points; 3 block)`);
+  if (res.levelDiff) s.push(`target ${Math.abs(res.levelDiff)} level${Math.abs(res.levelDiff) === 1 ? "" : "s"} ${res.levelDiff > 0 ? "higher" : "lower"}`);
+  if (res.partialCover) s.push(`partial cover (${res.coverWhy})`);
+  if (res.attackerCover) s.push("attacker in partial cover (leg weapons can't fire)");
+  if (line.heightBlocked) s.push(`line of sight blocked by a ${line.blockedBy}`);
+  else if (line.woodsBlocked) s.push(`line of sight blocked (${line.points} woods / smoke points; 3 block)`);
   res.summary = s;
   return res;
 }
@@ -218,9 +292,24 @@ export function terrainRowBlock(map, actor, weapon) {
   if (!map) return "";
   if (map.attackerSubmerged && !map.targetSubmerged) return `${actor?.name ?? "The attacker"} is submerged (depth ${map.attackerDepth} water)`;
   if (map.targetSubmerged && !map.attackerSubmerged) return `the target is submerged (depth ${map.targetHex.depth} water)`;
-  if (map.line.blocked && !(map.attackerSubmerged && map.targetSubmerged)) return `no line of sight (${map.line.points} woods / smoke points between; 3 block)`;
-  if (map.attackerDepth === 1 && LEG_LOC.test(String(weapon?.location ?? "").trim().toLowerCase())) return "leg weapons can't fire from depth 1 water";
+  const underwater = map.attackerSubmerged && map.targetSubmerged;
+  if (map.line.heightBlocked && !underwater) return `no line of sight (a ${map.line.blockedBy} between is too high)`;
+  if (map.line.woodsBlocked && !underwater) return `no line of sight (${map.line.points} woods / smoke points between; 3 block)`;
+  const leg = LEG_LOC.test(String(weapon?.location ?? "").trim().toLowerCase());
+  if (leg && map.attackerDepth === 1) return "leg weapons can't fire from depth 1 water";
+  if (leg && map.attackerCover) return "leg weapons can't fire from partial cover";
   return "";
+}
+
+/**
+ * Level difference for a physical attack between adjacent units (target −
+ * attacker, in levels), or null without terrain regions.
+ */
+export function physicalLevelDiff(actor, targetActor, from, to, opts = {}) {
+  if (!from || !to) return null;
+  const regions = opts.regions ?? terrainRegions();
+  if (!regions.length) return null;
+  return unitBase(targetActor, hexAt(to, regions), num(opts.targetElevation)) - unitBase(actor, hexAt(from, regions), num(opts.attackerElevation));
 }
 
 /* -------------------------------------------- */

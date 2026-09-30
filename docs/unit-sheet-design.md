@@ -185,8 +185,25 @@ criticals and cluster grouping:
   (+0) or water hex entered (depth 1 −1, 2 +0, 3+ +1); jumping pays no terrain costs and only
   checks the landing hex (rubble). Turning on pavement or ice while running / flanking
   reminds the player to make a Skid check. VTOLs, WiGEs and aerospace units ignore terrain.
-  Not yet: levels / elevation line of sight, buildings (entering one notes that its MP isn't
-  counted yet).
+  Levels and line of sight (MegaMek LosEffects, non-diagram rules): a unit's absolute height is
+  its ground level (+ elevation: a VTOL / WiGE's sheet elevation, else the token's elevation at
+  6 m a level; a 'Mech wading in water stands on the bottom) + its height (a standing 'Mech 1,
+  others 0). A hill or building (its "Building height" field) blocks line of sight where its top
+  is higher than both units, or higher than the unit it stands next to; woods and smoke rise 2
+  levels and only count — for the to-hit number and the 3-point block — where that top would
+  block by the same test (units on hills fire over woods in the valley). Terrain in the hex next
+  to a 'Mech exactly at its hip line gives partial cover when the other unit is no higher: the
+  target +1 (leg hits strike the cover); an attacker can't fire its leg weapons. The fire
+  dialog's map line shows the level difference ("target 2 levels higher").
+  Physical attacks read the level difference from the map (MegaMek attack actions): punches and
+  physical weapons reach a 'Mech on the same level or one higher (one higher: legs, Kick Location
+  Table) and a vehicle or infantry only one level higher (normal table); kicks a 'Mech on the same
+  level or one lower (one lower: Punch Location Table), a vehicle or infantry the same level;
+  clubs one level either way; pushes the same level; charges within a unit's height. The physical
+  dialog also fills the target's woods and water cover from the map. A unit displaced (push,
+  charge, death from above) into a hex more than one level lower falls: the mover and GM are told
+  and the sheet's Fall… dialog has the levels filled in. Not yet: buildings as terrain you enter
+  (MP, damage absorption, collapse), TacOps diagrammed line of sight.
 - **Movement discipline** (`module/helpers/tw-phase.mjs`): a token move that takes a unit past
   its current MP this turn (Running / Flanking, or Walking when "Walked" is declared, Jumping
   when "Jumped" is) warns the mover and whispers the GM — it isn't blocked. During a running

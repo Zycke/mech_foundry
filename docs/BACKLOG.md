@@ -194,8 +194,8 @@ Rules detail for what *is* automated lives in `docs/unit-sheet-design.md`.
 ### 7b. Not automated (candidates to automate later)
 
 **Map / movement**
-- [ ] Elevation and level differences (physical attacks by level, LOS, falls into lower
-      hexes — the Fall… button takes levels by hand).
+- [x] Elevation and level differences (physical attacks by level, LOS, falls into lower
+      hexes when displaced) — from the map's terrain regions.
 - [x] Facing (auto-facing, Q/E, torso twist), facing MP costs, firing arcs, attack direction
       from facing. Open: physical-attack arcs (punch / kick / club by arc), quad 'Mechs,
       lateral shifts, rear-facing arm flips, turret facing for locked turrets (assumed forward),
@@ -209,9 +209,12 @@ Rules detail for what *is* automated lives in `docs/unit-sheet-design.md`.
       lookup, woods / smoke between and target terrain, woods / smoke line of sight, water cover
       and submerged units, infantry in the open, sheet to-hit preview; movement terrain and
       level-change MP along the token path, prohibited-terrain warnings, rubble / water PSRs,
-      skid reminders on pavement / ice. Next: levels, elevation line of sight, falls and
-      physical attacks across levels; buildings (entry MP, damage absorption, collapse).
-      Not modelled: swamp bog-down, road bonus MP for vehicles, careful vs. fast ice movement.
+      skid reminders on pavement / ice; levels and height-based line of sight (hills, building
+      height, woods / smoke only where tall enough), partial cover from terrain, physical attacks
+      across levels, falls when displaced 2+ levels down. Next: buildings (entry MP, damage
+      absorption, collapse, units inside). Not modelled: swamp bog-down, road bonus MP for
+      vehicles, careful vs. fast ice movement, TacOps diagrammed line of sight, level-based
+      falls outside displacement (e.g. skids off a ledge).
 - [ ] Buildings: movement, damage absorption, collapse, building PSRs.
 - [ ] Water / underwater, hull down, life support while submerged; hover vehicles sinking
       when immobilized over water.

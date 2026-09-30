@@ -6,8 +6,14 @@
  *
  * To-hit is the attacker's Piloting + the attack's modifier + the shared
  * movement / target / terrain modifiers (never heat or sensors) + actuator
- * damage. Level differences aren't modelled (the map has no elevation data):
- * the rules here assume both units stand at the same level.
+ * damage. With terrain regions on the map, the level difference between the
+ * units decides what's allowed and which location table a hit uses (MegaMek
+ * Punch / Kick / Club / Push / Charge attack actions): punches reach a 'Mech on
+ * the same level or one level higher (legs: Kick Location Table), a vehicle or
+ * infantry only one level higher; kicks a 'Mech on the same level or one level
+ * lower (Punch Location Table); clubs one level either way; pushes the same
+ * level; charges within a unit's height. Without terrain regions both units are
+ * taken to stand at the same level.
  */
 import { currentTurnKey } from "./tw-turn.mjs";
 import { beginRecording, endRecording, writeDoc } from "./gm-relay.mjs";
@@ -23,12 +29,19 @@ import {
   ATTACK_DIRECTIONS, MECH_LOC_LABEL, REAR_ARMOR_KEY, firedThisTurn, locationGone, measureHexes, resolveDamageAgainst
 } from "./tw-combat.mjs";
 import { skillHint, skillMod } from "./tw-skills.mjs";
+import { mapAttackTerrain, unitElevation, unitHeight } from "./tw-terrain.mjs";
 
 const { DialogV2 } = foundry.applications.api;
 const num = (v) => Number(v) || 0;
 const sum = (mods) => mods.reduce((t, m) => t + num(m.value), 0);
 // Actuator damage halves punch / kick damage, rounding down (TW p. 127).
 const halve = (n, times) => { let d = n; for (let i = 0; i < times; i++) d = Math.floor(d / 2); return d; };
+
+/** "same level" / "target 1 level higher" for the dialog. */
+function levelText(d) {
+  if (!d) return 'same level';
+  return `target ${Math.abs(d)} level${Math.abs(d) === 1 ? '' : 's'} ${d > 0 ? 'higher' : 'lower'}`;
+}
 
 /** Physical Attack Modifiers Table. */
 export const PHYSICAL_TYPES = {
@@ -115,7 +128,7 @@ function armFired(actor, arm) {
  * @param {string} type      PHYSICAL_TYPES key
  * @param {object} opts      { arm, weaponKey, target }
  */
-export function physicalBlock(actor, type, { arm = null, weaponKey = null, target = null } = {}) {
+export function physicalBlock(actor, type, { arm = null, weaponKey = null, target = null, levelDiff = null } = {}) {
   const sys = actor.system;
   const isMech = actor.type === 'mech';
   if (!isMech && !(actor.type === 'ground_vehicle' && type === 'charge')) return 'Only BattleMechs make physical attacks (vehicles may charge).';
@@ -131,6 +144,9 @@ export function physicalBlock(actor, type, { arm = null, weaponKey = null, targe
   if (tt && ['aerospace_fighter', 'small_craft', 'naval_ship'].includes(tt)) return 'Aerospace units cannot be targeted by physical attacks.';
   if (target && untargetableReason(target)) return untargetableReason(target);
   const lowTarget = tt === 'ground_vehicle' || isInfantry(target);
+  // Level difference (target − attacker) from the map; null = same level assumed.
+  const d = levelDiff == null ? 0 : levelDiff;
+  const lv = (n) => `${Math.abs(n)} level${Math.abs(n) === 1 ? '' : 's'} ${n > 0 ? 'higher' : 'lower'}`;
 
   if (type === 'punchL' || type === 'punchR' || type === 'weapon') {
     const a = type === 'punchL' ? 'la' : type === 'punchR' ? 'ra' : arm;
@@ -140,9 +156,13 @@ export function physicalBlock(actor, type, { arm = null, weaponKey = null, targe
     if (act.shoulder) return `Shoulder hit: no ${type === 'weapon' ? 'physical weapon attacks' : 'punching'} with the ${a.toUpperCase()}.`;
     if (type === 'weapon' && act.hand && !PHYSICAL_WEAPONS[weaponKey]?.ignoresHand) return `Hand actuator hit: no physical weapon attacks with the ${a.toUpperCase()}.`;
     if (armFired(actor, a)) return `A weapon in the ${a.toUpperCase()} fired this turn.`;
-    if (lowTarget) return "A 'Mech can't punch, club or swing at vehicles or infantry on the same level.";
+    if (lowTarget && d === 0) return "A 'Mech can't punch, club or swing at vehicles or infantry on the same level.";
+    if (lowTarget && d !== 1) return `The target is ${lv(d)}: a 'Mech can only punch or swing at a vehicle or infantry one level higher.`;
+    if (!lowTarget && d !== 0 && d !== 1) return `The target is ${lv(d)}: punches and swings reach only the same level or one level higher.`;
   }
   if (type === 'kick') {
+    if (lowTarget && d !== 0) return `The target is ${lv(d)}: a 'Mech can only kick a vehicle or infantry on the same level.`;
+    if (!lowTarget && d !== 0 && d !== -1) return `The target is ${lv(d)}: kicks reach only the same level or one level lower.`;
     if (locationDestroyed(actor, 'll') || locationDestroyed(actor, 'rl')) return 'A leg is destroyed: no kicking.';
     if (destroyedActuators(actor, 'll').hip || destroyedActuators(actor, 'rl').hip) return 'Hip actuator hit: no kicking attacks.';
   }
@@ -153,8 +173,11 @@ export function physicalBlock(actor, type, { arm = null, weaponKey = null, targe
       const act = destroyedActuators(actor, a);
       if (type === 'club' && (act.shoulder || act.hand)) return `Shoulder or hand actuator hit in the ${a.toUpperCase()}: no clubbing.`;
     }
-    if (type === 'club' && lowTarget) return "A 'Mech can't club vehicles or infantry on the same level.";
+    if (type === 'club' && lowTarget && d === 0) return "A 'Mech can't club vehicles or infantry on the same level.";
+    if (type === 'club' && lowTarget && d !== 1) return `The target is ${lv(d)}: a 'Mech can only club a vehicle or infantry one level higher.`;
+    if (type === 'club' && !lowTarget && Math.abs(d) > 1) return `The target is ${lv(d)}: clubs reach only one level up or down.`;
     if (type === 'push' && tt && tt !== 'mech') return "Only 'Mechs can be pushed.";
+    if (type === 'push' && d !== 0) return `The target is ${lv(d)}: only a 'Mech on the same level can be pushed.`;
   }
   if (type === 'charge' || type === 'dfa') {
     if (Object.keys(firedThisTurn(actor)).length) return `${actor.name} fired weapons this turn: no ${type === 'dfa' ? 'death from above' : 'charge'}.`;
@@ -164,6 +187,7 @@ export function physicalBlock(actor, type, { arm = null, weaponKey = null, targe
     if (type === 'charge' && isInfantry(target)) return 'Infantry cannot be charged.';
     if (type === 'charge' && isMech && tt === 'ground_vehicle') return "Vehicles may not be charged by 'Mechs.";
     if (type === 'charge' && tt === 'mech' && target.system?.conditions?.prone) return 'The target has fallen: the charge cannot be made.';
+    if (type === 'charge' && (d > unitHeight(actor) || -d > unitHeight(target))) return `The target is ${lv(d)}: a charge only reaches a target within one level.`;
   }
   return null;
 }
@@ -223,6 +247,11 @@ export async function physicalAttack(actor) {
   const attackerToken = actor.getActiveTokens?.()[0] || null;
   const dist = attackerToken && target ? measureHexes(attackerToken, target) : null;
   const esc = (t) => foundry.utils.escapeHTML?.(String(t)) ?? String(t);
+  // The map's terrain regions: level difference, target terrain, water cover.
+  const map = attackerToken?.center && target?.center ? mapAttackTerrain(actor, targetActor, attackerToken.center, target.center,
+    { attackerElevation: unitElevation(actor, attackerToken.document), targetElevation: unitElevation(targetActor, target.document) }) : null;
+  const levelDiff = map ? map.levelDiff : null;
+  const fromMap = map ? ' <span class="tw-hint">(from map)</span>' : '';
 
   const types = actor.type === 'mech' ? Object.entries(PHYSICAL_TYPES) : [['charge', PHYSICAL_TYPES.charge]];
   const typeOpts = types.map(([k, v]) => `<option value="${k}">${v.label}</option>`).join('');
@@ -235,6 +264,7 @@ export async function physicalAttack(actor) {
   const content = `
     <div class="tw-attack-dialog">
       <p class="tw-atk-target">${target ? `Target: <strong>${esc(target.name)}</strong>${dist != null ? ` · ${dist} hex${dist === 1 ? '' : 'es'}` : ''}` : 'No target selected.'}</p>
+      ${map ? `<p class="tw-fire-map"><i class="fa-solid fa-mountain"></i> From the map: ${esc(levelText(levelDiff))} · target in ${esc(map.summary.find(x => x.startsWith('target in'))?.slice(10) ?? 'clear')}</p>` : ''}
       <div class="form-group"><label>Attack</label><select name="type">${typeOpts}</select></div>
       ${actor.type === 'mech' ? `
       <div class="form-group"><label>Physical weapon <span class="tw-hint">if attacking with one</span></label><select name="weaponKey">${wpnOpts}</select></div>
@@ -245,8 +275,8 @@ export async function physicalAttack(actor) {
       <fieldset class="tw-terrain"><legend>Terrain (not used for death from above)</legend>
         <div class="form-group"><label>Light woods hexes between</label><input type="number" name="lightWoods" value="0" min="0" /></div>
         <div class="form-group"><label>Heavy woods hexes between</label><input type="number" name="heavyWoods" value="0" min="0" /></div>
-        <div class="form-group"><label>Target standing in</label><select name="targetWoods"><option value="none">Open</option><option value="light">Light woods (+1)</option><option value="heavy">Heavy woods (+2)</option></select></div>
-        <div class="form-group"><label>Partial cover (+1)</label><input type="checkbox" name="partialCover" /></div>
+        <div class="form-group"><label>Target standing in${fromMap}</label><select name="targetWoods">${[['none', 'Open'], ['light', 'Light woods / smoke (+1)'], ['heavy', 'Heavy woods / smoke (+2)']].map(([k, l]) => `<option value="${k}"${k === (map?.targetWoods ?? 'none') ? ' selected' : ''}>${l}</option>`).join('')}</select></div>
+        <div class="form-group"><label>Partial cover (+1)${map?.partialCover ? ` <span class="tw-hint">(from map: ${esc(map.coverWhy)})</span>` : ''}</label><input type="checkbox" name="partialCover"${map?.partialCover ? ' checked' : ''} /></div>
       </fieldset>
       <div class="form-group"><label>Other modifier <span class="tw-hint">+ makes the roll harder, − easier</span></label><input type="number" name="other" value="0" /></div>
       <div class="form-group"><label>Attack Direction</label><select name="direction">${dirOpts}</select></div>
@@ -274,7 +304,8 @@ export async function physicalAttack(actor) {
               partialCover: !!f.partialCover.checked
             },
             other: num(f.other.value),
-            direction: f.direction.value
+            direction: f.direction.value,
+            levelDiff
           };
         }
       },
@@ -295,7 +326,9 @@ export async function physicalAttack(actor) {
 export async function resolvePhysicalAttack(actor, target, r) {
   const targetActor = target?.actor || null;
   const { type, weaponKey, arm } = r;
-  const block = physicalBlock(actor, type, { arm, weaponKey, target: targetActor });
+  const levelDiff = r.levelDiff ?? null;
+  const d = levelDiff ?? 0;
+  const block = physicalBlock(actor, type, { arm, weaponKey, target: targetActor, levelDiff });
   if (block) { ui.notifications.warn(block); return null; }
 
   const spec = PHYSICAL_TYPES[type];
@@ -340,7 +373,18 @@ export async function resolvePhysicalAttack(actor, target, r) {
     let opts = {};
     let groups = [damage];
     let direction = r.direction;
-    if (type === 'punchL' || type === 'punchR' || pw?.table === 'punch') opts.locationRoller = rollPunchLocation;
+    const armAttack = type === 'punchL' || type === 'punchR' || type === 'weapon';
+    if ((armAttack || type === 'club') && d === 1) {
+      // Reaching up a level: a 'Mech's legs (Kick Location Table); a vehicle / infantry: the normal table.
+      if (tType === 'mech') opts.locationRoller = rollKickLocation;
+      notes.push(`${target?.name || 'The target'} is a level higher: ${tType === 'mech' ? 'the blow lands on its legs (Kick Location Table)' : 'normal hit location table'}`);
+    } else if (type === 'kick' && tType === 'mech' && d === -1) {
+      opts.locationRoller = rollPunchLocation;
+      notes.push(`${target?.name || 'The target'} is a level lower: the kick lands high (Punch Location Table)`);
+    } else if (type === 'club' && tType === 'mech' && d === -1) {
+      opts.locationRoller = rollPunchLocation;
+      notes.push(`${target?.name || 'The target'} is a level lower: Punch Location Table`);
+    } else if (type === 'punchL' || type === 'punchR' || pw?.table === 'punch') opts.locationRoller = rollPunchLocation;
     else if (type === 'kick' && tType === 'mech') opts.locationRoller = rollKickLocation;
     if (type === 'charge') {
       groups = fiveGroups(damage);

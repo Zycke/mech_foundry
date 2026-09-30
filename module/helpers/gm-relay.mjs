@@ -25,7 +25,7 @@ const ANTI_MECH_FLAGS = ['flags.mech-foundry.legAttacked', 'flags.mech-foundry.s
 /** Fields a relayed `update` may write, per actor type. */
 // Weapon effects written onto the target: Narc pods, TAG, flamer heat, its AMS firing.
 const WEAPON_EFFECT_FLAGS = ['flags.mech-foundry.narc', 'flags.mech-foundry.tagged', 'flags.mech-foundry.externalHeat',
-  'flags.mech-foundry.amsUsed', 'flags.mech-foundry.fired', 'flags.mech-foundry.mayMove'];
+  'flags.mech-foundry.amsUsed', 'flags.mech-foundry.fired', 'flags.mech-foundry.mayMove', 'flags.mech-foundry.fallDrop'];
 
 const UPDATE_WHITELIST = {
   mech: ['system.armor', 'system.structure', 'system.critSlots', 'system.systemHits', 'system.heatSinks', 'system.weapons', 'system.pilot',

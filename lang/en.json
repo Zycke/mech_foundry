@@ -557,7 +557,8 @@
     "FIELDS": {
       "terrain": { "label": "Terrain", "hint": "What covers this area. Regions can overlap: woods on a hill, smoke over rubble." },
       "level": { "label": "Ground level", "hint": "Hills and hollows in levels (1 level = 6 m). Leave 0 for flat ground; used for levels and line of sight." },
-      "depth": { "label": "Water depth", "hint": "Water only: depth in levels. Depth 1 gives a 'Mech partial cover and stops its leg weapons; depth 2+ submerges it." }
+      "depth": { "label": "Water depth", "hint": "Water only: depth in levels. Depth 1 gives a 'Mech partial cover and stops its leg weapons; depth 2+ submerges it." },
+      "height": { "label": "Building height", "hint": "Buildings only: how many levels tall (6 m a level). A building blocks line of sight where its top is higher than both units." }
     }
   }
 }

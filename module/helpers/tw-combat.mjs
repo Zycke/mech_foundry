@@ -14,7 +14,7 @@ import {
 import { beginRecording, endRecording, writeDoc } from "./gm-relay.mjs";
 import { AERO_HEX_M, GROUND_HEX_M, measureHexes, pixelsPerMeter } from "./tw-scale.mjs";
 import { arcCheck, attackSide, tokenFacing, torsoTwist } from "./tw-facing.mjs";
-import { mapAttackTerrain, terrainRowBlock } from "./tw-terrain.mjs";
+import { mapAttackTerrain, terrainRowBlock, unitElevation } from "./tw-terrain.mjs";
 import { facingChanges, mechLocChanges, poolChange, volleyCard, roundLabel, ammoFooter, heatCard, rollCard, rollSummary, summaryContext, volleySummary, withSummary } from "./tw-cards.mjs";
 import { currentTurnKey } from "./tw-turn.mjs";
 import { autoAttackMods, movedThisTurn, pilotUnconscious, rangeDependentMods, terrainMods, vehicleWeaponLocation } from "./tw-movement.mjs";
@@ -1642,7 +1642,7 @@ export function weaponToHitPreview(actor) {
   const range = attackerToken ? measureHexes(attackerToken, target, mode === 'aero' ? AERO_HEX_M : GROUND_HEX_M) : null;
   const shared = [...autoAttackMods(actor, null, targetActor).filter(m => !WEAPON_SPECIFIC.includes(m.key)), ...aeroAttackMods(actor, targetActor)]
     .filter(m => !(closeQuarters(actor, targetActor) && CLOSE_QUARTERS_DROP.includes(m.key)));
-  const map = mode === 'ground' && attackerToken?.center && target?.center ? mapAttackTerrain(actor, targetActor, attackerToken.center, target.center) : null;
+  const map = mode === 'ground' && attackerToken?.center && target?.center ? mapAttackTerrain(actor, targetActor, attackerToken.center, target.center, { attackerElevation: unitElevation(actor, attackerToken.document), targetElevation: unitElevation(targetActor, target.document) }) : null;
   const mapMods = map ? terrainMods(map) : [];
   const v = { gunnery: gunneryFor(actor), autoSum: shared.reduce((t, m) => t + m.value, 0), heat: heatToHitMod(actor), range, other: 0, terrain: mapMods.reduce((t, m) => t + m.value, 0) };
   const out = {};
@@ -1770,7 +1770,7 @@ export async function fireWeapons(actor, preselect = []) {
   const facing = facingContext(actor, attackerToken, target, targetActor);
   // Terrain from the map's terrain regions (ground attacks): woods / smoke
   // between, what the target stands in, water cover, line of sight.
-  const map = mode === 'ground' && attackerToken?.center && target?.center ? mapAttackTerrain(actor, targetActor, attackerToken.center, target.center) : null;
+  const map = mode === 'ground' && attackerToken?.center && target?.center ? mapAttackTerrain(actor, targetActor, attackerToken.center, target.center, { attackerElevation: unitElevation(actor, attackerToken.document), targetElevation: unitElevation(targetActor, target.document) }) : null;
   const fromMap = map ? ' <span class="tw-hint">(from map)</span>' : '';
   const dirOpts = dirList.map(d => `<option value="${d.key}"${d.key === facing?.side ? ' selected' : ''}>${d.label}${d.key === facing?.side ? ' (from facing)' : ''}</option>`).join('');
   const modRows = shared.map(x => `
@@ -1823,7 +1823,7 @@ export async function fireWeapons(actor, preselect = []) {
         <div class="form-group"><label>Light woods / smoke hexes between${fromMap}</label><input type="number" name="lightWoods" value="${map?.lightWoods ?? 0}" min="0" /></div>
         <div class="form-group"><label>Heavy woods / smoke hexes between${fromMap}</label><input type="number" name="heavyWoods" value="${map?.heavyWoods ?? 0}" min="0" /></div>
         <div class="form-group"><label>Target standing in${fromMap}${targetActor?.type === 'infantry' ? ` <span class="tw-hint">conventional infantry in the open take double damage${map && !map.inOpen ? ' (not in the open here)' : ''}</span>` : ''}</label><select name="targetWoods">${[['none', 'Open'], ['light', 'Light woods / smoke (+1)'], ['heavy', 'Heavy woods / smoke (+2)']].map(([k, l]) => `<option value="${k}"${k === (map?.targetWoods ?? 'none') ? ' selected' : ''}>${l}</option>`).join('')}</select></div>
-        <div class="form-group"><label>Partial cover (+1; leg hits strike the cover)${map?.partialCover ? ' <span class="tw-hint">(from map: depth 1 water)</span>' : ''}</label><input type="checkbox" name="partialCover"${map?.partialCover ? ' checked' : ''} /></div>
+        <div class="form-group"><label>Partial cover (+1; leg hits strike the cover)${map?.partialCover ? ` <span class="tw-hint">(from map: ${esc(map.coverWhy)})</span>` : ''}</label><input type="checkbox" name="partialCover"${map?.partialCover ? ' checked' : ''} /></div>
         <div class="form-group"><label>Secondary target</label><select name="secondary"><option value="none">No (primary)</option>${isInfantry(actor)
           ? '<option value="front">Yes (+1; infantry have no arcs)</option>'
           : '<option value="front">Yes, front arc (+1)</option><option value="side">Yes, side/rear arc (+2)</option>'}</select></div>

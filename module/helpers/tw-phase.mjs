@@ -17,6 +17,7 @@ import { isAero } from "./tw-aero.mjs";
 import { unitDestroyed } from "./tw-status.mjs";
 import { GROUND_HEX_M } from "./tw-scale.mjs";
 import { turnsCostMP } from "./tw-facing.mjs";
+import { hexAt, terrainRegions, tokenCenter, unitBase, unitElevation } from "./tw-terrain.mjs";
 
 const num = (v) => Number(v) || 0;
 const esc = (t) => String(t ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -226,6 +227,17 @@ export function registerPhaseEnforcement() {
     const why = moveBlockReason(doc);
     if (why) { ui.notifications.warn(why); return false; }
     const actor = doc.actor;
+    // A displaced unit (pushed, charged, death from above): how many levels it drops.
+    if (actor && ('x' in changes || 'y' in changes) && game.combat?.phaseName !== 'Movement' && mayMoveOutOfPhase(actor)) {
+      const regions = terrainRegions(doc.parent ?? globalThis.canvas?.scene);
+      if (regions.length) {
+        const src = doc._source ?? doc;
+        const elev = unitElevation(actor, doc);
+        const from = hexAt(tokenCenter(doc, src), regions);
+        const to = hexAt(tokenCenter(doc, { x: changes.x ?? src.x, y: changes.y ?? src.y }), regions);
+        options.mfDrop = unitBase(actor, from, elev) - unitBase(actor, to, elev);
+      }
+    }
     if (!actor || !currentTurnKey() || !(options.mfMovedMeters || options.mfMovedHexes || options.mfTurns || options.mfBackward)) return;
     const cur = movedThisTurn(actor);
     const hexes = options.mfMovedMeters
@@ -242,12 +254,23 @@ export function registerPhaseEnforcement() {
       ChatMessage.create({ whisper: gms, speaker: ChatMessage.getSpeaker({ actor }), content: `<div class="mech-foundry tw-phase-psr"><i class="fas fa-shoe-prints"></i> ${esc(warn)}</div>` });
     }
   });
-  // A displacing physical attack's move is used up once the token moves.
-  Hooks.on("updateToken", (doc, changes, options, userId) => {
+  // A displacing physical attack's move is used up once the token moves. Displaced
+  // into a hex more than one level lower, the unit falls (TW; MegaMek displacement).
+  Hooks.on("updateToken", async (doc, changes, options, userId) => {
     if (userId !== game.user.id || (!('x' in changes) && !('y' in changes))) return;
     const actor = doc.actor;
     if (!actor || game.combat?.phaseName === 'Movement' || !mayMoveOutOfPhase(actor)) return;
-    if (actor.isOwner) actor.update({ 'flags.mech-foundry.mayMove': null });
+    const drop = num(options.mfDrop);
+    const falls = drop > 1 && !(actor.type === 'ground_vehicle' && ['vtol', 'wige'].includes(actor.system?.movementType));
+    if (actor.isOwner || game.user.isGM) {
+      await actor.update({ 'flags.mech-foundry.mayMove': null, ...(falls ? { 'flags.mech-foundry.fallDrop': { key: currentTurnKey(), levels: drop } } : {}) });
+    }
+    if (!falls) return;
+    const text = `${actor.name} was displaced ${drop} levels down and falls: use Fall… on its sheet (${drop} levels filled in).`;
+    ui.notifications.warn(text);
+    const gms = game.users?.filter?.(u => u.isGM).map(u => u.id) ?? [];
+    await ChatMessage.create({ whisper: [...new Set([game.user.id, ...gms])], speaker: ChatMessage.getSpeaker({ actor }),
+      content: `<div class="mech-foundry tw-phase-psr"><i class="fas fa-person-falling"></i> ${esc(text)}</div>` });
   });
   // Keep the GM checklist current as units move, fire and resolve heat.
   let pending = null;

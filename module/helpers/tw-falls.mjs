@@ -180,11 +180,14 @@ export async function standUp(actor) {
 
 /** GM/owner tool: resolve a fall of N levels (e.g. a failed roll while moving into a lower hex). */
 export async function manualFall(actor) {
+  // Displaced into a lower hex this turn (from the map): the drop is filled in.
+  const drop = actor.flags?.['mech-foundry']?.fallDrop;
+  const levels0 = drop && drop.key && drop.key === currentTurnKey() ? num(drop.levels) : 0;
   const r = await DialogV2.wait({
     window: { title: `Fall — ${actor.name}`, icon: "fa-solid fa-person-falling" },
     content: `
       <div class="tw-attack-dialog">
-        <div class="form-group"><label>Levels fallen <span class="tw-hint">0 = in place; a 'Mech that jumped this turn counts 0</span></label><input type="number" name="levels" value="0" min="0" /></div>
+        <div class="form-group"><label>Levels fallen <span class="tw-hint">${levels0 ? `from map: displaced ${levels0} levels down` : "0 = in place; a 'Mech that jumped this turn counts 0"}</span></label><input type="number" name="levels" value="${levels0}" min="0" /></div>
       </div>`,
     buttons: [
       { action: "fall", label: "Fall", icon: "fa-solid fa-person-falling", default: true, callback: (e, b) => ({ levels: num(b.form.elements.levels.value) }) },
@@ -196,6 +199,7 @@ export async function manualFall(actor) {
   beginRecording();
   const rolls = [];
   const fall = await resolveFall(actor, { levels: r.levels, rolls, plus20: phaseDamageSoFar(actor) >= 20 });
+  if (levels0) await writeDoc(actor, { 'flags.mech-foundry.fallDrop': null });
   await postCard(actor, 'Fall', { results: [], fall }, rolls);
 }
 
