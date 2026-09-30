@@ -153,6 +153,91 @@ criticals and cluster grouping:
   vehicles / aerospace: front 330–30°, sides 120°, rear 60°) and unchecks weapons that can't
   bear, with the reason — they can still be checked (the card notes the override); the
   sheet's to-hit buttons show ARC.
+- **Map terrain** (`module/helpers/tw-terrain.mjs`): the GM draws Scene Regions and gives
+  them the "Mech Foundry Terrain" region behaviour (type, ground level, water depth). Types:
+  clear, paved / road, rough, rubble, light / heavy woods, water, swamp, ice, building, light /
+  heavy smoke; a new terrain region is coloured by type and named after it (custom names are
+  kept). Regions overlap and combine (woods on a level-2 hill). A unit's hex is the terrain
+  under its token's centre (shown under a hovered token, "Heavy woods · Level 1"). Along a line,
+  each continuous stretch of a feature counts round(length ÷ 30 m) hexes — half a hex (15 m)
+  counts — and the attacker's and target's own hexes (the first and last 15 m) aren't
+  "between". Ground attacks read from the map (tagged "(from map)", all still editable): light
+  / heavy woods and smoke hexes between (+1 / +2 each), what the target stands in, partial
+  cover for a 'Mech in depth 1 water, and whether conventional infantry are in the open (not in
+  woods, rough, rubble, swamp or a building — MegaMek infantryInOpen). Line of sight: 3+ points
+  of intervening woods / smoke (light 1, heavy 2) block it. Weapons that can't fire are
+  unchecked with the reason, like out-of-arc ones: no line of sight; a submerged (depth 2+)
+  'Mech firing at, or being fired at from, above the surface; leg weapons of a 'Mech in depth
+  1 water. The sheet's to-hit buttons include map terrain (LOS / N/A when blocked); the
+  anti-'Mech dialog pre-selects the woods the target stands in.
+  Movement over the map (during combat, token moves): each 30 m travelled enters the next hex
+  (the last is where the unit stops), and each hex entered adds its terrain cost (Total Warfare
+  Movement Costs Table, checked against MegaMek): light woods +1, heavy woods +2, rough +1,
+  rubble +1, ice +1, swamp +1 ('Mechs) / +2 (others; hover free), 'Mech in water +1 (depth 1)
+  / +3 (depth 2+); a road (paved) through woods / rough / rubble removes their cost. Level
+  changes cost 1 MP per level for 'Mechs (at most 2 per hex) and 2 per level for vehicles and
+  infantry (at most 1). Terrain MP adds to hexes and facing changes everywhere MP is counted
+  (walked / ran inference, over-MP warnings, the sheet's "9 MP: 6 hexes + terrain 3 (light
+  woods +3)", the GM checklist, the round summary). Prohibited terrain for the motive type
+  (wheeled: woods / rough / rubble / water; tracked: heavy woods / water; hover: woods;
+  infantry: water without UMU; naval: land; too-steep level changes) warns the mover and
+  whispers the GM — it isn't blocked. A 'Mech queues a Piloting Skill Roll for each rubble hex
+  (+0) or water hex entered (depth 1 −1, 2 +0, 3+ +1); jumping pays no terrain costs and only
+  checks the landing hex (rubble). Turning on pavement or ice while running / flanking
+  reminds the player to make a Skid check. VTOLs, WiGEs and aerospace units ignore terrain.
+  Levels and line of sight (MegaMek LosEffects, non-diagram rules): a unit's absolute height is
+  its ground level (+ elevation: a VTOL / WiGE's sheet elevation, else the token's elevation at
+  6 m a level; a 'Mech wading in water stands on the bottom) + its height (a standing 'Mech 1,
+  others 0). A hill or building (its "Building height" field) blocks line of sight where its top
+  is higher than both units, or higher than the unit it stands next to; woods and smoke rise 2
+  levels and only count — for the to-hit number and the 3-point block — where that top would
+  block by the same test (units on hills fire over woods in the valley). Terrain in the hex next
+  to a 'Mech exactly at its hip line gives partial cover when the other unit is no higher: the
+  target +1 (leg hits strike the cover); an attacker can't fire its leg weapons. The fire
+  dialog's map line shows the level difference ("target 2 levels higher").
+  Physical attacks read the level difference from the map (MegaMek attack actions): punches and
+  physical weapons reach a 'Mech on the same level or one higher (one higher: legs, Kick Location
+  Table) and a vehicle or infantry only one level higher (normal table); kicks a 'Mech on the same
+  level or one lower (one lower: Punch Location Table), a vehicle or infantry the same level;
+  clubs one level either way; pushes the same level; charges within a unit's height. The physical
+  dialog also fills the target's woods and water cover from the map. A unit displaced (push,
+  charge, death from above) into a hex more than one level lower falls: the mover and GM are told
+  and the sheet's Fall… dialog has the levels filled in.
+  Buildings (`module/helpers/tw-buildings.mjs`; TW pp. 166–177, checked against MegaMek): a
+  building region has a class, a Construction Factor (CF), a height and the CF lost so far (one
+  region is one building — draw one per building block). Entering one costs MP by class (light
+  1, medium 2, heavy 3, hardened 4; infantry free). Passing a wall — entering or leaving, 'Mechs
+  and vehicles — is rolled when the move lands (Piloting / Driving, + light 0 / medium 1 / heavy
+  2 / hardened 5, + hexes moved this turn: 3–4 +1 … 25+ +6); a failure costs the unit CF ÷ 10
+  damage (front, or rear when backing), and the building takes the unit's tonnage ÷ 10 either
+  way ("Moving Through Buildings" card). A unit inside a building (below its roof) is shielded
+  from attacks from outside: each hit on it loses CF ÷ 10, which the building takes instead
+  (card alert; Undo covers the building) — for conventional infantry, off the troopers the hit
+  would eliminate (per hit; the platoon's card line shows it). An attacker inside the same
+  building gets no shield in the way, except fire at conventional infantry on another floor
+  (by token elevation): the building takes a share — heavy ¼, hardened ½, light / medium none
+  (TW p. 175). The fire dialog's map line says which applies. Mechanized platoons pay 1 MP to
+  enter a building (foot infantry nothing). At CF 0 it collapses into rubble: units inside take CF × floors above ÷ 10
+  (infantry ×3, battle armor ×2; Punch Location Table for 'Mechs inside) and units above the
+  ground floor fall ("Building Collapse" card). Units inside the same building aren't blocked
+  by it. Players' building damage goes through the GM relay (only the CF lost and the collapse
+  to rubble). The hover readout shows "Medium building (CF 32, 2 levels)", and ground units
+  ('Mechs, vehicles, battle armor, infantry) inside a building below its roof carry the
+  "Inside a Building" status (house icon), kept up to date as tokens move or change elevation
+  and as building regions are drawn, moved, collapsed or deleted (tw-status.mjs).
+  Attacking a building: firing (or making a physical attack) with no unit targeted offers the
+  buildings in reach, nearest first (physical: adjacent ones only), measured to the nearest wall.
+  A building is an immobile target (−4); from an adjacent hex or from inside it every shot hits
+  automatically and every missile hits (MegaMek). It takes all the damage; conventional infantry
+  and battle armor inside take a share of each attack (light ¾, medium ½, heavy ¼, hardened
+  none; infantry converted as direct fire, battle armor in 5-point groups — "Fire into …" card).
+  Physical attacks on an adjacent building hit automatically (punch, kick, club, physical
+  weapon; charges, death from above and pushes against buildings aren't supported). Missed
+  attacks at a unit inside a building: weapon fire from an adjacent hex at a non-infantry unit
+  hits the building (cluster weapons roll the Cluster Hits Table), and any missed punch, kick,
+  club or physical weapon does (TW p. 171). Not modelled: charges, death from above and pushes
+  into buildings (and units displaced into one), floors / basements and overload collapse,
+  fire, TacOps diagrammed line of sight.
 - **Movement discipline** (`module/helpers/tw-phase.mjs`): a token move that takes a unit past
   its current MP this turn (Running / Flanking, or Walking when "Walked" is declared, Jumping
   when "Jumped" is) warns the mover and whispers the GM — it isn't blocked. During a running
@@ -272,8 +357,15 @@ criticals and cluster grouping:
   Punch table (attacker ⌈t/5⌉ on the Kick table); charges force a motive roll on vehicles.
   PSRs: kicked 0, missed kick 0, pushed 0, charged +2 / charging +2, DFA target +2 / attacker +4;
   a missed DFA is a 2-level fall on the rear. Displacement (pushes, charges, DFAs) is noted on
-  the card for the players to move tokens. Not modelled: level differences, TSM, the wrecking
-  ball's self-hit on a 2, the spot welder's +2 heat.
+  the card for the players to move tokens. Level differences come from the map's terrain
+  regions (see Map terrain). Arcs ('Mechs, from the tokens' facing; MegaMek attack actions):
+  punches and one-arm physical weapons reach that arm's arc (left 240–60°, right 300–120°),
+  clubs and forward-only weapons (pile driver, wrecking ball) the forward arc — all from the
+  torso, so a twist turns them; kicks the forward arc of the legs; pushes only the hex straight
+  ahead of the feet (±30°); charges and death from above have no arc. The dialog lists the
+  attacks that can't reach and pre-selects the attack direction from the target's facing; an
+  out-of-arc attack is refused unless "Ignore arc" is ticked (noted on the card). Not modelled: TSM, the wrecking ball's self-hit on a 2, the spot
+  welder's +2 heat.
 - **Initiative** (A Time of War): 2D6, highest acts first, ties to the higher RFL; Combat Sense
   rolls 3D6 keeping the highest two. Combat units roll with their linked pilot / crew
   character's traits and break ties on that character's RFL (`MechFoundryCombatant`).

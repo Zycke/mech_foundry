@@ -19,6 +19,7 @@
 import { currentTurnKey } from "./tw-turn.mjs";
 import { writeDoc } from "./gm-relay.mjs";
 import { skillSource } from "./tw-skills.mjs";
+import { shieldPlatoon } from "./tw-shield.mjs";
 
 const num = (v) => Number(v) || 0;
 
@@ -813,6 +814,9 @@ export async function resolvePlatoonHit(target, { infantryDamage = null, burst =
       }
     }
     if (clear) { lines.push(`Clear terrain: ×2 (${points} → ${points * 2})`); points *= 2; }
+    // Inside a building: it takes its share first (tw-buildings.mjs).
+    const sh = shieldPlatoon(target, points, burst ? Math.max(1, hits) : 1);
+    if (sh.line) { lines.push(sh.line); points = sh.points; }
     if (mech) lines.push('Mechanized troopers take 2 points each');
     res = await applyPlatoonDamage(target, points);
     lines.push(`${points} damage: ${res.killed} trooper${res.killed === 1 ? '' : 's'} eliminated`);
@@ -822,6 +826,8 @@ export async function resolvePlatoonHit(target, { infantryDamage = null, burst =
     lines.push(`${INFANTRY_DAMAGE_CLASSES[cls] || 'Direct fire'} ${num(dv)}${cls === 'ae' ? ' / 0.5' : cls === 'clusterMissile' ? ' / 5' : ' / 10'}${cls === 'clusterBallistic' ? ' + 1' : cls === 'pulse' ? ' + 2' : ''} = ${per}${hits > 1 ? ` × ${hits} hits` : ''}`);
     if (mech) { n *= 2; lines.push('Mechanized infantry: ×2'); }
     if (clear) { n *= 2; lines.push('Clear terrain: ×2'); }
+    const sh = shieldPlatoon(target, n, cls === 'ae' ? 1 : Math.max(1, hits));
+    if (sh.line) { lines.push(sh.line); n = sh.points; }
     res = await killPlatoonTroopers(target, n);
     lines.push(`${res.killed} trooper${res.killed === 1 ? '' : 's'} eliminated`);
   }

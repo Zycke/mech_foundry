@@ -94,11 +94,14 @@ const ARC_TEST = {
   rightSide: (fa) => fa > 60 && fa <= 120,
   nose: (fa) => fa > 300 || fa < 60,
   leftWing: (fa) => fa > 300 || fa <= 0,
-  rightWing: (fa) => fa >= 0 && fa < 60
+  rightWing: (fa) => fa >= 0 && fa < 60,
+  // A push: only the hex directly ahead of the feet (±30° gridless).
+  ahead: (fa) => fa >= 330 || fa <= 30
 };
 const ARC_LABEL = {
   all: 'all round', forward: 'forward arc', leftArm: 'left-arm arc', rightArm: 'right-arm arc', rear: 'rear arc',
-  leftSide: 'left-side arc', rightSide: 'right-side arc', nose: 'nose arc', leftWing: 'left-wing arc', rightWing: 'right-wing arc'
+  leftSide: 'left-side arc', rightSide: 'right-side arc', nose: 'nose arc', leftWing: 'left-wing arc', rightWing: 'right-wing arc',
+  ahead: 'hex directly ahead of its feet'
 };
 
 /** Is an angle (relativeAngle) inside a firing arc? */
@@ -205,4 +208,38 @@ export function arcSectors(actor) {
     case 'aerospace_fighter': case 'small_craft': return [{ from: 300, to: 420, kind: 'forward' }, { from: 120, to: 240, kind: 'rear' }];
     default: return [];
   }
+}
+
+/**
+ * A 'Mech physical attack's arc (MegaMek Punch / Kick / Club / Push attack
+ * actions): { arc, twists } — twists: measured from the torso (a twist turns
+ * it) rather than the legs. Charges and death from above have none (null).
+ * @param {string} type       punchL, punchR, kick, club, push, weapon, charge, dfa
+ * @param {object} opts       { arm: 'la' | 'ra', forward: a two-handed / forward-only physical weapon }
+ */
+export function physicalArc(type, { arm = null, forward = false } = {}) {
+  switch (type) {
+    case 'punchL': return { arc: 'leftArm', twists: true };
+    case 'punchR': return { arc: 'rightArm', twists: true };
+    case 'club': return { arc: 'forward', twists: true };
+    case 'weapon': return forward ? { arc: 'forward', twists: true } : { arc: arm === 'la' ? 'leftArm' : 'rightArm', twists: true };
+    case 'kick': return { arc: 'forward', twists: false };
+    case 'push': return { arc: 'ahead', twists: false };
+    default: return null;
+  }
+}
+
+/**
+ * Can this physical attack reach the target? { ok, arc, label, why }.
+ * @param {object} o  { type, arm, forward, from, facing (legs), to, twist }
+ */
+export function physicalArcCheck({ type, arm = null, forward = false, from, facing, to, twist = 0 }) {
+  const pa = physicalArc(type, { arm, forward });
+  if (!pa || !from || !to) return { ok: true, arc: pa?.arc ?? 'all', label: '', why: '' };
+  const f = (num(facing) + (pa.twists ? num(twist) : 0) + 6) % 6;
+  const fa = relativeAngle(from, f, to);
+  const ok = inArc(pa.arc, fa);
+  const from2 = pa.twists ? (twist ? "the torso's" : 'its') : "its legs'";
+  return { ok, arc: pa.arc, label: ARC_LABEL[pa.arc],
+    why: ok ? '' : `the target is in the ${arcZone(fa)} (${from2} facing), outside the ${ARC_LABEL[pa.arc]}` };
 }

@@ -26,6 +26,7 @@ import {
   BA_WEIGHTS, TRANSPORT_POSITIONS, attachedCarrier, attachment, baTroopers, baWeaponKind, infantryAttackDamage, isInfantry, knockOff, liveTroopers, manipulatorCount, platoonAttackDamage, ridersOf, swarmersOf, vibroBonus
 } from "./tw-infantry.mjs";
 import { crewConditionMods, pilotingMods, skillMod } from "./tw-skills.mjs";
+import { hexAt, terrainRegions } from "./tw-terrain.mjs";
 
 const { DialogV2 } = foundry.applications.api;
 const num = (v) => Number(v) || 0;
@@ -185,6 +186,9 @@ export async function antiMechAttack(actor) {
     const mods = antiMechMods(actor, type, targetActor);
     return `${mods.map(m => `${esc(m.label)} ${m.value >= 0 ? '+' : ''}${m.value}`).join(' · ')} = ${sum(mods)}`;
   };
+  // Woods under the target, from the map's terrain regions ('' without any).
+  const regions = target?.center ? terrainRegions() : [];
+  const mapWoods = regions.length ? (hexAt(target.center, regions).woods || 'none') : '';
   const opts = [legOk ? `<option value="leg">Leg attack (${row('leg')})</option>` : '', swarmOk ? `<option value="swarm">Swarm attack (${row('swarm')})</option>` : ''].join('');
   const r = await DialogV2.wait({
     window: { title: `Anti-'Mech Attack — ${actor.name}`, icon: "fa-solid fa-person-rifle" },
@@ -192,7 +196,7 @@ export async function antiMechAttack(actor) {
       <div class="tw-attack-dialog">
         <p class="tw-atk-target">Target: <strong>${esc(target?.name || '')}</strong> (same hex)</p>
         <div class="form-group"><label>Attack</label><select name="type">${opts}</select></div>
-        <div class="form-group"><label>Target standing in</label><select name="targetWoods"><option value="none">Open</option><option value="light">Light woods (+1)</option><option value="heavy">Heavy woods (+2)</option></select></div>
+        <div class="form-group"><label>Target standing in${mapWoods ? ' <span class="tw-hint">(from map)</span>' : ''}</label><select name="targetWoods">${[['none', 'Open'], ['light', 'Light woods (+1)'], ['heavy', 'Heavy woods (+2)']].map(([k, l]) => `<option value="${k}"${k === (mapWoods || 'none') ? ' selected' : ''}>${l}</option>`).join('')}</select></div>
         <div class="form-group"><label>Other modifier <span class="tw-hint">+ harder, − easier (e.g. −1 vs an IndustrialMech)</span></label><input type="number" name="other" value="0" /></div>
       </div>`,
     buttons: [

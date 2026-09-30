@@ -7519,6 +7519,8 @@
 .mech-foundry .mf-turnmove .k { color: var(--mf-ink-dim); text-transform: uppercase; letter-spacing: .04em; font-size: 0.7rem; }
 .mech-foundry .mf-turnmove select { flex: 1; height: 24px; font-size: 0.78rem; }
 .mech-foundry .mf-turnmove input { width: 44px; height: 24px; text-align: center; }
+.mech-foundry .mf-turnmove { flex-wrap: wrap; }
+.mech-foundry .mf-turnmove .mf-mp-note { text-transform: none; letter-spacing: 0; color: var(--mf-ink); flex-basis: 100%; }
 
 /* Attack dialog: terrain group */
 .tw-attack-dialog fieldset.tw-terrain { margin: 6px 0; padding: 4px 8px; border: 1px solid rgba(128,128,128,.35); border-radius: 4px; }
@@ -7736,3 +7738,5 @@
 .mech-foundry .mf-twist .twist-set.active { border-color: #5fd3e6; color: #5fd3e6; }
 .mech-foundry .mf-twist .twist-set:disabled { opacity: 0.4; }
 .tw-fire-dialog .tw-fire-twist { margin: 0 0 4px; font-size: 0.8rem; color: #5fd3e6; }
+.tw-fire-dialog .tw-fire-map { margin: 0 0 4px; font-size: 0.8rem; color: #8fc27a; }
+.tw-fire-dialog .tw-fire-map i { margin-right: 3px; }

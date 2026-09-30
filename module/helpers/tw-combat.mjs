@@ -14,6 +14,9 @@ import {
 import { beginRecording, endRecording, writeDoc } from "./gm-relay.mjs";
 import { AERO_HEX_M, GROUND_HEX_M, measureHexes, pixelsPerMeter } from "./tw-scale.mjs";
 import { arcCheck, attackSide, tokenFacing, torsoTwist } from "./tw-facing.mjs";
+import { mapAttackTerrain, terrainRowBlock, unitElevation } from "./tw-terrain.mjs";
+import { beginBuildingTarget, beginShield, chooseBuildingTarget, collapseBuilding, endBuildingTarget, endShield, postOccupantCard } from "./tw-buildings.mjs";
+import { activeBuildingTarget, activeShield, buildingTargetHit, shieldGroups, shieldMiss } from "./tw-shield.mjs";
 import { facingChanges, mechLocChanges, poolChange, volleyCard, roundLabel, ammoFooter, heatCard, rollCard, rollSummary, summaryContext, volleySummary, withSummary } from "./tw-cards.mjs";
 import { currentTurnKey } from "./tw-turn.mjs";
 import { autoAttackMods, movedThisTurn, pilotUnconscious, rangeDependentMods, terrainMods, vehicleWeaponLocation } from "./tw-movement.mjs";
@@ -1176,7 +1179,11 @@ export async function resolveDamageAgainst(targetActor, direction, groupSizes, r
   noPSR = false, locationRoller = null, extraPSR = [], forceMotive = false, partialCover = false, explode = null,
   areaEffect = false, autoCrit = false, noIntercept = false, platoonHit = null
 } = {}) {
+  // Attacking a building (no unit): the building takes it all (tw-buildings.mjs).
+  if (!targetActor && activeBuildingTarget()) return buildingTargetHit(groupSizes);
   const tt = targetActor?.type;
+  // A unit inside a building: the building takes its share of each hit first (tw-buildings.mjs).
+  if (!areaEffect && tt !== 'infantry') groupSizes = shieldGroups(targetActor, groupSizes);
   if (tt === 'battle_armor') return await resolveBattleArmorDamage(targetActor, groupSizes, rolls, { areaEffect });
   // Conventional infantry: troopers eliminated per the Non-Infantry Weapon Damage table
   // (callers that know the weapon pass `platoonHit`; otherwise direct fire / physical).
@@ -1629,8 +1636,8 @@ function autoSumFor(r, mode) {
 
 /**
  * To-hit preview for every weapon against the user's current target, for the
- * weapon rows on the sheet: { weaponId: {text, title, oor} }. Terrain isn't
- * known here, so it assumes open ground; the fire dialog adds it.
+ * weapon rows on the sheet: { weaponId: {text, title, oor} }. Terrain comes
+ * from the map's terrain regions when the scene has them (else open ground).
  */
 export function weaponToHitPreview(actor) {
   const target = [...(game.user?.targets ?? [])][0] || null;
@@ -1641,7 +1648,9 @@ export function weaponToHitPreview(actor) {
   const range = attackerToken ? measureHexes(attackerToken, target, mode === 'aero' ? AERO_HEX_M : GROUND_HEX_M) : null;
   const shared = [...autoAttackMods(actor, null, targetActor).filter(m => !WEAPON_SPECIFIC.includes(m.key)), ...aeroAttackMods(actor, targetActor)]
     .filter(m => !(closeQuarters(actor, targetActor) && CLOSE_QUARTERS_DROP.includes(m.key)));
-  const v = { gunnery: gunneryFor(actor), autoSum: shared.reduce((t, m) => t + m.value, 0), heat: heatToHitMod(actor), range, other: 0, terrain: 0 };
+  const map = mode === 'ground' && attackerToken?.center && target?.center ? mapAttackTerrain(actor, targetActor, attackerToken.center, target.center, { attackerElevation: unitElevation(actor, attackerToken.document), targetElevation: unitElevation(targetActor, target.document) }) : null;
+  const mapMods = map ? terrainMods(map) : [];
+  const v = { gunnery: gunneryFor(actor), autoSum: shared.reduce((t, m) => t + m.value, 0), heat: heatToHitMod(actor), range, other: 0, terrain: mapMods.reduce((t, m) => t + m.value, 0) };
   const out = {};
   const facing = facingContext(actor, attackerToken, target, targetActor);
   for (const w of unitWeapons(actor)) {
@@ -1649,15 +1658,18 @@ export function weaponToHitPreview(actor) {
     const p = previewTN(v, row);
     const arc = facing ? arcCheck({ actor, weapon: w, from: facing.from, facing: facing.attackerFacing, to: facing.to, twist: facing.twist }) : null;
     if (arc && !arc.ok) { out[w.id] = { text: 'ARC', oor: true, title: `Out of arc vs ${target.name}: ${arc.why}` }; continue; }
+    const blocked = terrainRowBlock(map, actor, w);
+    if (blocked) { out[w.id] = { text: map.line.blocked ? 'LOS' : 'N/A', oor: true, title: `Can't fire at ${target.name}: ${blocked}` }; continue; }
     const parts = [`Gunnery ${v.gunnery}`, ...shared.map(m => `${m.label} ${m.value >= 0 ? '+' : ''}${m.value}`)];
     if (row.fixed) parts.push(`Weapon mods +${row.fixed}`);
+    for (const m of mapMods) parts.push(`${m.label} +${m.value}`);
     if (mode === 'a2g') parts.push('air-to-ground: pick strafe / strike / bomb in the fire dialog');
     if (mode === 'aero') parts.push('angle of attack added in the fire dialog');
     if (v.heat) parts.push(`Heat +${v.heat}`);
     parts.push(range == null ? 'range unknown (no token on the map)' : `Range ${range} (${p.bracket})`);
     out[w.id] = p.oor
       ? { text: 'OOR', oor: true, title: `Out of range vs ${target.name} (${range} hexes)` }
-      : { text: `${p.tn}+`, oor: false, title: `vs ${target.name}: needs ${p.tn}+ (${p.chance}%) · ${parts.join(' · ')} · terrain not included` };
+      : { text: `${p.tn}+`, oor: false, title: `vs ${target.name}: needs ${p.tn}+ (${p.chance}%) · ${parts.join(' · ')} · ${map ? 'terrain from the map' : 'terrain not included'}` };
   }
   return out;
 }
@@ -1667,7 +1679,7 @@ export function weaponToHitPreview(actor) {
  * { from, to, attackerFacing, twist, side } — side = attack direction from the
  * target's facing ('Mech or vehicle / aerospace table).
  */
-function facingContext(actor, attackerToken, target, targetActor) {
+export function facingContext(actor, attackerToken, target, targetActor) {
   if (!attackerToken?.center || !target?.center) return null;
   const from = attackerToken.center, to = target.center;
   const targetFacing = tokenFacing(target.document ?? target);
@@ -1744,7 +1756,14 @@ export async function fireWeapons(actor, preselect = []) {
   const gunnery = gunneryFor(actor);
   const heatMod = heatToHitMod(actor);
   const attackerToken = actor.getActiveTokens?.()[0] || null;
-  const target = [...(game.user?.targets ?? [])][0] || null;
+  let target = [...(game.user?.targets ?? [])][0] || null;
+  // No unit targeted: offer the buildings in reach (tw-buildings.mjs).
+  if (!target && attackerToken) {
+    const b = await chooseBuildingTarget(actor, attackerToken);
+    if (b === 'cancel') return;
+    target = b;
+  }
+  const building = target?.building ?? null;
   const targetName = target?.name || '';
   const targetActor = target?.actor || null;
   const tb = targetBlock(actor, targetActor);
@@ -1753,6 +1772,8 @@ export async function fireWeapons(actor, preselect = []) {
   const autoDist = attackerToken && target ? measureHexes(attackerToken, target, mode === 'aero' ? AERO_HEX_M : GROUND_HEX_M) : null;
   const shared = [...autoAttackMods(actor, null, targetActor).filter(m => !WEAPON_SPECIFIC.includes(m.key)), ...aeroAttackMods(actor, targetActor)]
     .filter(m => !(closeQuarters(actor, targetActor) && CLOSE_QUARTERS_DROP.includes(m.key)));
+  // A building is an immobile target (−4); adjacent or from inside, every shot hits.
+  if (building && !building.autoHit) shared.push({ key: 'immobileBuilding', label: 'Building (immobile target)', value: -4 });
   const rows = ready.map(w => weaponPreviewRow(actor, w, targetActor, mode));
 
   const esc = (t) => foundry.utils.escapeHTML?.(String(t)) ?? String(t);
@@ -1761,12 +1782,32 @@ export async function fireWeapons(actor, preselect = []) {
     : ATTACK_DIRECTIONS;
   // Facing: the attack direction from where the attacker stands against the
   // target's facing, and whether each weapon's firing arc bears on the target.
-  const facing = facingContext(actor, attackerToken, target, targetActor);
+  // (Firing at the building it stands in, a unit has no arc to worry about.)
+  const facing = building?.inside ? null : facingContext(actor, attackerToken, target, targetActor);
+  // Terrain from the map's terrain regions (ground attacks): woods / smoke
+  // between, what the target stands in, water cover, line of sight.
+  const map = mode === 'ground' && attackerToken?.center && target?.center ? mapAttackTerrain(actor, targetActor, attackerToken.center, target.center, { attackerElevation: unitElevation(actor, attackerToken.document), targetElevation: unitElevation(targetActor, target.document) }) : null;
+  if (map && building) {
+    // The target is the building's nearest wall: drop what it "stands in"; say what it is.
+    map.summary = map.summary.filter(x => !/^target (in|inside) |^both inside/.test(x));
+    map.summary.unshift(`${building.cls} building, CF ${building.cf}${building.autoHit ? (building.inside ? ' — from inside: every shot hits' : ' — adjacent: every shot hits') : ' — immobile target (−4)'}`);
+    map.targetWoods = 'none';
+  }
+  const fromMap = map ? ' <span class="tw-hint">(from map)</span>' : '';
+  // A unit inside a building, fired on from next to it: missed shots hit the building (TW p. 171).
+  const missIntoBuilding = !building && mode === 'ground' && targetActor && targetActor.type !== 'infantry' && autoDist != null && autoDist <= 1;
   const dirOpts = dirList.map(d => `<option value="${d.key}"${d.key === facing?.side ? ' selected' : ''}>${d.label}${d.key === facing?.side ? ' (from facing)' : ''}</option>`).join('');
   const modRows = shared.map(x => `
       <div class="form-group"><label>${esc(x.label)}${x.hint ? ` <span class="tw-hint">${esc(x.hint)}</span>` : ''}</label><input type="number" name="auto_${x.key}" value="${x.value}" /></div>`).join('');
   const v0 = { gunnery, autoSum: shared.reduce((t, m) => t + m.value, 0), heat: heatMod, range: autoDist, other: 0,
-    terrain: mode === 'aero' ? num(aeroAngleMod(targetActor, 'front')?.value) : mode === 'a2g' ? airToGroundMods(actor, 'strafe').reduce((t, m) => t + m.value, 0) : 0 };
+    terrain: mode === 'aero' ? num(aeroAngleMod(targetActor, 'front')?.value) : mode === 'a2g' ? airToGroundMods(actor, 'strafe').reduce((t, m) => t + m.value, 0) : map ? terrainMods(map).reduce((t, m) => t + m.value, 0) : 0 };
+  // Why a weapon can't bear (unchecked, but the player / GM may fire anyway).
+  const rowBlock = (w) => {
+    const arc = facing ? arcCheck({ actor, weapon: w, from: facing.from, facing: facing.attackerFacing, to: facing.to, twist: facing.twist }) : null;
+    if (arc && !arc.ok) return `Out of arc: ${arc.why}`;
+    const t = terrainRowBlock(map, actor, w);
+    return t ? `Can't fire: ${t}` : '';
+  };
   const weaponRows = ready.map((w, i) => {
     const p = previewTN(v0, rows[i]);
     const r = rows[i];
@@ -1774,11 +1815,10 @@ export async function fireWeapons(actor, preselect = []) {
     const modes = fireModes(w, targetActor);
     const modeCell = modes.length ? `<select name="m_${w.id}">${modes.map(m => `<option value="${m.value}">${esc(m.label)}</option>`).join('')}</select>` : '';
     const ammoText = usesAmmo(w) ? ` · ${num(w.ammo)} rds${w.clusterAmmo !== undefined && w.clusterAmmo !== '' ? ` + ${num(w.clusterAmmo)} cluster` : ''}` : '';
-    const arc = facing ? arcCheck({ actor, weapon: w, from: facing.from, facing: facing.attackerFacing, to: facing.to, twist: facing.twist }) : null;
-    const outOfArc = arc && !arc.ok;
-    return `<tr${outOfArc ? ' class="tw-fw-oa"' : ''}>
-        <td><input type="checkbox" name="w_${w.id}" ${preselect.includes(w.id) && !outOfArc ? 'checked' : ''} /></td>
-        <td class="tw-fw-name">${esc(w.name || 'Weapon')}<span class="tw-hint">${esc(w.location || w.arc || '')} · ${ranges}${ammoText}</span>${outOfArc ? `<span class="tw-hint tw-fw-arc">Out of arc: ${esc(arc.why)} — check to fire anyway</span>` : ''}</td>
+    const why = rowBlock(w);
+    return `<tr${why ? ' class="tw-fw-oa"' : ''}>
+        <td><input type="checkbox" name="w_${w.id}" ${preselect.includes(w.id) && !why ? 'checked' : ''} /></td>
+        <td class="tw-fw-name">${esc(w.name || 'Weapon')}<span class="tw-hint">${esc(w.location || w.arc || '')} · ${ranges}${ammoText}</span>${why ? `<span class="tw-hint tw-fw-arc">${esc(why)} — check to fire anyway</span>` : ''}</td>
         <td class="tw-fw-mode">${modeCell}</td>
         <td class="tw-fw-heat">${num(w.heat) ? `${num(w.heat)}H` : ''}</td>
         <td class="tw-fw-tn" data-wid="${w.id}">${p.oor ? 'OOR' : `${p.tn}+ <span class="tw-hint">${p.chance}%</span>`}</td>
@@ -1788,6 +1828,7 @@ export async function fireWeapons(actor, preselect = []) {
   const content = `
     <div class="tw-attack-dialog tw-fire-dialog">
       <p class="tw-atk-target">${targetName ? `Target: <strong>${esc(targetName)}</strong>` : 'No target selected — enter range manually.'}</p>
+      ${map ? `<p class="tw-fire-map"><i class="fa-solid fa-tree"></i> From the map: ${esc(map.summary.join(' · '))}</p>` : ''}
       ${facing?.twist ? `<p class="tw-fire-twist">Torso twisted ${facing.twist > 0 ? 'right' : 'left'} this turn: torso and arm weapons fire from the torso's facing; leg weapons from the legs.</p>` : ''}
       <table class="tw-fire-weapons"><thead><tr><th></th><th>Weapon</th><th>Mode</th><th>Heat</th><th>To-hit</th></tr></thead><tbody>${weaponRows}</tbody></table>
       <p class="tw-fire-heat">Heat from checked weapons: <strong class="tw-fire-heatsum">${ready.filter(w => preselect.includes(w.id)).reduce((t, w) => t + num(w.heat), 0)}</strong></p>
@@ -1803,10 +1844,10 @@ export async function fireWeapons(actor, preselect = []) {
         <div class="form-group"><label>Firing into / out of a screen hex (+2)</label><input type="checkbox" name="screen" /></div>
         <div class="form-group"><label>Secondary target</label><select name="secondary"><option value="none">No (primary)</option><option value="front">Yes, forward arc (+1)</option><option value="side">Yes, side/rear arc (+2)</option></select></div>
       </fieldset>` : `<fieldset class="tw-terrain"><legend>Terrain &amp; target</legend>
-        <div class="form-group"><label>Light woods hexes between</label><input type="number" name="lightWoods" value="0" min="0" /></div>
-        <div class="form-group"><label>Heavy woods hexes between</label><input type="number" name="heavyWoods" value="0" min="0" /></div>
-        <div class="form-group"><label>Target standing in${targetActor?.type === 'infantry' ? ' <span class="tw-hint">conventional infantry in the open take double damage</span>' : ''}</label><select name="targetWoods"><option value="none">Open</option><option value="light">Light woods (+1)</option><option value="heavy">Heavy woods (+2)</option></select></div>
-        <div class="form-group"><label>Partial cover (+1; leg hits strike the cover)</label><input type="checkbox" name="partialCover" /></div>
+        <div class="form-group"><label>Light woods / smoke hexes between${fromMap}</label><input type="number" name="lightWoods" value="${map?.lightWoods ?? 0}" min="0" /></div>
+        <div class="form-group"><label>Heavy woods / smoke hexes between${fromMap}</label><input type="number" name="heavyWoods" value="${map?.heavyWoods ?? 0}" min="0" /></div>
+        <div class="form-group"><label>Target standing in${fromMap}${targetActor?.type === 'infantry' ? ` <span class="tw-hint">conventional infantry in the open take double damage${map && !map.inOpen ? ' (not in the open here)' : ''}</span>` : ''}</label><select name="targetWoods">${[['none', 'Open'], ['light', 'Light woods / smoke (+1)'], ['heavy', 'Heavy woods / smoke (+2)']].map(([k, l]) => `<option value="${k}"${k === (map?.targetWoods ?? 'none') ? ' selected' : ''}>${l}</option>`).join('')}</select></div>
+        <div class="form-group"><label>Partial cover (+1; leg hits strike the cover)${map?.partialCover ? ` <span class="tw-hint">(from map: ${esc(map.coverWhy)})</span>` : ''}</label><input type="checkbox" name="partialCover"${map?.partialCover ? ' checked' : ''} /></div>
         <div class="form-group"><label>Secondary target</label><select name="secondary"><option value="none">No (primary)</option>${isInfantry(actor)
           ? '<option value="front">Yes (+1; infantry have no arcs)</option>'
           : '<option value="front">Yes, front arc (+1)</option><option value="side">Yes, side/rear arc (+2)</option>'}</select></div>
@@ -1826,7 +1867,8 @@ export async function fireWeapons(actor, preselect = []) {
       heavyWoods: Math.max(0, num(f.heavyWoods?.value)),
       targetWoods: f.targetWoods?.value ?? 'none',
       partialCover: !!f.partialCover?.checked,
-      secondary: f.secondary?.value ?? 'none'
+      secondary: f.secondary?.value ?? 'none',
+      inOpen: map ? map.inOpen : true
     },
     a2gType: f.a2gType?.value ?? 'strafe',
     atmoHexes: Math.max(0, num(f.atmoHexes?.value)),
@@ -1834,6 +1876,8 @@ export async function fireWeapons(actor, preselect = []) {
     other: num(f.other.value),
     direction: f.direction.value,
     ids: ready.filter(w => f[`w_${w.id}`]?.checked).map(w => w.id),
+    building: building ? { autoHit: !!building.autoHit, name: building.name } : null,
+    missIntoBuilding,
     modes: Object.fromEntries(ready.filter(w => f[`m_${w.id}`]).map(w => [w.id, f[`m_${w.id}`].value]))
   });
 
@@ -1878,14 +1922,20 @@ export async function fireWeapons(actor, preselect = []) {
   const rolls = [];
   const shots = [];
   beginRecording();
+  // A target inside a building is shielded by it (ground attacks).
+  if (mode === 'ground') beginShield(targetActor, target, actor, attackerToken);
+  if (building) beginBuildingTarget(target);
   for (const id of ids) {
     const weapon = all.find(w => w.id === id);
     if (!weapon || weaponBlock(actor, weapon)) continue;
     const shot = await resolveWeaponShot(actor, weapon, target, result, rolls);
     const arc = facing ? arcCheck({ actor, weapon, from: facing.from, facing: facing.attackerFacing, to: facing.to, twist: facing.twist }) : null;
     if (arc && !arc.ok) (shot.notes ??= []).push(`Fired outside its ${arc.label} (${arc.why}) — allowed by the firing player / GM.`);
+    else if (terrainRowBlock(map, actor, weapon)) (shot.notes ??= []).push(`Fired although ${terrainRowBlock(map, actor, weapon)} — allowed by the firing player / GM.`);
     shots.push(shot);
   }
+  const shielded = await endShield();
+  const hitBuilding = building ? await endBuildingTarget(rolls) : null;
   const recorded = endRecording();
   if (!shots.length) return;
   // One condensed card for the whole volley (tw-cards.mjs / tw-volley.hbs).
@@ -1900,7 +1950,8 @@ export async function fireWeapons(actor, preselect = []) {
     baseMods: shots[0].baseMods,
     shots,
     heat: tracksHeat ? shots.reduce((t, s) => t + num(s.heat), 0) : null,
-    footer: ammoFooter(shots)
+    footer: ammoFooter(shots),
+    alerts: [shielded?.alert, hitBuilding?.alert].filter(Boolean)
   });
   await ChatMessage.create({
     flags: { 'mech-foundry': withSummary(recorded, volleySummary(card, { ...summaryContext(), kind: 'fire', attacker: actor, target: targetActor })) },
@@ -1909,6 +1960,9 @@ export async function fireWeapons(actor, preselect = []) {
     content: await foundry.applications.handlebars.renderTemplate("systems/mech-foundry/templates/chat/tw-volley.hbs", card),
     rolls
   });
+  if (hitBuilding?.occupants) await postOccupantCard(building.name, hitBuilding.occupants);
+  const collapse = shielded?.collapse ?? hitBuilding?.collapse;
+  if (collapse) await collapseBuilding(collapse.uuid, { cfBefore: collapse.cfBefore });
 }
 
 /**
@@ -1957,9 +2011,11 @@ async function resolveWeaponShot(actor, weapon, target, result, rolls) {
   const dice = roll.dice[0]?.results?.map(r => r.result) ?? [];
   // Ultra / Rotary autocannons jam on a low natural roll; a jammed shot does nothing.
   const jammed = rb.inRange && jams(weapon, fmode, roll.total);
-  const hit = rb.inRange && !jammed && roll.total >= tn;
+  const autoHit = !!result.building?.autoHit;
+  const hit = rb.inRange && !jammed && (autoHit || roll.total >= tn);
   const margin = roll.total - tn;
   const notes = [];
+  if (autoHit && rb.inRange && !jammed) notes.push(`${result.building.name}: automatic hit${num(weapon.clusterSize) > 0 ? ', every missile hits' : ''}.`);
   if (jammed) notes.push(`Natural ${roll.total}: ${weapon.name} JAMS${kind === 'rotary' ? ' — Unjam on the Combat tab (2D6 ≥ Gunnery + 3, instead of attacking)' : ' for the rest of the battle'}.`);
 
   // The weapon fired (an out-of-range shot can't be declared, so it doesn't
@@ -2001,7 +2057,7 @@ async function resolveWeaponShot(actor, weapon, target, result, rolls) {
   // Conventional infantry targets take trooper losses rather than location
   // damage; standing in Clear terrain (no terrain to-hit modifier) doubles them.
   const platoonTarget = targetActor?.type === 'infantry';
-  const clear = platoonTarget && mode !== 'aero' && (result.terrain?.targetWoods ?? 'none') === 'none' && !result.terrain?.partialCover;
+  const clear = platoonTarget && mode !== 'aero' && (result.terrain?.targetWoods ?? 'none') === 'none' && !result.terrain?.partialCover && result.terrain?.inOpen !== false;
   // Narc / TAG: no damage — a pod attaches, or the target is designated this turn.
   if (hit && (kind === 'narc' || kind === 'tag') && targetActor) {
     const key = currentTurnKey();
@@ -2068,8 +2124,8 @@ async function resolveWeaponShot(actor, weapon, target, result, rolls) {
       let ams = null;
       if (isMissileAttack(weapon) && (ams = readyAMS(targetActor, currentTurnKey()))) cMods.push({ label: `${targetName}'s ${ams.name}`, value: -4 });
       let missiles, cRoll = null;
-      if (weapon.streak && !ams) {
-        // Streak launchers only fire on a lock: every missile hits.
+      if ((weapon.streak && !ams) || autoHit) {
+        // Streak launchers only fire on a lock: every missile hits (and every shot at an adjacent building).
         missiles = size;
       } else {
         const natural = weapon.streak ? 11 : (cRoll = await new Roll("2d6").evaluate(), rolls.push(cRoll), cRoll.total);
@@ -2087,6 +2143,17 @@ async function resolveWeaponShot(actor, weapon, target, result, rolls) {
       partialCover: mode !== 'aero' && !!result.terrain?.partialCover && targetActor?.type === 'mech'
     });
     hitResult = { cluster: !!clusterInfo, clusterInfo, total, ...frag };
+  }
+
+  // A miss from next to a unit inside a building hits the building (TW p. 171).
+  if (!hit && rb.inRange && !jammed && result.missIntoBuilding && perHit > 0 && activeShield()) {
+    let dmg = perHit * Math.max(1, shotsFor(weapon, fmode));
+    if (clusterSize > 0) {
+      const cr = await new Roll("2d6").evaluate();
+      rolls.push(cr);
+      dmg = clusterHits(clusterSize, cr.total) * perHit;
+    }
+    if (shieldMiss(targetActor, dmg)) notes.push(`Missed: the building takes ${dmg}.`);
   }
 
   return {

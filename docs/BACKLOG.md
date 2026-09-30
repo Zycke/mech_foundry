@@ -22,10 +22,13 @@ Priority things to test in a real v14 world:
       GM prompt), unlinked-token defender uses token actor, Roll survives the socket.
 - [ ] **NPC attacks** from the NPC sheet; **NPC armor BAR** shows `M/B/E/X`.
 - [ ] Skill/attribute/weapon rolls; **link modifiers** at scores 0, 10, 11+.
+- [ ] **Terrain regions**: the "Mech Foundry Terrain" region behaviour appears in a Region's
+      behaviours, saves its type / level / depth, colours and names the region; the fire dialog
+      reads woods / smoke / water from it (`documentTypes.RegionBehavior` in system.json).
 
 ---
 
-## 1. ApplicationV2 sheet migration (in progress)
+## 1. ApplicationV2 sheet migration (sheets done; old dialogs left)
 
 - [x] `MechFoundryActorSheetV2` base + Ship/Vehicle stubs — **tested, loads & works**.
 - [x] **Item sheet** → V2 (class + all 14 templates + effects partial) — **tested & working**
@@ -34,12 +37,15 @@ Priority things to test in a real v14 world:
       Finances; numeric crew+troop pools, per-location departments, MTOE unit boxes,
       structured logistics). Personnel/Organization tabs and the old personnel-item /
       skill-averaging model retired.
-- [ ] **Character/NPC sheet** → V2 — the big one (~3,200 lines of jQuery
-      `activateListeners` → V2 `actions` + `_onRender`; drag/drop; inline dialogs).
+- [x] **Character/NPC sheet** → V2 class (`ActorSheetV2`, parts, header controls, drag/drop).
+- [ ] Character sheet internals: its ~60 jQuery-style handlers still run through
+      `_activateSheetListeners` in `_onRender`; converting them to V2 `actions` is optional
+      cleanup (works as is).
 - [ ] Move the large **inline-HTML dialogs** (First Aid/Stabilize/Surgery, weapon
       attack, XP) into `templates/dialog/` + `renderTemplate`, and localize.
-- [ ] Replace `Dialog` (appv1) with `DialogV2`, and the V1 sheets' global
-      `TextEditor.enrichHTML` with `foundry.applications.ux.TextEditor.implementation`.
+- [ ] Replace `Dialog` (appv1) with `DialogV2`: 17 in the character sheet (First Aid /
+      Stabilize / Surgery, XP, confirmations…) and 1 in `opposed-rolls.mjs` — needed before V1 is
+      removed (~v16); every unit-combat dialog already uses DialogV2.
 
 ## 2. Design decisions needed (do NOT auto-fix)
 
@@ -191,19 +197,31 @@ Rules detail for what *is* automated lives in `docs/unit-sheet-design.md`.
 ### 7b. Not automated (candidates to automate later)
 
 **Map / movement**
-- [ ] Elevation and level differences (physical attacks by level, LOS, falls into lower
-      hexes — the Fall… button takes levels by hand).
+- [x] Elevation and level differences (physical attacks by level, LOS, falls into lower
+      hexes when displaced) — from the map's terrain regions.
 - [x] Facing (auto-facing, Q/E, torso twist), facing MP costs, firing arcs, attack direction
-      from facing. Open: physical-attack arcs (punch / kick / club by arc), quad 'Mechs,
-      lateral shifts, rear-facing arm flips, turret facing for locked turrets (assumed forward),
+      from facing, physical-attack arcs (punch / kick / club / push). Deferred (by decision):
+      quad 'Mechs, mule kicks. Open: lateral shifts, rear-facing arm flips, turret facing for locked turrets (assumed forward),
       facing costs for aerospace (thrust, via the Maneuver helper today).
 - [ ] Token displacement: pushes, charges, death from above, skids, sideslips (chat card
       tells players what to move).
 - [x] Movement warnings (over MP), Movement-Phase-only token moves for players, GM phase
-      checklist. Open: facing changes aren't counted against MP; movement order by initiative
-      isn't enforced.
-- [ ] Terrain detection from the map (woods, water, pavement, buildings) — dialog inputs today.
-- [ ] Buildings: movement, damage absorption, collapse, building PSRs.
+      checklist, End Phase round summary; facing changes count against MP. Open: movement order
+      by initiative isn't enforced.
+- [~] Terrain from the map (Scene Region "Mech Foundry Terrain" behaviour). Done: terrain
+      lookup, woods / smoke between and target terrain, woods / smoke line of sight, water cover
+      and submerged units, infantry in the open, sheet to-hit preview; movement terrain and
+      level-change MP along the token path, prohibited-terrain warnings, rubble / water PSRs,
+      skid reminders on pavement / ice; levels and height-based line of sight (hills, building
+      height, woods / smoke only where tall enough), partial cover from terrain, physical attacks
+      across levels, falls when displaced 2+ levels down; buildings (class / CF, entry MP, wall
+      rolls and damage both ways, absorption for units inside, collapse). Not modelled: swamp
+      bog-down, road bonus MP for vehicles, careful vs. fast ice movement, TacOps diagrammed line
+      of sight, level-based falls outside displacement (e.g. skids off a ledge), charges /
+      death from above / pushes into buildings (and units displaced into one), floors /
+      basements / overload collapse, per-hex CF within one building region, fire.
+- [x] Buildings: movement, damage absorption, collapse, building PSRs — from the map's terrain
+      regions (see the terrain item for what's not modelled).
 - [ ] Water / underwater, hull down, life support while submerged; hover vehicles sinking
       when immobilized over water.
 - [ ] Motive-damage timing (TW applies it at the end of the phase; applied immediately).
@@ -230,7 +248,7 @@ Rules detail for what *is* automated lives in `docs/unit-sheet-design.md`.
 - [ ] Ammo bins in crit slots vs. the weapon's pooled ammo count (bin size from Shots/Ton).
 
 **'Mechs**
-- [ ] Four-legged 'Mechs; IndustrialMechs; small cockpits (+1 PSR); heavy-duty gyros;
+- [ ] Four-legged 'Mechs (deferred by decision); IndustrialMechs; small cockpits (+1 PSR); heavy-duty gyros;
       fission-engine radiation.
 - [ ] Physical-attack restrictions while prone; wrecking ball self-hit on a 2; spot welder
       +2 heat.

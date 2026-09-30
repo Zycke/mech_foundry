@@ -25,7 +25,7 @@ const ANTI_MECH_FLAGS = ['flags.mech-foundry.legAttacked', 'flags.mech-foundry.s
 /** Fields a relayed `update` may write, per actor type. */
 // Weapon effects written onto the target: Narc pods, TAG, flamer heat, its AMS firing.
 const WEAPON_EFFECT_FLAGS = ['flags.mech-foundry.narc', 'flags.mech-foundry.tagged', 'flags.mech-foundry.externalHeat',
-  'flags.mech-foundry.amsUsed', 'flags.mech-foundry.fired', 'flags.mech-foundry.mayMove'];
+  'flags.mech-foundry.amsUsed', 'flags.mech-foundry.fired', 'flags.mech-foundry.mayMove', 'flags.mech-foundry.fallDrop'];
 
 const UPDATE_WHITELIST = {
   mech: ['system.armor', 'system.structure', 'system.critSlots', 'system.systemHits', 'system.heatSinks', 'system.weapons', 'system.pilot',
@@ -162,8 +162,12 @@ export async function onMessage(data) {
   game.socket.emit(SOCKET, { eventType: RESULT, requestId: data.requestId, userId: data.userId, ok, error });
 }
 
+/** Map terrain: damage to a building region (its CF lost) and its collapse into rubble. */
+const BUILDING_FIELDS = ['system.damage', 'system.terrain'];
+
 async function handleUpdate(payload) {
   const doc = await fromUuid(payload?.uuid);
+  if (doc?.documentName === "RegionBehavior") return handleBuildingUpdate(doc, payload?.data);
   if (!doc || doc.documentName !== "Actor") throw new Error("Target is not an actor");
   const allowed = UPDATE_WHITELIST[doc.type];
   if (!allowed) throw new Error(`Actor type "${doc.type}" is not relay-writable`);
@@ -175,6 +179,24 @@ async function handleUpdate(payload) {
   if (["character", "npc"].includes(doc.type) && data["system.unconscious"] !== true) {
     throw new Error("Only marking a character unconscious is allowed");
   }
+  await doc.update(data);
+  return true;
+}
+
+/** A relayed write to a building: only its damage (0 … CF) and collapsing it to rubble / restoring it. */
+async function handleBuildingUpdate(doc, data) {
+  if (doc.type !== "mech-foundry.terrain") throw new Error("Only Mech Foundry terrain behaviours are relay-writable");
+  const keys = data && typeof data === "object" ? Object.keys(data) : [];
+  if (!keys.length) throw new Error("Empty update");
+  const bad = keys.filter(k => !BUILDING_FIELDS.includes(k));
+  if (bad.length) throw new Error(`Field(s) not allowed: ${bad.join(", ")}`);
+  const isBuilding = doc.system?.terrain === "building" || (doc.system?.terrain === "rubble" && Number(doc.system?.damage) > 0);
+  if (!isBuilding) throw new Error("Not a building");
+  if ("system.damage" in data) {
+    const d = data["system.damage"];
+    if (!Number.isInteger(d) || d < 0 || d > Number(doc.system?.cf ?? 0)) throw new Error("Building damage out of range");
+  }
+  if ("system.terrain" in data && !["rubble", "building"].includes(data["system.terrain"])) throw new Error("A building can only collapse to rubble");
   await doc.update(data);
   return true;
 }

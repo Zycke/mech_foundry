@@ -9,7 +9,7 @@
  *   current phase, what's still pending, with a manual "done" tick per unit.
  */
 import { currentPhaseKey, currentTurnKey } from "./tw-turn.mjs";
-import { MOVE_MODES, mechEffectiveMP, movedThisTurn, vehicleEffectiveCruise } from "./tw-movement.mjs";
+import { MOVE_MODES, mechEffectiveMP, movedThisTurn, mpBreakdown, vehicleEffectiveCruise } from "./tw-movement.mjs";
 import { firedThisTurn, heatResolvedThisTurn } from "./tw-combat.mjs";
 import { physicalThisTurn } from "./tw-physical.mjs";
 import { pendingPSR } from "./tw-psr.mjs";
@@ -17,6 +17,7 @@ import { isAero } from "./tw-aero.mjs";
 import { unitDestroyed } from "./tw-status.mjs";
 import { GROUND_HEX_M } from "./tw-scale.mjs";
 import { turnsCostMP } from "./tw-facing.mjs";
+import { hexAt, terrainRegions, tokenCenter, unitBase, unitElevation } from "./tw-terrain.mjs";
 
 const num = (v) => Number(v) || 0;
 const esc = (t) => String(t ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -52,16 +53,22 @@ export function movementLimit(actor, mode = movedThisTurn(actor).mode) {
  * A warning when a move takes the unit past its limit this turn, or null.
  * @param {Actor} actor
  * @param {number} hexes  total hexes moved this turn after the move
+ * @param {number} turns  total facing changes; `terrain` total terrain MP (map)
  */
-export function movementWarning(actor, hexes, turns = null, backward = null) {
+export function movementWarning(actor, hexes, turns = null, backward = null, terrain = null) {
   const mv = movedThisTurn(actor);
   const lim = movementLimit(actor, mv.mode);
   if (!lim) return null;
   const t = turns ?? mv.turns;
   const back = backward ?? mv.backward;
-  // MP spent: hexes plus hexside turns ('Mechs / ground vehicles, not when jumping).
-  const mp = hexes + (turnsCostMP(actor, mv.mode) ? t : 0);
-  const spent = mp === hexes ? `${hexes} hex${hexes === 1 ? '' : 'es'} (${hexes * GROUND_HEX_M} m)` : `${mp} MP (${hexes} hex${hexes === 1 ? '' : 'es'} + ${t} facing change${t === 1 ? '' : 's'})`;
+  const ter = mv.mode === 'jumped' ? 0 : (terrain ?? mv.terrain);
+  // MP spent: hexes plus hexside turns ('Mechs / ground vehicles, not when jumping) plus terrain.
+  const turnMP = turnsCostMP(actor, mv.mode) ? t : 0;
+  const mp = hexes + turnMP + ter;
+  const bits = [`${hexes} hex${hexes === 1 ? '' : 'es'}`];
+  if (turnMP) bits.push(`${t} facing change${t === 1 ? '' : 's'}`);
+  if (ter) bits.push(`${ter} for terrain`);
+  const spent = mp === hexes ? `${hexes} hex${hexes === 1 ? '' : 'es'} (${hexes * GROUND_HEX_M} m)` : `${mp} MP (${bits.join(' + ')})`;
   // Units can't run (flank) while backing up.
   if (back > 0 && mv.mode === 'ran' && mp > lim.walk && ['mech', 'ground_vehicle'].includes(actor.type)) {
     return `${actor.name} moved backward this turn, so it can't use ${lim.runLabel} MP: ${spent} is more than its ${lim.walkLabel} MP of ${lim.walk}.`;
@@ -77,10 +84,9 @@ export function movementWarning(actor, hexes, turns = null, backward = null) {
   return `${over}.`;
 }
 
-/** "5 hexes + 2 turns" / "5 hexes" for this turn's movement. */
+/** "7 MP: 5 hexes + 2 turns" / "5 hexes" for this turn's movement. */
 export function mpText(mv) {
-  const h = `${mv.hexes} hex${mv.hexes === 1 ? '' : 'es'}`;
-  return mv.mp > mv.hexes ? `${h} + ${mv.mp - mv.hexes} turn${mv.mp - mv.hexes === 1 ? '' : 's'}` : h;
+  return mpBreakdown(mv);
 }
 
 /** Is the phase rule on? (world setting; on by default) */
@@ -221,12 +227,26 @@ export function registerPhaseEnforcement() {
     const why = moveBlockReason(doc);
     if (why) { ui.notifications.warn(why); return false; }
     const actor = doc.actor;
+    // A displaced unit (pushed, charged, death from above): how many levels it drops.
+    if (actor && ('x' in changes || 'y' in changes) && game.combat?.phaseName !== 'Movement' && mayMoveOutOfPhase(actor)) {
+      const regions = terrainRegions(doc.parent ?? globalThis.canvas?.scene);
+      if (regions.length) {
+        const src = doc._source ?? doc;
+        const elev = unitElevation(actor, doc);
+        const from = hexAt(tokenCenter(doc, src), regions);
+        const to = hexAt(tokenCenter(doc, { x: changes.x ?? src.x, y: changes.y ?? src.y }), regions);
+        options.mfDrop = unitBase(actor, from, elev) - unitBase(actor, to, elev);
+      }
+    }
     if (!actor || !currentTurnKey() || !(options.mfMovedMeters || options.mfMovedHexes || options.mfTurns || options.mfBackward)) return;
     const cur = movedThisTurn(actor);
     const hexes = options.mfMovedMeters
       ? Math.max(1, Math.ceil((cur.meters + options.mfMovedMeters) / GROUND_HEX_M - 0.05))
       : cur.hexes + num(options.mfMovedHexes);
-    const warn = movementWarning(actor, hexes, cur.turns + num(options.mfTurns), cur.backward + num(options.mfBackward));
+    const ter = options.mfTerrain;
+    const warns = [movementWarning(actor, hexes, cur.turns + num(options.mfTurns), cur.backward + num(options.mfBackward), cur.terrain + num(ter?.mp))];
+    if (ter?.prohibited?.length) warns.push(`${actor.name} moved through prohibited terrain: ${ter.prohibited.join('; ')}.`);
+    const warn = warns.filter(Boolean).join(' ');
     if (!warn) return;
     ui.notifications.warn(warn);
     const gms = game.users?.filter(u => u.isGM).map(u => u.id) ?? [];
@@ -234,12 +254,23 @@ export function registerPhaseEnforcement() {
       ChatMessage.create({ whisper: gms, speaker: ChatMessage.getSpeaker({ actor }), content: `<div class="mech-foundry tw-phase-psr"><i class="fas fa-shoe-prints"></i> ${esc(warn)}</div>` });
     }
   });
-  // A displacing physical attack's move is used up once the token moves.
-  Hooks.on("updateToken", (doc, changes, options, userId) => {
+  // A displacing physical attack's move is used up once the token moves. Displaced
+  // into a hex more than one level lower, the unit falls (TW; MegaMek displacement).
+  Hooks.on("updateToken", async (doc, changes, options, userId) => {
     if (userId !== game.user.id || (!('x' in changes) && !('y' in changes))) return;
     const actor = doc.actor;
     if (!actor || game.combat?.phaseName === 'Movement' || !mayMoveOutOfPhase(actor)) return;
-    if (actor.isOwner) actor.update({ 'flags.mech-foundry.mayMove': null });
+    const drop = num(options.mfDrop);
+    const falls = drop > 1 && !(actor.type === 'ground_vehicle' && ['vtol', 'wige'].includes(actor.system?.movementType));
+    if (actor.isOwner || game.user.isGM) {
+      await actor.update({ 'flags.mech-foundry.mayMove': null, ...(falls ? { 'flags.mech-foundry.fallDrop': { key: currentTurnKey(), levels: drop } } : {}) });
+    }
+    if (!falls) return;
+    const text = `${actor.name} was displaced ${drop} levels down and falls: use Fall… on its sheet (${drop} levels filled in).`;
+    ui.notifications.warn(text);
+    const gms = game.users?.filter?.(u => u.isGM).map(u => u.id) ?? [];
+    await ChatMessage.create({ whisper: [...new Set([game.user.id, ...gms])], speaker: ChatMessage.getSpeaker({ actor }),
+      content: `<div class="mech-foundry tw-phase-psr"><i class="fas fa-person-falling"></i> ${esc(text)}</div>` });
   });
   // Keep the GM checklist current as units move, fire and resolve heat.
   let pending = null;
