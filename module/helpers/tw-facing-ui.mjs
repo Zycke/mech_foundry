@@ -101,50 +101,43 @@ function addHudButtons(hud, html) {
 /* ------------------------------------------------------------------ */
 
 const rad = (bearingDeg) => (bearingDeg - 90) * Math.PI / 180; // bearing (clockwise from up) → PIXI angle
-const SECTOR_STYLE = { forward: [0xf2a53a, 0.14], side: [0x8b98a3, 0.08], rear: [0xd9483b, 0.12] };
+// Arc fills: forward (the torso's facing) amber, both sides blue-grey, rear red.
+const SECTOR_STYLE = { forward: [0xf2a53a, 0.22], side: [0x6f9fd8, 0.16], rear: [0xe0443a, 0.2] };
+const SECTOR_LABEL = { forward: 'F', side: 'S', rear: 'R' };
+const SECTOR_ORDER = { side: 0, rear: 1, forward: 2 }; // forward drawn last so its edges stay crisp
 const LEGS = 0xf2a53a;   // amber: the legs / hull (the token's rotation)
 const TORSO = 0x5fd3e6;  // cyan: a 'Mech's torso when twisted
 const OUTLINE = 0x14181c;
 
-/** The marker container on a token: { root, g (graphics), label (twist badge) }. */
+/** The marker container on a token: { root, g (graphics), arcLabels (F / S / S / R) }. */
 function markerParts(token) {
   let m = token.mfFacing;
   if (!m || m.root?.destroyed) {
     const root = new PIXI.Container();
     root.eventMode = 'none';
     const g = root.addChild(new PIXI.Graphics());
-    const label = root.addChild(new PIXI.Text('', { fontFamily: 'Roboto Condensed, Signika, sans-serif', fontSize: 14, fontWeight: '700', fill: TORSO, stroke: OUTLINE, strokeThickness: 3 }));
+    // One letter per arc (F / S / S / R) at its outer edge.
+    const arcLabels = [0, 1, 2, 3].map(() => root.addChild(new PIXI.Text('', { fontFamily: 'Roboto Condensed, Signika, sans-serif', fontSize: 15, fontWeight: '700', fill: 0xffffff, stroke: OUTLINE, strokeThickness: 3 })));
     token.addChild(root);
-    m = token.mfFacing = { root, g, label };
+    m = token.mfFacing = { root, g, arcLabels };
   }
   return m;
-}
-
-/** A dashed arc (radius R, from bearing a to bearing b). */
-function dashedArc(g, R, a, b, color, alpha) {
-  g.lineStyle(1.5, color, alpha);
-  for (let d = a; d < b; d += 12) {
-    const e = Math.min(b, d + 7);
-    g.moveTo(Math.cos(rad(d)) * R, Math.sin(rad(d)) * R).arc(0, 0, R, rad(d), rad(e));
-  }
-  g.lineStyle(0);
 }
 
 /**
  * Draw (or clear) a unit token's markers. The solid amber wedge is where the
  * legs (hull) face — the token's rotation, which sets the hit table. A 'Mech's
- * twisted torso adds a cyan chevron inside the edge, an arc joining the two and
- * an "↻ R" / "↺ L" badge. When the unit is selected its firing arcs are shaded
- * from the torso's facing, with the legs' front (the forward 180° of the hit
- * table) as a dashed amber line when the torso is twisted.
+ * twisted torso adds a matching cyan wedge where the torso faces. When the unit
+ * is selected its firing arcs are shaded from the torso's facing.
  */
 export function drawFacing(token) {
   try {
     const actor = token?.actor;
     const show = MARKED.has(actor?.type) && setting('showFacing', true) !== false;
-    if (!show) { const m = token?.mfFacing; if (m && !m.root?.destroyed) { m.g.clear(); m.label.text = ''; } return; }
-    const { root, g, label } = markerParts(token);
+    if (!show) { const m = token?.mfFacing; if (m && !m.root?.destroyed) { m.g.clear(); for (const t of m.arcLabels) t.text = ''; } return; }
+    const { root, g, arcLabels } = markerParts(token);
     g.clear();
+    for (const t of arcLabels) t.text = '';
     const w = token.w, h = token.h, r = Math.max(w, h) / 2;
     root.position.set(w / 2, h / 2);
     const legs = tokenFacing(token.document) * 60;
@@ -153,33 +146,34 @@ export function drawFacing(token) {
     // Firing arcs of the selected unit (about three hexes out), all from the torso.
     if (token.controlled && setting('showFiringArcs', true) !== false) {
       const R = Math.max(r * 2, pixelsPerMeter() * GROUND_HEX_M * 3);
-      for (const sct of arcSectors(actor)) {
+      const sectors = [...arcSectors(actor)].sort((a, b) => SECTOR_ORDER[a.kind] - SECTOR_ORDER[b.kind]);
+      sectors.forEach((sct, i) => {
         const [color, alpha] = SECTOR_STYLE[sct.kind];
-        g.beginFill(color, alpha).lineStyle(1, color, alpha * 3);
+        g.beginFill(color, alpha).lineStyle(2, color, 0.9);
         g.moveTo(0, 0).arc(0, 0, R, rad(torso + sct.from), rad(torso + sct.to)).lineTo(0, 0);
         g.endFill();
-      }
-      // Twisted: where the legs point — the hit table's front half.
-      if (twist) dashedArc(g, R * 0.6, legs - 90, legs + 90, LEGS, 0.9);
+        // Its letter just inside the outer edge, on the arc's centre line.
+        const t = arcLabels[i];
+        if (!t) return;
+        const mid = rad(torso + (sct.from + sct.to) / 2);
+        t.text = SECTOR_LABEL[sct.kind];
+        t.style.fill = color;
+        t.position.set(Math.cos(mid) * R * 0.86 - t.width / 2, Math.sin(mid) * R * 0.86 - t.height / 2);
+      });
+      g.lineStyle(0);
     }
-    const tri = (deg, tipOut, baseIn, half, color, alpha) => {
+    // A notched arrowhead on the token's edge, pointing along a bearing (narrow and
+    // notched so it reads the right way at any of the six facings).
+    const wedge = (deg, color) => {
       const a = rad(deg), px = Math.cos(a), py = Math.sin(a), qx = -py, qy = px;
-      g.beginFill(color, alpha).lineStyle(1, OUTLINE, 0.9);
-      g.drawPolygon([px * tipOut, py * tipOut, px * baseIn + qx * half, py * baseIn + qy * half, px * baseIn - qx * half, py * baseIn - qy * half]);
+      const tip = r + Math.max(10, r * 0.36), back = r - 4, notch = back + Math.max(4, r * 0.12), half = Math.max(6, r * 0.2);
+      g.beginFill(color, 0.95).lineStyle(1, OUTLINE, 0.9);
+      g.drawPolygon([px * tip, py * tip, px * back + qx * half, py * back + qy * half, px * notch, py * notch, px * back - qx * half, py * back - qy * half]);
       g.endFill();
     };
-    // Legs: the solid amber wedge on the edge.
-    tri(legs, r + Math.max(8, r * 0.28), r - 2, Math.max(6, r * 0.22), LEGS, 0.95);
-    if (twist) {
-      // Torso: a cyan chevron just inside the edge, joined to the legs' wedge by an arc.
-      const lo = Math.min(legs, torso), hi = Math.max(legs, torso);
-      g.lineStyle(2, TORSO, 0.9).moveTo(Math.cos(rad(lo)) * r * 0.86, Math.sin(rad(lo)) * r * 0.86)
-        .arc(0, 0, r * 0.86, rad(lo), rad(hi));
-      g.lineStyle(0);
-      tri(torso, r * 0.94, r * 0.62, Math.max(5, r * 0.2), TORSO, 0.95);
-      label.text = twist > 0 ? '↻ R' : '↺ L';
-      label.position.set(r * 0.55, -r - label.height * 0.9);
-    } else label.text = '';
+    // Legs: amber; a twisted torso: the same arrow in cyan.
+    wedge(legs, LEGS);
+    if (twist) wedge(torso, TORSO);
   } catch (err) {
     console.warn("mech-foundry | facing marker", err);
   }
