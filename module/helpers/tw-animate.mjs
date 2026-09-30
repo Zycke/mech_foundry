@@ -11,7 +11,7 @@
  *
  * What flies: one projectile per missile / pellet / Ultra or Rotary shot (the
  * Cluster Hits Table result decides how many land on the target), one for any
- * other weapon. Misses land off to the side, farther for a bigger miss.
+ * other weapon. Misses land just outside the target token's edge.
  * Out-of-range, jammed and Streak-no-lock shots don't animate.
  */
 
@@ -52,15 +52,45 @@ export function shotProjectiles(weapon, shot) {
 }
 
 /**
- * Where a missed projectile lands: past or beside the target, 15 m plus 10 m
- * for each point it missed by (at most 60 m), within 60° of straight on.
+ * Where a missed projectile lands: just outside the target token's edge — 15–50 %
+ * of its radius beyond it — at a random angle, never on a line that would
+ * cross the token (a shot "through" the target would read as a hit), so it
+ * flies past a side or falls short.
+ * @param {{x,y}} from     the attacker's centre
+ * @param {{x,y}} to       the target's centre
+ * @param {number} radius  the target token's radius in pixels
  */
-export function missPoint(from, to, margin = 1, pxPerMeter = 1, rand = Math.random) {
-  const meters = Math.min(60, 15 + 10 * Math.max(0, num(margin)));
-  const base = Math.atan2(to.y - from.y, to.x - from.x);
-  const angle = base + (rand() * 2 - 1) * Math.PI / 3;
-  const d = meters * (0.6 + 0.4 * rand()) * pxPerMeter;
-  return { x: to.x + Math.cos(angle) * d, y: to.y + Math.sin(angle) * d };
+export function missPoint(from, to, radius, rand = Math.random) {
+  const R = Math.max(1, num(radius));
+  const clear = (p) => segDist(to, from, p) > R;
+  for (let tries = 0; tries < 24; tries++) {
+    const angle = rand() * 2 * Math.PI;
+    const d = R * (1.15 + 0.35 * rand());
+    const p = { x: to.x + Math.cos(angle) * d, y: to.y + Math.sin(angle) * d };
+    if (clear(p)) return p;
+  }
+  // Fallback: square to the line of fire, off one side.
+  const base = Math.atan2(to.y - from.y, to.x - from.x) + (rand() < 0.5 ? 1 : -1) * Math.PI / 2;
+  return { x: to.x + Math.cos(base) * R * 1.3, y: to.y + Math.sin(base) * R * 1.3 };
+}
+
+/** Distance from point p to the segment a–b. */
+function segDist(p, a, b) {
+  const dx = b.x - a.x, dy = b.y - a.y;
+  const L2 = dx * dx + dy * dy;
+  const t = L2 ? Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / L2)) : 0;
+  return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy));
+}
+
+/**
+ * The target's radius in pixels: half the larger side of its token, or half a
+ * 30 m hex for a building's wall point (no token).
+ */
+export function targetRadius(target, pxPerMeter = 1) {
+  const size = num(globalThis.canvas?.grid?.size) || 100;
+  const w = num(target?.w) || num(target?.document?.width) * size;
+  const h = num(target?.h) || num(target?.document?.height) * size;
+  return Math.max(w, h) > 0 ? Math.max(w, h) / 2 : 15 * pxPerMeter;
 }
 
 /** Pixels per metre on the current scene (tw-scale.mjs, imported lazily to keep this leaf light). */
@@ -78,8 +108,9 @@ async function playSequencer(source, target, weapon, shot, proj, startDelay, ppm
   const hitSet = new Set();
   while (hitSet.size < proj.hits) hitSet.add(Math.floor(Math.random() * proj.count));
   const to = target.center ?? target;
+  const radius = targetRadius(target, ppm);
   for (let i = 0; i < proj.count; i++) {
-    const dest = !hitSet.has(i) ? missPoint(source.center, to, shot.margin, ppm) : isToken(target) ? target : to;
+    const dest = !hitSet.has(i) ? missPoint(source.center, to, radius) : isToken(target) ? target : to;
     let fx = seq.effect().file(weapon.animation).atLocation(source).stretchTo(dest).delay(startDelay + i * gap);
     if (num(weapon.animationDuration) > 0) fx = fx.duration(num(weapon.animationDuration));
   }

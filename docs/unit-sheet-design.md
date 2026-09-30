@@ -257,8 +257,8 @@ criticals and cluster grouping:
   when it is active (`AutomatedAnimations.playAnimation` with the weapon's name), which matches
   it in its Automatic Recognition menu; unit weapons are sheet rows, not Items, so they can't hold
   A-A's own item settings. One projectile per missile / pellet / Ultra or Rotary shot, as many
-  reaching the target as the Cluster Hits Table says; misses land beside it (15 m + 10 m per point
-  missed, at most 60 m). Out-of-range, jammed and Streak-no-lock shots don't animate; a building
+  reaching the target as the Cluster Hits Table says; misses land at a random spot just outside the
+  target token's edge (15–50 % of its radius beyond it), never on a line through the token. Out-of-range, jammed and Streak-no-lock shots don't animate; a building
   target gets Sequencer animations only. The volley's animations play before its chat card.
 - **Electronic warfare** (`module/helpers/tw-ecm.mjs`; TW, checked against MegaMek ComputeECM /
   ComputeC3Spotter): sides come from token disposition (different dispositions are enemies; a
