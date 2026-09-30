@@ -1679,7 +1679,7 @@ export function weaponToHitPreview(actor) {
  * { from, to, attackerFacing, twist, side } — side = attack direction from the
  * target's facing ('Mech or vehicle / aerospace table).
  */
-function facingContext(actor, attackerToken, target, targetActor) {
+export function facingContext(actor, attackerToken, target, targetActor) {
   if (!attackerToken?.center || !target?.center) return null;
   const from = attackerToken.center, to = target.center;
   const targetFacing = tokenFacing(target.document ?? target);

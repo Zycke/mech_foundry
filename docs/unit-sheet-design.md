@@ -358,7 +358,13 @@ criticals and cluster grouping:
   PSRs: kicked 0, missed kick 0, pushed 0, charged +2 / charging +2, DFA target +2 / attacker +4;
   a missed DFA is a 2-level fall on the rear. Displacement (pushes, charges, DFAs) is noted on
   the card for the players to move tokens. Level differences come from the map's terrain
-  regions (see Map terrain). Not modelled: TSM, the wrecking ball's self-hit on a 2, the spot
+  regions (see Map terrain). Arcs ('Mechs, from the tokens' facing; MegaMek attack actions):
+  punches and one-arm physical weapons reach that arm's arc (left 240–60°, right 300–120°),
+  clubs and forward-only weapons (pile driver, wrecking ball) the forward arc — all from the
+  torso, so a twist turns them; kicks the forward arc of the legs; pushes only the hex straight
+  ahead of the feet (±30°); charges and death from above have no arc. The dialog lists the
+  attacks that can't reach and pre-selects the attack direction from the target's facing; an
+  out-of-arc attack is refused unless "Ignore arc" is ticked (noted on the card). Not modelled: TSM, the wrecking ball's self-hit on a 2, the spot
   welder's +2 heat.
 - **Initiative** (A Time of War): 2D6, highest acts first, ties to the higher RFL; Combat Sense
   rolls 3D6 keeping the highest two. Combat units roll with their linked pilot / crew

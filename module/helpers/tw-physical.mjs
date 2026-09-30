@@ -26,8 +26,9 @@ import { isInfantry, untargetableReason } from "./tw-infantry.mjs";
 import { fiveGroups, pilotingFor, postCard, resolveFall } from "./tw-falls.mjs";
 import { roundLabel, summaryContext, volleyCard, volleySummary, withSummary } from "./tw-cards.mjs";
 import {
-  ATTACK_DIRECTIONS, MECH_LOC_LABEL, REAR_ARMOR_KEY, firedThisTurn, locationGone, measureHexes, resolveDamageAgainst
+  ATTACK_DIRECTIONS, MECH_LOC_LABEL, REAR_ARMOR_KEY, facingContext, firedThisTurn, locationGone, measureHexes, resolveDamageAgainst
 } from "./tw-combat.mjs";
+import { physicalArcCheck } from "./tw-facing.mjs";
 import { skillHint, skillMod } from "./tw-skills.mjs";
 import { mapAttackTerrain, unitElevation, unitHeight } from "./tw-terrain.mjs";
 import { beginBuildingTarget, beginShield, chooseBuildingTarget, collapseBuilding, endBuildingTarget, endShield, postOccupantCard } from "./tw-buildings.mjs";
@@ -267,13 +268,19 @@ export async function physicalAttack(actor) {
   const auto = autoAttackMods(actor, null, targetActor).filter(m => ['crewInjury', 'crewFatigue', 'attackerMove', 'attackerProne', 'attackerSkid', 'targetMove', 'immobile', 'battleArmor', 'targetSkid'].includes(m.key));
   const modRows = auto.map(x => `
       <div class="form-group"><label>${esc(x.label)}${x.hint ? ` <span class="tw-hint">${esc(x.hint)}</span>` : ''}</label><input type="number" name="auto_${x.key}" value="${x.value}" /></div>`).join('');
-  const dirOpts = ATTACK_DIRECTIONS.map(d => `<option value="${d.key}">${d.label}</option>`).join('');
+  // Facing: which attacks can reach the target (arcs), and the side it's hit on.
+  const facing = attackerToken && target?.center ? facingContext(actor, attackerToken, target, targetActor) : null;
+  const arcCtx = facing && actor.type === 'mech' ? { from: facing.from, to: facing.to, facing: facing.attackerFacing, twist: facing.twist } : null;
+  const outOfArc = arcCtx ? ['punchL', 'punchR', 'kick', 'club', 'push']
+    .map(t => ({ t, c: physicalArcCheck({ type: t, ...arcCtx }) })).filter(x => !x.c.ok) : [];
+  const dirOpts = ATTACK_DIRECTIONS.map(d => `<option value="${d.key}"${d.key === facing?.side ? ' selected' : ''}>${d.label}${d.key === facing?.side ? ' (from facing)' : ''}</option>`).join('');
 
   const content = `
     <div class="tw-attack-dialog">
       <p class="tw-atk-target">${target ? `Target: <strong>${esc(target.name)}</strong>${dist != null ? ` · ${dist} hex${dist === 1 ? '' : 'es'}` : ''}` : 'No target selected.'}</p>
       ${target?.building ? `<p class="tw-fire-map"><i class="fa-solid fa-building"></i> ${esc(target.name)}: ${esc(target.building.cls)} building, CF ${target.building.cf} — adjacent: automatic hit (punch, kick, club or physical weapon)</p>` : ''}
       ${map ? `<p class="tw-fire-map"><i class="fa-solid fa-mountain"></i> From the map: ${esc(levelText(levelDiff))} · target in ${esc(map.summary.find(x => x.startsWith('target in'))?.slice(10) ?? 'clear')}</p>` : ''}
+      ${outOfArc.length ? `<p class="tw-fire-twist tw-phys-arc">Out of arc: ${esc(outOfArc.map(x => PHYSICAL_TYPES[x.t].label).join(', '))} — ${esc(outOfArc[0].c.why)}${outOfArc.length > 1 ? ' (and similar)' : ''}.</p>` : ''}
       <div class="form-group"><label>Attack</label><select name="type">${typeOpts}</select></div>
       ${actor.type === 'mech' ? `
       <div class="form-group"><label>Physical weapon <span class="tw-hint">if attacking with one</span></label><select name="weaponKey">${wpnOpts}</select></div>
@@ -289,6 +296,7 @@ export async function physicalAttack(actor) {
       </fieldset>
       <div class="form-group"><label>Other modifier <span class="tw-hint">+ makes the roll harder, − easier</span></label><input type="number" name="other" value="0" /></div>
       <div class="form-group"><label>Attack Direction</label><select name="direction">${dirOpts}</select></div>
+      ${arcCtx ? `<div class="form-group"><label>Ignore arc <span class="tw-hint">make an attack outside its arc anyway (noted on the card)</span></label><input type="checkbox" name="ignoreArc" /></div>` : ''}
     </div>`;
 
   const r = await DialogV2.wait({
@@ -314,7 +322,9 @@ export async function physicalAttack(actor) {
             },
             other: num(f.other.value),
             direction: f.direction.value,
-            levelDiff
+            levelDiff,
+            arcCtx,
+            ignoreArc: !!f.ignoreArc?.checked
           };
         }
       },
@@ -344,6 +354,12 @@ export async function resolvePhysicalAttack(actor, target, r) {
 
   const spec = PHYSICAL_TYPES[type];
   const pw = type === 'weapon' ? PHYSICAL_WEAPONS[weaponKey] : null;
+  // Arc (a 'Mech's facing on the map): refused unless the player ticked "Ignore arc".
+  const arc = r.arcCtx && actor.type === 'mech' ? physicalArcCheck({ type, arm, forward: !!pw?.forward, ...r.arcCtx }) : null;
+  if (arc && !arc.ok && !r.ignoreArc) {
+    ui.notifications.warn(`${pw ? pw.label : spec.label}: ${arc.why}. Tick "Ignore arc" to make it anyway.`);
+    return null;
+  }
   const act = actuatorEffects(actor, type, arm, weaponKey);
   const mods = [
     skillMod(actor, 'piloting', r.piloting),
@@ -490,6 +506,7 @@ export async function resolvePhysicalAttack(actor, target, r) {
   const shielded = await endShield();
   const hitBuilding = target?.building ? await endBuildingTarget(rolls) : null;
   if (target?.building) shownNotes.unshift(`${target.name}: automatic hit (adjacent building)`);
+  if (arc && !arc.ok) shownNotes.push(`Made outside its ${arc.label} (${arc.why}) — allowed by the player / GM.`);
   const card = volleyCard({
     alerts: [shielded?.alert, hitBuilding?.alert].filter(Boolean),
     title: spec.label, icon: 'fa-hand-fist',

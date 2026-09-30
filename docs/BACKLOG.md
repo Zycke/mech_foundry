@@ -197,7 +197,7 @@ Rules detail for what *is* automated lives in `docs/unit-sheet-design.md`.
 - [x] Elevation and level differences (physical attacks by level, LOS, falls into lower
       hexes when displaced) — from the map's terrain regions.
 - [x] Facing (auto-facing, Q/E, torso twist), facing MP costs, firing arcs, attack direction
-      from facing. Open: physical-attack arcs (punch / kick / club by arc), quad 'Mechs,
+      from facing, physical-attack arcs (punch / kick / club / push). Open: quad 'Mechs, mule kicks,
       lateral shifts, rear-facing arm flips, turret facing for locked turrets (assumed forward),
       facing costs for aerospace (thrust, via the Maneuver helper today).
 - [ ] Token displacement: pushes, charges, death from above, skids, sideslips (chat card
