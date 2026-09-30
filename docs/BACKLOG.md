@@ -28,7 +28,7 @@ Priority things to test in a real v14 world:
 
 ---
 
-## 1. ApplicationV2 sheet migration (in progress)
+## 1. ApplicationV2 sheet migration (sheets done; old dialogs left)
 
 - [x] `MechFoundryActorSheetV2` base + Ship/Vehicle stubs — **tested, loads & works**.
 - [x] **Item sheet** → V2 (class + all 14 templates + effects partial) — **tested & working**
@@ -37,12 +37,15 @@ Priority things to test in a real v14 world:
       Finances; numeric crew+troop pools, per-location departments, MTOE unit boxes,
       structured logistics). Personnel/Organization tabs and the old personnel-item /
       skill-averaging model retired.
-- [ ] **Character/NPC sheet** → V2 — the big one (~3,200 lines of jQuery
-      `activateListeners` → V2 `actions` + `_onRender`; drag/drop; inline dialogs).
+- [x] **Character/NPC sheet** → V2 class (`ActorSheetV2`, parts, header controls, drag/drop).
+- [ ] Character sheet internals: its ~60 jQuery-style handlers still run through
+      `_activateSheetListeners` in `_onRender`; converting them to V2 `actions` is optional
+      cleanup (works as is).
 - [ ] Move the large **inline-HTML dialogs** (First Aid/Stabilize/Surgery, weapon
       attack, XP) into `templates/dialog/` + `renderTemplate`, and localize.
-- [ ] Replace `Dialog` (appv1) with `DialogV2`, and the V1 sheets' global
-      `TextEditor.enrichHTML` with `foundry.applications.ux.TextEditor.implementation`.
+- [ ] Replace `Dialog` (appv1) with `DialogV2`: 17 in the character sheet (First Aid /
+      Stabilize / Surgery, XP, confirmations…) and 1 in `opposed-rolls.mjs` — needed before V1 is
+      removed (~v16); every unit-combat dialog already uses DialogV2.
 
 ## 2. Design decisions needed (do NOT auto-fix)
 
