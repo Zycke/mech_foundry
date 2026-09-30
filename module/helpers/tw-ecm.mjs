@@ -22,7 +22,7 @@
  *   bubble, or whose link to the master crosses one, is cut off.
  */
 import { unitGear } from "./tw-gear.mjs";
-import { GROUND_HEX_M, pixelsPerMeter } from "./tw-scale.mjs";
+import { GROUND_HEX_M, metersToHexes, pixelsPerMeter } from "./tw-scale.mjs";
 import { mapAttackTerrain, unitElevation } from "./tw-terrain.mjs";
 import { unitDestroyed } from "./tw-status.mjs";
 
@@ -58,6 +58,12 @@ export function ecmSources(tokens = sceneTokens()) {
   return out;
 }
 
+/**
+ * Canvas pixels → Total Warfare hexes, the same way weapon range is measured
+ * (tw-scale.mjs metersToHexes: distance in metres, 30 m a hex, rounded up).
+ */
+const hexesFromPx = (px, pxPerHex) => metersToHexes(px / pxPerHex * GROUND_HEX_M, GROUND_HEX_M);
+
 /** Distance from point p to the segment a–b (pixels). */
 function segDist(p, a, b) {
   const dx = b.x - a.x, dy = b.y - a.y;
@@ -68,22 +74,22 @@ function segDist(p, a, b) {
 
 /**
  * The enemy ECM (to `side`) covering any hex on the line from a to b — a single
- * hex when b is omitted — or null. A hex is covered within the suite's range
- * (hex distances round like the rest of the system's map measurement).
+ * hex when b is omitted — or null. Covered when the closest point of the line
+ * is within the suite's range, measured like weapon range (6 hexes = 180 m).
  */
 export function enemyECM(side, a, b = a, { sources = ecmSources(), pxPerHex = pxHex() } = {}) {
   if (!a || !b || !(pxPerHex > 0)) return null;
   for (const s of sources) {
     if (s.side === side) continue;
-    if (segDist(centerOf(s.token), a, b) / pxPerHex < s.range + 0.5) return s;
+    if (hexesFromPx(segDist(centerOf(s.token), a, b), pxPerHex) <= s.range) return s;
   }
   return null;
 }
 
-/** Hex distance between two tokens. */
+/** Hex distance between two tokens, measured like weapon range. */
 function hexDist(a, b, pxPerHex = pxHex()) {
   const p = centerOf(a), q = centerOf(b);
-  return p && q && pxPerHex > 0 ? Math.floor(Math.hypot(q.x - p.x, q.y - p.y) / pxPerHex + 0.5 + 1e-9) : null;
+  return p && q && pxPerHex > 0 ? hexesFromPx(Math.hypot(q.x - p.x, q.y - p.y), pxPerHex) : null;
 }
 
 /**

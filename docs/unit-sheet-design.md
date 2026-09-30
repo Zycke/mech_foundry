@@ -253,7 +253,8 @@ criticals and cluster grouping:
 - **Electronic warfare** (`module/helpers/tw-ecm.mjs`; TW, checked against MegaMek ComputeECM /
   ComputeC3Spotter): sides come from token disposition (different dispositions are enemies; a
   secret token counts as hostile). An ECM suite projects a 6-hex bubble (not while shut down or
-  destroyed). Enemy ECM over any hex of the line of fire cancels Artemis IV / V; over the
+  destroyed). All of these distances are measured like weapon range: straight-line metres on the
+  gridless map, 30 m a hex, rounded up (6 hexes reach 181 m). Enemy ECM over any hex of the line of fire cancels Artemis IV / V; over the
   target's hex, the Narc bonus. Active probe (Beagle 4, Clan 5, Bloodhound 8, light 3 hexes; not
   through enemy ECM; a C3 mate's counts): −1 against a target in or behind woods. C3: units with
   the same network name (and side) use the range bracket of the linked member closest to the
