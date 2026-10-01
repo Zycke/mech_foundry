@@ -73,7 +73,9 @@ export class MechFoundryUnitSheet extends MechFoundryActorSheetV2 {
       outOfAmmo: usesAmmo(w) && !hasAnyAmmo(w),
       special: weaponSpecialContext(w, this.actor),
       animDelay: w.animationDelay === undefined || w.animationDelay === '' ? 50 : w.animationDelay,
-      animDuration: Number(w.animationDuration) || 0
+      animDuration: Number(w.animationDuration) || 0,
+      animShots: Number(w.animationShots) > 0 ? Number(w.animationShots) : -1,
+      animSize: Number(w.animationSize) > 0 ? Number(w.animationSize) : 1
     }));
     const turnKey = currentTurnKey();
     const markers = { narc: narcPods(this.actor), tagged: taggedThisTurn(this.actor, turnKey), extHeat: Math.min(EXTERNAL_HEAT_CAP, externalHeat(this.actor, turnKey)) };
@@ -108,9 +110,27 @@ export class MechFoundryUnitSheet extends MechFoundryActorSheetV2 {
   /** @override */
   _onRender(context, options) {
     super._onRender?.(context, options);
+    this._keepDetailsOpen();
     if (this.#boundElement !== this.element) {
       this._activateUnitListeners($(this.element));
       this.#boundElement = this.element;
+    }
+  }
+
+  /** `<details data-keep="…">` blocks the user opened stay open through re-renders. */
+  #openDetails = new Set();
+
+  /**
+   * Every field change re-renders the sheet, which would redraw these blocks
+   * closed; only a click on the block's own title opens or closes it.
+   */
+  _keepDetailsOpen() {
+    for (const d of this.element?.querySelectorAll?.('details[data-keep]') ?? []) {
+      if (this.#openDetails.has(d.dataset.keep)) d.open = true;
+      d.addEventListener('toggle', () => {
+        if (d.open) this.#openDetails.add(d.dataset.keep);
+        else this.#openDetails.delete(d.dataset.keep);
+      });
     }
   }
 
@@ -234,6 +254,9 @@ export class MechFoundryUnitSheet extends MechFoundryActorSheetV2 {
       if (!wpn) return false;
       // Blank means "automatic": the catalog to-hit modifier, cluster rounds from Rds.
       if (field === 'toHit') wpn[field] = String(raw).trim() === '' ? '' : (parseInt(raw) || 0);
+      // Animation shots: -1 (or blank) = the rules count; size: a multiplier (blank = 1).
+      else if (field === 'animationShots') wpn[field] = String(raw).trim() === '' ? -1 : Math.max(-1, parseInt(raw) || 0) || -1;
+      else if (field === 'animationSize') { const v = parseFloat(raw); wpn[field] = Number.isFinite(v) && v > 0 ? v : 1; }
       else if (field === 'clusterAmmo' || Object.values(MUNITIONS).some(m => m.field === field)) wpn[field] = String(raw).trim() === '' ? '' : Math.max(0, parseInt(raw) || 0);
       else wpn[field] = numeric ? Math.max(0, parseInt(raw) || 0) : raw;
     });

@@ -9,6 +9,10 @@
  * by name in its Automatic Recognition menu ("Medium Laser", "LRM" …) — unit
  * weapons are sheet rows, not Items, so they can't carry A-A's own item flags.
  *
+ * Per weapon (Sequencer only): an impact effect played on the target for each
+ * projectile that hits, a number of shots to draw (-1 = the rules count below)
+ * and a size multiplier.
+ *
  * What flies: one projectile per missile / pellet / Ultra or Rotary shot (the
  * Cluster Hits Table result decides how many land on the target), one for any
  * other weapon. Misses land just outside the target token's edge.
@@ -19,6 +23,8 @@ const num = (v) => Number(v) || 0;
 
 /** Most projectiles drawn for one weapon (an LRM 20 draws all 20). */
 const MAX_PROJECTILES = 20;
+/** Most projectiles a weapon's own "Shots" setting may ask for. */
+const MAX_SETTING_SHOTS = 50;
 /** Pause between one weapon's animation and the next in a volley (ms). */
 const WEAPON_STAGGER = 250;
 
@@ -101,20 +107,56 @@ async function pxPerMeter() {
 /** A real canvas token (not a building's wall point, which is only a location). */
 const isToken = (t) => t?.document?.documentName === 'Token';
 
-/** One weapon's Sequencer animation: every projectile, hits to the target, misses scattered. */
+/**
+ * The projectile count after the weapon's "Shots" setting: -1 (or blank) keeps
+ * the rules count; a positive number replaces it, with the same share landing on
+ * the target (at least one when anything hit, none on a miss).
+ */
+export function plannedProjectiles(proj, shotsSetting) {
+  const n = Math.trunc(num(shotsSetting));
+  if (!proj || shotsSetting === undefined || shotsSetting === '' || n <= 0) return proj;
+  const count = Math.min(MAX_SETTING_SHOTS, n);
+  if (!proj.hits) return { count, hits: 0 };
+  return { count, hits: Math.min(count, Math.max(1, Math.round(count * proj.hits / proj.count))) };
+}
+
+/** The weapon's animation size multiplier (1 = as drawn). */
+export function animationSize(weapon) {
+  const v = Number(weapon?.animationSize);
+  return Number.isFinite(v) && v > 0 ? v : 1;
+}
+
+/**
+ * One weapon's Sequencer animation: each projectile flies (hits to the target,
+ * misses just past its edge), and on a hit the impact effect plays on the
+ * target as that projectile arrives. Each projectile is its own sequence, so
+ * its impact waits for it alone.
+ */
 async function playSequencer(source, target, weapon, shot, proj, startDelay, ppm) {
-  const seq = new globalThis.Sequence();
   const gap = weapon.animationDelay === undefined || weapon.animationDelay === '' ? 50 : num(weapon.animationDelay);
+  const size = animationSize(weapon);
+  const impact = String(weapon.animationImpact ?? '').trim();
   const hitSet = new Set();
   while (hitSet.size < proj.hits) hitSet.add(Math.floor(Math.random() * proj.count));
   const to = target.center ?? target;
   const radius = targetRadius(target, ppm);
+  const runs = [];
   for (let i = 0; i < proj.count; i++) {
-    const dest = !hitSet.has(i) ? missPoint(source.center, to, radius) : isToken(target) ? target : to;
+    const hit = hitSet.has(i);
+    const dest = !hit ? missPoint(source.center, to, radius) : isToken(target) ? target : to;
+    const seq = new globalThis.Sequence();
     let fx = seq.effect().file(weapon.animation).atLocation(source).stretchTo(dest).delay(startDelay + i * gap);
     if (num(weapon.animationDuration) > 0) fx = fx.duration(num(weapon.animationDuration));
+    if (size !== 1) fx = fx.scale(size);
+    if (hit && impact) {
+      // The impact starts just before the projectile's end, on the target.
+      fx.waitUntilFinished(-100);
+      const im = seq.effect().file(impact).atLocation(dest);
+      if (isToken(target)) im.scaleToObject(size); else if (size !== 1) im.scale(size);
+    }
+    runs.push(seq.play());
   }
-  await seq.play();
+  await Promise.all(runs);
 }
 
 /**
@@ -130,7 +172,7 @@ export async function animateVolley(attackerToken, target, fired = []) {
   const jobs = [];
   let slot = 0;
   for (const { weapon, shot } of fired) {
-    const proj = shotProjectiles(weapon, shot);
+    const proj = plannedProjectiles(shotProjectiles(weapon, shot), weapon.animationShots);
     if (!proj) continue;
     const startDelay = slot++ * WEAPON_STAGGER;
     try {

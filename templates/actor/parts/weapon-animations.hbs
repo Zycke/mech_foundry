@@ -1,25 +1,37 @@
-{{!-- Weapon-fire animations (tw-animate.mjs): a Sequencer path per weapon; blank = Automated Animations by weapon name. --}}
+{{!-- Weapon-fire animations (tw-animate.mjs): a Sequencer path per weapon; blank = Automated Animations by weapon name.
+     data-keep: the sheet keeps it open through re-renders (only the title opens / closes it). --}}
 {{#if weapons.length}}
-<details class="mf-anim">
+<details class="mf-anim" data-keep="weapon-animations">
   <summary>Weapon animations
     <span class="mf-anim-status" title="Sequencer plays the paths below; Automated Animations handles weapons left blank, matched by name in its Automatic Recognition menu.">
-      <span class="mf-gear-chip {{#if anim.sequencer}}on{{else}}destroyed{{/if}}">Sequencer</span>
-      <span class="mf-gear-chip {{#if anim.aa}}on{{else}}destroyed{{/if}}">Automated Animations</span>
+      <span class="mf-gear-chip {{#if anim.sequencer}}on{{else}}destroyed{{/if}}" title="{{#if anim.sequencer}}Sequencer is active{{else}}Sequencer is not active{{/if}}">Sequencer</span>
+      <span class="mf-gear-chip {{#if anim.aa}}on{{else}}destroyed{{/if}}" title="{{#if anim.aa}}Automated Animations is active{{else}}Automated Animations is not active{{/if}}">Automated Animations</span>
     </span>
   </summary>
   <table class="mf-anim-table">
-    <thead><tr><th>Weapon</th><th title="Sequencer / JB2A database path, e.g. jb2a.lasershot.red. Blank: Automated Animations matches the weapon by name, if it's installed.">Sequencer path</th><th title="Delay between projectiles (missiles, pellets, Ultra / Rotary shots), ms">Delay</th><th title="Projectile travel time, ms (0 = the animation's own)">Travel</th></tr></thead>
+    <thead><tr>
+      <th>Weapon</th>
+      <th title="Sequencer / JB2A database path of the projectile, e.g. jb2a.lasershot.red. Blank: Automated Animations matches the weapon by name, if it's installed.">Projectile path</th>
+      <th title="Effect played on the target for each projectile that hits, e.g. jb2a.explosion.01.orange. Blank: none.">Impact path</th>
+      <th title="Projectiles to draw. -1: the rules count (one per missile, pellet or Ultra / Rotary shot; one otherwise). The same share of them hits as in the attack.">Shots</th>
+      <th title="Size multiplier for the projectile and the impact (1 = as drawn; the impact is sized to the target token)">Size</th>
+      <th title="Delay between projectiles, ms">Delay</th>
+      <th title="Projectile travel time, ms (0 = the animation's own)">Travel</th>
+    </tr></thead>
     <tbody>
       {{#each weapons}}
       <tr>
         <td class="mf-anim-name">{{name}}{{#if location}} <span class="hint">({{location}})</span>{{/if}}</td>
         <td><input type="text" class="weapon-field" data-weapon-id="{{id}}" data-field="animation" value="{{animation}}" placeholder="{{#if ../anim.aa}}blank: Automated Animations{{else}}e.g. jb2a.lasershot.red{{/if}}" {{#unless ../editable}}disabled{{/unless}} /></td>
+        <td><input type="text" class="weapon-field" data-weapon-id="{{id}}" data-field="animationImpact" value="{{animationImpact}}" placeholder="e.g. jb2a.explosion.01.orange" {{#unless ../editable}}disabled{{/unless}} /></td>
+        <td><input type="number" min="-1" step="1" class="weapon-field n" data-weapon-id="{{id}}" data-field="animationShots" value="{{animShots}}" {{#unless ../editable}}disabled{{/unless}} /></td>
+        <td><input type="number" min="0.1" step="0.1" class="weapon-field n" data-weapon-id="{{id}}" data-field="animationSize" value="{{animSize}}" {{#unless ../editable}}disabled{{/unless}} /></td>
         <td><input type="number" min="0" step="10" class="weapon-field n" data-weapon-id="{{id}}" data-field="animationDelay" value="{{animDelay}}" {{#unless ../editable}}disabled{{/unless}} /></td>
         <td><input type="number" min="0" step="50" class="weapon-field n" data-weapon-id="{{id}}" data-field="animationDuration" value="{{animDuration}}" {{#unless ../editable}}disabled{{/unless}} /></td>
       </tr>
       {{/each}}
     </tbody>
   </table>
-  <p class="hint">One projectile per missile, pellet or Ultra / Rotary shot (the Cluster Hits Table decides how many reach the target); misses land just outside the target's edge. Visual only — nothing here changes a roll.</p>
+  <p class="hint">By default one projectile flies per missile, pellet or Ultra / Rotary shot, and the Cluster Hits Table decides how many reach the target; misses land just outside the target's edge. Impact, Shots and Size apply to Sequencer paths (Automated Animations uses its own settings). Visual only — nothing here changes a roll.</p>
 </details>
 {{/if}}
