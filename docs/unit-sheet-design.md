@@ -141,7 +141,9 @@ criticals and cluster grouping:
   it also sets the hit table). A twisted torso adds the same arrowhead in cyan where the torso
   faces. The selected unit's arcs are
   shaded from the torso's facing — forward amber, the two sides blue-grey, rear red — each
-  outlined in its colour and lettered F / S / S / R (client settings). The hit table still goes
+  outlined in its colour and lettered F / S / S / R (client settings). The arcs are a short fan
+  sized from the token — they reach "Firing Arc Length" token widths past its edge (default 1) —
+  and Shift+F or the token HUD's pie-chart button shows / hides them. The hit table still goes
   by the legs (the amber arrow), twisted or not. The twist also shows on the
   'Mech sheet's movement panel ("Torso: twisted right", with left / straighten / right
   buttons), in the fire dialog's header, on the attack card's context line ("twisted R") and

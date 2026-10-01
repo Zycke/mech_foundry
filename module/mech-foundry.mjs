@@ -52,7 +52,7 @@ import { initGMRelay } from "./helpers/gm-relay.mjs";
 import { registerMovementTracking } from "./helpers/tw-movement.mjs";
 import { checklistHTML, registerPhaseEnforcement, toggleChecklist } from "./helpers/tw-phase.mjs";
 import { acknowledge, roundSummaryHTML } from "./helpers/tw-round.mjs";
-import { registerFacingDisplay, registerFacingKeys } from "./helpers/tw-facing-ui.mjs";
+import { redrawAllFacing, registerFacingDisplay, registerFacingKeys } from "./helpers/tw-facing-ui.mjs";
 import { registerTerrainBehavior, registerTerrainDisplay } from "./helpers/tw-terrain.mjs";
 import { rollPendingPSR } from "./helpers/tw-falls.mjs";
 import { resolveAeroHeat, rollPendingControl } from "./helpers/tw-aero-flight.mjs";
@@ -549,12 +549,21 @@ function _registerSystemSettings() {
   game.settings.register("mech-foundry", "showFacing", {
     name: "MECHFOUNDRY.SettingShowFacing",
     hint: "MECHFOUNDRY.SettingShowFacingHint",
-    scope: "client", config: true, type: Boolean, default: true
+    scope: "client", config: true, type: Boolean, default: true,
+    onChange: () => redrawAllFacing()
   });
   game.settings.register("mech-foundry", "showFiringArcs", {
     name: "MECHFOUNDRY.SettingShowFiringArcs",
     hint: "MECHFOUNDRY.SettingShowFiringArcsHint",
-    scope: "client", config: true, type: Boolean, default: true
+    scope: "client", config: true, type: Boolean, default: true,
+    onChange: () => redrawAllFacing()
+  });
+  game.settings.register("mech-foundry", "firingArcLength", {
+    name: "MECHFOUNDRY.SettingFiringArcLength",
+    hint: "MECHFOUNDRY.SettingFiringArcLengthHint",
+    scope: "client", config: true, type: Number, default: 1,
+    range: { min: 0.5, max: 10, step: 0.5 },
+    onChange: () => redrawAllFacing()
   });
   registerFacingKeys();
 
