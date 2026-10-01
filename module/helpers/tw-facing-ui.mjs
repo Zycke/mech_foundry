@@ -5,11 +5,12 @@
  *   'Mech's torso one hexside for this turn;
  * - the same four controls on the token HUD;
  * - a facing marker on 'Mech, vehicle and aerospace tokens, a torso-twist
- *   marker, and (client setting) the firing arcs of the selected unit.
+ *   marker, and (client setting) the firing arcs of the selected unit — a short
+ *   fan around the token (its length a client setting, in token widths),
+ *   toggled with Shift+F or the token HUD button.
  */
 import { currentTurnKey } from "./tw-turn.mjs";
 import { arcSectors, facingRotation, torsoTwist, tokenFacing } from "./tw-facing.mjs";
-import { pixelsPerMeter, GROUND_HEX_M } from "./tw-scale.mjs";
 
 const TURNING = new Set(['mech', 'ground_vehicle', 'battle_armor', 'infantry', 'aerospace_fighter', 'small_craft']);
 const MARKED = new Set(['mech', 'ground_vehicle', 'aerospace_fighter', 'small_craft']);
@@ -63,6 +64,25 @@ export function twistText(actor, short = false) {
   return short ? `twisted ${t > 0 ? 'R' : 'L'}` : `twisted ${t > 0 ? 'right' : 'left'}`;
 }
 
+/** Firing arcs on / off for this user (client setting); redraws the markers. */
+export async function toggleFiringArcs(on = !setting('showFiringArcs', true)) {
+  await game.settings.set("mech-foundry", "showFiringArcs", !!on);
+  ui.notifications.info(`Firing arcs ${on ? 'shown' : 'hidden'}.`);
+  return !!on;
+}
+
+/** Redraw every token's facing marker (after a display setting changes). */
+export function redrawAllFacing() {
+  for (const t of canvas?.tokens?.placeables ?? []) drawFacing(t);
+}
+
+/** How far the arcs reach from the token's centre, in pixels: the token radius plus `length` token widths. */
+export function arcRadius(tokenWidth, tokenHeight, length = 1) {
+  const size = Math.max(Number(tokenWidth) || 0, Number(tokenHeight) || 0);
+  const n = Number(length);
+  return size / 2 + size * (Number.isFinite(n) && n > 0 ? n : 1);
+}
+
 /** Keybindings (call during init). */
 export function registerFacingKeys() {
   const kb = (name, label, key, shift, fn) => game.keybindings.register("mech-foundry", name, {
@@ -74,6 +94,11 @@ export function registerFacingKeys() {
   kb("turnRight", "Turn unit right one hexside", "KeyE", false, () => turnSelected(1));
   kb("twistLeft", "Twist 'Mech torso left", "KeyQ", true, () => twistSelected(-1));
   kb("twistRight", "Twist 'Mech torso right", "KeyE", true, () => twistSelected(1));
+  game.keybindings.register("mech-foundry", "toggleFiringArcs", {
+    name: "Show / hide firing arcs", editable: [{ key: "KeyF", modifiers: ["Shift"] }],
+    onDown: () => { toggleFiringArcs(); return true; },
+    precedence: CONST.KEYBINDING_PRECEDENCE.NORMAL
+  });
 }
 
 /** Token HUD buttons (turn left / right, and torso twist for 'Mechs). */
@@ -87,13 +112,20 @@ function addHudButtons(hud, html) {
   const btn = (cls, icon, title) => `<button type="button" class="control-icon ${cls}" title="${title}" aria-label="${title}"><i class="fas ${icon}"></i></button>`;
   const now = token.actor.type === 'mech' ? ` — torso now ${twistText(token.actor) || 'straight'}` : '';
   wrap.innerHTML = btn('mf-turn-l', 'fa-rotate-left', 'Turn left one hexside (Q)') + btn('mf-turn-r', 'fa-rotate-right', 'Turn right one hexside (E)')
-    + (token.actor.type === 'mech' ? btn('mf-twist-l', 'fa-arrow-rotate-left', `Twist torso left (Shift+Q)${now}`) + btn('mf-twist-r', 'fa-arrow-rotate-right', `Twist torso right (Shift+E)${now}`) : '');
+    + (token.actor.type === 'mech' ? btn('mf-twist-l', 'fa-arrow-rotate-left', `Twist torso left (Shift+Q)${now}`) + btn('mf-twist-r', 'fa-arrow-rotate-right', `Twist torso right (Shift+E)${now}`) : '')
+    + (MARKED.has(token.actor.type) ? btn(`mf-arcs${setting('showFiringArcs', true) !== false ? ' active' : ''}`, 'fa-chart-pie', `${setting('showFiringArcs', true) !== false ? 'Hide' : 'Show'} firing arcs (Shift+F)`) : '');
   col.append(wrap);
   const on = (sel, fn) => wrap.querySelector(sel)?.addEventListener('click', (ev) => { ev.preventDefault(); ev.stopPropagation(); fn(); });
   on('.mf-turn-l', () => turnSelected(-1, [token]));
   on('.mf-turn-r', () => turnSelected(1, [token]));
   on('.mf-twist-l', () => twistSelected(-1, [token]));
   on('.mf-twist-r', () => twistSelected(1, [token]));
+  on('.mf-arcs', async () => {
+    const shown = await toggleFiringArcs();
+    const b = wrap.querySelector('.mf-arcs');
+    b?.classList.toggle('active', shown);
+    b?.setAttribute('title', `${shown ? 'Hide' : 'Show'} firing arcs (Shift+F)`);
+  });
 }
 
 /* ------------------------------------------------------------------ */
@@ -143,9 +175,9 @@ export function drawFacing(token) {
     const legs = tokenFacing(token.document) * 60;
     const twist = actor.type === 'mech' ? torsoTwist(actor, currentTurnKey()) : 0;
     const torso = legs + twist * 60;
-    // Firing arcs of the selected unit (about three hexes out), all from the torso.
+    // Firing arcs of the selected unit, a short fan around the token (client setting: length in token widths), all from the torso.
     if (token.controlled && setting('showFiringArcs', true) !== false) {
-      const R = Math.max(r * 2, pixelsPerMeter() * GROUND_HEX_M * 3);
+      const R = arcRadius(w, h, setting('firingArcLength', 1));
       const sectors = [...arcSectors(actor)].sort((a, b) => SECTOR_ORDER[a.kind] - SECTOR_ORDER[b.kind]);
       sectors.forEach((sct, i) => {
         const [color, alpha] = SECTOR_STYLE[sct.kind];
